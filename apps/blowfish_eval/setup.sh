@@ -1,7 +1,7 @@
 cp ../apps/blowfish_eval/runArguments* ${BASEPATH}${RUNFOLDER}/
 cp ../apps/blowfish_eval/agent_00* ${BASEPATH}${RUNFOLDER}/
 make -C ../makefiles/ clean
-make -C ../makefiles/ precision=single  app=blowfish_eval -j4
+make -C ../makefiles/  precision=single  app=blowfish_eval -j4
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --appSettings runArguments00.sh "

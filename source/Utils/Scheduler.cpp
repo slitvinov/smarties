@@ -46,7 +46,11 @@ void Master::run()
     }
     while ( ! learnersInitialized() ) usleep(5);
   }
-  if( not bTrain ) return;
+  if( not bTrain ) {
+   for(size_t i=0; i<worker_replies.size(); i++) worker_replies[i].join();
+   worker_replies.clear();
+   return;
+  }
 
   profiler->reset();
   for(const auto& L : learners) L->initializeLearner();
@@ -87,7 +91,6 @@ void Master::run()
 
 void Master::processWorker(const std::vector<int> workers)
 {
-
   while(1)
   {
     if( not bTrain && getMinSeqId() >= totNumSteps) break;

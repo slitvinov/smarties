@@ -17,13 +17,10 @@ endif
 endif
 
 ifneq "$(findstring falcon,$(shell hostname))" ""
-ifeq "0" "1"
 
-LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
+CPPFLAGS += -I${HDF5_INCLUDE}
+LIBS += -L${HDF5_LIB} -lhdf5
 
-else
-LIBS+= -lhdf5
-endif
 endif
 
 ifneq "$(findstring eu-, $(shell hostname))" ""

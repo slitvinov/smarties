@@ -20,19 +20,19 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
-    abort();
+    fflush(0); abort();
   }
   if(state_comp<0) {
     printf("FATAL: Cannot set negative state space dimensionality.\n");
-    abort();
+    fflush(0); abort();
   }
   if(action_comp<=0) {
     printf("FATAL: Cannot set negative number of action degrees of freedom.\n");
-    abort();
+    fflush(0); abort();
   }
   if(number_of_agents<=0) {
     printf("FATAL: Cannot set negative number of agents.\n");
-    abort();
+    fflush(0); abort();
   }
   assert(state_comp>=0 && action_comp>0 && number_of_agents>0);
   nAgents = number_of_agents;
@@ -97,7 +97,9 @@ void Communicator::sendState(const int iAgent, const envInfo status,
     }
   #endif
 
-  if(std::fabs(data_action[0]-AGENT_KILLSIGNAL)<2.2e-16) abort();
+  if(std::fabs(data_action[0]-AGENT_KILLSIGNAL)<2.2e-16) {
+    printf("Recvd kill signal: it's all over.\n"); fflush(0); abort();
+  }
 
   if (status >= TERM_COMM) {
     seq_id++;
@@ -153,7 +155,7 @@ void Communicator::set_action_options(const int action_option_num)
   assert(!sentStateActionShape);
   if(nActions != 1) {
     printf("FATAL: Communicator::set_action_options perceived more than 1 action degree of freedom, but only one number of actions provided.\n");
-    abort();
+    fflush(0); abort();
   }
   assert(1 == nActions);
   discrete_actions = 1;
@@ -329,7 +331,7 @@ Communicator::Communicator(int socket, bool spawn, std::mt19937& G, int _bTr,
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
-    abort();
+    fflush(0); abort();
   }
   socket_id = socket;
 }

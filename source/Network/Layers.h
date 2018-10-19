@@ -279,7 +279,6 @@ class ResidualLayer: public Layer
     nnReal* const ret = curr->Y(ID);
     std::memset( ret, 0, size * sizeof(nnReal) );
     for (Uint i=1; i<=2; i++) {
-      assert(curr->sizes[ID-i] == size);
       const nnReal* const inputs = curr->Y(ID-i);
       for (Uint j=0; j<size; j++) ret[j] += inputs[j];
     }
