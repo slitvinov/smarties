@@ -169,8 +169,7 @@ void sockRecv(int fd, double*const data, const int size)
   int bytes = recv_all(fd, data, size);
   if (bytes <= 0) {
     printf("Lost contact with smarties, aborting..\n");
-    fflush(0);
-    abort();
+    fflush(0); abort();
   }
 }
 
@@ -179,7 +178,6 @@ void sockSend(int fd, double*const data, const int size)
   int bytes = send_all(fd, data, size);
   if (bytes <= 0) {
     printf("Lost contact with smarties, aborting..\n");
-    fflush(0);
-    abort();
+    fflush(0); abort();
   }
 }

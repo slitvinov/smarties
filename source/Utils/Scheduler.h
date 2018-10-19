@@ -127,7 +127,7 @@ public:
   ~Master()
   {
     bExit = 1;
-    for(int i=0; i<nWorkers_own; i++) worker_replies[i].join();
+    for(size_t i=0; i<worker_replies.size(); i++) worker_replies[i].join();
     for(const auto& A : agents) A->writeBuffer(learn_rank);
     _dispose_object(env);
     _dispose_object(profiler);
