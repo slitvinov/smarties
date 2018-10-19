@@ -124,9 +124,9 @@ void Communicator_internal::ext_app_run()
     numStepTSet = numStepTSet * size_inside_app / S.nWorkers;
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
 
-    //redirect_stdout_init();
+    redirect_stdout_init();
     app_main(commptr, comm_inside_app, args.size()-1, args.data(), numStepTSet);
-    //redirect_stdout_finalize();
+    redirect_stdout_finalize();
 
     for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
     chdir(initd);  // go up one level

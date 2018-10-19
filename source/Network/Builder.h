@@ -161,9 +161,13 @@ public:
     tgt_weights->copy(weights); //copy weights onto tgt_weights
 
     // Allocate a gradient for each thread.
-    Vgrad.resize(nThreads, nullptr);
+    #ifdef MIX_CMA_ADAM
+      Vgrad.resize(nThreads*CMApopSize, nullptr);
+    #else
+      Vgrad.resize(nThreads, nullptr);
+    #endif
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-    for (Uint i=0; i<nThreads; i++)
+    for (Uint i=0; i<Vgrad.size(); i++)
       #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
         Vgrad[i] = allocate_parameters(layers, mpisize);
 
@@ -182,11 +186,17 @@ public:
 
     _dispose_object(test);
 
-    popW = initWpop(weights, pop_size, mpisize);
+    popW = initWpop(weights, CMApopSize, mpisize);
 
     net = new Network(this, settings);
-    if(pop_size>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
-    else opt = new AdamOptimizer(settings, weights,tgt_weights, popW, Vgrad);
+    if(CMApopSize>1)
+    #ifdef MIX_CMA_ADAM
+      opt = new AdamCMA_Optimizer(settings, weights,tgt_weights, popW, Vgrad);
+    #else
+      opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
+    #endif
+      else opt = new AdamOptimizer(settings, weights,tgt_weights, popW, Vgrad);
+
     return net;
   }
 
@@ -241,7 +251,7 @@ private:
 public:
   const Settings & settings;
   const Uint nThreads = settings.nThreads;
-  const Uint pop_size = settings.ESpopSize;
+  const Uint CMApopSize = settings.ESpopSize;
   const Uint mpisize = settings.learner_size;
   Uint nInputs=0, nOutputs=0, nLayers=0;
   Real gradClip = 1;

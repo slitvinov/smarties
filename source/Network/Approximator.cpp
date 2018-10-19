@@ -226,7 +226,7 @@ void Approximator::backward(Rvec grad, const Uint samp, const Uint thrID,
   act[ind]->addOutputDelta(grad);
 }
 
-void Approximator::gradient(const Uint thrID) const {
+void Approximator::gradient(const Uint thrID, const int wID) const {
   if(error_placements[thrID]<=0) die("");
 
   nAddedGradients++;
@@ -239,11 +239,12 @@ void Approximator::gradient(const Uint thrID) const {
   {
     const int last_error = error_placements[thrID];
     for(Uint j = 0; j<=extraAlloc; j++) {
-      const Uint netID = thrID + j*nThreads;
+      const Uint netID  = thrID +   j*nThreads;
+      const Uint gradID = thrID + wID*nThreads;
       const vector<Activation*>& act = series[netID];
       for (int i=0; i<last_error; i++) assert(act[i]->written == true);
 
-      net->backProp(act, last_error, net->Vgrad[thrID]);
+      net->backProp(act, last_error, net->Vgrad[gradID]);
       //for(int i=0;i<last_error&&!thrID;i++)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
       if(input->net == nullptr || blockInpGrad) continue;
 

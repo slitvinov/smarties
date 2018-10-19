@@ -117,7 +117,7 @@ struct Approximator
 
   void backward(Rvec grad, const Uint samp, const Uint thrID, const int USE_ACT=0) const;
 
-  void gradient(const Uint thrID) const;
+  void gradient(const Uint thrID, const int wID = 0) const;
 
   void prepareUpdate();
 
