@@ -92,6 +92,7 @@ void Communicator_internal::ext_app_run()
 {
   assert(workerGroup>=0 && rank_inside_app>=0 &&comm_inside_app!=MPI_COMM_NULL);
   vector<string> argsFiles = split(paramfile, ',');
+  if(nStepPerFile == "" and argsFiles.size() == 1) nStepPerFile = "0";
   vector<string> stepNmbrs = split(nStepPerFile, ',');
   if(argsFiles.size() not_eq stepNmbrs.size())
     die("error reading settings: nStepPappSett and appSettings");
@@ -123,9 +124,9 @@ void Communicator_internal::ext_app_run()
     numStepTSet = numStepTSet * size_inside_app / S.nWorkers;
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
 
-    redirect_stdout_init();
+    //redirect_stdout_init();
     app_main(commptr, comm_inside_app, args.size()-1, args.data(), numStepTSet);
-    redirect_stdout_finalize();
+    //redirect_stdout_finalize();
 
     for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
     chdir(initd);  // go up one level

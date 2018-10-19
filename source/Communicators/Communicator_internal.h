@@ -16,10 +16,10 @@ class Communicator_internal: public Communicator
  protected:
   const Settings& S;
   char initd[512];
-  const std::string execpath    = S.launchfile;
-  const std::string paramfile   = S.appSettings;
-  const std::string nStepPerFile= S.nStepPappSett;
-  const std::string setupfolder = S.setupFolder;
+  std::string execpath    = S.launchfile;
+  std::string paramfile   = S.appSettings;
+  std::string nStepPerFile= S.nStepPappSett;
+  std::string setupfolder = S.setupFolder;
   const int nOwnWorkers = S.nWorkers_own;
   const int bAsync = S.bAsync;
   const bool bSpawnApp = S.bSpawnApp;
