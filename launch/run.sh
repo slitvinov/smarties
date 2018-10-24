@@ -9,12 +9,6 @@
 HOST=`hostname`
 OS_D=`uname`
 
-if [ ${HOST:0:3} == 'eu-' ] #|| [ ${HOST:0:3} == 'eu-' ] ;
-then
-module rm open_mpi
-module load mvapich2/2.3rc1
-fi
-
 unset LSB_AFFINITY_HOSTFILE #euler cluster
 export MPICH_MAX_THREAD_SAFETY=multiple #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
@@ -47,7 +41,7 @@ if [ ${isOpenMPI} -ge 1 ]; then
 if [ ${OS_D} == 'Darwin' ] ; then
 mpirun -n ${NPROCESS} ./rl ${SETTINGS} | tee out.log
 else
-mpirun -n ${NPROCESS} --map-by numa:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESS} --map-by ppr:1:socket:pe=18  ./rl ${SETTINGS} | tee out.log
 fi
 else # mpich / mvapich
 #mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes ./rl ${SETTINGS} | tee out.log

@@ -72,13 +72,18 @@ int main (int argc, char** argv)
   S.bAsync = S.threadSafety>=MPI_THREAD_MULTIPLE;
   MPI_Comm_rank(MPI_COMM_WORLD, &S.world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &S.world_size);
+  if (! S.bAsync and S.world_rank == 0)
+    std::cout << "MPI implementation does not support MULTIPLE thread safety!"<<std::endl;
   omp_set_dynamic(0);
   #pragma omp parallel
   {
     int cpu_num; GETCPU(cpu_num); //sched_getcpu()
+    char hostname[1024];
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
     //#ifndef NDEBUG
-      printf("Rank %d Thread %3d  is running on CPU %3d\n",
-            S.world_rank, omp_get_thread_num(), cpu_num);
+      printf("Rank %d Thread %3d  is running on CPU %3d of hose %s\n",
+            S.world_rank, omp_get_thread_num(), cpu_num, hostname);
     //#endif
   }
 
