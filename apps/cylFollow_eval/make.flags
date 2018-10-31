@@ -1,5 +1,8 @@
+ifeq "$(precision)" "single"
 LIBS += -lfftw3f -lfftw3f_omp
-#LIBS += -lfftw3 -lfftw3_omp
+else
+LIBS += -lfftw3 -lfftw3_omp
+fi
 
 ME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -16,13 +19,10 @@ endif
 endif
 
 ifneq "$(findstring falcon,$(shell hostname))" ""
-ifeq "1" "1"
 
-LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
+CPPFLAGS += -I${HDF5_INCLUDE}
+LIBS += -L${HDF5_LIB} -lhdf5
 
-else
-LIBS+= -lhdf5
-endif
 endif
 
 ifneq "$(findstring eu-, $(shell hostname))" ""
@@ -36,6 +36,9 @@ LIBS+= -L/cluster/home/novatig/fftw-3.3.5/build_gnu/lib/
 endif
 endif
 
-ifneq "$(findstring daint, $(shell hostname))" ""
+ifneq "$(findstring daint,$(shell hostname))" ""
 LIBS+= -lhdf5 -lcufft
 endif
+
+
+
