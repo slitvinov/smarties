@@ -162,7 +162,7 @@ Rvec Approximator::forward(const Uint samp, const Uint thrID,
     forward(samp-1, thrID, std::max(USE_WGT, 0), 0);
 
   const Rvec inp = getInput(samp, thrID, USE_WGT);
-  //cout <<"Input : "<< print(inp) << endl; fflush(0);
+  //cout <<"USEW : "<< USE_WGT << endl; fflush(0);
   return getOutput(inp, ind, act[ind], thrID, USE_WGT);
 }
 

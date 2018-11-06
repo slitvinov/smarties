@@ -280,7 +280,6 @@ void StatsTracker::finalize(const LDvec&oldM, const LDvec&oldS)
 void StatsTracker::reduce_stats(const string base, const Uint iter)
 {
   const LDvec oldsum = avg, oldstd = std;
-  assert(cntVec.size()>1);
   advance();
   update();
   if(iter % 1000 == 0) printToFile(base);

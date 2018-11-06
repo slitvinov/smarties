@@ -24,6 +24,7 @@ SETTINGS+=" --learner ACER"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
+#SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --minTotObsNum 131072"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 131072"
