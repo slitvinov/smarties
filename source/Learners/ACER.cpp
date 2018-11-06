@@ -21,20 +21,21 @@ static inline Gaussian_policy prepare_policy(const Rvec&O,
 void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   const Uint thrID) const
 {
+  //printf("%u %u %u %u\n", seq, wID, bID, thrID);
   Sequence* const traj = data->get(seq);
   const int ndata = traj->tuples.size()-1;
   //policy : we need just 2 calls: pi pi_tilde
    F[0]->prepare_seq(traj, thrID, wID);
    F[1]->prepare_seq(traj, thrID, wID);
-  relay->prepare_seq(traj, thrID, ACT);
+  relay->prepare_seq(traj, thrID, VEC);
   //advantage : 1+nAexpect [A(s,a)] + 1 [A(s,a'), same normalization] calls
-   F[2]->prepare_seq(traj, thrID, 1+nAexpectation);
+   F[2]->prepare_seq(traj, thrID, wID);
 
   Rvec Vstates(ndata, 0);
-  vector<Rvec> policy_samples(ndata);
-  vector<Gaussian_policy> policies, policies_tgt;
+  std::vector<Rvec> policy_samples(ndata);
+  std::vector<Gaussian_policy> policies, policies_tgt;
   policies_tgt.reserve(ndata); policies.reserve(ndata);
-  vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
+  std::vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
 
   if(thrID==0) profiler->stop_start("FWD");
   for(Uint k=0; k<(Uint)ndata; k++)
@@ -47,10 +48,10 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
     const Rvec outVs = F[1]->forward(k, thrID);
 
     relay->set(policies[k].sampAct, k, thrID);
-    //if(thrID) cout << "Action: " << print(policies[k].sampAct) << endl;
+    //if(thrID==0) cout << "Action: " << print(policies[k].sampAct) << endl;
     const Rvec At = F[2]->forward_cur(k, thrID);
     policy_samples[k] = policies[k].sample(&generators[thrID]);
-    //if(thrID) cout << "Sample: " << print(policy_samples[k]) << endl;
+    //if(thrID==0) cout << "Sample: " << print(policy_samples[k]) << endl;
     relay->set(policy_samples[k], k, thrID);
     const Rvec Ap = F[2]->forward_cur<TGT>(k, thrID);
     advantages[k][0] = At[0]; advantages[k][1] = Ap[0]; Vstates[k] = outVs[0];
@@ -62,12 +63,11 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
     //cout << print(advantages[k]) << endl; fflush(0);
   }
   Real Q_RET = data->scaledReward(traj, ndata);
-  Real Q_OPC = data->scaledReward(traj, ndata);
   if ( not traj->ended ) {
     const Rvec v_term = F[1]->forward(ndata, thrID);
     Q_RET += gamma*v_term[0];
-    Q_OPC += gamma*v_term[0];
   }
+  Real Q_OPC = Q_RET;
   if(thrID==0)  profiler->stop_start("POL");
   for(int k=ndata-1; k>=0; k--)
   {
