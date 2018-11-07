@@ -93,6 +93,16 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
+      #if 0
+      for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; i++)
+      {
+        const nnReal* const W = weight + NOsimd*i;
+        alignas(32) nnReal ret[ARY_WIDTH] = {0};
+        #pragma omp simd //aligned(suminp, inputs, W : VEC_WIDTH)
+        for (Uint o = 0; o < NO; o++) ret[o % ARY_WIDTH] += W[o] * deltas[o];
+        for (Uint o = 0; o < ARY_WIDTH; o++) errors[i] += ret[o];
+      }
+      #else
       gemv(CblasRowMajor, CblasNoTrans,
         spanCompInpGrads,
         NO,
@@ -104,6 +114,7 @@ class Layer
         1,
         errors + startCompInpGrads,
         1);
+       #endif
     }
 
     if(NR && prev not_eq nullptr)
