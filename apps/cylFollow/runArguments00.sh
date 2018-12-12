@@ -1,1 +1,1 @@
-../launchSim.sh -bFreeSpace 0 -muteAll 1 -bpdx 16 -bpdy  8 -tdump 0 -nu 0.00001 -tend 0 -shapes 'halfDisk_radius=0.03125_xpos=0.1_bForced=1_bFixed=1_xvel=0.15_tAccel=5,stefanfish_L=0.2_xpos=0.4_bFixedy=1'
+../launchSim.sh -bFreeSpace 0 -muteAll 1 -bpdx 16 -bpdy  8 -tdump 0 -nu 0.000015625 -tend 0 -shapes 'halfDisk_radius=.03125_xpos=.1_bForced=1_bFixed=1_xvel=.125_tAccel=5,stefanfish_L=.2_xpos=.4_bFixedy=1'

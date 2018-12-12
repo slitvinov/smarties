@@ -26,13 +26,13 @@ SETTINGS+=" --learner VRACER"
 #Initialization of the standard deviation for all actions
 SETTINGS+=" --explNoise 0.2"
 #Number of time steps per gradient step
-SETTINGS+=" --obsPerStep 0.2"
+SETTINGS+=" --obsPerStep 0.5"
 #Number of samples before starting gradient steps
-SETTINGS+=" --minTotObsNum 131072"
+SETTINGS+=" --minTotObsNum 262144"
 #SETTINGS+=" --minTotObsNum 512"
 #Maximum size of the replay memory
 #SETTINGS+=" --minTotObsNum 16384"
-SETTINGS+=" --maxTotObsNum 131072"
+SETTINGS+=" --maxTotObsNum 262144"
 #Number of gradient steps before training ends
 SETTINGS+=" --totNumSteps 50000000"
 
@@ -47,6 +47,6 @@ SETTINGS+=" --penalTol 0.1"
 SETTINGS+=" --epsAnneal 0"
 
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 256"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

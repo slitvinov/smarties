@@ -100,7 +100,7 @@ lib: ext_app_test.o
 endif
 
 rl: $(OBJ_FILES) lib
-	$(CC) $(CPPFLAGS)  $(OBJ_FILES) $(LIBS) -o $@
+	$(CC) $(OBJ_FILES) $(LIBS) -o $@
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
