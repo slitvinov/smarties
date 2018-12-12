@@ -87,6 +87,8 @@ struct Approximator
 
   void prepare_one(Sequence*const traj, const Uint samp,
       const Uint thrID, const Uint wghtID) const;
+  void prepare(Sequence*const traj, const Uint samp, const Uint N,
+      const Uint thrID, const Uint wghtID) const;
 
   Rvec forward(const Uint samp, const Uint thrID,
     const int USE_WGT, const int USE_ACT, const int overwrite=0) const;

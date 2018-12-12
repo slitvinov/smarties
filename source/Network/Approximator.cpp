@@ -142,6 +142,26 @@ void Approximator::prepare_one(Sequence*const traj, const Uint samp,
   thread_seq[thrID] = traj;
 }
 
+void Approximator::prepare(Sequence*const traj, const Uint samp,
+    const Uint N, const Uint thrID, const Uint wghtID) const {
+  if(error_placements[thrID] > 0) die("");
+  // opc requires prediction of some states before samp for recurrencies
+  const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
+  // might need to predict the value of next state if samp not terminal state
+  const Uint nTotal = nRecurr + 1 + N;
+
+  input->prepare(traj, nTotal, samp - nRecurr, thrID);
+
+  for(Uint k=0; k < 1+extraAlloc; k++)
+    net->prepForBackProp(series[thrID + k*nThreads], nTotal);
+
+  net->prepForFwdProp(series_tgt[thrID], nTotal);
+
+  first_sample[thrID] = samp - nRecurr;
+  thread_Wind[thrID] = wghtID;
+  thread_seq[thrID] = traj;
+}
+
 Rvec Approximator::forward(const Uint samp, const Uint thrID,
   const int USE_WGT, const int USE_ACT, const int overwrite) const {
   if(USE_ACT>0) assert( (Uint) USE_ACT <= extraAlloc );

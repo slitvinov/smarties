@@ -20,6 +20,7 @@
 #else
 #include "cblas.h"
 #endif
+#include <immintrin.h>
 
 // Base class of all layer types. To insert a new layer type, overwrite all
 // virtual functions.
@@ -93,6 +94,17 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
+      #ifdef SINGLE_PREC
+      for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; i++)
+      {
+        const nnReal* const W = weight + NOsimd*i;
+        __m256 ret = _mm256_setzero_ps();
+        for (Uint o = 0; o < NO; o+=8) {
+         ret = _mm256_fmadd_ps(_mm256_load_ps(W+o), _mm256_load_ps(deltas+o), ret);
+        }
+        errors[i] += ((ret[0]+ret[4])+(ret[1]+ret[5])) + ((ret[2]+ret[6])+(ret[3]+ret[7]));
+      }
+      #else
       gemv(CblasRowMajor, CblasNoTrans,
         spanCompInpGrads,
         NO,
@@ -104,6 +116,7 @@ class Layer
         1,
         errors + startCompInpGrads,
         1);
+       #endif
     }
 
     if(NR && prev not_eq nullptr)
