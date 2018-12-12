@@ -25,8 +25,9 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
 {
   Sequence* const traj = data->get(seq);
   const int ndata = traj->tuples.size()-1;
-  std::uniform_int_distribution<Uint> dStart(0, std::max(ndata-SEQ_CUTOFF,0));
-  const int tstart = dStart(generators[thrID]);
+  std::uniform_int_distribution<Uint> dStart(0, ndata-1);
+  const int tst_samp = dStart(generators[thrID]);
+  const int tstart = std::min(tst_samp, std::max(ndata-SEQ_CUTOFF,0));
   const int tend   = std::min(ndata, tstart+SEQ_CUTOFF);
   const int nsteps = tend - tstart;
   //printf("%d %d %d %d\n", ndata, tstart, tend, nsteps);
