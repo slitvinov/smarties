@@ -33,7 +33,7 @@ class Learner
 
   const int learn_rank = settings.learner_rank;
   const int learn_size = settings.learner_size;
-
+  const int dropRule = settings.nnPdrop;
   // hyper-parameters:
   const Uint batchSize = settings.batchSize_loc;
   const Uint totNumSteps = settings.totNumSteps;

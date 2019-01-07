@@ -115,7 +115,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Real W = P.sampImpWeight; // \rho = \pi / \mu
   const Real A_RET = S->Q_RET[t] - val[0], D_RET = std::min((Real)1, W) * A_RET;
     // check whether importance weight is in 1/CmaxRet < c < CmaxRet
-  const bool isOff = S->isFarPolicy(t, W, CmaxRet, CinvRet);
+  const bool isOff = dropRule==1? false : S->isFarPolicy(t, W, CmaxRet,CinvRet);
 
   if( wID == 0 )
   {
@@ -132,17 +132,18 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   }
   else
   {
+    const Real BETA = dropRule==2? 1 : beta;
     assert(wID == 0);
     Rvec G = Rvec(F[0]->nOutputs(), 0);
-    #ifdef REFER_RULE1
     if(isOff)
+    {
       #ifdef DACER_useAlpha
-        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, alpha*(beta-1)), G);
+        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, alpha*(BETA-1)), G);
       #else //DACER_useAlpha
-        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu,        beta-1 ), G);
+        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu,        BETA-1 ), G);
       #endif //DACER_useAlpha
+    }
     else
-    #endif //REFER_RULE1
     {
       #ifdef DACER_useAlpha
         const Rvec G1 = P.policy_grad(P.sampAct, alpha * A_RET * W);
@@ -151,24 +152,21 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
         const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
         const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
       #endif //DACER_useAlpha
-      #ifdef REFER_RULE3
-        P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
-      #else //REFER_RULE3
-        P.finalize_grad(G1, G);
-      #endif //REFER_RULE3
+      P.finalize_grad(weightSum2Grads(G1, G2, BETA), G);
       trainInfo->trackPolicy(G1, G2, thrID);
+      #ifdef DACER_singleNet
+        assert(std::fabs(G[0])<1e-16); // make sure it was untouched
+        #ifdef DACER_useAlpha
+          G[0] = (1-alpha) * BETA * D_RET;
+        #else
+          G[0] = BETA * D_RET;
+        #endif
+      #endif
     }
 
     if(thrID==0) profiler->stop_start("BCK");
-    #ifdef DACER_singleNet
-      assert(std::fabs(G[0])<1e-16); // make sure it was untouched
-      #ifdef DACER_useAlpha
-        G[0] = (1-alpha) * beta * D_RET;
-      #else
-        G[0] = beta * D_RET;
-      #endif
-    #else
-      F[1]->backward( Rvec(1, beta * D_RET), t, thrID);
+    #ifndef DACER_singleNet
+      F[1]->backward( Rvec(1, D_RET), t, thrID);
       F[1]->gradient(thrID);  // backprop
     #endif
     F[0]->backward(G, t, thrID);
