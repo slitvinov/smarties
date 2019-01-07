@@ -13,7 +13,6 @@
 #include "../ReplayMemory/MemoryProcessing.h"
 #include "../Network/Approximator.h"
 
-#include <list>
 
 class Learner
 {

@@ -15,7 +15,6 @@
 //#include "Layer_IntFire.h"
 #include "Layer_LSTM.h"
 #include "Layer_MGU.h"
-#include <fstream>
 
 class Builder
 {

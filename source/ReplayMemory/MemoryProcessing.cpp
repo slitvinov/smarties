@@ -80,7 +80,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       // if WS==1 then varS is exact, otherwise update second moment
       // centered around current mean[k] (ie. E[(Sk-mean[k])^2])
       long double varS = SSum2[k]/count - MmM*MmM*(2*WS-WS*WS);
-      if(varS < numeric_limits<long double>::epsilon()) varS = 1;
+      if(varS < std::numeric_limits<long double>::epsilon()) varS = 1;
       std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
       invstd[k] = 1/(std[k]+EPS);
     }
@@ -223,7 +223,7 @@ void MemoryProcessing::finalize()
   RM->sampler->prepare(RM->needs_pass);
 }
 
-void MemoryProcessing::getMetrics(ostringstream& buff)
+void MemoryProcessing::getMetrics(std::ostringstream& buff)
 {
   Real avgR = 0;
   const long nSeq = nSequences.load();
@@ -245,13 +245,13 @@ void MemoryProcessing::getMetrics(ostringstream& buff)
   nPruned=0;
 }
 
-void MemoryProcessing::getHeaders(ostringstream& buff)
+void MemoryProcessing::getHeaders(std::ostringstream& buff)
 {
   buff <<
   "| avgR | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
 }
 
-FORGET MemoryProcessing::readERfilterAlgo(const string setting,
+FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   const bool bReFER)
 {
   if(setting == "oldest")     return OLDEST;

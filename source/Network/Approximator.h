@@ -9,8 +9,6 @@
 #pragma once
 #include "Encapsulator.h"
 
-#include <list>
-
 struct Aggregator;
 
 enum NET { CUR, TGT }; /* use CUR or TGT weights */

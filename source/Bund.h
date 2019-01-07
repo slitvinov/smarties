@@ -8,29 +8,22 @@
 
 #pragma once
 
-using namespace std;
+//using namespace std;
 
 #include <random>
 #include <vector>
 #include <cassert>
-#include <sstream>
-#include <cstring>
-#include <utility>
 #include <limits>
 #include <cmath>
-#include <immintrin.h>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdio.h>
-
 #include <omp.h>
 #include <mpi.h>
+
+#define REFER_RULE1
+#define REFER_RULE3
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ALGORITHM TWEAKS ////////////////////////////////
@@ -170,7 +163,7 @@ void _dispose_object(T *const& ptr)
 }
 
 template <typename T>
-inline string print(const vector<T> vals, const int width = -1)
+inline std::string print(const std::vector<T> vals, const int width = -1)
 {
   std::ostringstream o;
   if(!vals.size()) return o.str();
@@ -186,7 +179,7 @@ inline MPI_Comm MPIComDup(const MPI_Comm C) {
   return ret;
 }
 
-inline void real2SS(ostringstream&B,const Real V,const int W, const bool bPos)
+inline void real2SS(std::ostringstream&B,const Real V,const int W, const bool bPos)
 {
   B<<" "<<std::setw(W);
   if(std::fabs(V)>= 1e4) B << std::setprecision(std::max(W-7+bPos,0));
@@ -226,9 +219,9 @@ inline Real safeExp(const Real val)
   return std::exp( std::min((Real)EXP_CUT, std::max(-(Real)EXP_CUT, val) ) );
 }
 
-inline vector<Uint> count_indices(const vector<Uint> outs)
+inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
 {
-  vector<Uint> ret(outs.size(), 0); //index 0 is 0
+  std::vector<Uint> ret(outs.size(), 0); //index 0 is 0
   for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
   return ret;
 }
