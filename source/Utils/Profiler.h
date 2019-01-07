@@ -9,19 +9,30 @@
 #pragma once
 
 #include <string>
+#include <chrono>
 #include <unordered_map>
 
-class Timer;
+class Timer
+{
+ private:
+  std::chrono::time_point<std::chrono::high_resolution_clock> _start, _end;
+
+ public:
+  Timer();
+  void start();
+  void stop();
+  int64_t elapsed();
+  int64_t elapsedAndReset();
+};
 
 struct Timings
 {
   bool started;
   int iterations;
   int64_t total;
-  Timer * timer;
+  Timer timer;
 
   Timings();
-  ~Timings();
 };
 
 class Profiler

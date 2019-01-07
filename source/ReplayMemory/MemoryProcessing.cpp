@@ -89,7 +89,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   #ifndef NDEBUG
     if( settings.learner_rank == 0 ) {
      std::ofstream outf("runningAverages.dat", std::ios::app);
-     outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
+     outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<std::endl;
      outf.flush(); outf.close();
     }
     Uint cntSamp = 0;
@@ -154,12 +154,17 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
-        if( std::fabs(dbg_sumKLDiv - Set[i]->sumKLDiv) > 1e-1 )
+        const auto badErr = [&](const Fval V, const Fval R) {
+            static const Fval EPS = std::numeric_limits<Fval>::epsilon();
+            const Fval den = std::max({std::fabs(R), std::fabs(V), EPS});
+            return std::fabs(V - R) / den > 0.01;
+          };
+        if( badErr(dbg_sumKLDiv, Set[i]->sumKLDiv) )
           _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
-        if( std::fabs(dbg_sum_mse - Set[i]->MSE) > 1e-1 )
+        if( badErr(dbg_sum_mse, Set[i]->MSE) )
           _die("%f %f", dbg_sum_mse, Set[i]->MSE);
         if(settings.epsAnneal <= 0) //else CmaxRho will change in time
-          if( std::fabs(dbg_nOffPol - Set[i]->nOffPol) > 1e-1 )
+          if( badErr(dbg_nOffPol, Set[i]->nOffPol) )
             _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
       #endif
 

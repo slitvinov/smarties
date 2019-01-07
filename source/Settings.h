@@ -593,7 +593,9 @@ std::string setupFolder = DEFAULT_setupFolder;
   {
     if(randSeed<=0) {
       std::random_device rdev;
-      randSeed = rdev();
+      static constexpr long MAXINT = std::numeric_limits<int>::max();
+      randSeed = std::abs(rdev() % MAXINT);
+
       std::cout << "Using seed " << randSeed << std::endl;
       MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }

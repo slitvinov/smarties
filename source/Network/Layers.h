@@ -94,7 +94,7 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
-      #ifdef SINGLE_PREC
+      #if 0 //def SINGLE_PREC
       for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; i++)
       {
         const nnReal* const W = weight + NOsimd*i;
@@ -294,6 +294,7 @@ class ResidualLayer: public Layer
     for (Uint i=1; i<=2; i++) {
       const Uint sizeInp = std::min(curr->sizes[ID-i], size);
       const nnReal* const inputs = curr->Y(ID-i);
+      #pragma omp simd aligned(ret, inputs : VEC_WIDTH)
       for (Uint j=0; j<sizeInp; j++) ret[j] += inputs[j];
     }
   }

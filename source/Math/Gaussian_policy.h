@@ -98,7 +98,7 @@ struct Gaussian_policy
     sampPonPolicy = evalLogProbability(sampAct);
     sampPBehavior = evalLogBehavior(sampAct, beta);
     const auto arg = sampPonPolicy - sampPBehavior;
-    const auto clipArg = arg>9? 9 : (arg<-9? -9 : arg);
+    const auto clipArg = arg>7? 7 : (arg<-7? -7 : arg);
     sampImpWeight = std::exp( clipArg ) ;
     sampKLdiv = kl_divergence(beta);
   }

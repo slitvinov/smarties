@@ -8,60 +8,46 @@
 
 #include <algorithm>
 #include "Profiler.h"
-
-#include <chrono>
 #include <vector>
 
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 
-class Timer
-{
- private:
-  std::chrono::time_point<std::chrono::high_resolution_clock> _start, _end;
-
-  std::chrono::time_point<std::chrono::high_resolution_clock> none =
-  std::chrono::time_point<std::chrono::high_resolution_clock>::min();
-
- public:
-
-  inline Timer() {
-    _start = none;
-    _end   = none;
-  }
-
-  inline void start() {
-    _start = std::chrono::high_resolution_clock::now();
-    _end   = none;
-  }
-
-  inline void stop() {
-    _end = std::chrono::high_resolution_clock::now();
-  }
-
-  inline int64_t elapsed() {
-    if (_end == none) _end = std::chrono::high_resolution_clock::now();
-
-    return std::chrono::duration <long int, std::nano>(_end - _start).count();
-  }
-
-  inline int64_t elapsedAndReset() {
-    if (_end == none) _end = std::chrono::high_resolution_clock::now();
-
-    int64_t t = std::chrono::duration <int64_t, std::nano>(_end - _start).count();
-
-    _start = _end;
-    _end = none;
-    return t;
-  }
-};
-
-Timings::Timings() : started(false), iterations(0), total(0), timer(new Timer()) {}
-
-Timings::~Timings() {
-  delete timer;
+Timer::Timer() {
+  _start = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
+  _end   = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
 }
+
+void Timer::start() {
+  _start = std::chrono::high_resolution_clock::now();
+  _end   = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
+}
+
+void Timer::stop() {
+  _end = std::chrono::high_resolution_clock::now();
+}
+
+int64_t Timer::elapsed() {
+  static constexpr auto none = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
+  if (_end == none) _end = std::chrono::high_resolution_clock::now();
+
+  return std::chrono::duration <long int, std::nano>(_end - _start).count();
+}
+
+int64_t Timer::elapsedAndReset() {
+  static constexpr auto none = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
+  if (_end == none) _end = std::chrono::high_resolution_clock::now();
+
+  int64_t t = std::chrono::duration <int64_t, std::nano>(_end - _start).count();
+
+  _start = _end;
+  _end = std::chrono::time_point<std::chrono::high_resolution_clock>::min();
+  return t;
+}
+
+Timings::Timings() : started(false), iterations(0), total(0), timer() {}
+
 std::string Profiler::__printStatAndReset(Unit unit, std::string prefix)
 {
   double total = 0;
@@ -73,7 +59,7 @@ std::string Profiler::__printStatAndReset(Unit unit, std::string prefix)
     if (tm.second.started)
     {
       tm.second.started = false;
-      tm.second.total += tm.second.timer->elapsed();
+      tm.second.total += tm.second.timer.elapsed();
     }
 
     total += (double)tm.second.total;
@@ -130,7 +116,7 @@ void Profiler::start(std::string name)
     ongoing = name;
     auto& tm = timings[name];
     tm.started = true;
-    tm.timer->start();
+    tm.timer.start();
   }
 }
 
@@ -142,7 +128,7 @@ void Profiler::stop()
       if (tm.started)
       {
         tm.started = false;
-        tm.total += tm.timer->elapsedAndReset();
+        tm.total += tm.timer.elapsedAndReset();
         tm.iterations++;
       }
     }
