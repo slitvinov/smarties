@@ -292,8 +292,9 @@ class ResidualLayer: public Layer
     nnReal* const ret = curr->Y(ID);
     std::memset( ret, 0, size * sizeof(nnReal) );
     for (Uint i=1; i<=2; i++) {
+      const Uint sizeInp = std::min(curr->sizes[ID-i], size);
       const nnReal* const inputs = curr->Y(ID-i);
-      for (Uint j=0; j<size; j++) ret[j] += inputs[j];
+      for (Uint j=0; j<sizeInp; j++) ret[j] += inputs[j];
     }
   }
 
@@ -303,8 +304,10 @@ class ResidualLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override {
     const nnReal* const errors = curr->E(ID);
-    for (Uint i=1; i<=2; i++)
-      memcpy( curr->E(ID-i), errors, size * sizeof(nnReal) );
+    for (Uint i=1; i<=2; i++) {
+      const Uint sizeInp = std::min(curr->sizes[ID-i], size);
+      memcpy( curr->E(ID-i), errors, sizeInp * sizeof(nnReal) );
+    }
   }
 
   void initialize(mt19937* const gen, const Parameters*const para,
