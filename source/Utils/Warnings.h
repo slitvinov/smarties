@@ -23,7 +23,7 @@ namespace ErrorHandling
 //#define PR_ERR(fd,a,...) fprintf(fd,a,__func__,__FILE__,__LINE__,##__VA_ARGS__);
 #define FLUSHALL fflush(stdout); fflush(stderr); fflush(0);
 #define KILLALL MPI_Abort(MPI_COMM_WORLD, 1);
-#define LOCKCOMM lock_guard<mutex> wlock(ErrorHandling::warn_mutex);
+#define LOCKCOMM std::lock_guard<std::mutex> wlock(ErrorHandling::warn_mutex);
 
 inline static void printfmt(char*const p, const int N, const char*const a, ... )
 {

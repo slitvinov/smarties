@@ -326,7 +326,7 @@ getnDimPolicy(const ActionInfo*const aI) { return NEXPERTS*(1 +2*aI->dim); }
 template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 {
-  printf("Mixture-of-experts continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  printf("Mixture-of-experts continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
   computeQretrace = true;
   setupNet();
 
@@ -373,7 +373,7 @@ getnDimPolicy(const ActionInfo*const aI) { return 2*aI->dim; }
 template<> VRACER<Gaussian_policy, Rvec>::
 VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
-  printf("Gaussian continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  printf("Gaussian continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
   computeQretrace = true;
   setupNet();
 

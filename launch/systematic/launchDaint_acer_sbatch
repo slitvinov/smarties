@@ -17,9 +17,9 @@
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=ACER_00
+COMMNAME=ACER_50steps_BS12_G995_Enc128_05_DELAY04
 
-SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign  --outWeightsPrefac 0.1 --learner ACER --obsPerStep 1 --maxTotObsNum 131072 --minTotObsNum 131072  --totNumSteps 10000000 --explNoise 0.4472136 --bSampleSequences 1 --batchSize 8 --learnrate 0.0001  --targetDelay 0.005  --epsAnneal 5e-7 --nMasters 1 --nThreads 12 --ppn 2 "
+SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 64 --nnFunc SoftSign  --outWeightsPrefac 0.1 --learner ACER --obsPerStep 1 --maxTotObsNum 131072 --minTotObsNum 131072  --totNumSteps 10000000 --explNoise 0.4472136 --clipImpWeight 0 --bSampleSequences 1 --batchSize 12 --learnrate 0.00001  --targetDelay 0.001  --epsAnneal 5e-7 --nMasters 1 --nThreads 12 --nWorkers 1 "
 
 MYNAME=`whoami`
 SMARTIESDIR="${HOME}/smarties/"
@@ -71,12 +71,13 @@ cp $0                                                      ${RUNPATH}/launch.sh
 
 cd ${RUNPATH}
 
+export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS=12
-export OMP_PROC_BIND=CLOSE
+export OMP_PROC_BIND=TRUE
 export OMP_PLACES=cores
 export CRAY_CUDA_MPS=1
 
-srun --ntasks 2 --overcommit --threads-per-core=2 --cpu_bind=sockets --cpus-per-task=12 --ntasks-per-node=2  ./exec ${RUNSET}
+srun --ntasks 1 --ntasks-per-node=1 ./exec ${RUNSET}
 
 #srun  -n 2 --cpu_bind=map_cpu:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 ./run1 & srun  -n 2 --cpu_bind=map_cpu:18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35 ./run2 & wait
 
