@@ -162,36 +162,10 @@ void _dispose_object(T *const& ptr)
     delete ptr;
 }
 
-template <typename T>
-inline std::string print(const std::vector<T> vals, const int width = -1)
-{
-  std::ostringstream o;
-  if(!vals.size()) return o.str();
-  if(width>0) o << std::setprecision(3) << std::fixed;
-  for (Uint i=0; i<vals.size()-1; i++) o << vals[i] << " ";
-  o << vals[vals.size()-1];
-  return o.str();
-}
-
 inline MPI_Comm MPIComDup(const MPI_Comm C) {
   MPI_Comm ret;
   MPI_Comm_dup(C, &ret);
   return ret;
-}
-
-inline void real2SS(std::ostringstream&B,const Real V,const int W, const bool bPos)
-{
-  B<<" "<<std::setw(W);
-  if(std::fabs(V)>= 1e4) B << std::setprecision(std::max(W-7+bPos,0));
-  else
-  if(std::fabs(V)>= 1e3) B << std::setprecision(std::max(W-6+bPos,0));
-  else
-  if(std::fabs(V)>= 1e2) B << std::setprecision(std::max(W-5+bPos,0));
-  else
-  if(std::fabs(V)>= 1e1) B << std::setprecision(std::max(W-4+bPos,0));
-  else
-                         B << std::setprecision(std::max(W-3+bPos,0));
-  B<<std::fixed<<V;
 }
 
 inline bool isZero(const Real vals)
