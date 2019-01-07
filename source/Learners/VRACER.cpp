@@ -16,7 +16,7 @@
 
 #define DACER_simpleSigma
 #define DACER_singleNet
-#define DACER_useAlpha
+//#define DACER_useAlpha
 
 template<typename Policy_t>
 static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
@@ -134,23 +134,29 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   {
     assert(wID == 0);
     Rvec G = Rvec(F[0]->nOutputs(), 0);
+    #ifdef REFER_RULE1
     if(isOff)
-    #ifdef DACER_useAlpha
-      P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, alpha*(beta-1)), G);
-    #else
-      P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu,        beta-1 ), G);
-    #endif
+      #ifdef DACER_useAlpha
+        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, alpha*(beta-1)), G);
+      #else //DACER_useAlpha
+        P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu,        beta-1 ), G);
+      #endif //DACER_useAlpha
     else
+    #endif //REFER_RULE1
     {
-     #ifdef DACER_useAlpha
-       const Rvec G1 = P.policy_grad(P.sampAct, alpha * A_RET * W);
-       const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -alpha);
-     #else
-       const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
-       const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
-     #endif
-     P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
-     trainInfo->trackPolicy(G1, G2, thrID);
+      #ifdef DACER_useAlpha
+        const Rvec G1 = P.policy_grad(P.sampAct, alpha * A_RET * W);
+        const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -alpha);
+      #else //DACER_useAlpha
+        const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
+        const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
+      #endif //DACER_useAlpha
+      #ifdef REFER_RULE3
+        P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
+      #else //REFER_RULE3
+        P.finalize_grad(G1, G);
+      #endif //REFER_RULE3
+      trainInfo->trackPolicy(G1, G2, thrID);
     }
 
     if(thrID==0) profiler->stop_start("BCK");
