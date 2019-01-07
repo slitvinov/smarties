@@ -70,7 +70,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
   const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
   // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
   Rvec finalG(F[0]->nOutputs(), 0);
-  if(dropRule==2) G[0] = POL.finalize_grad(polG, finalG);
+  if(dropRule==2) POL.finalize_grad(polG, finalG);
   else POL.finalize_grad(weightSum2Grads(polG, penG, beta), finalG);
 
   //#pragma omp critical //"O:"<<print(polVec)<<
