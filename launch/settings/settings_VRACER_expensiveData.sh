@@ -12,8 +12,9 @@ SETTINGS+=" --nnl2 32"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"
-SETTINGS+=" --nnType GRU"
-SETTINGS+=" --nnBPTTseq 8"
+#SETTINGS+=" --nnType GRU"
+SETTINGS+=" --nnType LSTM"
+SETTINGS+=" --nnBPTTseq 16"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc Tanh"
 # Multiplies initial weights of output layer. Ie U[-.1/sqrt(f), .1/sqrt(f)]
@@ -28,13 +29,13 @@ SETTINGS+=" --explNoise 0.2"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 0.5"
 #Number of samples before starting gradient steps
-SETTINGS+=" --minTotObsNum 262144"
+SETTINGS+=" --minTotObsNum 131072"
 #SETTINGS+=" --minTotObsNum 512"
 #Maximum size of the replay memory
 #SETTINGS+=" --minTotObsNum 16384"
-SETTINGS+=" --maxTotObsNum 262144"
+SETTINGS+=" --maxTotObsNum 131072"
 #Number of gradient steps before training ends
-SETTINGS+=" --totNumSteps 50000000"
+SETTINGS+=" --totNumSteps 5000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
 SETTINGS+=" --clipImpWeight 4"
