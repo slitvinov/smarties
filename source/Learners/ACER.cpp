@@ -182,11 +182,11 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
   F[0]->initializeNetwork(build_pol);
-  _set.learnrate *= 3;
+  _set.learnrate *= 10;
   _set.targetDelay = 0; // unneeded for adv and val targets
   F[1]->initializeNetwork(build_val);
   F[2]->initializeNetwork(build_adv);
-  _set.learnrate /= 3;
+  _set.learnrate /= 10;
   F[2]->allocMorePerThread(nAexpectation);
   printf("ACER\n");
   trainInfo = new TrainData("acer", _set, 1, "| avgW ", 1);

@@ -19,7 +19,7 @@
 # ======START=====
 COMMNAME=NAF_REFER
 
-SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner NAF --maxTotObsNum 524288 --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 256 --obsPerStep 1 "
+SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner NAF --maxTotObsNum 262144 --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 256 --obsPerStep 1 "
 
 MYNAME=`whoami`
 SMARTIESDIR="${HOME}/smarties/"
