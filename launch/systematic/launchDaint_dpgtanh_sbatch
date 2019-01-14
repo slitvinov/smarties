@@ -11,7 +11,7 @@
 #SBATCH --account=s658
 # #SBATCH --account=eth2
 
-#SBATCH --array=0-899
+#SBATCH --array=0-599
 
 # #SBATCH --ntasks=1
 # #SBATCH --ntasks-per-node=1
@@ -27,10 +27,10 @@ BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 TOLPARAM=(0.10)
 BUFFSIZE=(262144 1048576)
 
-IMPSAMPR=(0 0 0 2 5 2 5 2 5)
-REFER=(0.1 0.1 0.1 0.1 0.1 1.1 1.1 2.1 2.1)
-FUNC=(Tanh Tanh Linear Linear Linear Linear Linear Linear Linear)
-SAMP=(PERrank uniform uniform uniform uniform uniform uniform uniform uniform)
+IMPSAMPR=(2 5 2 5 2 5)
+REFER=(0.1 0.1 1.1 1.1 2.1 2.1)
+FUNC=(Tanh Tanh Tanh Tanh Tanh Tanh)
+SAMP=(uniform uniform uniform uniform uniform uniform)
 
 #RUNTRIAL=(0 1 2 3 4 5 6 7 8 9)
 RUNTRIAL=(1 2 3 4 5)
@@ -47,7 +47,7 @@ for it in `seq 0 ${#TASKNAME[@]}`; do
 for d in ${TOLPARAM[@]}; do
 for n in ${BUFFSIZE[@]}; do
 #for ic in `seq 0 ${#IMPSAMPR[@]}`; do
-for ic in `seq 0 8`; do
+for ic in `seq 0 5`; do
 
 for r in ${RUNTRIAL[@]}; do
 
