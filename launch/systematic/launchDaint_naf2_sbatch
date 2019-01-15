@@ -11,15 +11,15 @@
 #SBATCH --account=s658
 # #SBATCH --account=eth2
 
-#SBATCH --array=0-899
+#SBATCH --array=0-799
 
 # #SBATCH --ntasks=1
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=DPG_split_effects
+COMMNAME=NAF_split_effects
 
-SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner DPG --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.00001 --nMasters 1 --nThreads 12 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 128 --obsPerStep 1 --ERoldSeqFilter oldest"
+SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner NAF --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.00001 --nMasters 1 --nThreads 12 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 256 --obsPerStep 1 --ERoldSeqFilter oldest"
 
 MYNAME=`whoami`
 SMARTIESDIR="${HOME}/smarties/"
@@ -27,10 +27,9 @@ BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 TOLPARAM=(0.10)
 BUFFSIZE=(262144 1048576)
 
-IMPSAMPR=(0 0 0 2 5 2 5 2 5)
-REFER=(0.1 0.1 0.1 0.1 0.1 1.1 1.1 2.1 2.1)
-FUNC=(Tanh Tanh Linear Linear Linear Linear Linear Linear Linear)
-SAMP=(PERrank uniform uniform uniform uniform uniform uniform uniform uniform)
+IMPSAMPR=(0 0 2 5 2 5 2 5)
+REFER=(0.1 0.1 0.1 0.1 1.1 1.1 2.1 2.1)
+SAMP=(PERrank uniform uniform uniform uniform uniform uniform uniform)
 
 #RUNTRIAL=(0 1 2 3 4 5 6 7 8 9)
 RUNTRIAL=(1 2 3 4 5)
@@ -47,16 +46,15 @@ for it in `seq 0 ${#TASKNAME[@]}`; do
 for d in ${TOLPARAM[@]}; do
 for n in ${BUFFSIZE[@]}; do
 #for ic in `seq 0 ${#IMPSAMPR[@]}`; do
-for ic in `seq 0 8`; do
+for ic in `seq 0 7`; do
 
 for r in ${RUNTRIAL[@]}; do
 
 c=${IMPSAMPR[$ic]}
 e=${REFER[$ic]}
-f=${FUNC[$ic]}
 s=${SAMP[$ic]}
 
-cases+=(" --maxTotObsNum $n --clipImpWeight $c --penalTol $d --nnOutputFunc $f --nnPdrop $e --dataSamplingAlgo $s ")
+cases+=(" --maxTotObsNum $n --clipImpWeight $c --penalTol $d --nnPdrop $e --dataSamplingAlgo $s ")
 rundir+=("${SHORTID[$it]}_${COMMNAME}_N${n}_R${c}_F${f}_E${e}_S${s}_TRIAL${r}")
 appspec+=("${TASKNAME[$it]}")
 
