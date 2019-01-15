@@ -35,18 +35,18 @@ class Layer
   inline Uint nOutputs() const { return size; }
 
   // Should return the number of weights and biases required by layer
-  virtual void requiredParameters(vector<Uint>& nWeight,
-                                  vector<Uint>& nBiases ) const = 0;
+  virtual void requiredParameters(std::vector<Uint>& nWeight,
+                                  std::vector<Uint>& nBiases ) const = 0;
 
   // Should return work memory that allows the network to compute forward step
   // and then, without re-calling forward, compute backward step.
   // See the LSTM class for an example on working out of the box.
-  virtual void requiredActivation(vector<Uint>& sizes,
-                                  vector<Uint>& bOutputs,
-                                  vector<Uint>& bInputs) const = 0;
+  virtual void requiredActivation(std::vector<Uint>& sizes,
+                                  std::vector<Uint>& bOutputs,
+                                  std::vector<Uint>& bInputs) const = 0;
   // Some classes might allow user to specify an initial value for the bias
   // vector (eg. parametric layer or linear output layer)
-  virtual void biasInitialValues(const vector<Real> init) = 0;
+  virtual void biasInitialValues(const std::vector<Real> init) = 0;
 
   Layer(
     Uint _ID,
@@ -57,7 +57,7 @@ class Layer
     size(_size), ID(_ID), link(_link), bInput(bInp), bOutput(bOut)  {}
 
 
-  virtual string printSpecs() const = 0;
+  virtual std::string printSpecs() const = 0;
 
   virtual ~Layer() {}
 
@@ -159,7 +159,7 @@ class Layer
 
   // Initialize the weights and biases. Probably by sampling.
   virtual void transpose(const Parameters*const para) const {}
-  virtual void initialize(mt19937* const gen, const Parameters*const para,
+  virtual void initialize(std::mt19937* const gen, const Parameters*const para,
     Real initializationFac) const = 0;
 };
 
@@ -167,27 +167,27 @@ class InputLayer: public Layer
 {
  public:
   InputLayer(Uint _size, Uint _ID) : Layer(_ID, _size, false, true) { }
-  string printSpecs() const override {
+  std::string printSpecs() const override {
     std::ostringstream o;
     o<<"("<<ID<<") Input Layer of size:"<<size<<"\n";
     return o.str();
   }
 
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override {
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override {
     assert(nWeight.size() == 0 && nBiases.size() == 0);
     nWeight.push_back(0);
     nBiases.push_back(0);
   }
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override {
     assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(false);
     bInputs.push_back(bInput);
   }
-  void biasInitialValues(const vector<Real> init) override { }
+  void biasInitialValues(const std::vector<Real> init) override { }
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override { }
@@ -198,7 +198,7 @@ class InputLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override { }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
+  void initialize(std::mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override { }
 };
 
@@ -209,28 +209,28 @@ class JoinLayer: public Layer
   JoinLayer(Uint _ID, Uint _N, Uint _nJ): Layer(_ID,_N,false), nJoin(_nJ) {
     assert(nJoin>1);
   }
-  string printSpecs() const override {
+  std::string printSpecs() const override {
     std::ostringstream o;
     o<<"("<<ID<<") Join Layer of size:"<<size
      <<" joining the previous "<<nJoin<<" layers"<<"\n";
     return o.str();
   }
 
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override {
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override {
     assert(nWeight.size() == 0 && nBiases.size() == 0);
     nWeight.push_back(0);
     nBiases.push_back(0);
   }
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override {
     assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  void biasInitialValues(const vector<Real> init) override { }
+  void biasInitialValues(const std::vector<Real> init) override { }
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override {
@@ -257,7 +257,7 @@ class JoinLayer: public Layer
     assert(k==size);
   }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
+  void initialize(std::mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override { }
 };
 
@@ -267,25 +267,25 @@ class ResidualLayer: public Layer
  public:
   ResidualLayer(Uint _ID, Uint _N): Layer(_ID,_N,false) { }
 
-  string printSpecs() const override {
+  std::string printSpecs() const override {
     std::ostringstream o;
     o<<"("<<ID<<") Residual Connection of size:"<<size<<"\n";
     return o.str();
   }
 
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override {
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override {
     nWeight.push_back(0);
     nBiases.push_back(0);
   }
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override {
     sizes.push_back(size);
     bOutputs.push_back(false);
     bInputs.push_back(false);
   }
-  void biasInitialValues(const vector<Real> init) override { }
+  void biasInitialValues(const std::vector<Real> init) override { }
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override {
@@ -311,21 +311,21 @@ class ResidualLayer: public Layer
     }
   }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
+  void initialize(std::mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override { }
 };
 
 class ParamLayer: public Layer
 {
   const Function * const func;
-  vector<nnReal> initVals;
+  std::vector<nnReal> initVals;
  public:
   ~ParamLayer() { delete func; }
-  ParamLayer(Uint _ID, Uint _size, string funcType, vector<Real> init) :
-    Layer(_ID, _size, true), func(makeFunction(funcType)) {
+  ParamLayer(Uint _ID, Uint _size, std::string funcType, std::vector<Real>init)
+    : Layer(_ID, _size, true), func(makeFunction(funcType)) {
     biasInitialValues(init);
   }
-  string printSpecs() const override {
+  std::string printSpecs() const override {
     std::ostringstream o;
     o<<"("<<ID<<") "<<func->name()
      <<"Parameter Layer of size:"<<size<<". Initialized:"
@@ -333,16 +333,16 @@ class ParamLayer: public Layer
     return o.str();
   }
 
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override {
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override {
     nWeight.push_back(0); nBiases.push_back(size);
   }
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override {
     sizes.push_back(size); bOutputs.push_back(true); bInputs.push_back(bInput);
   }
-  void biasInitialValues(const vector<Real> init) override {
+  void biasInitialValues(const std::vector<Real> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());
     initVals.resize(size, 0);
     std::copy(init.begin(), init.end(), initVals.begin());
@@ -376,7 +376,7 @@ class ParamLayer: public Layer
     }
   }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
+  void initialize(std::mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override
   {
     nnReal* const biases = para->B(ID);
@@ -385,15 +385,15 @@ class ParamLayer: public Layer
 };
 
 
-inline Activation* allocate_activation(const vector<Layer*>& layers) {
-  vector<Uint> sizes, output, input;
+inline Activation* allocate_activation(const std::vector<Layer*>& layers) {
+  std::vector<Uint> sizes, output, input;
   for(const auto & l : layers) l->requiredActivation(sizes, output, input);
   return new Activation(sizes, output, input);
 }
 
-inline Parameters* allocate_parameters(const vector<Layer*>&L, const Uint mpiSz)
+inline Parameters* allocate_parameters(const std::vector<Layer*>&L, const Uint mpiSz)
 {
-  vector<Uint> nWeight, nBiases;
+  std::vector<Uint> nWeight, nBiases;
   for(const auto & l : L) l->requiredParameters(nWeight, nBiases);
   return new Parameters(nWeight, nBiases, mpiSz);
 }
