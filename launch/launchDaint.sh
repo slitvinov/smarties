@@ -17,7 +17,7 @@ if [ $# -lt 5 ] ; then
 	exit 1
 fi
 
-WCLOCK=${WCLOCK:-24:00:00}
+WCLOCK=${WCLOCK:-08:00:00}
 
 MYNAME=`whoami`
 BASEPATH="${SCRATCH}/smarties/"
@@ -86,7 +86,7 @@ echo ${SETTINGS}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=s658
+#SBATCH --account=ch7
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt
@@ -101,7 +101,7 @@ cat <<EOF >daint_sbatch
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
 # #SBATCH --mail-type=ALL
 
-export MPICH_MAX_THREAD_SAFETY=multiple;
+export MPICH_MAX_THREAD_SAFETY=multiple
 export OPENBLAS_NUM_THREADS=1
 export OMP_PROC_BIND=TRUE
 export OMP_NUM_THREADS=12
