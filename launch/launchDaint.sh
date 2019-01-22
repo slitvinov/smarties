@@ -17,7 +17,7 @@ if [ $# -lt 5 ] ; then
 	exit 1
 fi
 
-WCLOCK=${WCLOCK:-08:00:00}
+WCLOCK=${WCLOCK:-24:00:00}
 
 MYNAME=`whoami`
 BASEPATH="${SCRATCH}/smarties/"
@@ -94,7 +94,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --nodes=${NNODES}
 #SBATCH --constraint=gpu
 
-# #SBATCH --time=00:30:00
+# #SBATCH --time=24:00:00
 # #SBATCH --partition=debug
 # #SBATCH --constraint=mc
 

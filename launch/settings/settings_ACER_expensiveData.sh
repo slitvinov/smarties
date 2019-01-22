@@ -30,12 +30,12 @@ SETTINGS+=" --obsPerStep 0.5"
 #SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --minTotObsNum 32768"
 #Maximum size of the replay memory
-SETTINGS+=" --maxTotObsNum 131072"
+SETTINGS+=" --maxTotObsNum 65536"
 #Number of gradient steps before training ends
 SETTINGS+=" --totNumSteps 5000000"
 
 #chance of taking random actions
-SETTINGS+=" --explNoise 0.2"
+SETTINGS+=" --explNoise 0.1"
 SETTINGS+=" --bSampleSequences 1"
 
 SETTINGS+=" --clipImpWeight 0"
@@ -47,4 +47,4 @@ SETTINGS+=" --epsAnneal 0"
 SETTINGS+=" --batchSize 12"
 #network update learning rate
 SETTINGS+=" --learnrate 0.00001"
-SETTINGS+=" --targetDelay 0.001"
+SETTINGS+=" --targetDelay 0.0001"

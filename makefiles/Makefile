@@ -89,8 +89,8 @@ endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib:
-	make -C ../apps/$(app)/ clean
-	make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
+	+make -C ../apps/$(app)/ clean
+	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
 
 else
 
