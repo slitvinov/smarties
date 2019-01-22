@@ -12,8 +12,8 @@ SETTINGS+=" --nnl2 32"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"
-SETTINGS+=" --nnType GRU"
-SETTINGS+=" --nnBPTTseq 8"
+SETTINGS+=" --nnType LSTM"
+SETTINGS+=" --nnBPTTseq 16"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc Tanh"
 # Multiplies initial weights of output layer. Ie U[-.1/sqrt(f), .1/sqrt(f)]
@@ -24,7 +24,7 @@ SETTINGS+=" --bTrain 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner VRACER"
 #Initialization of the standard deviation for all actions
-SETTINGS+=" --explNoise 0.0"
+SETTINGS+=" --explNoise 0"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 0.5"
 #Number of samples before starting gradient steps
