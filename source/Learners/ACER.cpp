@@ -11,7 +11,7 @@
 #include "../Math/Gaussian_policy.h"
 #include "ACER.h"
 
-#define SEQ_CUTOFF 50
+#define SEQ_CUTOFF 200
 
 static inline Gaussian_policy prepare_policy(const Rvec&O,
   const ActionInfo*const aI, const Tuple*const t = nullptr) {

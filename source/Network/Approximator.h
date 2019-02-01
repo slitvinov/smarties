@@ -15,7 +15,7 @@ enum NET { CUR, TGT }; /* use CUR or TGT weights */
 struct Approximator
 {
   const Settings& settings;
-  const string name;
+  const std::string name;
   const bool bRecurrent = settings.bRecurrent;
   const Uint nAgents = settings.nAgents, nThreads = settings.nThreads;
   const Uint mpisize = settings.learner_size, nMaxBPTT = settings.nnBPTTseq;
