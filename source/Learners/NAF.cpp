@@ -55,7 +55,7 @@ void NAF::select(Agent& agent)
     polvec.resize(policyVecDim, stdParam);
     assert(polvec.size() == 2 * nA);
     Gaussian_policy policy({0, nA}, &aInfo, polvec);
-    const Rvec MU = policy.getVector();
+    Rvec MU = policy.getVector();
     //cout << print(MU) << endl;
     Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)

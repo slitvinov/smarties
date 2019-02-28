@@ -241,7 +241,7 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
 
     curr_seq->state_vals.push_back(val[0]);
     Policy_t policy = prepare_policy<Policy_t>(pol, &aInfo, pol_indices);
-    const Rvec MU = policy.getVector();
+    Rvec MU = policy.getVector();
     auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     agent.act(act);
     data_get->add_action(agent, MU);

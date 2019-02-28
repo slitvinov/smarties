@@ -379,9 +379,16 @@ public:
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  inline Rvec finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
+  inline Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
-    sampAct = bSample ? sample(gen, beta) : getBest();
+    for(Uint j=0; j<nExperts; j++)
+      for (Uint i=0; i<nA; i++)
+        if (aInfo->bounded[i]) {
+          const size_t idx = i + j*nA + nExperts;
+          MU[idx] = std::min( (Real)BOUNDACT_MAX, MU[idx]);
+          MU[idx] = std::max(-(Real)BOUNDACT_MAX, MU[idx]);
+        }
+    sampAct = bSample ? sample(gen, MU) : getBest();
     return aInfo->getScaled(sampAct);
   }
 

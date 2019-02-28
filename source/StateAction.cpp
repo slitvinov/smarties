@@ -14,12 +14,12 @@
 static inline Real _tanh(const Real inp)
 {
   if(inp>0) {
-    //const Real e2x = std::exp(-2*std::min( (Real)EXP_CUT, inp));
-    const Real e2x = std::exp(-2*inp);
+    const Real e2x = std::exp(-2*std::min( (Real)EXP_CUT, inp));
+    //const Real e2x = std::exp(-2*inp);
     return (1-e2x)/(1+e2x);
   } else {
-    //const Real e2x = std::exp( 2*std::max(-(Real)EXP_CUT, inp));
-    const Real e2x = std::exp( 2*inp);
+    const Real e2x = std::exp( 2*std::max(-(Real)EXP_CUT, inp));
+    //const Real e2x = std::exp( 2*inp);
     return (e2x-1)/(1+e2x);
   }
 }
@@ -27,8 +27,8 @@ static inline Real _tanh(const Real inp)
 static inline Real Dtanh(const Real inp)
 {
   const Real arg = inp < 0 ? -inp : inp; //symmetric
-  //const Real e2x = std::exp(-2*std::min((Real)EXP_CUT, arg));
-  const Real e2x = std::exp(-2*arg);
+  const Real e2x = std::exp(-2*std::min((Real)EXP_CUT, arg));
+  //const Real e2x = std::exp(-2*arg);
   return 4*e2x/((1+e2x)*(1+e2x));
 }
 
@@ -86,7 +86,6 @@ Real ActionInfo::getScaled(const Real unscaled, const Uint i) const
     //const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
     return       min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
   } else  return min_a + 0.5*(max_a - min_a)*(unscaled  + 1);
-
 }
 
 Real ActionInfo::getDactDscale(const Real unscaled, const Uint i) const

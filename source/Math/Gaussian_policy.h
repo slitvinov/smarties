@@ -273,9 +273,14 @@ struct Gaussian_policy
   inline Rvec getBest() const {
     return mean;
   }
-  inline Rvec finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
+  inline Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
-    sampAct = bSample ? sample(gen, beta) : mean;
+    for(Uint i=0; i<nA; i++)
+      if (aInfo->bounded[i]) {
+        MU[i] = std::max(-(Real)BOUNDACT_MAX, MU[i]);
+        MU[i] = std::min( (Real)BOUNDACT_MAX, MU[i]);
+      }
+    sampAct = bSample ? sample(gen, MU) : mean;
     return aInfo->getScaled(sampAct);
   }
 
