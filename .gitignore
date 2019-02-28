@@ -52,6 +52,7 @@ test.dSYM
 out.*.*.[oe]
 policies/*
 runs/
+/apps/glider/glider
 engine_cmaes
 cart-pole
 pp
