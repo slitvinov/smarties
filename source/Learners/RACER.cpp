@@ -198,14 +198,14 @@ select(Agent& agent)
     //Compute policy and value on most recent element of the sequence.
     Rvec output = F[0]->forward_agent(agent);
     Policy_t pol = prepare_policy<Policy_t>(output, &aInfo, pol_start);
-    const Advantage_t adv = prepare_advantage<Advantage_t,Policy_t>(
-                                    output, &aInfo, adv_start, &pol);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
     Action_t act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID],mu);
+    const Advantage_t adv = prepare_advantage<Advantage_t,Policy_t>(
+                                    output, &aInfo, adv_start, &pol);
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);
     traj->state_vals.push_back(output[VsID]);
