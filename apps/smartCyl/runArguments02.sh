@@ -1,1 +1,0 @@
-../launchSim.sh -bFreeSpace 0 -bNeumann 1 -muteAll 1 -bpdx 64 -bpdy 32 -tdump 0.0 -nu .0000078125 -tend 0 -shapes 'halfDisk_radius=.03125_xpos=.20_bForced=1_bFixed=1_xvel=.0625_tAccel=5,smartDisk_radius=.03125_xpos=.5_bFixedy=1_bForced=0'

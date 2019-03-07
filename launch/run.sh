@@ -41,6 +41,7 @@ if [ ${isOpenMPI} -ge 1 ]; then
 if [ ${OS_D} == 'Darwin' ] ; then
 mpirun -n ${NPROCESS} ./rl ${SETTINGS} | tee out.log
 else
+#mpirun -n ${NPROCESS} --map-by ppr:2:socket:pe=${NTHREADS}  ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} --map-by ppr:1:socket:pe=${NTHREADS}  ./rl ${SETTINGS} | tee out.log
 fi
 else # mpich / mvapich

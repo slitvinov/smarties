@@ -80,9 +80,9 @@ for ind in range(IND0, len(terminals), SKIP):
   #print(xini, xes, xtrm)
   if (ind % 1) == 0:
     if ind==IND0:
-      plt.plot(xes, DATA[span,ICOL], 'bo-', label='x-trajectory')
+      plt.plot(xes, DATA[span,ICOL], 'b-', label='x-trajectory')
     else:
-      plt.plot(xes, DATA[span,ICOL], 'bo-')
+      plt.plot(xes, DATA[span,ICOL], 'b-')
 
   #plt.plot(inds, DATA[:,ICOL])
   ST[ind] = DATA[term, ICOL]

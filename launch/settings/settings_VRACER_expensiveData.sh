@@ -25,11 +25,11 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner VRACER"
 #Initialization of the standard deviation for all actions
-SETTINGS+=" --explNoise 0.1"
+SETTINGS+=" --explNoise 0.2"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 0.5"
 #Number of samples before starting gradient steps
-SETTINGS+=" --minTotObsNum 32768"
+SETTINGS+=" --minTotObsNum 16384"
 #SETTINGS+=" --minTotObsNum 512"
 #Maximum size of the replay memory
 #SETTINGS+=" --minTotObsNum 16384"
@@ -45,7 +45,7 @@ SETTINGS+=" --ERoldSeqFilter oldest"
 SETTINGS+=" --penalTol 0.1"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
-SETTINGS+=" --epsAnneal 0"
+SETTINGS+=" --epsAnneal 5e-7"
 SETTINGS+=" --targetDelay 0.00"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"

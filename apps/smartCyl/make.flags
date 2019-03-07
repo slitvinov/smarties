@@ -1,5 +1,5 @@
 LIBS += -lfftw3f -lfftw3f_omp
-LIBS += -lfftw3 -lfftw3_omp
+#LIBS += -lfftw3 -lfftw3_omp
 
 ME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -25,14 +25,13 @@ endif
 endif
 
 ifneq "$(findstring eu-, $(shell hostname))" ""
-LIBS+= -lhdf5
-ifeq "$(compiler)" "intel"
-CPPFLAGS+= -I/cluster/home/novatig/fftw-3.3.5/build_intel/include/
+
+ifneq "$(findstring intel, $(compiler))" ""
 LIBS+= -L/cluster/home/novatig/fftw-3.3.5/build_intel/lib/
 else
-CPPFLAGS+= -I/cluster/home/novatig/fftw-3.3.5/build_gnu/include/
-LIBS+= -L/cluster/home/novatig/fftw-3.3.5/build_gnu/lib/
+LIBS+= -L/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/ -lhdf5
 endif
+
 endif
 
 ifneq "$(findstring daint,$(shell hostname))" ""
