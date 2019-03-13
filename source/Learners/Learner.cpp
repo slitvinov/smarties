@@ -28,7 +28,6 @@ void Learner::prepareGradient()
   const Uint currStep = nGradSteps()+1;
 
   profiler->stop_start("ADDW");
-  debugL("Gather gradient estimates from each thread and Learner MPI rank");
   for(auto & net : F) net->prepareUpdate();
   input->prepareUpdate();
 
@@ -53,13 +52,13 @@ void Learner::logStats()
 
 void Learner::applyGradient()
 {
-  debugL("Apply SGD update after reduction of gradients");
   profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
 }
 
-void Learner::globalGradCounterUpdate() {
+void Learner::globalGradCounterUpdate()
+{
   _nGradSteps++;
 }
 

@@ -238,7 +238,7 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   adv_start(count_adv_starts(&_env->aI))
 {
   if(_set.learner_rank == 0) {
-    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
+    printf("Gaussian continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
   }
   computeQretrace = true;
   setupNet();

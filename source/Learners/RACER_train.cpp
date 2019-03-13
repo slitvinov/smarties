@@ -11,7 +11,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Uint wID, const Uint bID, const Uint thrID) const
 {
   Sequence* const S = data->get(seq);
-  assert(t+1 < S->states.size());
+  assert(t+1 < S->nsteps());
 
   if(thrID==0) profiler->stop_start("FWD");
   F[0]->prepare_one(S, t, thrID, wID); // prepare thread workspace

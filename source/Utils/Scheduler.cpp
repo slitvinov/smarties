@@ -28,7 +28,7 @@ Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
 
 void Master::run()
 {
-  { // gather initial data OR if not training evaluated restarted policy
+  {
     #pragma omp parallel num_threads(nThreads)
     {
       std::vector<int> shareWorkers;
@@ -42,6 +42,27 @@ void Master::run()
     }
   }
 
+  Uint minNdataB4Train = learners[0]->nObsB4StartTraining;
+  int firstLearnerStart = 0, isStarted = 0, percentageReady = -5;
+  for(size_t i=1; i<learners.size(); i++) {
+    Uint tmp = learners[i]->nObsB4StartTraining;
+    if(tmp<minNdataB4Train) {
+      minNdataB4Train = tmp;
+      firstLearnerStart = i;
+    }
+  }
+  const auto isTrainingStarted = [&]() {
+    if(not isStarted && learn_rank==0) {
+      const auto nCollected = learners[firstLearnerStart]->locDataSetSize();
+      const int currPerc = nCollected * 100./(Real) minNdataB4Train;
+      if(nCollected >= minNdataB4Train) isStarted = true;
+      else if(currPerc > percentageReady+5) {
+       percentageReady = currPerc;
+       printf("\rCollected %d%% of data required to begin training. ",currPerc);
+       fflush(0); //otherwise no show on some platforms
+      }
+    }
+  };
   const auto isTrainingOver = [&](const Learner* const L) {
     // if agents share learning algo, return number of turns performed by env
     // instead of sum of timesteps performed by each agent
@@ -52,6 +73,8 @@ void Master::run()
 
   while(1)
   {
+    isTrainingStarted();
+
     tasks.run();
 
     bool over = true;
@@ -143,7 +166,8 @@ bool Master::learnersLockQueue() const
 Worker::Worker(Communicator_internal*const _c,Environment*const _e,Settings&_s)
 : comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
 
-void Worker::run() {
+void Worker::run()
+{
   while(true) {
 
     while(true) {

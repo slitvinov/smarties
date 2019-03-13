@@ -54,7 +54,7 @@ void Encapsulator::prepare(Sequence*const traj, const Uint len,
 Rvec Encapsulator::state2Inp(const int t, const Uint thrID) const
 {
   const Sequence*const traj = thread_seq[thrID];
-  assert(t<(int)traj->states.size());
+  assert(t<(int)traj->nsteps());
   const Uint nSvar = traj->states[t].size();
   assert(nSvar == data->sI.dimUsed);
   if (nAppended>0)

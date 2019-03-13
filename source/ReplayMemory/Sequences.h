@@ -39,10 +39,13 @@ struct Sequence
 
   std::mutex seq_mutex;
 
-  inline Uint ndata() const {
+  inline Uint ndata() const { // how much data to train from? ie. not terminal
     assert(states.size());
     if(states.size()==0) return 0;
     return states.size()-1;
+  }
+  inline Uint nsteps() const { // total number of time steps observed
+    return states.size();
   }
   inline bool isLast(const Uint t) const {
     return t+1 >= states.size();

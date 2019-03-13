@@ -109,13 +109,13 @@ void Approximator::initializeNetwork(Builder& build) {
 void Approximator::prepare_seq(Sequence*const traj, const Uint thrID,
   const Uint wghtID) const {
   if(error_placements[thrID] > 0) die("");
-  input->prepare(traj, traj->states.size(), 0, thrID);
+  input->prepare(traj, traj->nsteps(), 0, thrID);
 
   for(Uint k=0; k < 1+extraAlloc; k++)
-    net->prepForBackProp(series[thrID + k*nThreads], traj->states.size());
+    net->prepForBackProp(series[thrID + k*nThreads], traj->nsteps());
 
   if(series_tgt.size()>thrID)
-    net->prepForFwdProp(series_tgt[thrID], traj->states.size());
+    net->prepForFwdProp(series_tgt[thrID], traj->nsteps());
 
   first_sample[thrID] = 0;
   thread_Wind[thrID] = wghtID;

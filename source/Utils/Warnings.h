@@ -142,4 +142,3 @@ inline void real2SS(std::ostringstream&B,const Real V,const int W, const bool bP
                          B << std::setprecision(std::max(W-3+bPos,0));
   B<<std::fixed<<V;
 }
-

@@ -36,6 +36,7 @@ public:
   bool unblockGradientUpdates() const;
   void spawnTrainTasks();
   void processMemoryBuffer();
+  void updateRetraceEstimates();
   void finalizeMemoryProcessing();
   virtual void initializeLearner();
   void save() override;

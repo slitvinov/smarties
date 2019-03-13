@@ -17,7 +17,7 @@
 class Learner
 {
  protected:
-  const int freqPrint = 1000;
+  const Uint freqPrint = 1000;
   Settings & settings;
   Environment * const env;
   int algoSubStepID = -1;
@@ -53,7 +53,6 @@ class Learner
 
  protected:
   long nDataGatheredB4Startup = 0;
-  mutable int percData = -5;
   std::atomic<long> _nGradSteps{0};
 
   std::vector<std::mt19937>& generators = settings.generators;
@@ -94,6 +93,9 @@ class Learner
   inline long nLocTimeStepsTrain() const {
     return data->readNSeen_loc() - nDataGatheredB4Startup;
   }
+  inline long locDataSetSize() const {
+    return data->readNData();
+  }
   inline unsigned nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
@@ -118,21 +120,6 @@ class Learner
   virtual void globalGradCounterUpdate();
 
   virtual bool blockDataAcquisition() const = 0;
-
-  inline bool checkReady4Init() const
-  {
-    const bool ready = data->readNData() >= nObsB4StartTraining;
-    if(not ready && learn_rank==0) {
-      std::lock_guard<std::mutex> lock(buffer_mutex);
-      const int currPerc = data->readNData() * 100./(Real) nObsB4StartTraining;
-      if(currPerc > percData+5) {
-       percData = currPerc;
-       printf("\rCollected %d%% of data required to begin training. ",percData);
-       fflush(0); //otherwise no show on some platforms
-      }
-    }
-    return ready;
-  }
 
   virtual void prepareGradient();
   virtual void applyGradient();

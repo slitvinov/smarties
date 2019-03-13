@@ -23,10 +23,10 @@ void Collector::add_state(const Agent&a)
 {
   assert(a.ID < inProgress.size());
   // if no tuples, init state. if tuples, cannot be initial state:
-  assert( (inProgress[a.ID]->states.size() == 0) == (a.Status == INIT_COMM) );
+  assert( (inProgress[a.ID]->nsteps() == 0) == (a.Status == INIT_COMM) );
 
   #ifndef NDEBUG // check that last new state and new old state are the same
-    if(inProgress[a.ID]->tuples.size()) {
+    if( inProgress[a.ID]->nsteps() ) {
       bool same = true;
       const Rvec vecSold = a.sOld.copy_observed();
       const auto memSold = inProgress[a.ID]->states.back();

@@ -18,7 +18,7 @@ void Aggregator::prepare(Sequence*const traj, const Uint thrID,
 void Aggregator::prepare_seq(Sequence*const traj, const Uint thrID,
   const RELAY SET) const {
   inputs[thrID].clear(); //make sure we only have empty vectors
-  inputs[thrID].resize(traj->states.size(), Rvec());
+  inputs[thrID].resize(traj->nsteps(), Rvec());
   first_sample[thrID] = 0;
   usage[thrID] = SET;
   seq[thrID] = traj;

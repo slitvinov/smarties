@@ -38,7 +38,8 @@ select(Agent& agent)
 
     #ifndef NDEBUG
       auto dbg = prepare_policy<Policy_t>(output);
-      dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
+      const Rvec & ACT = traj->actions.back(), & MU = traj->policies.back();
+      dbg.prepare(ACT, MU);
       const double err = fabs(dbg.sampImpWeight-1);
       if(err>1e-10) _die("Imp W err %20.20e", err);
     #endif
@@ -53,7 +54,7 @@ select(Agent& agent)
     }
     //whether seq is truncated or terminated, act adv is undefined:
     traj->action_adv.push_back(0);
-    const Uint N = traj->states.size();
+    const Uint N = traj->nsteps();
     // compute initial Qret for whole trajectory:
     assert(N == traj->action_adv.size());
     assert(N == traj->state_vals.size());
@@ -70,31 +71,38 @@ select(Agent& agent)
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 {
+  if( not bTrain ) return;
+
   // ALGORITHM DESCRIPTION
   algoSubStepID = -1; // pre initialization
   {
     auto condInit = [&]() {
       if( algoSubStepID>=0 ) return false;
-      const bool ready = checkReady4Init();
-      return ready;
+      return data->readNData() >= nObsB4StartTraining;
     };
     auto stepInit = [&]() {
-      if(bTrain) initializeLearner();
+      debugL("Initialize Learner");
+      initializeLearner();
+      algoSubStepID = 0;
     };
     tasks.add(condInit, stepInit);
   }
 
-  if( not bTrain ) return;
-
   {
     auto condMain = [&]() {
-      if( algoSubStepID>0 ) return false;
+      if( algoSubStepID != 0 ) return false;
       else return unblockGradientUpdates();
     };
     auto stepMain = [&]() {
-      spawnTrainTasks(); // compute each gradient
-      prepareGradient(); // add up all gradients
+      debugL("Sample the replay memory and compute the gradients");
+      spawnTrainTasks();
+      debugL("Gather gradient estimates from each thread and Learner MPI rank");
+      prepareGradient();
+      debugL("Search work to do in the Replay Memory");
       processMemoryBuffer(); // find old eps, update avg quantities ...
+      debugL("Update Retrace est. for episodes sampled in prev. grad update");
+      updateRetraceEstimates();
+      debugL("Compute state/rewards stats from the replay memory");
       finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
       logStats();
       algoSubStepID = 1;
@@ -104,11 +112,13 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
   // these are all the tasks I can do before the optimizer does an allreduce
   {
     auto condComplete = [&]() {
+      if(algoSubStepID != 1) return false;
       // assumption here is that I have at least one approximator
       // and it that one is ready to apply update they are all/will be soon
       return F[0]->ready2ApplyUpdate();
     };
     auto stepComplete = [&]() {
+      debugL("Apply SGD update after reduction of gradients");
       applyGradient();
       algoSubStepID = 0; // rinse and repeat
       globalGradCounterUpdate(); // step ++

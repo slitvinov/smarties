@@ -107,7 +107,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         #pragma omp for schedule(dynamic)
         for(Uint i=0; i<setSize; i++)
           for(Uint j=0; j<Set[i]->ndata(); j++) {
-            const auto S = RM->standardize(Set[i]->tuples[j]->s);
+            const auto S = RM->standardize(Set[i]->states[j]);
             for(Uint k=0; k<dimS; k++) {
               thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
             }

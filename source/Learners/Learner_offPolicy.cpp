@@ -41,7 +41,7 @@ void Learner_offPolicy::spawnTrainTasks()
     die("Parameter minTotObsNum is too low for given problem");
 
   profiler->stop_start("SAMP");
-  debugL("Sample the replay memory and compute the gradients");
+
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
   data->sample(samp_seq, samp_obs);
@@ -71,9 +71,8 @@ void Learner_offPolicy::spawnTrainTasks()
 
 void Learner_offPolicy::processMemoryBuffer()
 {
-  const Uint currStep = nGradSteps()+1; //base class will advance this with this func
-  debugL("Prune the Replay Memory for old/stale episodes, advance counters");
-  //put here because this is called after workers finished gathering new data
+  const Uint currStep = nGradSteps()+1; //base class will advance this
+
   profiler->stop_start("PRNE");
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
@@ -99,12 +98,10 @@ void Learner_offPolicy::processMemoryBuffer()
   else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
   if(std::fabs(ReFtol-fracOffPol)<0.001) alpha = (1-1e-4)*alpha;
   else alpha = 1e-4 + (1-1e-4)*alpha;
+}
 
-  if( not computeQretrace ) return;
-
-  debugL("Update Retrace est. for episodes sampled in prev. grad update");
-  // placed here because this happens right after update is computed
-  // this can happen before prune and before workers are joined
+void Learner_offPolicy::updateRetraceEstimates()
+{
   profiler->stop_start("QRET");
   const std::vector<Uint>& sampled = data->listSampled();
   const Uint setSize = sampled.size();
@@ -121,14 +118,10 @@ void Learner_offPolicy::processMemoryBuffer()
 
 void Learner_offPolicy::finalizeMemoryProcessing()
 {
-  const Uint currStep = nGradSteps()+1; //base class will advance this with this func
-
-  debugL("Finalize pruning of dataset");
+  const Uint currStep = nGradSteps()+1; //base class will advance this
   profiler->stop_start("FIND");
   data_proc->finalize();
 
-  debugL("Compute state/rewards stats from the replay memory");
-  // placed here because this occurs after workers.join() so we have new data
   profiler->stop_start("PRE");
   if(currStep%1000==0) // update state mean/std with net's learning rate
     data_proc->updateRewardsStats(1, 1e-3*(OFFPOL_ADAPT_STSCALE>0));
