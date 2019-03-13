@@ -25,17 +25,7 @@ Learner::Learner(Environment*const E, Settings&S): settings(S), env(E)
 
 void Learner::prepareGradient()
 {
-  const Uint currStep = nStep()+1;
-  if(updateToApply) die("undefined behavior");
-  if(not updateComplete)
-  {
-    warn("prepareGradient called while waiting for workers to gather data");
-    return; // there is nothing in the gradients yet
-  }
-  // Learner is ready for the update: send the task to the networks and
-  // start preparing the next one
-  updateComplete = false;
-  updateToApply = true;
+  const Uint currStep = nGradSteps()+1;
 
   profiler->stop_start("ADDW");
   debugL("Gather gradient estimates from each thread and Learner MPI rank");
@@ -45,51 +35,37 @@ void Learner::prepareGradient()
   for(auto & net : F) net->updateGradStats(learner_name, currStep-1);
 }
 
-void Learner::initializeLearner()
+void Learner::logStats()
 {
-  data->initialize();
-  bUpdateNdata = false;
-}
-
-void Learner::applyGradient()
-{
-  const Uint currStep = nStep()+1;
-
-  if(updateComplete) die("undefined behavior");
-  if(not updateToApply) {
-    warn("applyGradient called while waiting for data");
-    return;
-  }
-  updateToApply = false;
-
-  if(currStep%(tPrint*PRFL_DMPFRQ)==0 && learn_rank==0)
+  const Uint currStep = nGradSteps()+1;
+  if(currStep%(freqPrint*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
     cout << profiler->printStatAndReset() << endl;
     save();
   }
 
-  if(currStep%tPrint ==0)
+  if(currStep%freqPrint ==0)
   {
     profiler->stop_start("STAT");
     processStats();
   }
+}
 
+void Learner::applyGradient()
+{
   debugL("Apply SGD update after reduction of gradients");
   profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
-
-  globalGradCounterUpdate();
 }
 
 void Learner::globalGradCounterUpdate() {
-  _nStep++;
-  bUpdateNdata = false;
+  _nGradSteps++;
 }
 
 void Learner::processStats()
 {
-  const Uint currStep = nStep()+1;
+  const Uint currStep = nGradSteps()+1;
 
   ostringstream buf;
   data_proc->getMetrics(buf);
@@ -106,8 +82,9 @@ void Learner::processStats()
       (learner_name+std::to_string(learn_rank)+"stats.txt").c_str(), "a");
   #endif
 
-  ostringstream head;
-  if( currStep%(tPrint*PRFL_DMPFRQ)==0 || currStep==tPrint ) {
+  std::ostringstream head;
+  if( currStep%(freqPrint*PRFL_DMPFRQ)==0 || currStep==freqPrint )
+  {
     data_proc->getHeaders(head);
     getHeaders(head);
     if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
@@ -119,16 +96,16 @@ void Learner::processStats()
     #else
       printf("ID #/T   %s\n", head.str().c_str());
     #endif
-    if(currStep==tPrint)
+    if(currStep==freqPrint)
       fprintf(fout, "ID #/T   %s\n", head.str().c_str());
   }
   #ifdef PRINT_ALL_RANKS
     printf("%01d-%01d %05u%s\n",
-      learn_rank, learnID, currStep/tPrint, buf.str().c_str());
+      learn_rank, learnID, currStep/freqPrint, buf.str().c_str());
   #else
-    printf("%02d %05u%s\n", learnID, currStep/tPrint, buf.str().c_str());
+    printf("%02d %05u%s\n", learnID, currStep/freqPrint, buf.str().c_str());
   #endif
-  fprintf(fout, "%02d %05u%s\n", learnID, currStep/tPrint, buf.str().c_str());
+  fprintf(fout, "%02d %05u%s\n", learnID,currStep/freqPrint,buf.str().c_str());
   fclose(fout);
   fflush(0);
 }
@@ -152,8 +129,8 @@ void Learner::restart()
 
 void Learner::save()
 {
-  const Uint currStep = nStep()+1;
-  const Real freqSave = tPrint * PRFL_DMPFRQ;
+  const Uint currStep = nGradSteps()+1;
+  const Real freqSave = freqPrint * PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = currStep % freqBackup == 0;
   for(auto & net : F) net->save(learner_name, bBackup);

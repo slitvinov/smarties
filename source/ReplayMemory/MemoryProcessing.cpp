@@ -29,9 +29,9 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       for(Uint i=0; i<setSize; i++) {
         count += Set[i]->ndata();
         for(Uint j=0; j<Set[i]->ndata(); j++) {
-          newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
+          newstdvr += std::pow(Set[i]->rewards[j+1], 2);
           for(Uint k=0; k<dimS && WS>0; k++) {
-            const long double sk = Set[i]->tuples[j]->s[k] - mean[k];
+            const long double sk = Set[i]->states[j][k] - mean[k];
             thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
           }
         }
@@ -234,7 +234,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
   const long nSeq = nSequences.load();
   for(long i=0; i<nSeq; i++) avgR += Set[i]->totR;
 
-  real2SS(buff, invstd_reward*avgR/(nSeq+1e-7), 7, 0);
+  real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
   real2SS(buff, 1/invstd_reward, 6, 1);
   real2SS(buff, avgDKL, 6, 1);
 
@@ -253,7 +253,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
 void MemoryProcessing::getHeaders(std::ostringstream& buff)
 {
   buff <<
-  "| avgR | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
+  "|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
 }
 
 FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,

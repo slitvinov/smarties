@@ -8,9 +8,10 @@
 
 #include "Collector.h"
 
-Collector::Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM) :
- settings(S), env(RM->env), replay(RM), sharing( new MemorySharing(S, L, RM) )
+Collector::Collector(const Settings&S, MemoryBuffer*const RM) :
+ settings(S), env(RM->env), replay(RM), sharing( new MemorySharing(S, RM) )
 {
+  globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
   inProgress.resize(S.nAgents, nullptr);
   for (int i=0; i<S.nAgents; i++) inProgress[i] = new Sequence();
 }
@@ -22,13 +23,13 @@ void Collector::add_state(const Agent&a)
 {
   assert(a.ID < inProgress.size());
   // if no tuples, init state. if tuples, cannot be initial state:
-  assert( (inProgress[a.ID]->tuples.size() == 0) == (a.Status == INIT_COMM) );
+  assert( (inProgress[a.ID]->states.size() == 0) == (a.Status == INIT_COMM) );
 
   #ifndef NDEBUG // check that last new state and new old state are the same
     if(inProgress[a.ID]->tuples.size()) {
       bool same = true;
       const Rvec vecSold = a.sOld.copy_observed();
-      const auto memSold = inProgress[a.ID]->tuples.back()->s;
+      const auto memSold = inProgress[a.ID]->states.back();
       for (Uint i=0; i<vecSold.size() && same; i++)
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
       //debugS("Agent %s and %s",
@@ -58,8 +59,6 @@ void Collector::add_action(const Agent& a, const Rvec pol)
 void Collector::terminate_seq(Agent&a)
 {
   assert(a.Status>=TERM_COMM);
-  assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
-  assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
   // fill empty action and empty policy:
   a.act(Rvec(env->aI.dim, 0));
   inProgress[a.ID]->add_action(a.a.vals, Rvec(policyVecDim, 0));
@@ -73,10 +72,10 @@ void Collector::terminate_seq(Agent&a)
 void Collector::push_back(const int & agentId)
 {
   assert(agentId < (int) inProgress.size());
-  const Uint seq_len = inProgress[agentId]->tuples.size();
+  const Uint seq_len = inProgress[agentId]->states.size();
   if( seq_len > 1 ) //at least s0 and sT
   {
-    inProgress[agentId]->finalize( nSeenSequences.load() );
+    inProgress[agentId]->finalize( nSeenSequences_loc.load() );
     if(prepareImpWeights)
       inProgress[agentId]->priorityImpW = std::vector<float>(seq_len, 1);
 
@@ -87,6 +86,11 @@ void Collector::push_back(const int & agentId)
   else die("Found episode with no steps");
 
   inProgress[agentId] = new Sequence();
+
+  globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
+  const std::vector<long> nDataGlobal = globalStep_reduce.get();
+  nSeenSequences = nDataGlobal[0];
+  nSeenTransitions = nDataGlobal[1];
 }
 
 Collector::~Collector() {

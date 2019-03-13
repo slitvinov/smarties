@@ -11,6 +11,24 @@
 #include "Utils/ArgParser.h"
 #include "Utils/Warnings.h"
 
+class TaskQueue
+{
+  using cond_t = std::function<bool()>;
+  using func_t = std::function<void()>;
+  std::vector<std::pair<cond_t, func_t>> tasks;
+
+public:
+  inline void add(cond_t && cond, func_t && func) {
+    tasks.emplace_back(std::move(cond), std::move(func));
+  }
+
+  inline void run()
+  {
+    // go through task list once and execute all that are ready:
+    for(Uint i=0; i<tasks.size(); ++i) if( tasks[i].first() ) tasks[i].second();
+  }
+};
+
 struct Settings
 {
   Settings() {}
@@ -452,6 +470,7 @@ std::string setupFolder = DEFAULT_setupFolder;
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS THAT ARE NOT READ FROM FILE
 ///////////////////////////////////////////////////////////////////////////////
+
   MPI_Comm workersComm = MPI_COMM_NULL; // for workers to talk to their master
   MPI_Comm mastersComm = MPI_COMM_NULL; // for masters to talk among themselves
 

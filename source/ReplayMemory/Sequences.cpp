@@ -10,15 +10,15 @@
 
 std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uint dP)
 {
-  const Uint seq_len = tuples.size();
+  const Uint seq_len = states.size();
   const Uint totalSize = Sequence::computeTotalEpisodeSize(dS, dA, dP, seq_len);
   std::vector<Fval> ret(totalSize, 0);
   Fval* buf = ret.data();
   for (Uint i = 0; i<seq_len; i++) {
-    std::copy(tuples[i]->s.begin(), tuples[i]->s.end(), buf);
-    buf[dS] = tuples[i]->r; buf += dS + 1;
-    std::copy(tuples[i]->a.begin(),  tuples[i]->a.end(),  buf); buf += dA;
-    std::copy(tuples[i]->mu.begin(), tuples[i]->mu.end(), buf); buf += dP;
+    std::copy(states[i].begin(), states[i].end(), buf);
+    buf[dS] = rewards[i]; buf += dS + 1;
+    std::copy(actions[i].begin(),  actions[i].end(),  buf); buf += dA;
+    std::copy(policies[i].begin(), policies[i].end(), buf); buf += dP;
   }
 
   assert(Q_RET.size() <= seq_len);        Q_RET.resize(seq_len);
@@ -46,7 +46,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
 }
 
 void Sequence::save(FILE * f, const Uint dS, const Uint dA, const Uint dP) {
-  const Uint seq_len = tuples.size();
+  const Uint seq_len = states.size();
   fwrite(& seq_len, sizeof(Uint), 1, f);
   Fvec buffer = packSequence(dS, dA, dP);
   fwrite(buffer.data(), sizeof(Fval), buffer.size(), f);
@@ -57,18 +57,19 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
 {
   const Uint seq_len = Sequence::computeTotalEpisodeNstep(dS,dA,dP,data.size());
   const Fval* buf = data.data();
-  assert(tuples.size() == 0);
-  tuples = std::vector<Tuple*>(seq_len, nullptr);
+  assert(states.size() == 0);
   for (Uint i = 0; i<seq_len; i++) {
-    tuples[i] = new Tuple(buf, dS, buf[dS]); buf += dS + 1;
-    tuples[i]->setAct(buf, dA, dP); buf += dA + dP;
+    states.push_back(std::vector<Fval>(buf, buf+dS));
+    rewards.push_back(buf[dS]); buf += dS + 1;
+    states.push_back(std::vector<Fval>(buf, buf+dA)); buf += dA;
+    states.push_back(std::vector<Fval>(buf, buf+dP)); buf += dP;
   }
-  Q_RET = Fvec(buf, buf + seq_len); buf += seq_len;
-  action_adv = Fvec(buf, buf + seq_len); buf += seq_len;
-  state_vals = Fvec(buf, buf + seq_len); buf += seq_len;
-  SquaredError = Fvec(buf, buf + seq_len); buf += seq_len;
-  offPolicImpW = Fvec(buf, buf + seq_len); buf += seq_len;
-  KullbLeibDiv = Fvec(buf, buf + seq_len); buf += seq_len;
+  Q_RET = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
+  action_adv = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
+  state_vals = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
+  SquaredError = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
+  offPolicImpW = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
+  KullbLeibDiv = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   priorityImpW = std::vector<float>(seq_len, 1);
   ended = *(buf++); ID = *(buf++); nOffPol = *(buf++);
   MSE = *(buf++); sumKLDiv = *(buf++); totR = *(buf++);

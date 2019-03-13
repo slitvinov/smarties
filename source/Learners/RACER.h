@@ -26,10 +26,32 @@ class Param_advantage;
 template<Uint nExperts>
 class Mixture_advantage;
 
+#define RACER_simpleSigma
+#define RACER_singleNet
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_offPolicy
 {
+  template<typename _pol_t>
+  inline _pol_t prepare_policy( const Rvec& O,
+                                const Rvec ACT=Rvec(),
+                                const Rvec MU=Rvec()) const
+  {
+    _pol_t pol(pol_start, &aInfo, O);
+    if(ACT.size()) {
+      assert(MU.size());
+      pol.prepare(ACT, MU);
+    }
+    return pol;
+  }
+
+  template<typename _adv_t, typename _pol_t>
+  inline _adv_t prepare_advantage( const Rvec& out,
+                                   const _pol_t*const pol) const
+  {
+    return _adv_t(adv_start, &aInfo, out, pol);
+  }
+
  protected:
   // continuous actions: dimensionality of action vectors
   // discrete actions: number of options
@@ -47,7 +69,7 @@ class RACER : public Learner_offPolicy
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
-  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+  std::vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
 
   void TrainBySequences(const Uint seq, const Uint wID,
     const Uint bID, const Uint tID) const override;
@@ -61,7 +83,7 @@ class RACER : public Learner_offPolicy
   Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
     const Rvec output, const Policy_t& pol, const Uint thrID) const;
 
-  Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
+  Rvec policyGradient(const Rvec& MU, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const;
 
   //inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
@@ -82,7 +104,7 @@ class RACER : public Learner_offPolicy
   ~RACER() { }
 
   void select(Agent& agent) override;
-
+  void setupTasks(TaskQueue& tasks) override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

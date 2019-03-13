@@ -7,14 +7,11 @@
 //
 
 #include "MemorySharing.h"
-#include "../Learners/Learner_offPolicy.h"
-#include "../Learners/CMALearner.h"
-#include "../Learners/PPO.h"
 
-MemorySharing::MemorySharing(const Settings&S, Learner*const L,
-  MemoryBuffer*const RM) : settings(S), learner(L), replay(RM), sI(L->sInfo),
-  aI(L->aInfo) {
+MemorySharing::MemorySharing(const Settings&S, MemoryBuffer*const RM) : settings(S), replay(RM)
+{
   completed.reserve(S.nAgents);
+  if(SZ <= 1) return;
   #pragma omp parallel
   {
     const int thrID = omp_get_thread_num();
@@ -26,7 +23,7 @@ MemorySharing::MemorySharing(const Settings&S, Learner*const L,
 MemorySharing::~MemorySharing()
 {
   bExit = 1;
-  fetcher.join();
+  if(SZ > 1) fetcher.join();
   for(const auto& S : completed) _dispose_object(S);
 }
 
@@ -84,31 +81,7 @@ void MemorySharing::run()
         EpOwnerID = (EpOwnerID+1) % SZ;
       }
     }
-
-    if(nObsRequest == MPI_REQUEST_NULL)
-    {
-     int ready = 0;
-     if(learner->blockGradStep() and learner->blockDataAcquisition()) ready = 1;
-     else if( learner->checkReady4Init() ) ready = 2;
-     if(ready)
-     {
-       std::lock_guard<std::mutex> lock1(complete_mutex);
-       if( completed.size() == 0) {
-         globSeen[0] = nSeenTransitions_loc.load();
-         globSeen[1] = nSeenSequences_loc.load();
-         //_warn("Sent advance req %d %ld %ld",ready,globSeen[0],globSeen[1]);
-         MPI(Iallreduce, MPI_IN_PLACE, globSeen, 2,
-          MPI_LONG, MPI_SUM, comm, &nObsRequest);
-       }
-     }
-    }
-
     for(int i=0; i<SZ; i++) if(i not_eq ID) recvEP(i);
-
-    if( testBuffer(nObsRequest) ) {
-      learner->globalDataCounterUpdate(globSeen[0], globSeen[1]);
-      nObsRequest = MPI_REQUEST_NULL;
-    }
 
     usleep(1);
     if( bExit.load() > 0 ) break;
@@ -117,6 +90,10 @@ void MemorySharing::run()
 
 void MemorySharing::addComplete(Sequence* const EP)
 {
-  std::lock_guard<std::mutex> lock(complete_mutex);
-  completed.push_back(EP);
+  if(SZ <= 1) {
+    replay->pushBackSequence(EP);
+  } else {
+    std::lock_guard<std::mutex> lock(complete_mutex);
+    completed.push_back(EP);
+  }
 }

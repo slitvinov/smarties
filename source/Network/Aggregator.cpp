@@ -18,7 +18,7 @@ void Aggregator::prepare(Sequence*const traj, const Uint thrID,
 void Aggregator::prepare_seq(Sequence*const traj, const Uint thrID,
   const RELAY SET) const {
   inputs[thrID].clear(); //make sure we only have empty vectors
-  inputs[thrID].resize(traj->tuples.size(), Rvec());
+  inputs[thrID].resize(traj->states.size(), Rvec());
   first_sample[thrID] = 0;
   usage[thrID] = SET;
   seq[thrID] = traj;
@@ -68,7 +68,7 @@ Rvec Aggregator::get(const Uint samp, const Uint thrID, const int USEW) const {
     return inputs[thrID][ind];
   } else if (usage[thrID] == ACT) {
     assert(aI.dim == nOuts);
-    return aI.getInvScaled(seq[thrID]->tuples[samp]->a);
+    return aI.getInvScaled(seq[thrID]->actions[samp]);
   } else {
     assert(USEW >= -1);
     // if target net, use target net's workspace, otherwise workspaces are

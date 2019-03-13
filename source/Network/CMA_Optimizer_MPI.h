@@ -34,7 +34,7 @@ class CMA_Optimizer : public Optimizer
   std::vector<Saru *> generators;
   std::vector<std::mt19937 *> stdgens;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
-  vector<Real> losses = vector<Real>(pop_size, 0);
+  std::vector<Real> losses = vector<Real>(pop_size, 0);
   //Uint Nswap = 0;
 
  public:
@@ -99,6 +99,13 @@ class CMA_Optimizer : public Optimizer
     for (int i=0; i < (int) learn_size; i++)
       ret[i] = std::min(mpi_stride * (i+1), (int) pDim) - mpi_stride * i;
     return ret;
+  }
+
+  bool ready2UpdateWeights() override
+  {
+    int completed = 0;
+    MPI(Test, &paramRequest, &completed, MPI_STATUS_IGNORE);
+    return completed;
   }
 
   void startAllGather(const Uint ID);

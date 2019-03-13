@@ -23,7 +23,7 @@ protected:
   const FORGET ERFILTER =
     MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
 
-  DelayedReductor ReFER_reduce = DelayedReductor(settings, LDvec{ 0.0, 1.0 } );
+  DelayedReductor<long double> ReFER_reduce = DelayedReductor<long double>(settings, LDvec{ 0.0, 1.0 } );
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
   virtual void TrainBySequences(const Uint seq, const Uint wID,
@@ -33,12 +33,11 @@ public:
 
   //main training functions:
   bool blockDataAcquisition() const override;
-  void spawnTrainTasks_seq() override;
-  void spawnTrainTasks_par() override;
-  virtual void applyGradient() override;
-  virtual void prepareGradient() override;
-  bool bNeedSequentialTrain() override;
-  virtual void initializeLearner() override;
+  bool unblockGradientUpdates() const;
+  void spawnTrainTasks();
+  void processMemoryBuffer();
+  void finalizeMemoryProcessing();
+  virtual void initializeLearner();
   void save() override;
   void restart() override;
 

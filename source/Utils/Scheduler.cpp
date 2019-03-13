@@ -16,18 +16,14 @@
 Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
   Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
 {
-  profiler = new Profiler();
-  for (Uint i=0; i<learners.size(); i++)  learners[i]->profiler = profiler;
-
-  for(const auto& L : learners) // Figure out if I have on-pol learners
-    bNeedSequentialTasks = bNeedSequentialTasks || L->bNeedSequentialTrain();
-
   if(nWorkers_own*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nWorkers nPerRank nAgents.");
+
+  worker_replies.reserve(nWorkers_own);
   //the following Irecv will be sent after sending the action
   for(int i=1; i<=nWorkers_own; i++) comm->recvBuffer(i);
-  profiler->stop_start("SLP");
-  worker_replies.reserve(nWorkers_own);
+
+  for(const auto& L : learners) L->setupTasks(tasks);
 }
 
 void Master::run()
@@ -44,48 +40,22 @@ void Master::run()
       if(shareWorkers.size()) worker_replies.push_back(
         std::thread( [&, shareWorkers] () { processWorker(shareWorkers); }));
     }
-    while ( ! learnersInitialized() ) usleep(5);
-  }
-  if( not bTrain ) {
-   for(size_t i=0; i<worker_replies.size(); i++) worker_replies[i].join();
-   worker_replies.clear();
-   return;
   }
 
-  profiler->reset();
-  for(const auto& L : learners) L->initializeLearner();
+  const auto isTrainingOver = [&](const Learner* const L) {
+    // if agents share learning algo, return number of turns performed by env
+    // instead of sum of timesteps performed by each agent
+    const Real factor = learners.size() == 1? 1.0/nPerRank : 1;
+    const long dataCounter = bTrain? L->nLocTimeStepsTrain() : L->nSeqsEval();
+    return dataCounter * factor >= totNumSteps;
+  };
 
-  while (true) // gradient step loop: one step per iteration
+  while(1)
   {
-    for(const auto& L : learners) L->spawnTrainTasks_par();
+    tasks.run();
 
-    if(bNeedSequentialTasks) {
-      profiler->stop_start("SLP");
-      // typically on-policy learning. Wait for all needed data:
-      while ( ! learnersUnlockQueue() ) usleep(1);
-      // and then perform on-policy update step(s):
-      for(const auto& L : learners) L->spawnTrainTasks_seq();
-    }
-
-    for(const auto& L : learners) L->prepareGradient();
-
-    if(not bNeedSequentialTasks) {
-      profiler->stop_start("SLP");
-      //for off-policy learners this is last possibility to wait for needed data
-      while ( ! learnersUnlockQueue() ) usleep(1);
-    }
-
-    flushRewardBuffer();
-
-    //This is the last possible time to finish the blocking mpi MPI_Allreduce
-    // and finally perform the actual gradient step. Also, operations on memory
-    // buffer that should be done after workers.join() are done here.
-    for(const auto& L : learners) L->applyGradient();
-
-    if( getMinStepId() >= totNumSteps ) {
-      cout << "over!" << endl;
-      return;
-    }
+    bool over = true;
+    for(const auto& L : learners) over = over && isTrainingOver(L);
   }
 }
 
@@ -93,8 +63,6 @@ void Master::processWorker(const std::vector<int> workers)
 {
   while(1)
   {
-    if( not bTrain && getMinSeqId() >= totNumSteps) break;
-
     for( const int worker : workers )
     {
       assert(worker>0 && worker <= (int) nWorkers_own);
@@ -116,7 +84,7 @@ void Master::processWorker(const std::vector<int> workers)
 void Master::processAgent(const int worker)
 {
   //read from worker's buffer:
-  vector<double> recv_state(sI.dim);
+  std::vector<double> recv_state(sI.dim);
   int recv_agent  = -1; // id of agent inside environment
   int recv_status = -1; // initial/normal/termination/truncation of episode
   double reward   =  0;
@@ -124,12 +92,12 @@ void Master::processAgent(const int worker)
   if (recv_status == FAIL_COMM) die("app crashed");
 
   const int agent = (worker-1) * nPerRank + recv_agent;
-  Learner*const aAlgo = pickLearner(agent, recv_agent);
+  Learner*const learner = pickLearner(agent, recv_agent);
 
 
   agents[agent]->update(recv_status, recv_state, reward);
   //pick next action and ...do a bunch of other stuff with the data:
-  aAlgo->select(*agents[agent]);
+  learner->select(*agents[agent]);
 
   debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
     agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
@@ -137,14 +105,39 @@ void Master::processAgent(const int worker)
     agents[agent]->a._print().c_str());
 
   std::vector<double> actVec = agents[agent]->getAct();
-  if(agents[agent]->Status >= TERM_COMM) actVec[0] = getMinStepId();
+  if(agents[agent]->Status >= TERM_COMM) {
+    const Real factor = learners.size() == 1? 1.0/nPerRank : 1;
+    const auto nSteps = learner->nLocTimeStepsTrain();
+    actVec[0] = factor * nSteps;
+    dumpCumulativeReward(recv_agent, worker, learner->nGradSteps(), nSteps);
+  }
+
   debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
   comm->sendBuffer(worker, actVec);
+  comm->recvBuffer(worker); // prepare next recv
+}
 
-  if ( recv_status >= TERM_COMM )
-    dumpCumulativeReward(recv_agent,worker,aAlgo->nStep(),aAlgo->tStepsTrain());
+bool Master::learnersLockQueue() const
+{
+  //When would a learning algo stop acquiring more data?
+  //Off Policy algos:
+  // - User specifies a ratio of observed trajectories to gradient steps.
+  //    Comm is restarted or paused to maintain this ratio consant.
+  //On Policy algos:
+  // - if collected enough trajectories for current batch, then comm is paused
+  //    untill gradient is applied (or nepocs are done), then comm restarts
+  //    to obtain fresh on policy samples
+  // Note:
+  // - on policy traj. storage assumes that when agent reaches terminal state
+  //    on a worker, all other agents on that worker must send their term state
+  //    before sending any new initial state
 
-  comm->recvBuffer(worker);
+  // However, no learner can stop others from getting data (vector of algos)
+  bool locked = true;
+  for(const auto& L : learners)
+    locked = locked && L->blockDataAcquisition(); // if any wants to unlock...
+
+  return locked;
 }
 
 Worker::Worker(Communicator_internal*const _c,Environment*const _e,Settings&_s)
@@ -168,40 +161,21 @@ void Worker::run() {
   }
 }
 
-void Master::flushRewardBuffer()
-{
-  for(int i=0; i<nPerRank; i++)
-  {
-    const Learner*const aAlgo = pickLearner(i, i);
-    if( (iterNum % aAlgo->tPrint) not_eq 0 ) continue;
-
-    ostringstream& agentBuf = rewardsBuffer[i];
-    streampos pos = agentBuf.tellp(); // store current location
-    agentBuf.seekp(0, ios_base::end); // go to end
-    bool empty = agentBuf.tellp()==0; // check size == 0 ?
-    agentBuf.seekp(pos);              // restore location
-    if(empty) continue;               // else update rewards log
-    char path[256];
-    sprintf(path, "agent_%02d_rank%02d_cumulative_rewards.dat", i,learn_rank);
-    ofstream outf(path, ios::app);
-    outf << agentBuf.str();
-    agentBuf.str(std::string());      // empty buffer
-    outf.flush();
-    outf.close();
-  }
-  iterNum++;
-}
-
 void Master::dumpCumulativeReward(const int agent, const int worker,
   const unsigned giter, const unsigned tstep) const
 {
   if (giter == 0 && bTrain) return;
 
   const int ID = (worker-1) * nPerRank + agent;
-  lock_guard<mutex> lock(dump_mutex);
-  rewardsBuffer[agent]<<giter<<" "<<tstep<<" "<<worker<<" "
-    <<agents[ID]->transitionID<<" "<<agents[ID]->cumulative_rewards<<endl;
-  rewardsBuffer[agent].flush();
+  char path[256];
+  sprintf(path, "agent_%02d_rank%02d_cumulative_rewards.dat", agent,learn_rank);
+
+  std::lock_guard<std::mutex> lock(dump_mutex);
+  FILE * pFile = fopen (path, "a");
+  fprintf (pFile, "%u %u %d %d %f\n", giter, tstep, worker,
+    agents[ID]->transitionID, agents[ID]->cumulative_rewards);
+  fflush (pFile);
+  fclose (pFile);
 }
 
 /*

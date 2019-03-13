@@ -109,13 +109,13 @@ void Approximator::initializeNetwork(Builder& build) {
 void Approximator::prepare_seq(Sequence*const traj, const Uint thrID,
   const Uint wghtID) const {
   if(error_placements[thrID] > 0) die("");
-  input->prepare(traj, traj->tuples.size(), 0, thrID);
+  input->prepare(traj, traj->states.size(), 0, thrID);
 
   for(Uint k=0; k < 1+extraAlloc; k++)
-    net->prepForBackProp(series[thrID + k*nThreads], traj->tuples.size());
+    net->prepForBackProp(series[thrID + k*nThreads], traj->states.size());
 
   if(series_tgt.size()>thrID)
-    net->prepForFwdProp(series_tgt[thrID], traj->tuples.size());
+    net->prepForFwdProp(series_tgt[thrID], traj->states.size());
 
   first_sample[thrID] = 0;
   thread_Wind[thrID] = wghtID;
@@ -143,7 +143,8 @@ void Approximator::prepare_one(Sequence*const traj, const Uint samp,
 }
 
 void Approximator::prepare(Sequence*const traj, const Uint samp,
-    const Uint N, const Uint thrID, const Uint wghtID) const {
+    const Uint N, const Uint thrID, const Uint wghtID) const
+{
   if(error_placements[thrID] > 0) die("");
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -163,7 +164,8 @@ void Approximator::prepare(Sequence*const traj, const Uint samp,
 }
 
 Rvec Approximator::forward(const Uint samp, const Uint thrID,
-  const int USE_WGT, const int USE_ACT, const int overwrite) const {
+  const int USE_WGT, const int USE_ACT, const int overwrite) const
+{
   if(USE_ACT>0) assert( (Uint) USE_ACT <= extraAlloc );
   // To handle Relay calling to answer agents' requests:
   if(thrID>=nThreads) return forward_agent(thrID-nThreads);
@@ -187,7 +189,8 @@ Rvec Approximator::forward(const Uint samp, const Uint thrID,
   return getOutput(inp, ind, act[ind], thrID, USE_WGT);
 }
 
-Rvec Approximator::getInput(const Uint samp, const Uint thrID, const int USEW) const {
+Rvec Approximator::getInput(const Uint samp, const Uint thrID, const int USEW) const
+{
   Rvec inp = input->forward(samp, thrID, USEW);
   if(relay not_eq nullptr) {
     const Rvec addedinp = relay->get(samp, thrID, USEW);
@@ -200,7 +203,8 @@ Rvec Approximator::getInput(const Uint samp, const Uint thrID, const int USEW) c
 }
 
 Rvec Approximator::getOutput(const Rvec inp, const int ind,
-  Activation*const act, const Uint thrID, const int USEW) const {
+  Activation*const act, const Uint thrID, const int USEW) const
+{
   //hardcoded to use time series predicted with cur weights for recurrencies:
   const std::vector<Activation*>& act_cur = series[thrID];
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
@@ -247,7 +251,8 @@ void Approximator::backward(Rvec grad, const Uint samp, const Uint thrID,
   act[ind]->addOutputDelta(grad);
 }
 
-void Approximator::gradient(const Uint thrID, const int wID) const {
+void Approximator::gradient(const Uint thrID, const int wID) const
+{
   if(error_placements[thrID]<=0) die("");
 
   nAddedGradients++;
@@ -303,13 +308,21 @@ void Approximator::applyUpdate() {
   reducedGradients = 0;
 }
 
-void Approximator::getHeaders(ostringstream& buff) const {
+bool Approximator::ready2ApplyUpdate()
+{
+  if(reducedGradients == 0) return true;
+  else return opt->ready2UpdateWeights();
+}
+
+void Approximator::getHeaders(ostringstream& buff) const
+{
   buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << name;
   if(opt->tgtUpdateAlpha > 0) buff << "| dTgt ";
   opt->getHeaders(buff);
 }
 
-void Approximator::getMetrics(ostringstream& buff) const {
+void Approximator::getMetrics(ostringstream& buff) const
+{
   real2SS(buff, net->weights->compute_weight_norm(), 7, 1);
   if(opt->tgtUpdateAlpha > 0)
     real2SS(buff, net->weights->compute_weight_dist(net->tgt_weights), 6, 1);
@@ -317,7 +330,8 @@ void Approximator::getMetrics(ostringstream& buff) const {
 }
 
 Rvec Approximator::relay_backprop(const Rvec err,
-  const Uint samp, const Uint thrID, const bool bUseTargetWeights) const {
+  const Uint samp, const Uint thrID, const bool bUseTargetWeights) const
+{
   if(relay == nullptr || relayInp < 0) die("improperly set up the relay");
   if(ESpopSize > 1) {
     debugL("Skipping relay_backprop because we use ES optimizers.");
@@ -342,7 +356,8 @@ Rvec Approximator::relay_backprop(const Rvec err,
 }
 
 void Approximator::prepare_agent(Sequence*const traj, const Agent&agent,
-  const Uint wghtID) const {
+  const Uint wghtID) const
+{
   //This is called by a std::thread and uses separate workspace from omp threads
   //We use a fake thread id to avoid code duplication in encapsulator class
   const Uint fakeThrID = nThreads + agent.ID, stepid = traj->ndata();
@@ -364,7 +379,8 @@ void Approximator::prepare_agent(Sequence*const traj, const Agent&agent,
     net->predict(getInput(t,fakeThrID,wghtID), i? act[i-1]:nullptr, act[i], W);
 }
 
-Rvec Approximator::forward_agent(const Uint agentID) const {
+Rvec Approximator::forward_agent(const Uint agentID) const
+{
   // assume we already computed recurrencies
   const std::vector<Activation*>& act = agent_series[agentID];
   const int fakeThrID = nThreads + agentID, wghtID = agent_Wind[agentID];

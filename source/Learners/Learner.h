@@ -17,14 +17,15 @@
 class Learner
 {
  protected:
+  const int freqPrint = 1000;
   Settings & settings;
   Environment * const env;
-
+  int algoSubStepID = -1;
  public:
   const MPI_Comm mastersComm = settings.mastersComm;
 
   const bool bSampleSequences = settings.bSampleSequences;
-  const Uint nObsPerTraining = settings.minTotObsNum_loc;
+  const Uint nObsB4StartTraining = settings.minTotObsNum_loc;
   const bool bTrain = settings.bTrain;
 
   const Uint policyVecDim = env->aI.policyVecDim;
@@ -51,21 +52,17 @@ class Learner
   const ActionInfo* const aI = &aInfo;
 
  protected:
-  long nData_b4Startup = 0;
+  long nDataGatheredB4Startup = 0;
   mutable int percData = -5;
-  std::atomic<long> _nStep{0};
-  std::atomic<bool> bUpdateNdata{false};
-  std::atomic<bool> bReady4Init {false};
-
-  bool updateComplete = false;
-  bool updateToApply = false;
+  std::atomic<long> _nGradSteps{0};
 
   std::vector<std::mt19937>& generators = settings.generators;
 
   MemoryBuffer* const data = new MemoryBuffer(settings, env);
   Encapsulator * const input = new Encapsulator("input", settings, data);
   MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Collector* data_get;
+  Collector* const data_get = new Collector(settings, data);
+  Profiler* const profiler = new Profiler();
 
   TrainData* trainInfo = nullptr;
   std::vector<Approximator*> F;
@@ -76,10 +73,8 @@ class Learner
   bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
 
  public:
-  Profiler* profiler = nullptr;
   std::string learner_name;
   Uint learnID;
-  Uint tPrint = 1000;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -96,64 +91,40 @@ class Learner
     learnID = id;
   }
 
-  inline unsigned tStepsTrain() const {
-    return data->readNSeen_loc() - nData_b4Startup;
+  inline long nLocTimeStepsTrain() const {
+    return data->readNSeen_loc() - nDataGatheredB4Startup;
   }
   inline unsigned nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
-  inline long int nStep() const {
-    return _nStep.load();
+  inline long int nGradSteps() const {
+    return _nGradSteps.load();
   }
   inline Real annealingFactor() const {
     //number that goes from 1 to 0 with optimizer's steps
     assert(epsAnneal>1.);
-    const auto mynstep = nStep();
+    const auto mynstep = nGradSteps();
     if(mynstep*epsAnneal >= 1 || !bTrain) return 0;
     else return 1 - mynstep*epsAnneal;
   }
 
   virtual void select(Agent& agent) = 0;
-
+  virtual void setupTasks(TaskQueue& tasks) = 0;
   virtual void getMetrics(ostringstream& buff) const;
   virtual void getHeaders(ostringstream& buff) const;
 
-  //main training loop functions:
-  virtual void spawnTrainTasks_par() = 0;
-  virtual void spawnTrainTasks_seq() = 0;
-  virtual bool bNeedSequentialTrain() = 0;
+  void globalDataCounterUpdate();
 
-  void globalDataCounterUpdate(const long globSeenObs, const long globSeenSeq)
-  {
-    data->setNSeen(globSeenObs);
-    data->setNSeenSeq(globSeenSeq);
-    if( bReady4Init and not blockDataAcquisition() )
-      _die("? %ld %ld %ld %ld", data->readNSeen_loc(), nData_b4Startup,
-           _nStep.load(), data->readNSeen());
-    bReady4Init = true;
-    bUpdateNdata = true;
-  }
   virtual void globalGradCounterUpdate();
-
-  bool unblockGradStep() const {
-    return bUpdateNdata.load();
-  }
-  bool blockGradStep() const {
-    return not bUpdateNdata.load();
-  }
 
   virtual bool blockDataAcquisition() const = 0;
 
-  inline bool isReady4Init() const {
-    if(bTrain == false) return true;
-    return bReady4Init.load();
-  }
-  inline bool checkReady4Init() const {
-    if( bReady4Init.load() ) return false;
-    const bool ready = data->readNData() >= nObsPerTraining;
+  inline bool checkReady4Init() const
+  {
+    const bool ready = data->readNData() >= nObsB4StartTraining;
     if(not ready && learn_rank==0) {
       std::lock_guard<std::mutex> lock(buffer_mutex);
-      const int currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
+      const int currPerc = data->readNData() * 100./(Real) nObsB4StartTraining;
       if(currPerc > percData+5) {
        percData = currPerc;
        printf("\rCollected %d%% of data required to begin training. ",percData);
@@ -165,7 +136,7 @@ class Learner
 
   virtual void prepareGradient();
   virtual void applyGradient();
-  virtual void initializeLearner();
+  virtual void logStats();
   virtual void save();
   virtual void restart();
 };
