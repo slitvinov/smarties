@@ -63,13 +63,13 @@ class RACER : public Learner_approximator
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
-  const vector<Uint> net_outputs;
-  const vector<Uint> net_indices = count_indices(net_outputs);
-  const vector<Uint> pol_start, adv_start;
+  const std::vector<Uint> net_outputs;
+  const std::vector<Uint> net_indices = count_indices(net_outputs);
+  const std::vector<Uint> pol_start, adv_start;
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
-  std::vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+  std::vector<Rvec> OrUhState = std::vector<Rvec>( nAgents, Rvec(nA, 0) );
 
   void TrainBySequences(const Uint seq, const Uint wID,
     const Uint bID, const Uint tID) const override;
@@ -95,9 +95,9 @@ class RACER : public Learner_approximator
   //  return POL.control_grad(&ADV, eta);
   //}
 
-  static vector<Uint> count_outputs(const ActionInfo*const aI);
-  static vector<Uint> count_pol_starts(const ActionInfo*const aI);
-  static vector<Uint> count_adv_starts(const ActionInfo*const aI);
+  static std::vector<Uint> count_outputs(const ActionInfo*const aI);
+  static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
+  static std::vector<Uint> count_adv_starts(const ActionInfo*const aI);
   void setupNet();
  public:
   RACER(Environment*const _env, Settings& _set);

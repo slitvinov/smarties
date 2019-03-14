@@ -7,10 +7,11 @@
 //
 
 #include "Learner_approximator.h"
+#include "../Network/Approximator.h"
 #include "../Network/Builder.h"
 #include <chrono>
 
-Learner_approximator::Learner_approximator(Environment*const E, Settings&S): Learner(E, S)
+Learner_approximator::Learner_approximator(Environment*const E, Settings&S): Learner(E, S), input(new Encapsulator("input", S, data))
 {
   if(input->nOutputs() == 0) return;
   Builder input_build(S);
@@ -23,6 +24,9 @@ Learner_approximator::Learner_approximator(Environment*const E, Settings&S): Lea
   }
   if(not bSampleSequences && nObsB4StartTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
+}
+Learner_approximator::~Learner_approximator() {
+  _dispose_object(input);
 }
 
 void Learner_approximator::spawnTrainTasks()

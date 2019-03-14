@@ -42,16 +42,16 @@ class VRACER : public Learner_approximator
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
-  const vector<Uint> net_outputs;
-  const vector<Uint> net_indices = count_indices(net_outputs);
-  const vector<Uint> pol_start;
+  const std::vector<Uint> net_outputs;
+  const std::vector<Uint> net_indices = count_indices(net_outputs);
+  const std::vector<Uint> pol_start;
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
   std::vector<Rvec> OrUhState = std::vector<Rvec>( nAgents, Rvec(nA, 0) );
-  mutable vector<Rvec> rhos = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
-  mutable vector<Rvec> dkls = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
-  mutable vector<Rvec> advs = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
+  mutable std::vector<Rvec> rhos=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> dkls=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> advs=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
 
   void prepareCMALoss();
 
@@ -68,8 +68,8 @@ class VRACER : public Learner_approximator
     S->Q_RET[t] = std::min((Fval)1, W) * (R + G * (Vn+D) - Vc);
   }
 
-  static vector<Uint> count_outputs(const ActionInfo*const aI);
-  static vector<Uint> count_pol_starts(const ActionInfo*const aI);
+  static std::vector<Uint> count_outputs(const ActionInfo*const aI);
+  static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
   void setupNet();
  public:
   VRACER(Environment*const _env, Settings& _set);

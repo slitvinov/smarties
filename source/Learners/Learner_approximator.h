@@ -7,9 +7,10 @@
 //
 
 #pragma once
-#include "../Network/Approximator.h"
 #include "Learner.h"
 
+class Approximator;
+class Encapsulator;
 
 class Learner_approximator: public Learner
 {
@@ -22,8 +23,7 @@ class Learner_approximator: public Learner
   const Real explNoise = settings.explNoise;
 
  protected:
-  Encapsulator * const input = new Encapsulator("input", settings, data);
-
+  Encapsulator * const input;
   std::vector<Approximator*> F;
 
   void createSharedEncoder(const Uint privateNum = 1);
@@ -40,9 +40,7 @@ class Learner_approximator: public Learner
  public:
   Learner_approximator(Environment*const env, Settings & settings);
 
-  virtual ~Learner_approximator() {
-    _dispose_object(input);
-  }
+  virtual ~Learner_approximator();
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;

@@ -23,8 +23,8 @@
 inline void print(std::ostringstream& o, std::string fname, int rank)
 {
   if(rank != 0) return;
-  ofstream fout(fname.c_str(), ios::app);
-  fout << o.str() << endl;
+  std::ofstream fout(fname.c_str(), std::ios::app);
+  fout << o.str() << std::endl;
   fout.flush();
   fout.close();
 }

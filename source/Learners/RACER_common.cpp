@@ -6,6 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 #include "../Network/Builder.h"
+#include "../Network/Approximator.h"
 
 #ifdef ADV_GAUS
 #include "../Math/Mixture_advantage_gaus.h"

@@ -7,6 +7,7 @@
 //
 
 #include "../Network/Builder.h"
+#include "../Network/Approximator.h"
 #include "../Math/Gaussian_mixture.h"
 #include "../Math/Gaussian_policy.h"
 #include "../Math/Discrete_policy.h"
