@@ -14,11 +14,11 @@
 #include "NAF.h"
 #include "DPG.h"
 #include "RETPG.h"
-#include "VRACER.h"
 #include "CMALearner.h"
 #include "PPO.h"
 */
 #include "RACER.h"
+#include "VRACER.h"
 
 inline void print(std::ostringstream& o, std::string fname, int rank)
 {
@@ -52,7 +52,6 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       ret = new RACER_continuous(env, settings);
     }
   }
-  /*
   else
   if (settings.learner == "VRACER")
   {
@@ -71,6 +70,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       ret = new RACER_continuous(env, settings);
     }
   }
+  /*
   else
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
     assert(env->aI.discrete);

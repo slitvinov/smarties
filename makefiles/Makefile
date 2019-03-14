@@ -81,15 +81,15 @@ OBJ_FILES = \
 	StatsTracker.o \
 	Collector.o \
 	Sampling.o \
-	Learner_offPolicy.o \
+	Learner_approximator.o \
 	Learner.o \
 	StateAction.o \
 	Math_tests.o \
 	Scheduler.o \
 	RACER.o \
+	VRACER.o \
 	main.o
 	#PPO.o \
-	#VRACER.o \
 	#RETPG.o \
 	#DPG.o \
 	#NAF.o \

@@ -7,7 +7,7 @@
 //
 
 #pragma once
-#include "Learner_offPolicy.h"
+#include "Learner_approximator.h"
 
 class Discrete_policy;
 class Gaussian_policy;
@@ -15,14 +15,29 @@ class Gaussian_policy;
 template<Uint nExperts>
 class Gaussian_mixture;
 
+#define DACER_simpleSigma
+#define DACER_singleNet
+//#define DACER_useAlpha
+
 template<typename Policy_t, typename Action_t>
-class VRACER : public Learner_offPolicy
+class VRACER : public Learner_approximator
 {
  protected:
   // continuous actions: dimensionality of action vectors
   // discrete actions: number of options
   const Uint nA = Policy_t::compute_nA(&aInfo);
-
+  template<typename _pol_t>
+  inline _pol_t prepare_policy( const Rvec& O,
+                                const Rvec ACT=Rvec(),
+                                const Rvec MU=Rvec()) const
+  {
+    _pol_t pol(pol_start, &aInfo, O);
+    if(ACT.size()) {
+      assert(MU.size());
+      pol.prepare(ACT, MU);
+    }
+    return pol;
+  }
   // tgtFrac_param: target fraction of off-pol samples
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
@@ -33,10 +48,12 @@ class VRACER : public Learner_offPolicy
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
-  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+  std::vector<Rvec> OrUhState = std::vector<Rvec>( nAgents, Rvec(nA, 0) );
   mutable vector<Rvec> rhos = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
   mutable vector<Rvec> dkls = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
   mutable vector<Rvec> advs = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
+
+  void prepareCMALoss();
 
   void TrainBySequences(const Uint seq, const Uint wID,
     const Uint bID, const Uint tID) const override;
@@ -59,7 +76,7 @@ class VRACER : public Learner_offPolicy
   ~VRACER() { }
 
   void select(Agent& agent) override;
+  void setupTasks(TaskQueue& tasks) override;
 
-  void prepareGradient() override;
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

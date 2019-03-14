@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <chrono>
 
-Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
+Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
   Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
 {
   if(nWorkers_own*nPerRank != static_cast<int>(agents.size()))
@@ -116,7 +116,6 @@ void Master::processAgent(const int worker)
 
   const int agent = (worker-1) * nPerRank + recv_agent;
   Learner*const learner = pickLearner(agent, recv_agent);
-
 
   agents[agent]->update(recv_status, recv_state, reward);
   //pick next action and ...do a bunch of other stuff with the data:

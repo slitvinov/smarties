@@ -7,31 +7,121 @@
 //
 
 #include "Learner.h"
-#include "../Network/Builder.h"
 #include <chrono>
 
-Learner::Learner(Environment*const E, Settings&S): settings(S), env(E)
+Learner::Learner(Environment*const E, Settings&S): settings(S), env(E) {}
+
+void Learner::initializeLearner()
 {
-  if(input->nOutputs() == 0) return;
-  Builder input_build(S);
-  input_build.addInput( input->nOutputs() );
-  bool builder_used = env->predefinedNetwork(input_build);
-  if(builder_used) {
-    Network* net = input_build.build(true);
-    Optimizer* opt = input_build.opt;
-    input->initializeNetwork(net, opt);
+  const Uint currStep = nGradSteps();
+
+  ReFER_reduce.update({(long double)data_proc->nFarPol(),
+                       (long double)data->readNData()});
+
+  if ( currStep > 0 ) {
+    warn("Skipping initialization for restartd learner.");
+    return;
+  }
+  // shift counters after initial data is gathered
+  nDataGatheredB4Startup = data->readNSeen_loc();
+
+  debugL("Compute state/rewards stats from the replay memory");
+  profiler->stop_start("PRE");
+  data_proc->updateRewardsStats(1, 1, true);
+  //data_proc->updateRewardsStats(1, 1e-3, true);
+  if( learn_rank == 0 )
+    std::cout << "Initial reward std " << 1/data->scaledReward(1) << std::endl;
+
+  data->initialize();
+
+  if( not computeQretrace ) return;
+  // Rewards second moment is computed right before actual training begins
+  // therefore we need to recompute (rescaled) Retrace values for all obss
+  // seen before this point.
+  debugL("Rescale Retrace est. after gathering initial dataset");
+  // placed here because on 1st step we just computed first rewards statistics
+  const Uint setSize = data->readNSeq();
+  #pragma omp parallel for schedule(dynamic, 1)
+  for(Uint i=0; i<setSize; i++)
+    for(Uint j=data->get(i)->ndata(); j>0; j--)
+      backPropRetrace(data->get(i),j);
+}
+
+void Learner::processMemoryBuffer()
+{
+  const Uint currStep = nGradSteps()+1; //base class will advance this
+
+  profiler->stop_start("PRNE");
+  //shift data / gradient counters to maintain grad stepping to sample
+  // collection ratio prescirbed by obsPerStep
+
+  CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
+  CinvRet = 1 / CmaxRet;
+  if(CmaxRet<=1 and CmaxPol>0)
+    die("Either run lasted too long or epsAnneal is wrong.");
+  data_proc->prune(ERFILTER, CmaxRet);
+
+  // use result from prev AllReduce to update rewards (before new reduce).
+  // Assumption is that the number of off Pol trajectories does not change
+  // much each step. Especially because here we update the off pol W only
+  // if an obs is actually sampled. Therefore at most this fraction
+  // is wrong by batchSize / nTransitions ( ~ 0 )
+  // In exchange we skip an mpi implicit barrier point.
+  ReFER_reduce.update({(long double)data_proc->nFarPol(),
+                       (long double)data->readNData()});
+  const LDvec nFarGlobal = ReFER_reduce.get();
+  const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
+
+  if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
+  else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
+  if(std::fabs(ReFtol-fracOffPol)<0.001) alpha = (1-1e-4)*alpha;
+  else alpha = 1e-4 + (1-1e-4)*alpha;
+}
+
+void Learner::updateRetraceEstimates()
+{
+  profiler->stop_start("QRET");
+  const std::vector<Uint>& sampled = data->listSampled();
+  const Uint setSize = sampled.size();
+  #pragma omp parallel for schedule(dynamic, 1)
+  for(Uint i = 0; i < setSize; i++) {
+    Sequence * const S = data->get(sampled[i]);
+    assert(std::fabs(S->Q_RET[S->ndata()]) < 1e-16);
+    assert(std::fabs(S->action_adv[S->ndata()]) < 1e-16);
+    if( S->isTerminal(S->ndata()) )
+      assert(std::fabs(S->state_vals[S->ndata()]) < 1e-16);
+    for(int j=S->just_sampled-1; j>0; j--) backPropRetrace(S, j);
   }
 }
 
-void Learner::prepareGradient()
+void Learner::finalizeMemoryProcessing()
 {
-  const Uint currStep = nGradSteps()+1;
+  const Uint currStep = nGradSteps()+1; //base class will advance this
+  profiler->stop_start("FIND");
+  data_proc->finalize();
 
-  profiler->stop_start("ADDW");
-  for(auto & net : F) net->prepareUpdate();
-  input->prepareUpdate();
+  profiler->stop_start("PRE");
+  if(currStep%1000==0) // update state mean/std with net's learning rate
+    data_proc->updateRewardsStats(1, 1e-3*(OFFPOL_ADAPT_STSCALE>0));
+}
 
-  for(auto & net : F) net->updateGradStats(learner_name, currStep-1);
+bool Learner::blockDataAcquisition() const
+{
+  //if there is not enough data for training, need more data
+  if( data->readNData() < nObsB4StartTraining ) return false;
+
+  // block data if we have observed too many observations
+  // here we add one to concurrently gather data and compute gradients
+  // 'freeze if there is too much data for the  next gradient step'
+  return nLocTimeStepsTrain() > (nGradSteps()+1) * obsPerStep_loc;
+}
+
+bool Learner::unblockGradientUpdates() const
+{
+  // almost the same of the function before
+  if( data->readNData() < nObsB4StartTraining ) return false;
+  // 'freeze if there is too little data for the current gradient step'
+  return nLocTimeStepsTrain() >= nGradSteps() * obsPerStep_loc;
 }
 
 void Learner::logStats()
@@ -39,7 +129,7 @@ void Learner::logStats()
   const Uint currStep = nGradSteps()+1;
   if(currStep%(freqPrint*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
-    cout << profiler->printStatAndReset() << endl;
+    std::cout << profiler->printStatAndReset() << std::endl;
     save();
   }
 
@@ -48,13 +138,6 @@ void Learner::logStats()
     profiler->stop_start("STAT");
     processStats();
   }
-}
-
-void Learner::applyGradient()
-{
-  profiler->stop_start("GRAD");
-  for(auto & net : F) net->applyUpdate();
-  input->applyUpdate();
 }
 
 void Learner::globalGradCounterUpdate()
@@ -66,12 +149,10 @@ void Learner::processStats()
 {
   const Uint currStep = nGradSteps()+1;
 
-  ostringstream buf;
+  std::ostringstream buf;
   data_proc->getMetrics(buf);
   getMetrics(buf);
   if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
-  input->getMetrics(buf);
-  for(auto & net : F) net->getMetrics(buf);
 
   #ifndef PRINT_ALL_RANKS
     if(learn_rank) return;
@@ -87,8 +168,7 @@ void Learner::processStats()
     data_proc->getHeaders(head);
     getHeaders(head);
     if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
-    input->getHeaders(head);
-    for(auto & net : F) net->getHeaders(head);
+
 
     #ifdef PRINT_ALL_RANKS
       printf("ID  #/T   %s\n", head.str().c_str());
@@ -109,80 +189,100 @@ void Learner::processStats()
   fflush(0);
 }
 
-void Learner::getMetrics(ostringstream& buf) const {}
-void Learner::getHeaders(ostringstream& buf) const {}
+void Learner::getMetrics(std::ostringstream& buf) const
+{
+  if(not computeQretrace) return;
+  real2SS(buf, alpha, 6, 1); real2SS(buf, beta, 6, 1);
+}
+void Learner::getHeaders(std::ostringstream& buf) const
+{
+  if(not computeQretrace) return;
+  buf << "| alph | beta ";
+}
 
 void Learner::restart()
 {
   if(settings.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
-  input->restart(settings.restart+"/"+learner_name);
   data->restart(settings.restart+"/"+learner_name);
 
-  for(auto & net : F) net->save("restarted_"+learner_name, false);
-  input->save("restarted_"+learner_name, false);
   data->save("restarted_"+learner_name, 0, false);
-}
 
+  std::ostringstream ss;
+  ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
+  FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
+  if(f == NULL) {
+   _warn("Learner restart file %s not found\n",(learner_name+ss.str()).c_str());
+   return;
+  }
+
+  Uint nSeqs;
+  if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die("");
+  data->setNSeq(nSeqs);
+
+  {
+    Uint nObs;
+    if(fread(&nObs, sizeof(Uint),1,f) != 1) die("");
+    data->setNData(nObs);
+  }
+  {
+    Uint tObs;
+    if(fread(&tObs, sizeof(Uint),1,f) != 1) die("");
+    data->setNSeen_loc(tObs);
+  }
+  {
+    Uint tSeqs;
+    if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die("");
+    data->setNSeenSeq_loc(tSeqs);
+  }
+  {
+    long tB4;
+    if(fread(&tB4, sizeof(long), 1, f) != 1) die("");
+    nDataGatheredB4Startup = tB4;
+  }
+  {
+    long int currStep;
+    if(fread(&currStep, sizeof(long int), 1, f) != 1) die("");
+    _nGradSteps = currStep;
+  }
+  if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
+  if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
+
+  for(Uint i = 0; i < nSeqs; i++) {
+    assert(data->get(i) == nullptr);
+    Sequence* const S = new Sequence();
+    if( S->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
+      _die("Unable to find sequence %u\n", i);
+    data->set(S, i);
+  }
+}
 void Learner::save()
 {
   const Uint currStep = nGradSteps()+1;
   const Real freqSave = freqPrint * PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = currStep % freqBackup == 0;
-  for(auto & net : F) net->save(learner_name, bBackup);
-  input->save(learner_name, bBackup);
   data->save(learner_name, currStep, bBackup);
-}
 
-//TODO: generalize!!
-bool Learner::predefinedNetwork(Builder& input_net, Uint privateNum)
-{
-  bool ret = false; // did i add layers to input net?
-  if(input_net.nOutputs > 0) {
-     input_net.nOutputs = 0;
-     input_net.layers.back()->bOutput = false;
-     warn("Overwritten ENV's specification of CNN to add shared layers");
-  }
-  vector<int> sizeOrig = settings.readNetSettingsSize();
-  while ( sizeOrig.size() != privateNum )
-  {
-    const int size = sizeOrig[0];
-    sizeOrig.erase(sizeOrig.begin(), sizeOrig.begin()+1);
-    const bool bOutput = sizeOrig.size() == privateNum;
-    input_net.addLayer(size, settings.nnFunc, bOutput);
-    ret = true;
-  }
-  settings.nnl1 = sizeOrig.size() > 0? sizeOrig[0] : 0;
-  settings.nnl2 = sizeOrig.size() > 1? sizeOrig[1] : 0;
-  settings.nnl3 = sizeOrig.size() > 2? sizeOrig[2] : 0;
-  settings.nnl4 = sizeOrig.size() > 3? sizeOrig[3] : 0;
-  settings.nnl5 = sizeOrig.size() > 4? sizeOrig[4] : 0;
-  settings.nnl6 = sizeOrig.size() > 5? sizeOrig[5] : 0;
-  return ret;
-}
+  if(not bBackup) return;
 
-void Learner::createSharedEncoder(const Uint privateNum)
-{
-  if(input->net not_eq nullptr) {
-    delete input->opt; input->opt = nullptr;
-    delete input->net; input->net = nullptr;
-  }
-  if(input->nOutputs() == 0) return;
-  Builder input_build(settings);
-  bool bInputNet = false;
-  input_build.addInput( input->nOutputs() );
-  bInputNet = bInputNet || env->predefinedNetwork(input_build);
-  bInputNet = bInputNet || predefinedNetwork(input_build, privateNum);
-  if(bInputNet) {
-    Network* net = input_build.build(true);
-    input->initializeNetwork(net, input_build.opt);
-  }
-}
+  std::ostringstream ss;
+  ss<<learner_name<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank
+    <<"_"<<std::setw(9)<<currStep<<"_learner.raw";
+  FILE * f = fopen( ss.str().c_str(), "wb" );
 
-//bool Learner::predefinedNetwork(Builder & input_net)
-//{
-//  return false;
-//}
+  const Uint nObs=data->readNData(), tObs=data->readNSeen_loc();
+  const Uint nSeqs=data->readNSeq(), tSeqs=data->readNSeenSeq_loc();
+  fwrite(&nSeqs, sizeof(Uint), 1, f);
+  fwrite(&nObs, sizeof(Uint), 1, f);
+  fwrite(&tObs, sizeof(Uint), 1, f);
+  fwrite(&tSeqs, sizeof(Uint), 1, f);
+  fwrite(&nDataGatheredB4Startup, sizeof(long), 1, f);
+  fwrite(&currStep, sizeof(long int), 1, f);
+  fwrite(&beta, sizeof(Real), 1, f);
+  fwrite(&CmaxRet, sizeof(Real), 1, f);
+
+  for(Uint i = 0; i <nSeqs; i++)
+    data->get(i)->save(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim);
+}

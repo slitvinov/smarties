@@ -7,7 +7,7 @@
 //
 
 #pragma once
-#include "Learner_offPolicy.h"
+#include "Learner_approximator.h"
 
 class Discrete_policy;
 class Gaussian_policy;
@@ -30,7 +30,7 @@ class Mixture_advantage;
 #define RACER_singleNet
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-class RACER : public Learner_offPolicy
+class RACER : public Learner_approximator
 {
   template<typename _pol_t>
   inline _pol_t prepare_policy( const Rvec& O,

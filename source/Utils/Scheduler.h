@@ -24,7 +24,7 @@ private:
 
   const ActionInfo& aI = env->aI;
   const StateInfo&  sI = env->sI;
-  const vector<Agent*>& agents = env->agents;
+  const std::vector<Agent*>& agents = env->agents;
   const int nPerRank = env->nAgentsPerRank;
   const int bTrain = settings.bTrain;
   const int nWorkers_own = settings.nWorkers_own;
@@ -58,7 +58,7 @@ private:
   void processAgent(const int worker);
 
 public:
-  Master(Communicator_internal* const _c, const vector<Learner*> _l,
+  Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
     Environment*const _e, Settings&_s);
   ~Master()
   {
@@ -79,7 +79,7 @@ private:
   Communicator_internal* const comm;
   Environment* const env;
   const bool bTrain;
-  vector<int> status;
+  std::vector<int> status;
 
 public:
   Worker(Communicator_internal*const c, Environment*const e, Settings& s);
