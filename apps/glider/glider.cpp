@@ -185,7 +185,7 @@ struct Glider
     const double slack = 0.4*std::max(0., std::min(_s.x-50, 100-_s.x));
     const bool hit_bottom =  _s.y <= -50 -slack;
     const bool wrong_xdir = _s.x < -50;
-    const bool timeover = time > 1000;
+    const bool timeover = time > 5000;
 
     return ( timeover || hit_bottom || wrong_xdir || way_too_far );
   }

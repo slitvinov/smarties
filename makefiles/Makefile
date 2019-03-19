@@ -47,6 +47,7 @@ CPPFLAGS+= -D__CHECK_DIFF
 endif
 
 precision ?= double
+app_precision ?= $(precision)
 ifeq "$(precision)" "single"
 CPPFLAGS+= -DSINGLE_PREC
 endif
@@ -84,13 +85,14 @@ ifneq "$(app)" "ext_app_test"
 
 # let's check if app requires some flag / lib
 ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
+export app_precision $(app_precision)
 include ../apps/$(app)/make.flags
 endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib:
 	+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
+	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config) precision=$(app_precision)
 
 else
 

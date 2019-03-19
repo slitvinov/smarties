@@ -63,16 +63,19 @@
 // Extra numerical stability for Adam optimizer: ensures M2 <= M1*M1/10
 // (or in other words deltaW <= 3 \eta , which is what happens if M1 and M2 are
 // initialized to 0 and hot started to something ). Can improve results.
-//#define SAFE_ADAM
+#define SAFE_ADAM
 
 // Turn on Nesterov-style Adam:
-//#define NESTEROV_ADAM
+#define NESTEROV_ADAM
 
 // Switch for amsgrad (grep for it, it's not vanilla but spiced up a bit):
 //#define AMSGRAD
 
 // Switch between L1 and L2 penalization, both with coef Settings::nnLambda
 //#define NET_L1_PENAL
+
+// Switch between Adam (L = Lobj+Lpenal) and AdamW (penal is applied after Adam)
+#define ADAMW
 
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// GRADIENT CLIPPING ////////////////////////////////

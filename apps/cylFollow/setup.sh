@@ -1,7 +1,6 @@
 cp ../apps/cylFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
 
-rm ../makefiles/libsimulation.a
-rm ../makefiles/rl
+make -C ../makefiles/ clean
 make -C ../makefiles/ app=cylFollow precision=single -j4 #config=segf
 
 #config=segf
