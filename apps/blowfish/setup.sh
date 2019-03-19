@@ -1,7 +1,9 @@
 cp ../apps/blowfish/runArguments* ${BASEPATH}${RUNFOLDER}/
 
+if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean
 make -C ../makefiles/  app=blowfish -j4
+fi
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --appSettings runArguments00.sh,runArguments01.sh,runArguments02.sh,runArguments03.sh "
