@@ -2,7 +2,7 @@ mainApp ?= null # will produce error
 .DEFAULT_GOAL := app
 
 app:
-	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=$(precision) hdf5=on \
+	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=$(precision) hdf5=true \
     config=$(config) smarties=true CXX=$(CXX) compiler=$(compiler) $(mainApp)
 	cp ../../../CubismUP_2D/makefiles/libsimulation.a ../../makefiles/
 	rm ../../../CubismUP_2D/makefiles/libsimulation.a
