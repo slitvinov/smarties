@@ -197,8 +197,8 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
-    env1.reset(comm.gen); //comm contains rng with different seed on each rank
-    env2.reset(comm.gen); //comm contains rng with different seed on each rank
+    env1.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
+    env2.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
 
     comm.sendInitState(env1.getState(), 0); //send initial state
     comm.sendInitState(env2.getState(), 1); //send initial state

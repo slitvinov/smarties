@@ -66,12 +66,13 @@ void MemoryBuffer::clearAll()
   Set.clear(); //clear trajectories used for learning
   nTransitions = 0;
   nSequences = 0;
+  needs_pass = true;
 }
 
 void MemoryBuffer::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
   sampler->sample(seq, obs);
-
+  // remember which episodes were just sampled:
   sampled = seq;
   std::sort(sampled.begin(), sampled.end());
   sampled.erase(std::unique(sampled.begin(), sampled.end()), sampled.end());

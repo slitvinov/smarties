@@ -8,11 +8,13 @@
 
 #include "StatsTracker.h"
 
-DelayedReductor::DelayedReductor(const Settings& S, const LDvec init) :
-mpicomm(MPIComDup(S.mastersComm)), bAsync(S.bAsync), arysize(init.size()),
-mpisize(getSize(S.mastersComm)), mpi_mutex(S.mpi_mutex), return_ret(init) {  }
+template<typename T>
+DelayedReductor<T>::DelayedReductor(const Settings&S, const std::vector<T>init)
+  : mpicomm(MPIComDup(S.mastersComm)), bAsync(S.bAsync), arysize(init.size()),
+  mpisize(getSize(S.mastersComm)), mpi_mutex(S.mpi_mutex), return_ret(init) {  }
 
-LDvec DelayedReductor::get(const bool accurate)
+template<typename T>
+std::vector<T> DelayedReductor<T>::get(const bool accurate)
 {
   if(buffRequest not_eq MPI_REQUEST_NULL) {
     int completed = 0;
@@ -30,7 +32,8 @@ LDvec DelayedReductor::get(const bool accurate)
   return return_ret;
 }
 
-void DelayedReductor::update(const LDvec ret)
+template<typename T>
+void DelayedReductor<T>::update(const std::vector<T> ret)
 {
   assert(ret.size() == arysize);
   if (mpisize <= 1) { return_ret = ret; return; }
@@ -46,6 +49,20 @@ void DelayedReductor::update(const LDvec ret)
   MPI(Iallreduce, MPI_IN_PLACE, reduce_ret.data(), arysize,
                  MPI_LONG_DOUBLE, MPI_SUM, mpicomm, &buffRequest);
 }
+
+template<> void DelayedReductor<long double>::beginRDX()
+{
+  MPI(Iallreduce, MPI_IN_PLACE, reduce_ret.data(), arysize,
+                 MPI_LONG_DOUBLE, MPI_SUM, mpicomm, &buffRequest);
+}
+template<> void DelayedReductor<long>::beginRDX()
+{
+  MPI(Iallreduce, MPI_IN_PLACE, reduce_ret.data(), arysize,
+                 MPI_LONG, MPI_SUM, mpicomm, &buffRequest);
+}
+
+template class DelayedReductor<long>;
+template class DelayedReductor<long double>;
 
 TrainData::TrainData(const std::string _name, const Settings&set, bool bPPol,
   const std::string extrah, const Uint nextra) : n_extra(nextra),

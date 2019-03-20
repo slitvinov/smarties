@@ -161,7 +161,6 @@ Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI)
 template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) :
 Learner(E, S)
 {
-  data_get = new Collector(S, this, data);
   bReady4Init = true;
   tPrint = 100;
   printf("CMALearner\n");
@@ -175,7 +174,6 @@ Learner(E, S)
 template<> CMALearner<Uint>::CMALearner(Environment*const E, Settings & S) :
 Learner(E, S)
 {
-  data_get = new Collector(S, this, data);
   bReady4Init = true;
   tPrint = 100;
   printf("Discrete-action CMALearner\n");

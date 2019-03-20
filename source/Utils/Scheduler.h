@@ -17,13 +17,14 @@ class Master
 private:
   const Settings& settings;
   Communicator_internal* const comm;
-  const vector<Learner*> learners;
+  const std::vector<Learner*> learners;
   const Environment* const env;
 
+  TaskQueue tasks;
 
   const ActionInfo& aI = env->aI;
   const StateInfo&  sI = env->sI;
-  const vector<Agent*>& agents = env->agents;
+  const std::vector<Agent*>& agents = env->agents;
   const int nPerRank = env->nAgentsPerRank;
   const int bTrain = settings.bTrain;
   const int nWorkers_own = settings.nWorkers_own;
@@ -32,38 +33,12 @@ private:
   const int learn_size = settings.learner_size;
   const Uint totNumSteps = settings.totNumSteps;
 
-  Uint iterNum = 0; // no need to restart this one
-
-  bool bNeedSequentialTasks = false;
   Profiler* profiler     = nullptr;
 
   mutable std::mutex dump_mutex;
-  mutable std::vector<std::ostringstream> rewardsBuffer =
-                                      std::vector<std::ostringstream>(nPerRank);
 
   std::atomic<Uint> bExit {0};
   std::vector<std::thread> worker_replies;
-
-  inline Uint getMinSeqId() const {
-    Uint lowest = learners[0]->nSeqsEval();
-    for(size_t i=1; i<learners.size(); i++) {
-      const Uint tmp = learners[i]->nSeqsEval();
-      if(tmp<lowest) lowest = tmp;
-    }
-    // if agents share learning algo, return number of eps performed by env:
-    if(learners.size() == 1) lowest /= nPerRank;
-    return lowest;
-  }
-  inline Uint getMinStepId() const {
-    Uint lowest = learners[0]->tStepsTrain();
-    for(size_t i=1; i<learners.size(); i++) {
-      const Uint tmp = learners[i]->tStepsTrain();
-      if(tmp<lowest) lowest = tmp;
-    }
-    // if agents share learning algo, return number of turns performed by env:
-    if(learners.size() == 1) lowest /= nPerRank;
-    return lowest;
-  }
 
   inline Learner* pickLearner(const Uint agentId, const Uint recvId)
   {
@@ -74,46 +49,7 @@ private:
     return learners.size()>1? learners[recvId] : learners[0];
   }
 
-  inline bool learnersLockQueue() const
-  {
-    //When would a learning algo stop acquiring more data?
-    //Off Policy algos:
-    // - User specifies a ratio of observed trajectories to gradient steps.
-    //    Comm is restarted or paused to maintain this ratio consant.
-    //On Policy algos:
-    // - if collected enough trajectories for current batch, then comm is paused
-    //    untill gradient is applied (or nepocs are done), then comm restarts
-    //    to obtain fresh on policy samples
-    // Note:
-    // - on policy traj. storage assumes that when agent reaches terminal state
-    //    on a worker, all other agents on that worker must send their term state
-    //    before sending any new initial state
-
-    // However, no learner can stop others from getting data (vector of algos)
-    bool locked = true;
-    for(const auto& L : learners)
-      locked = locked && L->blockDataAcquisition(); // if any wants to unlock...
-
-    return locked;
-  }
-
-  inline bool learnersUnlockQueue() const
-  {
-    bool unlocked = true;
-    for(const auto& L : learners)
-      unlocked = unlocked && L->unblockGradStep(); // if any wants to unlock...
-    return unlocked;
-  }
-
-  inline bool learnersInitialized() const
-  {
-    bool unlocked = true;
-    for(const auto& L : learners)
-      unlocked = unlocked && L->isReady4Init(); // if any wants to unlock...
-    return unlocked;
-  }
-
-  void flushRewardBuffer();
+  bool learnersLockQueue() const;
 
   void dumpCumulativeReward(const int agent, const int worker,
     const unsigned giter, const unsigned tstep) const;
@@ -122,7 +58,7 @@ private:
   void processAgent(const int worker);
 
 public:
-  Master(Communicator_internal* const _c, const vector<Learner*> _l,
+  Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
     Environment*const _e, Settings&_s);
   ~Master()
   {
@@ -132,7 +68,6 @@ public:
     _dispose_object(env);
     _dispose_object(profiler);
     for(const auto& L : learners) _dispose_object(L);
-    flushRewardBuffer();
   }
 
   void run();
@@ -144,7 +79,7 @@ private:
   Communicator_internal* const comm;
   Environment* const env;
   const bool bTrain;
-  vector<int> status;
+  std::vector<int> status;
 
 public:
   Worker(Communicator_internal*const c, Environment*const e, Settings& s);

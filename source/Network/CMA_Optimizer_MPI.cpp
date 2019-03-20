@@ -11,9 +11,11 @@
 #include <algorithm>
 
 CMA_Optimizer::CMA_Optimizer(const Settings&S, const Parameters*const W,
-  const Parameters*const WT, const vector<Parameters*>&G): Optimizer(S,W,WT,G),
+  const Parameters*const WT, const std::vector<Parameters*>&G):
+  Optimizer(S,W,WT,G),
   pStarts(computePstarts()), pCounts(computePcounts()),
-  pStart(pStarts[S.learner_rank]), pCount(pCounts[S.learner_rank]) {
+  pStart(pStarts[S.learner_rank]), pCount(pCounts[S.learner_rank])
+{
   diagCov->set(1);
   pathCov->set(0);
   pathDif->set(0);
@@ -63,7 +65,8 @@ CMA_Optimizer::~CMA_Optimizer() {
  for(auto& ptr: generators) _dispose_object(ptr);
 }
 
-void CMA_Optimizer::prepare_update(const Rvec&L) {
+void CMA_Optimizer::prepare_update(const Rvec&L)
+{
   assert(L.size() == pop_size);
   losses = L;
   if (learn_size > 1) { //add up losses across master ranks

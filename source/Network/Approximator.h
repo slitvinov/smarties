@@ -123,6 +123,8 @@ struct Approximator
 
   void applyUpdate();
 
+  bool ready2ApplyUpdate();
+
   inline Uint nOutputs() const {
    return net->getnOutputs();
   }

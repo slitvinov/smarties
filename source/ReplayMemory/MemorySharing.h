@@ -9,16 +9,14 @@
 #include <thread>
 
 #include "MemoryBuffer.h"
-class Learner;
 
 struct MemorySharing
 {
   const Settings& settings;
-  Learner* const learner;
   MemoryBuffer* const replay;
 
-  const StateInfo& sI;
-  const ActionInfo& aI;
+  const StateInfo& sI = replay->sI;
+  const ActionInfo& aI = replay->aI;
   const Uint dimS = sI.dimUsed, dimA = aI.dim, dimP = aI.policyVecDim;
 
   const MPI_Comm comm = MPIComDup(settings.mastersComm);
@@ -36,7 +34,6 @@ struct MemorySharing
   std::vector<MPI_Request> RRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
   std::vector<MPI_Request> SRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
   std::vector<MPI_Request> CRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
-  MPI_Request nObsRequest = MPI_REQUEST_NULL;
 
   std::mutex complete_mutex;
   const bool bAsync = settings.bAsync;
@@ -49,7 +46,7 @@ struct MemorySharing
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   long int globSeen[2] = {0, 0};
 
-  MemorySharing(const Settings&S, Learner*const L, MemoryBuffer*const RM);
+  MemorySharing(const Settings&S, MemoryBuffer*const RM);
   ~MemorySharing();
 
   inline int testBuffer(MPI_Request& req);

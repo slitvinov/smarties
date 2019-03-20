@@ -294,7 +294,6 @@ Uint PPO<Gaussian_policy, Rvec>::getnDimPolicy(const ActionInfo*const aI)
 template<> PPO<Gaussian_policy, Rvec>::PPO(Environment*const E, Settings&S) :
 Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
 {
-  data_get = new Collector(S, this, data);
   #ifdef PPO_learnDKLt
    trainInfo = new TrainData("PPO", S, 1, "| beta |  DKL | avgW | DKLt ", 4);
   #else
@@ -350,7 +349,6 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
 template<> PPO<Discrete_policy, Uint>::PPO(Environment*const E, Settings&S) :
 Learner(E,S), pol_outputs(count_pol_outputs(&E->aI))
 {
-  data_get = new Collector(S, this, data);
   #ifdef PPO_learnDKLt
     trainInfo = new TrainData("PPO", S, 1,"| beta |  DKL | avgW | DKLt ",4);
   #else

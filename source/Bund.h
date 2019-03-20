@@ -200,6 +200,14 @@ inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
   return ret;
 }
 
+inline nnReal nnSafeExp(const nnReal val) {
+    return std::exp( std::min((nnReal)EXP_CUT, std::max(-(nnReal)EXP_CUT, val) ) );
+}
+
+inline Real annealRate(const Real eta, const Real t, const Real T) {
+  return eta / (1 + t * T);
+}
+
 #ifdef __APPLE__
 #include <cpuid.h>
 #define CPUID(INFO, LEAF, SUBLEAF)                     \
