@@ -128,7 +128,7 @@ void Communicator::setnAgents(int _nAgents)
 void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
 {
   for(int i=agentStart; i<agentEnd; i++)
-    printf("TODO : Communicator::disableDataTrackingForAgents\n"):
+    printf("TODO : Communicator::disableDataTrackingForAgents\n");
 }
 
 void Communicator::set_action_scales(const std::vector<double> upper,

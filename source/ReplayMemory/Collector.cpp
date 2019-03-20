@@ -22,25 +22,28 @@ Collector::Collector(const Settings&S, MemoryBuffer*const RM) :
 void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
+  Sequence* const S = inProgress[a.ID];
   const std::vector<memReal> storedState = a.s.copy_observed<memReal>();
-
   if(a.trackSequence == false) {
     // contain only one state and do not add more. to not store rewards either
     // RNNs then become automatically not supported because no time series!
     // (this is accompained by check in approximator)
-    inProgress[a.ID]->states = std::vector<std::vector<memReal>>{ storedState };
-    inProgress[a.ID]->rewards = std::vector<Real>{ (Real)0 };
+    S->states = std::vector<std::vector<memReal>>{ storedState };
+    S->rewards = std::vector<Real>{ (Real)0 };
+    S->SquaredError.clear(); S->Q_RET.clear();
+    S->offPolicImpW.clear(); S->action_adv.clear();
+    S->KullbLeibDiv.clear(); S->state_vals.clear();
     a.Status = INIT_COMM; // one state stored, lie to avoid catching asserts
     return;
   }
 
   // if no tuples, init state. if tuples, cannot be initial state:
-  assert( (inProgress[a.ID]->nsteps() == 0) == (a.Status == INIT_COMM) );
+  assert( (S->nsteps() == 0) == (a.Status == INIT_COMM) );
   #ifndef NDEBUG // check that last new state and new old state are the same
-    if( inProgress[a.ID]->nsteps() ) {
+    if( S->nsteps() ) {
       bool same = true;
       const std::vector<memReal> vecSold = a.sOld.copy_observed<memReal>();
-      const auto memSold = inProgress[a.ID]->states.back();
+      const auto memSold = S->states.back();
       for (Uint i=0; i<vecSold.size() && same; i++)
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
       //debugS("Agent %s and %s",
@@ -51,12 +54,11 @@ void Collector::add_state(Agent&a)
 
   // environment interface can overwrite reward. why? it can be useful.
   env->pickReward(a);
-  inProgress[a.ID]->ended = a.Status==TERM_COMM;
-  inProgress[a.ID]->states.push_back(storedState);
-  inProgress[a.ID]->rewards.push_back(a.r);
-  if( a.Status == INIT_COMM )
-    assert(std::fabs(a.r)<2.2e-16); //rew for init state must be 0
-  else inProgress[a.ID]->totR += a.r;
+  S->ended = a.Status==TERM_COMM;
+  S->states.push_back(storedState);
+  S->rewards.push_back(a.r);
+  if( a.Status not_eq INIT_COMM ) S->totR += a.r;
+  else assert(std::fabs(a.r)<2.2e-16); //rew for init state must be 0
 }
 
 // Once network picked next action, call this method
