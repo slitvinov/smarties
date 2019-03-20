@@ -121,6 +121,16 @@ std::vector<double> Communicator::recvAction(const int iAgent)
   return stored_actions[iAgent];
 }
 
+void Communicator::setnAgents(int _nAgents)
+{
+  nAgents = _nAgents;
+}
+void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
+{
+  for(int i=agentStart; i<agentEnd; i++)
+    printf("TODO : Communicator::disableDataTrackingForAgents\n"):
+}
+
 void Communicator::set_action_scales(const std::vector<double> upper,
   const std::vector<double> lower, const bool bound)
 {

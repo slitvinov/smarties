@@ -21,7 +21,7 @@ struct Sequence
     rewards.reserve(MAX_SEQ_LEN);
   }
   // Fval is just a storage format, probably float while Real is prob. double
-  std::vector<std::vector<Fval>> states;
+  std::vector<std::vector<memReal>> states;
   std::vector<std::vector<Real>> actions;
   std::vector<std::vector<Real>> policies;
   std::vector<Real> rewards;
@@ -119,22 +119,7 @@ struct Sequence
     // If target<=0 assume we never filter far policy samples
     return target>0 && D > target;
   }
-  inline void add_state(const Rvec state, const Real reward=0)
-  {
-    std::vector<memReal> ret( state.size(), 0 );
-    for(Uint i=0; i < state.size(); i++) ret[i] = state[i];
 
-    if(state.size()) totR += reward;
-    else assert(std::fabs(reward)<2.2e-16); //rew for init state must be 0
-
-    states.push_back(state);
-    rewards.push_back(reward);
-  }
-  inline void add_action(const Rvec action, const Rvec mu)
-  {
-    actions.push_back(action);
-    policies.push_back(mu);
-  }
   void finalize(const Uint index)
   {
     ID = index;

@@ -59,10 +59,10 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   const Fval* buf = data.data();
   assert(states.size() == 0);
   for (Uint i = 0; i<seq_len; i++) {
-    states.push_back(std::vector<Fval>(buf, buf+dS));
+    states.push_back(std::vector<memReal>(buf, buf+dS));
     rewards.push_back(buf[dS]); buf += dS + 1;
-    states.push_back(std::vector<Fval>(buf, buf+dA)); buf += dA;
-    states.push_back(std::vector<Fval>(buf, buf+dP)); buf += dP;
+    actions.push_back(std::vector<Fval>(buf, buf+dA)); buf += dA;
+    policies.push_back(std::vector<Fval>(buf, buf+dP)); buf += dP;
   }
   Q_RET = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   action_adv = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;

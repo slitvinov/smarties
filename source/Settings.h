@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include "Utils/ArgParser.h"
 #include "Utils/Warnings.h"
+#include <functional>
 
 class TaskQueue
 {
