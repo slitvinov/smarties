@@ -2,9 +2,7 @@ cp ../apps/glider_CUP2D/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean
-rm ../makefiles/libsimulation.a
-rm ../makefiles/rl
-make -C ../makefiles/ app=glider_CUP2D precision=single -j4
+make -C ../makefiles/ app=glider_CUP2D  -j4
 fi
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
