@@ -44,4 +44,4 @@ else
 LIBS += -lfftw3 -lfftw3_omp
 endif
 
-LIBS+= -lhdf5 -lHYPRE
+LIBS+= -lhdf5 -lHYPRE  -lgsl -lgslcblas
