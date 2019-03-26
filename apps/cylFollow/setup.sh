@@ -2,7 +2,7 @@ cp ../apps/cylFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean
-make -C ../makefiles/ app=cylFollow precision=single -j4 #config=segf
+make -C ../makefiles/ app=cylFollow -j4 #config=segf
 fi
 
 #config=segf
