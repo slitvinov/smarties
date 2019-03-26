@@ -90,8 +90,8 @@ class MemoryBuffer
     return scaledReward(Set[seq], samp);
   }
   inline Real scaledReward(const Sequence*const seq,const Uint samp) const {
-    assert(samp < seq->tuples.size());
-    return scaledReward(seq->tuples[samp]->r);
+    assert(samp < seq->rewards.size());
+    return scaledReward(seq->rewards[samp]);
   }
   inline Real scaledReward(const Real r) const { return r * invstd_reward; }
 
@@ -106,12 +106,6 @@ class MemoryBuffer
   inline long readNSeenSeq_loc() const {
     return nSeenSequences_loc.load();
   }
-  inline long readNSeenSeq() const {
-    return nSeenSequences.load();
-  }
-  inline long readNSeen() const {
-    return nSeenTransitions.load();
-  }
   inline long readNData() const {
     return nTransitions.load();
   }
@@ -124,12 +118,6 @@ class MemoryBuffer
   }
   inline void setNSeenSeq_loc(const long val) {
     nSeenSequences_loc = val;
-  }
-  inline void setNSeenSeq(const long val) {
-    nSeenSequences = val;
-  }
-  inline void setNSeen(const long val) {
-    nSeenTransitions = val;
   }
   inline void setNData(const long val) {
     nTransitions = val;

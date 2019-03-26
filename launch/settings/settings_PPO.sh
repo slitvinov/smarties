@@ -9,6 +9,7 @@ SETTINGS+=" --nnl1 64"
 SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl1 128"
 #SETTINGS+=" --nnl2 128"
+SETTINGS+=" --outWeightsPrefac 0.1"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -23,6 +24,7 @@ SETTINGS+=" --bTrain 1"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner PPO"
+SETTINGS+=" --epsAnneal 0"
 
 #chance of taking random actions
 SETTINGS+=" --explNoise 0.4472136"
@@ -40,4 +42,5 @@ SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 64"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --targetDelay 0"
+SETTINGS+=" --learnrate 0.0001"

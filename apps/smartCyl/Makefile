@@ -1,16 +1,11 @@
 CXX ?= mpic++
 config ?= prod
 compiler ?= gnu
+precision ?= single
 .DEFAULT_GOAL := app
 
 app:
-	# tell Cubism to compile itself for leadFollow
-	#make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single hdf5=off \
-   # config=$(config) smarties=true CXX=$(CXX) compiler=$(compiler) smartCyl
-	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single hdf5=on \
-    config=$(config) smarties=true CXX=$(CXX) compiler=$(compiler) smartCyl
-	cp ../../../CubismUP_2D/makefiles/libsimulation.a ../../makefiles/
-	rm ../../../CubismUP_2D/makefiles/libsimulation.a
+	make -C ../commonCUP2D CXX=$(CXX) config=$(config) compiler=$(compiler) precision=$(precision) mainApp=smartCyl
 
 clean:
-	make -C ../../../CubismUP_2D/makefiles/ clean
+	make -C ../commonCUP2D clean

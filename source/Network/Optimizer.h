@@ -45,7 +45,7 @@ class Optimizer
 
   virtual void getMetrics(ostringstream& buff) = 0;
   virtual void getHeaders(ostringstream& buff) = 0;
-
+  virtual bool ready2UpdateWeights() = 0;
   inline const Parameters * getWeights(const int USEW) {
     if(USEW == 0) return weights;
     if(USEW <  0) return tgt_weights;
@@ -68,18 +68,18 @@ class AdamOptimizer : public Optimizer
   const Parameters * const _1stMom = weights->allocateGrad(learn_size);
   const Parameters * const _2ndMom = weights->allocateGrad(learn_size);
   const Parameters * const _2ndMax = weights->allocateGrad(learn_size);
-  vector<std::mt19937>& generators;
+  std::vector<std::mt19937>& generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
   //const Uint L_eSGD;
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
-  const vector<Parameters*> grads;
+  const std::vector<Parameters*> grads;
 
  public:
 
   AdamOptimizer(const Settings&S, const Parameters*const W,
-    const Parameters*const WT, const vector<Parameters*>& samples,
-    const vector<Parameters*>&G, const Real B1=.9, const Real B2=.999);
+    const Parameters*const WT, const std::vector<Parameters*>& samples,
+    const std::vector<Parameters*>&G, const Real B1=.9, const Real B2=.999);
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
@@ -90,6 +90,12 @@ class AdamOptimizer : public Optimizer
   }
 
   void prepare_update(const Rvec& L) override;
+  bool ready2UpdateWeights() override
+  {
+    int completed = 0;
+    MPI(Test, &paramRequest, &completed, MPI_STATUS_IGNORE);
+    return completed;
+  }
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

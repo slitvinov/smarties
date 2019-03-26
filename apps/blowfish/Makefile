@@ -1,13 +1,11 @@
 CXX ?= mpic++
 config ?= prod
 compiler ?= gnu
+precision ?= single
 .DEFAULT_GOAL := app
 
 app:
-	# tell Cubism to compile itself for blowfish
-	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single hdf5=off \
-    config=$(config) smarties=true CXX=$(CXX) compiler=$(compiler) blowfish
-	cp ../../../CubismUP_2D/makefiles/libsimulation.a ../../makefiles/
+	make -C ../commonCUP2D CXX=$(CXX) config=$(config) compiler=$(compiler) precision=$(precision) mainApp=blowfish
 
 clean:
-	make -C ../../../CubismUP_2D/makefiles/ clean
+	make -C ../commonCUP2D clean

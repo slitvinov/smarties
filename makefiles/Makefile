@@ -47,6 +47,7 @@ CPPFLAGS+= -D__CHECK_DIFF
 endif
 
 precision ?= double
+app_precision ?= $(precision)
 ifeq "$(precision)" "single"
 CPPFLAGS+= -DSINGLE_PREC
 endif
@@ -61,13 +62,41 @@ endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
-		ArgParser.o main.o ObjectFactory.o Communicator.o Sequences.o Profiler.o \
-		AtariEnvironment.o Approximator.o Network.o Optimizer.o Environment.o \
-		CMA_Optimizer_MPI.o CMALearner.o MemoryBuffer.o Learner_offPolicy.o \
-		Math_tests.o Communicator_internal.o Learner.o  Scheduler.o Aggregator.o \
-		VRACER.o Encapsulator.o Collector.o MemoryProcessing.o MemorySharing.o \
-		StatsTracker.o Sampling.o PPO.o RACER.o RETPG.o DPG.o NAF.o DQN.o ACER.o \
-		StateAction.o
+	ArgParser.o \
+	Profiler.o \
+	ObjectFactory.o \
+	Communicator.o \
+	Communicator_internal.o \
+	AtariEnvironment.o \
+	Environment.o \
+	Network.o \
+	Optimizer.o \
+	CMA_Optimizer_MPI.o \
+	Aggregator.o \
+	Encapsulator.o \
+	Approximator.o \
+	Sequences.o \
+	MemoryBuffer.o \
+	MemoryProcessing.o \
+	MemorySharing.o \
+	StatsTracker.o \
+	Collector.o \
+	Sampling.o \
+	Learner_approximator.o \
+	Learner.o \
+	StateAction.o \
+	Math_tests.o \
+	Scheduler.o \
+	RACER.o \
+	VRACER.o \
+	main.o
+	#PPO.o \
+	#RETPG.o \
+	#DPG.o \
+	#NAF.o \
+	#DQN.o \
+	#ACER.o \
+	CMALearner.o \
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
@@ -84,13 +113,14 @@ ifneq "$(app)" "ext_app_test"
 
 # let's check if app requires some flag / lib
 ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
+export app_precision $(app_precision)
 include ../apps/$(app)/make.flags
 endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib:
 	+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
+	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config) precision=$(app_precision)
 
 else
 

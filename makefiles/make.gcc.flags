@@ -18,7 +18,7 @@ CPPFLAGS+= -g -O0 #-ffast-math
 CPPFLAGS+= -fsanitize=address
 LIBS += -fsanitize=address
 endif
-ifeq "$(config)" "nan"
+ifeq "$(config)" "nans"
 CPPFLAGS+= -g -O0 #-ffast-math
 CPPFLAGS+= -fsanitize=undefined
 LIBS += -fsanitize=undefined

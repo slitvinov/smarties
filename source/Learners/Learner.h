@@ -11,21 +11,22 @@
 #include "../ReplayMemory/MemoryBuffer.h"
 #include "../ReplayMemory/Collector.h"
 #include "../ReplayMemory/MemoryProcessing.h"
-#include "../Network/Approximator.h"
+#include "../Utils/Profiler.h"
 
 
 class Learner
 {
  protected:
+  const Uint freqPrint = 1000;
   Settings & settings;
   Environment * const env;
 
  public:
   const MPI_Comm mastersComm = settings.mastersComm;
 
-  const bool bSampleSequences = settings.bSampleSequences;
-  const Uint nObsPerTraining = settings.minTotObsNum_loc;
+  const Uint nObsB4StartTraining = settings.minTotObsNum_loc;
   const bool bTrain = settings.bTrain;
+  const Real obsPerStep_loc = settings.obsPerStep_loc;
 
   const Uint policyVecDim = env->aI.policyVecDim;
   const Uint nAgents = settings.nAgents;
@@ -35,58 +36,54 @@ class Learner
   const int learn_size = settings.learner_size;
   const int dropRule = settings.nnPdrop;
   // hyper-parameters:
-  const Uint batchSize = settings.batchSize_loc;
   const Uint totNumSteps = settings.totNumSteps;
-  const Uint ESpopSize = settings.ESpopSize;
 
-  const Real learnR = settings.learnrate;
   const Real gamma = settings.gamma;
   const Real CmaxPol = settings.clipImpWeight;
   const Real ReFtol = settings.penalTol;
-  const Real explNoise = settings.explNoise;
   const Real epsAnneal = settings.epsAnneal;
+
+  const FORGET ERFILTER =
+    MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
+  DelayedReductor<long double> ReFER_reduce = DelayedReductor<long double>(settings, LDvec{ 0.0, 1.0 } );
 
   const StateInfo&  sInfo = env->sI;
   const ActionInfo& aInfo = env->aI;
   const ActionInfo* const aI = &aInfo;
 
  protected:
-  long nData_b4Startup = 0;
-  mutable int percData = -5;
-  std::atomic<long> _nStep{0};
-  std::atomic<bool> bUpdateNdata{false};
-  std::atomic<bool> bReady4Init {false};
+  long nDataGatheredB4Startup = 0;
+  int algoSubStepID = -1;
 
-  bool updateComplete = false;
-  bool updateToApply = false;
+  Real alpha = 0.5; // weight between critic and policy
+  Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
+  Real CmaxRet = 1 + CmaxPol;
+  Real CinvRet = 1 / CmaxRet;
+  bool computeQretrace = false;
+
+  std::atomic<long> _nGradSteps{0};
 
   std::vector<std::mt19937>& generators = settings.generators;
 
   MemoryBuffer* const data = new MemoryBuffer(settings, env);
-  Encapsulator * const input = new Encapsulator("input", settings, data);
   MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Collector* data_get;
+  Collector* const data_get = new Collector(settings, data);
+  Profiler* const profiler = new Profiler();
 
   TrainData* trainInfo = nullptr;
-  std::vector<Approximator*> F;
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
-  void createSharedEncoder(const Uint privateNum = 1);
-  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
 
  public:
-  Profiler* profiler = nullptr;
   std::string learner_name;
   Uint learnID;
-  Uint tPrint = 1000;
 
   Learner(Environment*const env, Settings & settings);
 
   virtual ~Learner() {
     _dispose_object(data_proc);
     _dispose_object(data_get);
-    _dispose_object(input);
     _dispose_object(data);
   }
 
@@ -96,76 +93,61 @@ class Learner
     learnID = id;
   }
 
-  inline unsigned tStepsTrain() const {
-    return data->readNSeen_loc() - nData_b4Startup;
+  inline long nLocTimeStepsTrain() const {
+    return data->readNSeen_loc() - nDataGatheredB4Startup;
+  }
+  inline long locDataSetSize() const {
+    return data->readNData();
   }
   inline unsigned nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
-  inline long int nStep() const {
-    return _nStep.load();
+  inline long int nGradSteps() const {
+    return _nGradSteps.load();
   }
   inline Real annealingFactor() const {
     //number that goes from 1 to 0 with optimizer's steps
     assert(epsAnneal>1.);
-    const auto mynstep = nStep();
+    const auto mynstep = nGradSteps();
     if(mynstep*epsAnneal >= 1 || !bTrain) return 0;
     else return 1 - mynstep*epsAnneal;
   }
 
   virtual void select(Agent& agent) = 0;
+  virtual void setupTasks(TaskQueue& tasks) = 0;
 
-  virtual void getMetrics(ostringstream& buff) const;
-  virtual void getHeaders(ostringstream& buff) const;
-
-  //main training loop functions:
-  virtual void spawnTrainTasks_par() = 0;
-  virtual void spawnTrainTasks_seq() = 0;
-  virtual bool bNeedSequentialTrain() = 0;
-
-  void globalDataCounterUpdate(const long globSeenObs, const long globSeenSeq)
-  {
-    data->setNSeen(globSeenObs);
-    data->setNSeenSeq(globSeenSeq);
-    if( bReady4Init and not blockDataAcquisition() )
-      _die("? %ld %ld %ld %ld", data->readNSeen_loc(), nData_b4Startup,
-           _nStep.load(), data->readNSeen());
-    bReady4Init = true;
-    bUpdateNdata = true;
-  }
   virtual void globalGradCounterUpdate();
 
-  bool unblockGradStep() const {
-    return bUpdateNdata.load();
-  }
-  bool blockGradStep() const {
-    return not bUpdateNdata.load();
-  }
+  virtual bool blockDataAcquisition() const;
+  virtual bool unblockGradientUpdates() const;
 
-  virtual bool blockDataAcquisition() const = 0;
-
-  inline bool isReady4Init() const {
-    if(bTrain == false) return true;
-    return bReady4Init.load();
-  }
-  inline bool checkReady4Init() const {
-    if( bReady4Init.load() ) return false;
-    const bool ready = data->readNData() >= nObsPerTraining;
-    if(not ready && learn_rank==0) {
-      std::lock_guard<std::mutex> lock(buffer_mutex);
-      const int currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
-      if(currPerc > percData+5) {
-       percData = currPerc;
-       printf("\rCollected %d%% of data required to begin training. ",percData);
-       fflush(0); //otherwise no show on some platforms
-      }
-    }
-    return ready;
-  }
-
-  virtual void prepareGradient();
-  virtual void applyGradient();
+  void processMemoryBuffer();
+  void updateRetraceEstimates();
+  void finalizeMemoryProcessing();
   virtual void initializeLearner();
+
+  virtual void logStats();
+
+  virtual void getMetrics(std::ostringstream& buff) const;
+  virtual void getHeaders(std::ostringstream& buff) const;
+
   virtual void save();
   virtual void restart();
+
+ protected:
+  inline void backPropRetrace(Sequence*const S, const Uint t) {
+    if(t == 0) return;
+    const Fval W = S->offPolicImpW[t], R=data->scaledReward(S, t), G = gamma;
+    const Fval C = W<1 ? W:1, V = S->state_vals[t], A = S->action_adv[t];
+    S->setRetrace(t-1, R + G*V + G*C*(S->Q_RET[t] -A-V) );
+  }
+  inline Fval updateRetrace(Sequence*const S, const Uint t, const Fval A,
+    const Fval V, const Fval W) const {
+    assert(W >= 0);
+    if(t == 0) return 0;
+    S->setStateValue(t, V); S->setAdvantage(t, A);
+    const Fval oldRet = S->Q_RET[t-1], C = W<1 ? W:1, G = gamma;
+    S->setRetrace(t-1, data->scaledReward(S,t) +G*V + G*C*(S->Q_RET[t] -A-V) );
+    return std::fabs(S->Q_RET[t-1] - oldRet);
+  }
 };

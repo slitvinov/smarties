@@ -64,8 +64,9 @@ class State
       if (sInfo.inUse[i]) res[k++] = vals[i];
   }
 
-  inline Rvec copy_observed() const {
-    Rvec ret(sInfo.dimUsed);
+  template<typename T = Real>
+  inline std::vector<T> copy_observed() const {
+    std::vector<T> ret(sInfo.dimUsed);
     for (Uint i=0, k=0; i<sInfo.dim; i++)
       if (sInfo.inUse[i]) ret[k++] = vals[i];
     return ret;

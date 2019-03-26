@@ -30,6 +30,7 @@ class Agent
   // status of agent's episode. 1: initial; 0: middle; 2: terminal; 3: truncated
   int Status = 1;
   int transitionID = 0;
+  bool trackSequence = true;
 
   // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];

@@ -11,69 +11,59 @@
 #include "../Settings.h"
 #include "../Environments/Environment.h"
 
-struct Tuple // data obtained at time t
-{
-  // vector containing the vector at time t
-  const std::vector<memReal> s;
-  // actions and behavior follower at time t
-  Rvec a, mu;
-  // reward obtained with state s (at time 0 this is 0)
-  const Real r;
-  Tuple(const Tuple*const c): s(c->s), a(c->a), mu(c->mu), r(c->r) {}
-  Tuple(const Rvec _s, const Real _r) : s(convert(_s)), r(_r) {}
-  Tuple(const Fval*_s, const Uint dS, float _r) : s(convert(_s,dS)), r(_r) {}
-
-  //convert to probably double (Rvec) to probably single precision for storage
-  static inline std::vector<memReal> convert(const Rvec _s) {
-    std::vector<memReal> ret ( _s.size() );
-    for(Uint i=0; i < _s.size(); i++) ret[i] = _s[i];
-    return ret;
-  }
-  static inline std::vector<memReal> convert(const Fval* _s, const Uint dS) {
-    std::vector<memReal> ret ( dS );
-    for(Uint i=0; i < dS; i++) ret[i] = _s[i];
-    return ret;
-  }
-  inline void setAct(const Fval* _b, const Uint dA, const Uint dP) {
-    a = Rvec( dA ); mu = Rvec( dP );
-    for(Uint i=0; i < dA; i++)  a[i] = *_b++;
-    for(Uint i=0; i < dP; i++) mu[i] = *_b++;
-  }
-};
-
 struct Sequence
 {
-  std::vector<Tuple*> tuples;
+  Sequence()
+  {
+    states.reserve(MAX_SEQ_LEN);
+    actions.reserve(MAX_SEQ_LEN);
+    policies.reserve(MAX_SEQ_LEN);
+    rewards.reserve(MAX_SEQ_LEN);
+  }
+  // Fval is just a storage format, probably float while Real is prob. double
+  std::vector<std::vector<memReal>> states;
+  std::vector<std::vector<Real>> actions;
+  std::vector<std::vector<Real>> policies;
+  std::vector<Real> rewards;
+
+  // additional quantities which may be needed by algorithms:
+  std::vector<Fval> Q_RET, action_adv, state_vals;
+  //Used for sampling, filtering, and sorting off policy data:
+  std::vector<Fval> SquaredError, offPolicImpW, KullbLeibDiv;
+  std::vector<float> priorityImpW;
+
+  // some quantities needed for processing of experiences
   long ended = 0, ID = -1, just_sampled = -1;
   Uint prefix = 0;
   Fval nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
 
-  Fvec Q_RET, action_adv, state_vals;
-  //Used for sampling, filtering, and sorting off policy data:
-  Fvec SquaredError, offPolicImpW, KullbLeibDiv;
-  std::vector<float> priorityImpW;
-
   std::mutex seq_mutex;
 
-  inline Uint ndata() const {
-    assert(tuples.size());
-    if(tuples.size()==0) return 0;
-    return tuples.size()-1;
+  inline Uint ndata() const { // how much data to train from? ie. not terminal
+    assert(states.size());
+    if(states.size()==0) return 0;
+    return states.size()-1;
+  }
+  inline Uint nsteps() const { // total number of time steps observed
+    return states.size();
   }
   inline bool isLast(const Uint t) const {
-    return t+1 >= tuples.size();
+    return t+1 >= states.size();
   }
   inline bool isTerminal(const Uint t) const {
-    return t+1 == tuples.size() && ended;
+    return t+1 == states.size() && ended;
   }
   inline bool isTruncated(const Uint t) const {
-    return t+1 == tuples.size() && not ended;
+    return t+1 == states.size() && not ended;
   }
   ~Sequence() { clear(); }
-  void clear() {
-    for(auto &t : tuples) _dispose_object(t);
-    tuples.clear();
+  void clear()
+  {
     ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0; sumKLDiv=0; totR=0;
+    states.clear();
+    actions.clear();
+    policies.clear();
+    rewards.clear();
     //priorityImpW.clear();
     SquaredError.clear();
     offPolicImpW.clear();
@@ -129,27 +119,17 @@ struct Sequence
     // If target<=0 assume we never filter far policy samples
     return target>0 && D > target;
   }
-  inline void add_state(const Rvec state, const Real reward=0) {
-    Tuple * t = new Tuple(state, reward);
-    if(tuples.size()) totR += reward;
-    else assert(std::fabs(reward)<2.2e-16);
-    tuples.push_back(t);
-  }
-  inline void add_action(const Rvec act, const Rvec mu) {
-    assert( 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
-    tuples.back()->a = act;
-    tuples.back()->mu = mu;
-  }
-  void finalize(const Uint index) {
+
+  void finalize(const Uint index)
+  {
     ID = index;
-    const Uint seq_len = tuples.size();
+    const Uint seq_len = states.size();
     // whatever the meaning of SquaredError, initialize with all zeros
     // this must be taken into account when sorting/filtering
-    SquaredError = Fvec(seq_len, 0);
+    SquaredError = std::vector<Fval>(seq_len, 0);
     // off pol importance weights are initialized to 1s
-    offPolicImpW.resize(seq_len, 1);
-
-    KullbLeibDiv = Fvec(seq_len, 0);
+    offPolicImpW = std::vector<Fval>(seq_len, 1);
+    KullbLeibDiv = std::vector<Fval>(seq_len, 0);
   }
 
   int restart(FILE * f, const Uint dS, const Uint dA, const Uint dP);

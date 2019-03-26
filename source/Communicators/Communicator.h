@@ -72,6 +72,8 @@ class Communicator
   int getDimS();
   int getDimA();
   int getNagents();
+  void setnAgents(int _nAgents);
+  void disableDataTrackingForAgents(int agentStart, int agentEnd);
   int nDiscreteAct();
   std::vector<double>& stateBounds();
   std::vector<double>& isStateObserved();

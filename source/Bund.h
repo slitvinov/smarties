@@ -63,16 +63,19 @@
 // Extra numerical stability for Adam optimizer: ensures M2 <= M1*M1/10
 // (or in other words deltaW <= 3 \eta , which is what happens if M1 and M2 are
 // initialized to 0 and hot started to something ). Can improve results.
-//#define SAFE_ADAM
+#define SAFE_ADAM
 
 // Turn on Nesterov-style Adam:
-//#define NESTEROV_ADAM
+#define NESTEROV_ADAM
 
 // Switch for amsgrad (grep for it, it's not vanilla but spiced up a bit):
 //#define AMSGRAD
 
 // Switch between L1 and L2 penalization, both with coef Settings::nnLambda
 //#define NET_L1_PENAL
+
+// Switch between Adam (L = Lobj+Lpenal) and AdamW (penal is applied after Adam)
+#define ADAMW
 
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// GRADIENT CLIPPING ////////////////////////////////
@@ -195,6 +198,14 @@ inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
   std::vector<Uint> ret(outs.size(), 0); //index 0 is 0
   for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
   return ret;
+}
+
+inline nnReal nnSafeExp(const nnReal val) {
+    return std::exp( std::min((nnReal)EXP_CUT, std::max(-(nnReal)EXP_CUT, val) ) );
+}
+
+inline Real annealRate(const Real eta, const Real t, const Real T) {
+  return eta / (1 + t * T);
 }
 
 #ifdef __APPLE__

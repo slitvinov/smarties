@@ -9,6 +9,7 @@
 #pragma once
 #include "../Settings.h"
 
+template<typename T>
 struct DelayedReductor
 {
   const MPI_Comm mpicomm;
@@ -16,9 +17,9 @@ struct DelayedReductor
   const Uint arysize, mpisize;
   std::mutex& mpi_mutex;
   MPI_Request buffRequest = MPI_REQUEST_NULL;
-  LDvec return_ret = LDvec(arysize, 0);
-  LDvec reduce_ret = LDvec(arysize, 0);
-  LDvec partialret = LDvec(arysize, 0);
+  std::vector<T> return_ret = std::vector<T>(arysize, 0);
+  std::vector<T> reduce_ret = std::vector<T>(arysize, 0);
+  std::vector<T> partialret = std::vector<T>(arysize, 0);
 
   static int getSize(const MPI_Comm comm) {
     int size;
@@ -26,18 +27,19 @@ struct DelayedReductor
     return size;
   }
 
-  DelayedReductor(const Settings& S, const LDvec init);
+  DelayedReductor(const Settings& S, const std::vector<T> init);
 
-  LDvec get(const bool accurate = false);
+  std::vector<T> get(const bool accurate = false);
 
   template<Uint I>
-  long double get(const bool accurate = false)
+  T get(const bool accurate = false)
   {
-    const LDvec ret = get(accurate);
+    const std::vector<T> ret = get(accurate);
     return ret[I];
   }
 
-  void update(const LDvec ret);
+  void beginRDX();
+  void update(const std::vector<T> ret);
 };
 
 struct TrainData

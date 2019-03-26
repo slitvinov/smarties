@@ -15,7 +15,7 @@
 #define RANDOM_START 1
 #endif
 //#define NOISY 0
-//#define PARAM_NOISE 0.4
+//#define PARAM_NOISE 0.02
 
 #ifndef RHORATIO
 #define RHORATIO 200
@@ -143,8 +143,9 @@ struct Glider
   void reset(std::mt19937& gen)
   {
     info=1; step=0;
-    std::uniform_real_distribution<double> init(-.1,.1); //for vels, angle
-    std::uniform_real_distribution<double> initx(-10,10); //for position
+    std::uniform_real_distribution<double> init(-.1, .1); //for vels, angle
+    std::uniform_real_distribution<double> initx(-10, 10); //for position
+    std::uniform_real_distribution<double> inita(-M_PI, M_PI); //for angle
     Jerk=0; Torque=0; oldDistance=0; oldTorque=0;
     oldAngle=0; oldEnergySpent=0; time=0;
     #ifdef PARAM_NOISE // mean 1 and variance PARAM_NOISE
@@ -161,7 +162,7 @@ struct Glider
 
     #ifdef __SMARTIES_ //u,v,w,x,y,a,T
       #if RANDOM_START == 1
-        _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+        _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, inita(gen), 0, 0);
       #elif RANDOM_START == 2
         _s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
         startx = startx + 5;
@@ -185,7 +186,7 @@ struct Glider
     const double slack = 0.4*std::max(0., std::min(_s.x-50, 100-_s.x));
     const bool hit_bottom =  _s.y <= -50 -slack;
     const bool wrong_xdir = _s.x < -50;
-    const bool timeover = time > 1000;
+    const bool timeover = time > 5000;
 
     return ( timeover || hit_bottom || wrong_xdir || way_too_far );
   }

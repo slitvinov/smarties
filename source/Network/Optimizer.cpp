@@ -67,7 +67,11 @@ struct Adam {
     #else
       const nnReal penal = - W*lambda;
     #endif
+    #ifndef ADAMW
     const nnReal DW = fac * grad + penal;
+    #else
+    const nnReal DW = fac * grad;
+    #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     #ifdef NESTEROV_ADAM // No significant effect
@@ -82,17 +86,21 @@ struct Adam {
       // increasing the kurtosis of the incoming gradients. 1e-4 decay factor
       // is smallest that doesnt ruin returns on gym. 1e-3 (=B2) is meaningless.
       M3 = std::max((1.-1e-4)*M3, M2);
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
+      const nnReal ret = numer / ( nnEPS + std::sqrt(M3) );
     #else
       #ifdef SAFE_ADAM //numerical safety, assumes that 1-beta2 = (1-beta1)^2/10
-        assert( std::fabs( (1-B2) - 0.1*std::pow(1-B1,2) ) < nnEPS );
-        M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
+        //assert( std::fabs( (1-B2) - 0.1*std::pow(1-B1,2) ) < nnEPS );
+        M2 = M2 < M1*M1 ? M1*M1 : M2;
       #endif
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
+      const nnReal ret = numer / ( nnEPS + std::sqrt(M2) );
     #endif
 
     assert(not std::isnan(ret) && not std::isinf(ret));
-    return ret;
+    #ifdef ADAMW
+      return eta * ( ret + penal );
+    #else
+      return eta * ret;
+    #endif
   }
 };
 

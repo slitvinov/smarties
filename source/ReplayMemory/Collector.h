@@ -23,13 +23,16 @@ private:
 
   std::vector<Sequence*> inProgress;
 
+  DelayedReductor<long> globalStep_reduce = DelayedReductor<long>(settings, std::vector<long>{0,0});
+
   const bool prepareImpWeights = replay->sampler->requireImportanceWeights();
   std::atomic<long>& nSeenSequences = replay->nSeenSequences;
+  std::atomic<long>& nSeenTransitions = replay->nSeenTransitions;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
 
 public:
-  void add_state(const Agent&a);
+  void add_state(Agent&a);
   void add_action(const Agent& a, const Rvec pol);
   void terminate_seq(Agent&a);
   void push_back(const int & agentId);
@@ -41,7 +44,7 @@ public:
     return inProgress.size();
   }
 
-  Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM);
+  Collector(const Settings&S, MemoryBuffer*const RM);
 
   ~Collector();
 };

@@ -59,13 +59,6 @@ inline std::vector<nnReal*> allocate_vec(std::vector<Uint> _sizes)
   #define PRELU_FAC 1
 #endif
 
-inline nnReal nnSafeExp(const nnReal val) {
-    return std::exp( std::min((nnReal)EXP_CUT, std::max(-(nnReal)EXP_CUT, val) ) );
-}
-
-inline Real annealRate(const Real eta, const Real t, const Real T) {
-  return eta / (1 + t * T);
-}
 /*
 inline Uint roundUpSimd(const Uint size)
 {
