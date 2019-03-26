@@ -15,7 +15,7 @@
 #define RANDOM_START 1
 #endif
 //#define NOISY 0
-//#define PARAM_NOISE 0.01
+//#define PARAM_NOISE 0.02
 
 #ifndef RHORATIO
 #define RHORATIO 200
