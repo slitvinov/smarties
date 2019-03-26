@@ -141,7 +141,7 @@ template class VRACER<Gaussian_policy, Rvec>;
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::restart()
 {
-  Learner_offPolicy::restart();
+  Learner_approximator::restart();
   #if 0
   if(settings.restart == "none") return;
   if(!learn_rank) printf("Overwriting saved policy...\n");
