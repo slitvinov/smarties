@@ -28,8 +28,8 @@ SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
-export OMP_PROC_BIND=TRUE
-export OMP_PLACES=cores
+#export OMP_PROC_BIND=TRUE
+#export OMP_PLACES=cores
 
 env > environment.log
 
