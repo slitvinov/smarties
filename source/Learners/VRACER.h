@@ -62,4 +62,6 @@ class VRACER : public Learner_offPolicy
 
   void prepareGradient() override;
   static Uint getnDimPolicy(const ActionInfo*const aI);
+
+  void restart() override;
 };
