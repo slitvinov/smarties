@@ -1,4 +1,4 @@
-cp ../apps/leadFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
+cp ../apps/leadFollowDiffSize/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean
