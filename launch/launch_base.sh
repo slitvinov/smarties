@@ -50,7 +50,7 @@ if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ;
 then
 export NTHREADS=18
 NPROCESSORS=$((${NPROCESS}*${NTHREADS}))
-bsub -J ${RUNFOLDER} -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -R fullnode -n ${NPROCESSORS} -W 120:00 < run.sh
+bsub -J ${RUNFOLDER} -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -R fullnode -n ${NPROCESSORS} -W 24:00 < run.sh
 #bsub -J ${RUNFOLDER} -R fullnode -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 120:00 < run.sh
 else
 source run.sh

@@ -11,10 +11,8 @@
 
 struct Parameters
 {
- private:
   std::vector<Uint> indBiases, indWeights;
   std::vector<Uint> nBiases, nWeights;
- public:
   const Uint nParams, nLayers;
   mutable bool written = false;
   // array containing all parameters of network contiguously

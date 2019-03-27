@@ -79,4 +79,6 @@ class VRACER : public Learner_approximator
   void setupTasks(TaskQueue& tasks) override;
 
   static Uint getnDimPolicy(const ActionInfo*const aI);
+
+  void restart() override;
 };

@@ -9,9 +9,9 @@ The main files that will be maintained are `launch.sh`, `launch_(gym/dmcs/atari)
 
 * An example of running a `C++` based app is `./launch.sh RUNDIR test_cpp_cart_pole settings/settings_VRACER.sh` . To see an example of how to set up a `C++` app see the folder `../apps/`. The setting file `settings/settings_RACER.sh` details the baseline solver of `smarties`.
 
-* An example of launching an OpenAI gym mujoco-based app is `./launch_openai.sh RUNDIR Walker2d-v2 settings/settings_VRACER.sh`. The second argument, instead of providing a path to an application, is the name of the OpenAI Gym environment (e.g. `CartPole-v1`)
+* An example of launching an OpenAI gym mujoco-based app is `./launch_gym.sh RUNDIR Walker2d-v2 settings/settings_VRACER.sh`. The second argument, instead of providing a path to an application, is the name of the OpenAI Gym environment (e.g. `CartPole-v1`)
 
-* An example of launching an OpenAI gym Atari-based app is `./launch_openai.sh RUNDIR Pong settings/settings_VRACER.sh` (the version specifier `NoFrameskip-v4` will be added internally). Note that we apply the same frame preprocessing as in the OpenAI `baselines` repository and the base CNN architecture is the same as in the DQN paper. The network layers specified in the `settings` file (ie. fully connected, GRU, LSTM) will be added on top of those convolutional layers.
+* An example of launching an OpenAI gym Atari-based app is `./launch_atari.sh RUNDIR Pong settings/settings_VRACER.sh` (the version specifier `NoFrameskip-v4` will be added internally). Note that we apply the same frame preprocessing as in the OpenAI `baselines` repository and the base CNN architecture is the same as in the DQN paper. The network layers specified in the `settings` file (ie. fully connected, GRU, LSTM) will be added on top of those convolutional layers.
 
 * `launchDaint.sh` .. it works on CSCS piz Daint. Main changes are that run folder is in `/scratch/snx3000/${MYNAME}/smarties/`, the number of threads is hardcoded to 12, and `run.sh` is not used.
 
@@ -68,6 +68,8 @@ These two scripts set up the launch environment and directory, and then call `ru
     - (4) Run with at least one mpi-rank for the master plus the number of mpi-ranks for one instance of the application (usually 1).
     - (5) To run a finite number of times, the option `--totNumSteps` is recycled if `bTrain==0` to be the number of sequences that are observed before terminating (instead of the maximum number of time steps done for the training if `bTrain==1`)
     - (6) Make sure the policy is read correctly (eg. if code was compiled with different features or run with different algorithms, network might have different shape), by comparing the `restarted_policy...` files and the original `agent_%02d_*` files. This can be performed with the `diff` command (ie. `diff /path/eval/run/restarted_net_weights.raw /path/train/run/agent_00_net_weights.raw`).
+* Te restart training prepare a folder with the latest scaling (`agent_*_scaling.raw`), weight (`agent_00_net_weights.raw`), target net's weights (`agent_00_net_tgt_weights.raw`), and Adam's momenta (`agent_00_net_*Mom.raw`) files. Moreover, move the last stored state of the learners (`agent_*_rank_*_LASTTIMESTEP_learner.raw`) into the new folder removing the time stamp (`agent_00_rank_000_learner.raw`). At this point training can continue as if never interrupted from the last saved step. Make sure you use the same settings file.
+* It is possible to begin training anew but use the trained weights of a previous run as a first guess. In this case I found it best not to carry over Adam's momenta files and recover only the weight themselves.
 
 * For a description of the settings read `source/Settings.h`. The file follows 	an uniform pattern:
 	```

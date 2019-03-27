@@ -137,3 +137,24 @@ void VRACER<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 template class VRACER<Discrete_policy, Uint>;
 template class VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
 template class VRACER<Gaussian_policy, Rvec>;
+
+template<typename Policy_t, typename Action_t>
+void VRACER<Policy_t, Action_t>::restart()
+{
+  Learner_approximator::restart();
+  #if 0
+  if(settings.restart == "none") return;
+  if(!learn_rank) printf("Overwriting saved policy...\n");
+    #ifdef EXTRACT_COVAR
+      Real initParam = noiseMap_inverse(explNoise*explNoise);
+    #else
+      Real initParam = noiseMap_inverse(explNoise);
+    #endif
+    const auto* const pW = F[0]->net->weights;
+    const auto iBn = pW->indBiases.back();
+    const auto nBn = pW->nBiases.back();
+    printf("Overwriting last %u biases\n", nBn);
+    for(Uint i=0; i<nBn; ++i) pW->params[iBn + i] = initParam;
+  #endif
+}
+
