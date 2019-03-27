@@ -37,6 +37,7 @@ endif
 ##################################################
 ifneq "$(findstring daint,$(shell hostname))" ""
 LIBS+= -lcufft
+LIBS += -L/users/novatig/hypre/build/lib/
 endif
 ##################################################
 

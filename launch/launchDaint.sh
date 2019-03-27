@@ -10,12 +10,30 @@ RUNFOLDER=$1
 NNODES=$2
 APP=$3
 SETTINGSNAME=$4
-NWORKERS=$5
+if [ $# -gt 4 ] ; then #n worker ranks
+export NWORKERS=$5
+else
+export NWORKERS=$(($NNODES-1))
+fi
+if [ $# -gt 5 ] ; then
+export NMASTERS=$6
+else
+export NMASTERS=1 #n master ranks
+fi
 
 if [ $# -lt 5 ] ; then
-	echo "Usage: ./launch_openai.sh RUNFOLDER MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE OMP_THREADS)"
+	echo "Usage: ./launch_openai.sh RUNFOLDER NDAINT_NODES APP SETTINGS_PATH (NWORKERS) (NMASTERS)"
 	exit 1
 fi
+
+NPROCESSES=$(( $NWORKERS + $NMASTERS ))
+ZERO=$(( $NPROCESSES % $NNODES ))
+if [ $ZERO != 0 ] ; then
+echo "ERROR: unable to map NWORKERS and NMASTERS onto NNODES"
+exit 1
+fi
+NPROCESSPERNODE=$(( $NPROCESSES / $NNODES ))
+echo "NWORKERS:"$NWORKERS "NMASTERS:"$NMASTERS "NNODES:"$NNODES "NPROCESSPERNODE:"$NPROCESSPERNODE
 
 WCLOCK=${WCLOCK:-24:00:00}
 
@@ -23,8 +41,6 @@ MYNAME=`whoami`
 BASEPATH="${SCRATCH}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
-NMASTERS=1
-NTASKPERNODE=1
 NTHREADS=12
 
 #this handles app-side setup (incl. copying the factory)
@@ -79,6 +95,8 @@ fi
 SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
+#export OMP_PROC_BIND=TRUE
+#export OMP_PLACES=cores
 
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
@@ -103,12 +121,10 @@ cat <<EOF >daint_sbatch
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 export OPENBLAS_NUM_THREADS=1
-export OMP_PROC_BIND=TRUE
 export OMP_NUM_THREADS=12
-export OMP_PLACES=cores
 export CRAY_CUDA_MPS=1
 
-srun -n ${NNODES} --nodes=${NNODES}  --ntasks-per-node=1 ./rl ${SETTINGS}
+srun -n ${NNODES} --nodes=${NNODES}  --ntasks-per-node=${NPROCESSPERNODE} ./rl ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch
