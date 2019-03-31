@@ -9,6 +9,10 @@
 #include "Communicator.h"
 #endif
 
+#ifndef MULT_ACT_DT
+#define MULT_ACT_DT 1
+#endif
+
 //#define __PRINT_
 //#define SPEED_PENAL
 #ifndef RANDOM_START
@@ -118,7 +122,7 @@ struct Glider
   const double beta = ASPECTRATIO;
 
   //time stepping
-  const double dt = 5e-4;
+  const double dt = 5e-4 * MULT_ACT_DT;
   const int nstep = 1000;
   const double DT = dt*nstep;
 
@@ -358,6 +362,7 @@ int main(int argc, const char * argv[])
     vector<double> upper_action_bound{1}, lower_action_bound{-1};
     comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
     vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
+    //vector<bool> b_observable = {0, 0, 0, 1, 1, 1, 1, 0, 0, 0};
     comm.set_state_observable(b_observable);
   #else
     std::mt19937 gen(0);
