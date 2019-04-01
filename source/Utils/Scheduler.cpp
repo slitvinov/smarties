@@ -79,6 +79,7 @@ void Master::run()
 
     bool over = true;
     for(const auto& L : learners) over = over && isTrainingOver(L);
+    if (over) break;
   }
 }
 
