@@ -58,8 +58,7 @@ struct Vec7
       return v*cosa - u*sina;
   }
 
-  Vec7(const double _u=0,const double _v=0,const double _w=0,const double _x=0,
-    const double _y=0,const double _a=0,const double _T=0,const double _E=0)
+  Vec7(double _u=0,double _v=0,double _w=0,double _x=0,double _y=0,double _a=0)
     : u(_u), v(_v), w(_w), x(_x), y(_y), a(_a) {}
 
   Vec7(const Vec7& c) : u(c.u), v(c.v), w(c.w), x(c.x), y(c.y), a(c.a) {}
@@ -165,16 +164,19 @@ struct Glider
     #endif
 
     #ifdef __SMARTIES_ //u,v,w,x,y,a,T
-      #if RANDOM_START == 1
-        _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, inita(gen), 0, 0);
+      #if   RANDOM_START == 1
+        _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, inita(gen));
       #elif RANDOM_START == 2
-        _s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
+        _s = Vec7(0, 0, 0, startx, 0, 0);
         startx = startx + 5;
+      #elif RANDOM_START == 3
+        _s = Vec7(0, 0, 0, 0, 0, startx);
+        startx = startx + M_PI/64.0;
       #else
-        _s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+        _s = Vec7(0, 0, 0, 0, 0, 0);
       #endif
     #else
-      _s = Vec7(0.0001, 0.0001, 0.0001, 0, 0, 0, 0.0001,     0);
+      _s = Vec7(0.0001, 0.0001, 0.0001, 0, 0, 0);
     #endif
 
     #ifdef __PRINT_
