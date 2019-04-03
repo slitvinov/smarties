@@ -104,7 +104,7 @@ echo ${SETTINGS}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=ch7
+#SBATCH --account=s929
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt

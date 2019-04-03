@@ -19,6 +19,7 @@
 */
 #include "RACER.h"
 #include "VRACER.h"
+#include "Learner_pytorch.h"
 
 inline void print(std::ostringstream& o, std::string fname, int rank)
 {
@@ -35,6 +36,11 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   std::ostringstream o;
   o << env->sI.dim << " ";
 
+  if (settings.learner == "PYTORCH")
+  {
+    ret = new Learner_pytorch(env, settings);
+  }
+  else
   if (settings.learner == "RACER")
   {
     if(env->aI.discrete) {

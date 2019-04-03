@@ -83,6 +83,7 @@ OBJ_FILES = \
 	Collector.o \
 	Sampling.o \
 	Learner_approximator.o \
+	Learner_pytorch.o \
 	Learner.o \
 	StateAction.o \
 	Math_tests.o \
