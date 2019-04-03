@@ -11,7 +11,8 @@ endif
 
 CPPFLAGS=-DSMARTIES
 LIBS=
-
+LIBS+= `python3.6-config --libs`
+CPPFLAGS+= `python3 -m pybind11 --includes`
 ifeq ($(UNAME_S),Darwin)
 include make.macos
 endif

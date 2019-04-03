@@ -8,6 +8,7 @@
 
 #include "Learner_pytorch.h"
 #include <chrono>
+#include <pybind11/pybind11.h>
 
 Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
 {
