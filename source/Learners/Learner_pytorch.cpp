@@ -8,10 +8,46 @@
 
 #include "Learner_pytorch.h"
 #include <chrono>
+
+// PYBIND
 #include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+#include <pybind11/stl_bind.h>
+#include <iostream>
+
+namespace py = pybind11;
+using namespace py::literals;
+
+py::scoped_interpreter guard{};
 
 Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
 {
+  std::cout << "STARTING NEW LEARNER." << std::endl;
+
+  std::cout << "Initializing pytorch scope..." << std::endl;
+
+  py::module sys = py::module::import("sys");
+  std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
+  py::print(sys.attr("path").attr("insert")(0,path));
+
+  auto module = py::module::import("mlp_module");
+  py::print(module);
+  auto Net = module.attr("MLP");
+  auto net = Net();
+  py::print(Net);
+
+  auto torch = py::module::import("torch");
+
+  int input_dim = 2;
+  auto input = torch.attr("randn")(input_dim);
+  py::print(input);
+  py::print(input.attr("size")());
+
+  auto output = net.attr("forward")(input);
+  py::print(output);
+  py::print(output.attr("size")());
+
+  Nets = &net;
 
 }
 
@@ -21,6 +57,8 @@ Learner_pytorch::~Learner_pytorch() {
 
 void Learner_pytorch::spawnTrainTasks()
 {
+  std::cout << "SPAWNING TRAINING TASKS. " << std::endl;
+  std::cout << "Number of sequences: " << data->readNSeq() << std::endl;
   if(bSampleSequences && data->readNSeq() < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
@@ -33,6 +71,13 @@ void Learner_pytorch::spawnTrainTasks()
   for(Uint i=0; i<batchSize && bSampleSequences; i++)
     assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
 
+  for(Uint i=0; i<batchSize; i++){
+    Sequence* const S = data->get(samp_seq[i]);
+    std::vector<memReal> state = S->states[samp_obs[i]];
+
+    std::cout << "OUTPUT::: " << std::endl;
+    py::print(state[0]);
+  }
 
 }
 

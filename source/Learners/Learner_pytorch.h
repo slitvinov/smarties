@@ -9,6 +9,11 @@
 #pragma once
 #include "Learner.h"
 
+namespace pybind11
+{
+  class object;
+}
+
 class Learner_pytorch: public Learner
 {
  public:
@@ -22,6 +27,8 @@ class Learner_pytorch: public Learner
  protected:
  
   void spawnTrainTasks();
+  // auto Nets;
+  pybind11::object * Nets;
 
  public:
   Learner_pytorch(Environment*const env, Settings & settings);
