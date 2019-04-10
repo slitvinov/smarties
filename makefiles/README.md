@@ -5,6 +5,7 @@
   ```
 * **Falcon** Have in the bashrc:
 	```
+	module load gnu
 	export LD_LIBRARY_PATH=/home/novatig/mpich-3.2/gcc7.1_install/lib/:/usr/local/gcc-7.1/lib64/:$LD_LIBRARY_PATH
 	export PATH=/usr/local/gcc-7.1/bin/:/home/novatig/mpich-3.2/gcc7.1_install/bin/::$PATH
 	```
