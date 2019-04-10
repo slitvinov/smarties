@@ -1,3 +1,4 @@
+export INTERNALAPP=true
 cp ../apps/blowfish_eval/runArguments* ${BASEPATH}${RUNFOLDER}/
 cp ../apps/blowfish_eval/agent_00* ${BASEPATH}${RUNFOLDER}/
 

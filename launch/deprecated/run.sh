@@ -27,6 +27,12 @@ fi
 SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
+if [[ "${INTERNALAPP}" == "true" ]] ; then
+SETTINGS+=" --runInternalApp 1"
+else
+SETTINGS+=" --runInternalApp 0"
+fi
+
 export OMP_NUM_THREADS=${NTHREADS}
 
 env > environment.log

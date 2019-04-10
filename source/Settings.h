@@ -340,7 +340,6 @@ master rank."
 #define DEFAULT_nMasters 1
   int nMasters = DEFAULT_nMasters;
 
-
 #define CHARARG_nWorkers '%'
 #define COMMENT_nWorkers "Number of worker processes (not necessarily ranks)."
 #define TYPEVAL_nWorkers int
@@ -399,6 +398,15 @@ checkpoints can be used to evaluate learners, but not yet to restart learning."
 #define TYPENUM_saveFreq INT
 #define DEFAULT_saveFreq 200000
   int saveFreq = DEFAULT_saveFreq;
+
+#define CHARARG_runInternalApp ']'
+#define COMMENT_runInternalApp "Whether environment is linked as a library and \
+requires smarties processes (=1) or we spawn an external process and comm \
+through sockets (=1)."
+#define TYPEVAL_runInternalApp int
+#define TYPENUM_runInternalApp INT
+#define DEFAULT_runInternalApp 200000
+  int runInternalApp = DEFAULT_runInternalApp;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
@@ -600,7 +608,7 @@ std::string setupFolder = DEFAULT_setupFolder;
       READOPT(nThreads), READOPT(nMasters), READOPT(nWorkers),
       READOPT(isServer), READOPT(sockPrefix), READOPT(samplesFile),
       READOPT(restart), READOPT(maxTotSeqNum),
-      READOPT(randSeed), READOPT(saveFreq),
+      READOPT(randSeed), READOPT(saveFreq), READOPT(runInternalApp),
 
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
       READOPT(environment), READOPT(workersPerEnv), READOPT(rType),

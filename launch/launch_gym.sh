@@ -6,13 +6,11 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-EXECNAME=rl
 RUNFOLDER=$1
 APP=$2
-SETTINGSNAME=$3
 
-if [ $# -lt 3 ] ; then
-echo "Usage: ./launch_gym.sh RUNFOLDER APP SETTINGS_PATH (for other optional params see launch_base.sh)"
+if [ $# -lt 2 ] ; then
+echo "Usage: ./launch_gym.sh RUNFOLDER ENVIRONMENT_APP (... optional arguments defined in launch_base.sh )"
 exit 1
 fi
 
@@ -30,6 +28,7 @@ python3 ../Communicator_gym.py \$1 $APP
 EOF
 fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+export INTERNALAPP=false
 
 cp ../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/

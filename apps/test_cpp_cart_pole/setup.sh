@@ -1,3 +1,4 @@
+export INTERNALAPP=false
 make -C ../apps/test_cpp_cart_pole
 
 cp ../apps/test_cpp_cart_pole/launch.sh ${BASEPATH}${RUNFOLDER}/launchSim.sh

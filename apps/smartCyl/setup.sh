@@ -1,3 +1,4 @@
+export INTERNALAPP=true
 cp ../apps/smartCyl/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then

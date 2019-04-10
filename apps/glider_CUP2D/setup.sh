@@ -1,4 +1,4 @@
-#cp ../apps/glider_CUP2D/runArguments* ${BASEPATH}${RUNFOLDER}/
+export INTERNALAPP=true
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean

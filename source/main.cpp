@@ -30,12 +30,6 @@ void runMaster(Settings& S)
 {
   S.check();
 
-  #ifdef INTERNALAPP //unblock creation of app comm if needed
-    if(S.bSpawnApp) die("Unsuppored, create dedicated workers");
-    MPI_Comm tmp_com;
-    MPI_Comm_split(S.workersComm, MPI_UNDEFINED, 0, &tmp_com);
-  #endif
-
   ObjectFactory factory(S);
   Environment*const env = factory.createEnvironment();
   Communicator_internal comm = env->create_communicator();
@@ -57,7 +51,6 @@ void runMaster(Settings& S)
   Master master(&comm, learners, env, S);
 
   master.run();
-  comm.sendTerminateReq();
 }
 
 int main (int argc, char** argv)

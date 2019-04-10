@@ -68,6 +68,7 @@ public:
     _dispose_object(env);
     _dispose_object(profiler);
     for(const auto& L : learners) _dispose_object(L);
+    comm->sendTerminateReq();
   }
 
   void run();

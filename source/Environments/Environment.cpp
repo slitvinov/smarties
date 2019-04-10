@@ -75,23 +75,33 @@ Communicator_internal Environment::create_communicator()
   Communicator_internal comm(settings);
   comm_ptr = &comm;
 
-  #ifdef INTERNALAPP
-  if(settings.workers_rank>0) // aka not a master
+  if(settings.runInternalApp)
   {
-    if( (settings.workers_size-1) % settings.workersPerEnv != 0)
-      die("Number of ranks does not match app\n");
+    #ifndef INTERNALAPP
+      die("Compiled smarties exec does not contain the environment application! Recompile as 'make app=your_app' (or through app/setup.sh script).");
+    #endif
+    if(settings.bSpawnApp)
+     die("smarties is being told to create environment on worker ranks, but no worker ranks were created. Increase the number of mpi processes!");
 
-    int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
+    if(settings.workers_rank>0) // aka not a master
+    {
+      if( (settings.workers_size-1) % settings.workersPerEnv != 0)
+        die("Number of ranks does not match app\n");
 
-    MPI_Comm app_com;
-    MPI_Comm_split(settings.workersComm, workerGroup, settings.workers_rank,
-      &app_com);
-    comm.set_application_mpicom(app_com, workerGroup);
-    comm.ext_app_run(); //worker rank will remain here for ever
+      int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
+
+      MPI_Comm app_com;
+      MPI_Comm_split(settings.workersComm, workerGroup, settings.workers_rank,
+        &app_com);
+      comm.set_application_mpicom(app_com, workerGroup);
+      comm.ext_app_run(); //worker rank will remain here for ever
+    }
+    else // master : unblock creation of app comm
+    {
+      MPI_Comm tmp_com;
+      MPI_Comm_split(settings.workersComm, MPI_UNDEFINED, 0, &tmp_com);
+    }
   }
-  if(settings.bSpawnApp)
-   die("Learn rank cannot spawn an internally linked app. Use multiple ranks");
-  #endif
 
   if(settings.bSpawnApp) { comm_ptr->launch(); }
   setDims();

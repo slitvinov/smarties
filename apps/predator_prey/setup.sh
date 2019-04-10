@@ -1,3 +1,4 @@
+export INTERNALAPP=false
 make -C ../apps/predator_prey clean
 make -C ../apps/predator_prey
 

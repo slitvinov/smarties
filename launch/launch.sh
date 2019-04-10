@@ -8,11 +8,10 @@
 #
 RUNFOLDER=$1
 APP=$2
-SETTINGSNAME=$3
 
-if [ $# -lt 3 ] ; then
-	echo "Usage: ./launch_atari.sh RUNFOLDER APP SETTINGS_PATH (WORKERS PER LEARNER) (NTHREADS) (N LEARNERS)"
-	exit 1
+if [ $# -lt 2 ] ; then
+echo "Usage: ./launch_gym.sh RUNFOLDER ENVIRONMENT_APP (... optional arguments defined in launch_base.sh )"
+exit 1
 fi
 
 source create_rundir.sh

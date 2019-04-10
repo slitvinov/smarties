@@ -1,3 +1,4 @@
+export INTERNALAPP=true
 cp ../apps/smartCyl_eval/runArguments* ${BASEPATH}${RUNFOLDER}/
 #cp ../apps/smartCyl_re500_eval/agent_00* ${BASEPATH}${RUNFOLDER}/
 

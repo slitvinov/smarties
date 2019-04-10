@@ -1,3 +1,4 @@
+export INTERNALAPP=true
 cp ../apps/cylFollow_eval/runArguments* ${BASEPATH}${RUNFOLDER}/
 cp ../apps/cylFollow_eval/agent_00* ${BASEPATH}${RUNFOLDER}/
 

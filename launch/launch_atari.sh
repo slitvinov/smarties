@@ -9,10 +9,9 @@
 EXECNAME=rl
 RUNFOLDER=$1
 APP=$2 # NoFrameskip-v4 will be added  at the end of the task name
-SETTINGSNAME=$3
 
-if [ $# -lt 3 ] ; then
-echo "Usage: ./launch_atari.sh RUNFOLDER APP SETTINGS_PATH (for other optional params see launch_base.sh)"
+if [ $# -lt 2 ] ; then
+echo "Usage: ./launch_atari.sh RUNFOLDER GAMEID( NoFrameskip-v4 will be added internally ) (... optional arguments defined in launch_base.sh )"
 exit 1
 fi
 
@@ -33,6 +32,7 @@ python3 ../Communicator_atari.py \$1 $APP
 EOF
 fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+export INTERNALAPP=false
 
 cp ../source/Communicators/Communicator.py       ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator_atari.py ${BASEPATH}${RUNFOLDER}/
