@@ -52,7 +52,8 @@ if [ $# -gt 5 ] ; then export NMASTERS=$6
 else export NMASTERS=1
 fi
 if [ $# -gt 6 ] ; then export NWORKERS=$7
-else export NWORKERS=$(( $NNODES - $NMASTERS ))
+elif [ $NNODES -gt 1 ] ; then export NWORKERS=$(( $NNODES - $NMASTERS ))
+else export NWORKERS=1
 fi
 
 # BOTH MASTERS AND WORKERS ARE CREATED DURING INITIAL MPIRUN CALL:
@@ -141,7 +142,7 @@ fi
 
 WCLOCK=${WCLOCK:-24:00}
 # compute the number of CPU CORES to ask euler:
-export NPROCESSORS=$(( ${NPROCESSES} * ${NTHREADS} ))
+export NPROCESSORS=$(( ${NNODES} * ${NTHREADS} ))
 
 bsub -n ${NPROCESSORS} -J ${RUNFOLDER} -R "select[model==XeonGold_6150] span[ptile=${NTHREADS}]" -W ${WCLOCK} mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node ./rl ${SETTINGS} | tee out.log
 
