@@ -3,7 +3,7 @@ cp ../apps/blowfish_eval/runArguments* ${BASEPATH}${RUNFOLDER}/
 cp ../apps/blowfish_eval/agent_00* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
+rm ../makefiles/libsimulation.a
 make -C ../makefiles/ app=blowfish -j4
 fi
 

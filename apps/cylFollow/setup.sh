@@ -2,11 +2,10 @@ export INTERNALAPP=true
 cp ../apps/cylFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
-make -C ../makefiles/ app=cylFollow -j4 #config=segf
+rm ../makefiles/libsimulation.a
+make -C ../makefiles/ app=cylFollow -j4
 fi
 
-#config=segf
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --appSettings runArguments00.sh,runArguments01.sh,runArguments02.sh,runArguments03.sh "
 SETTINGS+=" --nStepPappSett 1048576,524288,262144,0 "

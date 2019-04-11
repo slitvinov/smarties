@@ -2,7 +2,7 @@ export INTERNALAPP=true
 cp ../apps/blowfish/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
+rm ../makefiles/libsimulation.a
 make -C ../makefiles/  app=blowfish -j4
 fi
 

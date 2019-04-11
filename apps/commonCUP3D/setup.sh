@@ -1,6 +1,6 @@
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
-make -C ../makefiles/ app=commonCUP3D precision=single -j4
+rm ../makefiles/libsimulation.a
+make -C ../makefiles/ app=commonCUP3D -j4
 fi
 
 NNODEX=${NNODEX:-4}

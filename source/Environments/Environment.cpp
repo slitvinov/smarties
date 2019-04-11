@@ -77,12 +77,6 @@ Communicator_internal Environment::create_communicator()
 
   if(settings.runInternalApp)
   {
-    #ifndef INTERNALAPP
-      die("Compiled smarties exec does not contain the environment application! Recompile as 'make app=your_app' (or through app/setup.sh script).");
-    #endif
-    if(settings.bSpawnApp)
-     die("smarties is being told to create environment on worker ranks, but no worker ranks were created. Increase the number of mpi processes!");
-
     if(settings.workers_rank>0) // aka not a master
     {
       if( (settings.workers_size-1) % settings.workersPerEnv != 0)
@@ -98,6 +92,8 @@ Communicator_internal Environment::create_communicator()
     }
     else // master : unblock creation of app comm
     {
+      if(settings.bSpawnApp)
+       die("smarties is being told to create environment on worker ranks, but no worker ranks were created. Increase the number of mpi processes!");
       MPI_Comm tmp_com;
       MPI_Comm_split(settings.workersComm, MPI_UNDEFINED, 0, &tmp_com);
     }

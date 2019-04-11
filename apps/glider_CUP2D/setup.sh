@@ -1,7 +1,7 @@
 export INTERNALAPP=true
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
+rm ../makefiles/libsimulation.a
 make -C ../makefiles/ app=glider_CUP2D  -j4
 fi
 

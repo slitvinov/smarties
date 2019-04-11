@@ -2,8 +2,8 @@ export INTERNALAPP=true
 cp ../apps/leadFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ../makefiles/ clean
-make -C ../makefiles/ app=leadFollow -j4 #config=segf
+rm ../makefiles/libsimulation.a
+make -C ../makefiles/ app=leadFollow -j4
 fi
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh

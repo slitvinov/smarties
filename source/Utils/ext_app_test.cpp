@@ -8,6 +8,7 @@
 
 #include "mpi.h"
 #include "../Communicators/Communicator.h"
+#include "Warnings.h"
 
 #include <iostream>
 #include <cmath>
@@ -31,6 +32,7 @@ std::string printableTuple(std::vector<double> s,double r,std::vector<double> a)
 
 int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const unsigned numSteps)
 {
+  die("Compiled smarties exec does not contain the environment application! Recompile as 'make app=your_app' (or through app/setup.sh script).");
   //std::ostringstream o;
   //o << argc << ":";
   //for (int i=0; i<argc; ++i) o << " [" << argv[i] << "]";
