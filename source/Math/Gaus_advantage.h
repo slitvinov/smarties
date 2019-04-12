@@ -12,7 +12,7 @@
 
 struct Gaussian_advantage
 {
-  static inline Uint compute_nL(const ActionInfo* const aI) {
+  static Uint compute_nL(const ActionInfo* const aI) {
     return 1 + 2*aI->dim;
   }
 
@@ -43,18 +43,18 @@ struct Gaussian_advantage
    aInfo(aI), policy(pol) {}
 
 private:
-  static inline Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA) {
+  static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA) {
     Rvec ret = Rvec(2*nA);
     for(Uint i=0; i<2*nA; i++)
       ret[i] = unbPosMap_func(net[start +1 +i]);
 
     return ret;
   }
-  static inline Real extract_coefs(const Rvec net, const Uint start)  {
+  static Real extract_coefs(const Rvec net, const Uint start)  {
     return unbPosMap_func(net[start]);
   }
 
-  inline void grad_matrix(Rvec& G, const Real err) const {
+  void grad_matrix(Rvec& G, const Real err) const {
     G[start_coefs] *= err * unbPosMap_diff(netOutputs[start_coefs]);
     for (Uint i=0, ind=start_coefs+1; i<2*nA; i++, ind++)
        G[ind] *= err * unbPosMap_diff(netOutputs[ind]);
@@ -62,20 +62,20 @@ private:
 
 public:
 
-  inline Real computeAdvantage(const Rvec& act) const {
+  Real computeAdvantage(const Rvec& act) const {
     const Real shape = -.5 * diagInvMul(act, matrix, policy->mean);
     const Real ratio = coefMixRatio(matrix, policy->variance);
     return coef * ( std::exp(shape) - ratio );
   }
 
-  inline Real coefMixRatio(const Rvec&A, const Rvec&V) const {
+  Real coefMixRatio(const Rvec&A, const Rvec&V) const {
     Real ret = 1;
     for (Uint i=0; i<nA; i++)
       ret *= std::sqrt(A[i]/(A[i]+V[i]))/2 +std::sqrt(A[i+nA]/(A[i+nA]+V[i]))/2;
     return ret;
   }
 
-  inline void grad(const Rvec&a, const Real Qer, Rvec& G) const
+  void grad(const Rvec&a, const Real Qer, Rvec& G) const
   {
     assert(a.size()==nA);
 
@@ -127,7 +127,7 @@ public:
     fout.close();
   }
 
-  inline Real diagInvMul(const Rvec& act,
+  Real diagInvMul(const Rvec& act,
     const Rvec& mat, const Rvec& mean) const {
     assert(act.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;

@@ -25,32 +25,32 @@ struct Gaussian_policy
 
  public:
 
-  inline Rvec map_action(const Rvec& sent) const {
+  Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
   }
-  static inline Uint compute_nA(const ActionInfo* const aI) {
+  static Uint compute_nA(const ActionInfo* const aI) {
     assert(aI->dim); return aI->dim;
   }
 
-  Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
+  Gaussian_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
     const Rvec&out) : aInfo(aI), start_mean(start[0]),
     start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim), netOutputs(out),
     mean(extract_mean()), stdev(extract_stdev()),
     variance(extract_variance()), precision(extract_precision()) {}
 
  private:
-  inline Rvec extract_mean() const {
+  Rvec extract_mean() const {
     assert(netOutputs.size() >= start_mean + nA);
     return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean+nA]));
   }
-  inline Rvec extract_precision() const {
+  Rvec extract_precision() const {
     Rvec ret(nA);
     assert(variance.size() == nA);
     for (Uint j=0; j<nA; j++) ret[j] = 1/variance[j];
     return ret;
   }
   #ifdef EXTRACT_COVAR
-    inline Rvec extract_stdev() const {
+    Rvec extract_stdev() const {
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
       for(Uint i=0; i<nA; i++)
@@ -58,7 +58,7 @@ struct Gaussian_policy
       return ret;
     }
   #else
-    inline Rvec extract_stdev() const {
+    Rvec extract_stdev() const {
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
       for(Uint i=0; i<nA; i++) ret[i] = noiseMap_func(netOutputs[start_prec+i]);
@@ -66,14 +66,14 @@ struct Gaussian_policy
     }
   #endif
 
-  inline Rvec extract_variance() const {
+  Rvec extract_variance() const {
     Rvec ret(nA);
     assert(stdev.size() == nA);
     for(Uint i=0; i<nA; i++) ret[i] = stdev[i]*stdev[i];
     return ret;
   }
 
-  static inline long double oneDnormal(const Real A,const Real M,const Real P) {
+  static long double oneDnormal(const Real A,const Real M,const Real P) {
     const long double arg = .5 * std::pow(A-M,2) * P;
     return std::sqrt(P/M_PI/2)*std::exp(-arg);
   }
@@ -92,7 +92,7 @@ struct Gaussian_policy
     #endif
   }
 
-  inline void prepare(const Rvec& unbact, const Rvec& beta)
+  void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
     sampPonPolicy = evalLogProbability(sampAct);
@@ -103,7 +103,7 @@ struct Gaussian_policy
     sampKLdiv = kl_divergence(beta);
   }
 
-  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {
+  long double evalBehavior(const Rvec& act, const Rvec& beta) const {
     long double pi  = 1;
     assert(act.size() == nA);
     for(Uint i=0; i<nA; i++) {
@@ -113,13 +113,13 @@ struct Gaussian_policy
     return pi;
   }
 
-  inline long double evalProbability(const Rvec& act) const {
+  long double evalProbability(const Rvec& act) const {
     long double pi  = 1;
     for(Uint i=0; i<nA; i++) pi *= oneDnormal(act[i], mean[i], precision[i]);
     return pi;
   }
 
-  inline Real evalLogBehavior(const Rvec& A, const Rvec& beta) const {
+  Real evalLogBehavior(const Rvec& A, const Rvec& beta) const {
     Real p = 0;
     for(Uint i=0; i<nA; i++) {
       const Real M = beta[i], s = beta[nA+i];
@@ -128,7 +128,7 @@ struct Gaussian_policy
     return 0.5 * p;
   }
 
-  inline Real evalLogProbability(const Rvec& act) const {
+  Real evalLogProbability(const Rvec& act) const {
     Real p = 0;
     for(Uint i=0; i<nA; i++) {
       p -= precision[i] * std::pow(act[i]-mean[i], 2);
@@ -137,7 +137,7 @@ struct Gaussian_policy
     return 0.5 * p;
   }
 
-  static inline Rvec sample(mt19937*const gen, const Rvec& beta)
+  static Rvec sample(std::mt19937*const gen, const Rvec& beta)
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     Rvec ret(beta.size()/2);
@@ -151,7 +151,7 @@ struct Gaussian_policy
     }
     return ret;
   }
-  inline Rvec sample(mt19937*const gen) const
+  Rvec sample(mt19937*const gen) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -165,7 +165,7 @@ struct Gaussian_policy
     return ret;
   }
 
-  inline Rvec policy_grad(const Rvec& A, const Real F) const
+  Rvec policy_grad(const Rvec& A, const Real F) const
   {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
@@ -180,11 +180,11 @@ struct Gaussian_policy
     return ret;
   }
 
-  inline Rvec div_kl_grad(const Gaussian_policy*const MU,const Real F=1) const {
+  Rvec div_kl_grad(const Gaussian_policy*const MU,const Real F=1) const {
     const Rvec vecTarget = MU->getVector();
     return div_kl_grad(vecTarget, F);
   }
-  inline Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
+  Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
   {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
@@ -199,11 +199,11 @@ struct Gaussian_policy
     return ret;
   }
 
-  inline Real kl_divergence(const Gaussian_policy*const pol_hat) const {
+  Real kl_divergence(const Gaussian_policy*const pol_hat) const {
     const Rvec vecTarget = pol_hat->getVector();
     return kl_divergence(vecTarget);
   }
-  inline Real kl_divergence(const Rvec& beta) const
+  Real kl_divergence(const Rvec& beta) const
   {
     Real ret = 0;
     for (Uint i=0; i<nA; i++) {
@@ -224,7 +224,7 @@ struct Gaussian_policy
     return aInfo->getScaled(sampAct);
   }
 
-  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
+  void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) {
@@ -244,7 +244,7 @@ struct Gaussian_policy
     }
   }
 
-  inline Rvec finalize_grad(const Rvec grad) const {
+  Rvec finalize_grad(const Rvec grad) const {
     Rvec ret = grad;
     for (Uint j=0; j<nA; j++) if(aInfo->bounded[j]) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
@@ -258,22 +258,22 @@ struct Gaussian_policy
     return ret;
   }
 
-  inline Rvec getMean() const {
+  Rvec getMean() const {
     return mean;
   }
-  inline Rvec getPrecision() const {
+  Rvec getPrecision() const {
     return precision;
   }
-  inline Rvec getStdev() const {
+  Rvec getStdev() const {
     return stdev;
   }
-  inline Rvec getVariance() const {
+  Rvec getVariance() const {
     return variance;
   }
-  inline Rvec getBest() const {
+  Rvec getBest() const {
     return mean;
   }
-  inline Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
+  Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint i=0; i<nA; i++)
       if (aInfo->bounded[i]) {
@@ -284,7 +284,7 @@ struct Gaussian_policy
     return aInfo->getScaled(sampAct);
   }
 
-  inline Rvec getVector() const {
+  Rvec getVector() const {
     Rvec ret = getMean();
     ret.insert(ret.end(), stdev.begin(), stdev.end());
     return ret;

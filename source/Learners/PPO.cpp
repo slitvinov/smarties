@@ -7,6 +7,71 @@
 //
 
 #include "PPO.h"
+
+template class PPO<Discrete_policy, Uint>;
+template class PPO<Gaussian_policy, Rvec>;
+using PPO_contAct = PPO<Gaussian_policy, Rvec>;
+using PPO_discAct = PPO<Discrete_policy, Uint>;
+
+#include "PPO_common.h"
+#include "PPO_train.h"
+
+template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::select(Agent& agent)
+{
+  Sequence*const curr_seq = data_get->get(agent.ID);
+  data_get->add_state(agent);
+  F[1]->prepare_agent(curr_seq, agent);
+
+  if(agent.Status < TERM_COMM ) { //non terminal state
+    //Compute policy and value on most recent element of the sequence:
+    F[0]->prepare_agent(curr_seq, agent);
+    const Rvec pol = F[0]->forward_agent(agent);
+    const Rvec val = F[1]->forward_agent(agent);
+
+    curr_seq->state_vals.push_back(val[0]);
+    Policy_t policy = prepare_policy<Policy_t>(pol, &aInfo, pol_indices);
+    Rvec MU = policy.getVector();
+    auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
+    agent.act(act);
+    data_get->add_action(agent, MU);
+  } else if( agent.Status == TRNC_COMM ) {
+    const Rvec val = F[1]->forward_agent( agent);
+    curr_seq->state_vals.push_back(val[0]);
+  } else
+    curr_seq->state_vals.push_back(0); // Assign value of term state to 0
+
+  updatePPO(curr_seq);
+
+  //advance counters of available data for training
+  if(agent.Status >= TERM_COMM) data_get->terminate_seq(agent);
+}
+
+template<typename Policy_t, typename Action_t>
+bool PPO<Policy_t, Action_t>::blockDataAcquisition() const
+{
+  if( not bReady4Init.load() ) return false;
+  return data->readNData() >= nHorizon + cntKept;
+}
+
+template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
+{
+  if( data->readNData() < nHorizon ) die("undefined behavior");
+
+  profiler->stop_start("SAMP");
+  std::vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
+  data->sample(samp_seq, samp_obs);
+
+  #pragma omp parallel for collapse(2) schedule(static, 1) num_threads(nThreads)
+    for (Uint wID=0; wID<ESpopSize; wID++)
+      for (Uint bID=0; bID<batchSize; bID++) {
+        const Uint thrID = omp_get_thread_num();
+        Train(samp_seq[bID], samp_obs[bID], wID, bID, thrID);
+        input->gradient(thrID);
+      }
+}
+
 #include "../Network/Builder.h"
 #include "../Math/Gaussian_policy.h"
 #include "../Math/Discrete_policy.h"
@@ -226,36 +291,6 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   }
 }
 
-template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::select(Agent& agent)
-{
-  Sequence*const curr_seq = data_get->get(agent.ID);
-  data_get->add_state(agent);
-  F[1]->prepare_agent(curr_seq, agent);
-
-  if(agent.Status < TERM_COMM ) { //non terminal state
-    //Compute policy and value on most recent element of the sequence:
-    F[0]->prepare_agent(curr_seq, agent);
-    const Rvec pol = F[0]->forward_agent(agent);
-    const Rvec val = F[1]->forward_agent(agent);
-
-    curr_seq->state_vals.push_back(val[0]);
-    Policy_t policy = prepare_policy<Policy_t>(pol, &aInfo, pol_indices);
-    Rvec MU = policy.getVector();
-    auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
-    agent.act(act);
-    data_get->add_action(agent, MU);
-  } else if( agent.Status == TRNC_COMM ) {
-    const Rvec val = F[1]->forward_agent( agent);
-    curr_seq->state_vals.push_back(val[0]);
-  } else
-    curr_seq->state_vals.push_back(0); // Assign value of term state to 0
-
-  updatePPO(curr_seq);
-
-  //advance counters of available data for training
-  if(agent.Status >= TERM_COMM) data_get->terminate_seq(agent);
-}
 
 template<>
 vector<Uint> PPO<Discrete_policy, Uint>::count_pol_outputs(const ActionInfo*const aI)
@@ -399,10 +434,3 @@ void PPO<Policy_t, Action_t>::spawnTrainTasks_seq()
 
   updateComplete = true;
 }
-
-template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::spawnTrainTasks_par() { }
-
-
-template class PPO<Discrete_policy, Uint>;
-template class PPO<Gaussian_policy, Rvec>;

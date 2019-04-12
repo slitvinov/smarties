@@ -17,7 +17,7 @@
    const Rvec advantages;
    const Discrete_policy* const policy;
 
-   static inline Uint compute_nL(const ActionInfo* const aI)
+   static Uint compute_nL(const ActionInfo* const aI)
    {
      assert(aI->maxLabel);
      return aI->maxLabel;
@@ -29,12 +29,12 @@
      advantages(extract(out)), policy(pol) {}
 
   protected:
-   inline Rvec extract(const Rvec & v) const
+   Rvec extract(const Rvec & v) const
    {
      assert(v.size() >= start_adv + nA);
      return Rvec( &(v[start_adv]), &(v[start_adv +nA]) );
    }
-   inline Real expectedAdvantage() const
+   Real expectedAdvantage() const
    {
      Real ret = 0;
      for (Uint j=0; j<nA; j++) ret += policy->probs[j]*advantages[j];
@@ -42,7 +42,7 @@
    }
 
   public:
-   inline void grad(const Uint act, const Real Qer, Rvec&netGradient) const
+   void grad(const Uint act, const Real Qer, Rvec&netGradient) const
    {
      if(policy not_eq nullptr)
        for (Uint j=0; j<nA; j++)
@@ -68,7 +68,7 @@
      return advantages;
    }
 
-   inline Real advantageVariance() const
+   Real advantageVariance() const
    {
      assert(policy not_eq nullptr);
      if(policy == nullptr) return 0;

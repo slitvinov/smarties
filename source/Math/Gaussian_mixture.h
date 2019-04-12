@@ -21,25 +21,25 @@ public:
   //const Real retraceTrickPow = 1. / std::sqrt(nA);
   //const Real retraceTrickPow = 1. / nA;
   const Rvec netOutputs;
-  const array<Real, nExperts> unnorm;
+  const std::array<Real, nExperts> unnorm;
   const Real normalization;
-  const array<Real, nExperts> experts;
-  const array<Rvec, nExperts> means, stdevs, variances, precisions;
+  const std::array<Real, nExperts> experts;
+  const std::array<Rvec, nExperts> means, stdevs, variances, precisions;
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   Rvec sampAct;
   long double sampPonPolicy = -1, sampPBehavior = -1;
   Real sampImpWeight=0, sampKLdiv=0;
-  array<long double, nExperts> PactEachExp;
+  std::array<long double, nExperts> PactEachExp;
 
-  static inline Uint compute_nP(const ActionInfo* const aI) {
+  static Uint compute_nP(const ActionInfo* const aI) {
     return nExperts*(1 + 2*aI->dim);
   }
-  static inline Uint compute_nA(const ActionInfo* const aI) {
+  static Uint compute_nA(const ActionInfo* const aI) {
     assert(aI->dim);
     return aI->dim;
   }
-  inline Rvec map_action(const Rvec& sent) const {
+  Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
   }
 
@@ -62,15 +62,15 @@ public:
 
 
 private:
-  inline array<Real,nExperts> extract_unnorm() const {
-    array<Real, nExperts> ret;
+  std::array<Real,nExperts> extract_unnorm() const {
+    std::array<Real, nExperts> ret;
     if(nExperts == 1) ret[0] = 1;
     else
       for(Uint i=0;i<nExperts;i++)
         ret[i]=unbPosMap_func(netOutputs[iExperts+i]);
     return ret;
   }
-  inline Real compute_norm() const {
+  Real compute_norm() const {
     Real ret = 0;
     if(nExperts == 1) return 1;
     else {
@@ -81,8 +81,8 @@ private:
       return ret + std::numeric_limits<Real>::epsilon();
     }
   }
-  inline array<Real,nExperts> extract_experts() const  {
-    array<Real, nExperts> ret;
+  std::array<Real,nExperts> extract_experts() const  {
+    std::array<Real, nExperts> ret;
     if(nExperts == 1) ret[0] = 1;
     else {
       assert(normalization>0);
@@ -90,9 +90,9 @@ private:
     }
     return ret;
   }
-  inline array<Rvec,nExperts> extract_mean() const
+  std::array<Rvec,nExperts> extract_mean() const
   {
-    array<Rvec,nExperts> ret;
+    std::array<Rvec,nExperts> ret;
     for(Uint i=0; i<nExperts; i++) {
       const Uint start = iMeans + i*nA;
       assert(netOutputs.size() >= start + nA);
@@ -101,9 +101,9 @@ private:
     return ret;
   }
   #ifdef EXTRACT_COVAR
-  inline array<Rvec,nExperts> extract_stdev() const
+  std::array<Rvec,nExperts> extract_stdev() const
   {
-    array<Rvec,nExperts> ret;
+    std::array<Rvec,nExperts> ret;
     for(Uint i=0; i<nExperts; i++) {
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
@@ -113,9 +113,9 @@ private:
     }
     return ret;
   }
-  inline array<Rvec,nExperts> extract_variance() const
+  std::array<Rvec,nExperts> extract_variance() const
   {
-    array<Rvec,nExperts> ret;
+    std::array<Rvec,nExperts> ret;
     for(Uint i=0; i<nExperts; i++) {
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
@@ -126,9 +126,9 @@ private:
     return ret;
   }
   #else
-  inline array<Rvec,nExperts> extract_stdev() const
+  std::array<Rvec,nExperts> extract_stdev() const
   {
-    array<Rvec,nExperts> ret;
+    std::array<Rvec,nExperts> ret;
     for(Uint i=0; i<nExperts; i++) {
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
@@ -137,23 +137,23 @@ private:
     }
     return ret;
   }
-  inline array<Rvec,nExperts> extract_variance() const
+  std::array<Rvec,nExperts> extract_variance() const
   {
-    array<Rvec,nExperts> ret = stdevs; //take sqrt of variance
+    std::array<Rvec,nExperts> ret = stdevs; //take sqrt of variance
     for(Uint i=0; i<nExperts; i++)
       for(Uint j=0; j<nA; j++)
         ret[i][j] = stdevs[i][j] * stdevs[i][j];
     return ret;
   }
   #endif
-  inline array<Rvec,nExperts> extract_precision() const
+  std::array<Rvec,nExperts> extract_precision() const
   {
-    array<Rvec,nExperts> ret = variances; //take inverse of precision
+    std::array<Rvec,nExperts> ret = variances; //take inverse of precision
     for(Uint i=0; i<nExperts; i++)
       for(Uint j=0; j<nA; j++) ret[i][j] = 1/variances[i][j];
     return ret;
   }
-  inline long double oneDnormal(const Real act, const Real mean, const Real prec) const
+  long double oneDnormal(const Real act, const Real mean, const Real prec) const
   {
     const long double arg = .5 * std::pow(act-mean,2) * prec;
     #if 0
@@ -181,7 +181,7 @@ public:
     #endif
   }
 
-  inline void prepare(const Rvec& unscal_act, const Rvec& beta)
+  void prepare(const Rvec& unscal_act, const Rvec& beta)
   {
     sampAct = map_action(unscal_act);
     sampPonPolicy = 0; //numeric_limits<Real>::epsilon();
@@ -198,7 +198,7 @@ public:
   }
 private:
 
-  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {
+  long double evalBehavior(const Rvec& act, const Rvec& beta) const {
     long double p = 0;
     const Uint NA = act.size();
     for(Uint j=0; j<nExperts; j++) {
@@ -217,7 +217,7 @@ private:
     assert(p>0);
     return p;
   }
-  inline Real logProbability(const Rvec& act) const {
+  Real logProbability(const Rvec& act) const {
     long double P = 0;
     for(Uint j=0; j<nExperts; j++) {
       long double pi  = 1;
@@ -233,7 +233,7 @@ public:
   // ensure that on-policy returns have finite probability of occurring.
   // Truncated normal is approximated by resampling from uniform  samples that
   // exceed the boundaries: the resulting PDF almost exactly truncared normal.
-  inline Rvec sample(mt19937*const gen, const Rvec& beta) const
+  Rvec sample(mt19937*const gen, const Rvec& beta) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -252,7 +252,7 @@ public:
     }
     return ret;
   }
-  inline Rvec sample(mt19937*const gen) const
+  Rvec sample(mt19937*const gen) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -270,7 +270,7 @@ public:
     return ret;
   }
 
-  inline Rvec policy_grad(const Rvec& act, const Real factor) const
+  Rvec policy_grad(const Rvec& act, const Real factor) const
   {
     Rvec ret(nExperts +2*nA*nExperts, 0);
     // if sampPonPolicy == 0 then rho == 0 then we can skip this:
@@ -297,11 +297,11 @@ public:
     return ret;
   }
 
-  inline Rvec div_kl_grad(const Gaussian_mixture*const pol_hat, const Real fac = 1) const {
+  Rvec div_kl_grad(const Gaussian_mixture*const pol_hat, const Real fac = 1) const {
     const Rvec vecTarget = pol_hat->getVector();
     return div_kl_grad(vecTarget, fac);
   }
-  inline Rvec div_kl_grad(const Rvec&beta, const Real fac=1) const
+  Rvec div_kl_grad(const Rvec&beta, const Real fac=1) const
   {
     Rvec ret(nExperts +2*nA*nExperts, 0);
     for(Uint j=0; j<nExperts; j++) {
@@ -325,7 +325,7 @@ public:
     return ret;
   }
 
-  inline Real kl_divergence_exp(const Uint expi, const Rvec&beta) const
+  Real kl_divergence_exp(const Uint expi, const Rvec&beta) const
   {
     Real DKLe = 0; //numeric_limits<Real>::epsilon();
     for (Uint i=0; i<nA; i++) {
@@ -336,11 +336,11 @@ public:
     assert(DKLe>=0);
     return 0.5*DKLe;
   }
-  inline Real kl_divergence(const Gaussian_mixture*const pol_hat) const {
+  Real kl_divergence(const Gaussian_mixture*const pol_hat) const {
     const Rvec vecTarget = pol_hat->getVector();
     return kl_divergence(vecTarget);
   }
-  inline Real kl_divergence(const Rvec&beta) const
+  Real kl_divergence(const Rvec&beta) const
   {
     Real r = 0;
     for(Uint j=0; j<nExperts; j++)
@@ -348,7 +348,7 @@ public:
     return r;
   }
 
-  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
+  void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(grad.size() == nP);
     for(Uint j=0; j<nExperts; j++) {
@@ -374,12 +374,12 @@ public:
     }
   }
 
-  inline Rvec getBest() const
+  Rvec getBest() const
   {
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  inline Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
+  Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint j=0; j<nExperts; j++)
       for (Uint i=0; i<nA; i++)
@@ -392,7 +392,7 @@ public:
     return aInfo->getScaled(sampAct);
   }
 
-  inline Rvec getVector() const
+  Rvec getVector() const
   {
     Rvec ret(nExperts +2*nA*nExperts);
     for(Uint j=0; j<nExperts; j++) {
@@ -453,7 +453,7 @@ public:
 private:
 
   template <typename T>
-  inline string print(const array<T,nExperts> vals) const
+  string print(const std::array<T,nExperts> vals) const
   {
     std::ostringstream o;
     for (Uint i=0; i<nExperts-1; i++) o << vals[i] << " ";
@@ -461,7 +461,7 @@ private:
     return o.str();
   }
   template <typename T>
-  inline string vprint(const vector<T> vals) const
+  string vprint(const vector<T> vals) const
   {
     std::ostringstream o;
     if(!vals.size()) return o.str();

@@ -45,7 +45,7 @@ struct Mixture_advantage
 
 private:
     /*
-    inline array<array<Real,nExperts>, nExperts> computeOverlap() const
+    array<array<Real,nExperts>, nExperts> computeOverlap() const
     {
       array<array<Real,nExperts>, nExperts> ret;
       for (Uint e1=0; e1<nExperts; e1++)
@@ -59,7 +59,7 @@ private:
     }
     */
 
-    static inline Real quadMatMul(const Uint nA, const Rvec& act,
+    static Real quadMatMul(const Uint nA, const Rvec& act,
       const Rvec& mat, const Rvec& mean)
     {
       assert(act.size()==nA);assert(mean.size()==nA);assert(mat.size()==nA*nA);
@@ -72,7 +72,7 @@ private:
       return ret;
     }
 
-    inline array<Rvec,nExperts> extract_L() const
+    array<Rvec,nExperts> extract_L() const
     {
       array<Rvec,nExperts> ret;
       Uint kL = start_matrix;
@@ -87,7 +87,7 @@ private:
       return ret;
     }
 
-    inline array<Rvec,nExperts> extract_matrix() const
+    array<Rvec,nExperts> extract_matrix() const
     {
       array<Rvec,nExperts> ret;
       for (Uint e=0; e<nExperts; e++) {
@@ -105,7 +105,7 @@ private:
     }
 
 public:
-  inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
+  void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
     assert(act.size()==nA);
     for (Uint e=0, kl = start_matrix; e<nExperts; e++)
@@ -142,7 +142,7 @@ public:
       }
     }
   }
-  inline Real computeAdvantage(const Rvec& action) const
+  Real computeAdvantage(const Rvec& action) const
   {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++) {
@@ -159,7 +159,7 @@ public:
     }
     return 0.5*ret;
   }
-  inline Real computeAdvantageNoncentral(const Rvec& action) const
+  Real computeAdvantageNoncentral(const Rvec& action) const
   {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++)
@@ -167,7 +167,7 @@ public:
     return 0.5*ret;
   }
 
-  static inline Uint compute_nL(const ActionInfo* const aI)
+  static Uint compute_nL(const ActionInfo* const aI)
   {
     return nExperts*(aI->dim*aI->dim + aI->dim)/2;
   }
@@ -208,13 +208,13 @@ public:
     printf("Ratio of expectation: %f, mean %f\n", meanv/stdef, meanv);
     #endif
   }
-  inline Real matrixDotVar(const Rvec& mat, const Rvec& S) const
+  Real matrixDotVar(const Rvec& mat, const Rvec& S) const
   {
     Real ret = 0;
     for(Uint i=0; i<nA; i++) ret += mat[nA*i+i] * S[i];
     return ret;
   }
-  inline Real overlapWeight(const Uint e1, const Uint e2) const
+  Real overlapWeight(const Uint e1, const Uint e2) const
   {
     Real W = 0;
     for(Uint i=0; i<nA; i++)
@@ -222,24 +222,24 @@ public:
                        policy->variances[e1][i] +policy->variances[e2][i]);
     return std::exp(W);
   }
-  inline Real selfOverlap(const Uint e1, const Uint e2) const
+  Real selfOverlap(const Uint e1, const Uint e2) const
   {
     Real W = 1;
     for(Uint i=0; i<nA; i++)
       W *= 2*M_PI*(policy->variances[e1][i]+policy->variances[e2][i]);
     return 1/std::sqrt(W);
   }
-  static inline Real logP1DGauss(const Real act,const Real mean,const Real var)
+  static Real logP1DGauss(const Real act,const Real mean,const Real var)
   {
     return -0.5*(std::log(2*var*M_PI) +std::pow(act-mean,2)/var);
   }
-  inline Rvec mix2mean(const Rvec& m1, const Rvec& S1, const Rvec& m2, const Rvec& S2) const
+  Rvec mix2mean(const Rvec& m1, const Rvec& S1, const Rvec& m2, const Rvec& S2) const
   {
     Rvec ret(nA, 0);
     for(Uint i=0; i<nA; i++) ret[i] =(S2[i]*m1[i] + S1[i]*m2[i])/(S1[i]+S2[i]);
     return ret;
   }
-  inline Rvec mix2vars(const Rvec&S1,const Rvec&S2)const
+  Rvec mix2vars(const Rvec&S1,const Rvec&S2)const
   {
     Rvec ret(nA, 0);
     for(Uint i=0; i<nA; i++) ret[i] =(S2[i]*S1[i])/(S1[i]+S2[i]);

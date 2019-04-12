@@ -21,7 +21,7 @@ struct Quadratic_advantage: public Quadratic_term
   Quadratic_term(starts[0],starts.size()>1? starts[1]:0, aI->dim,compute_nL(aI),
    out, pol==nullptr? Rvec(): pol->mean), aInfo(aI), policy(pol) {}
 
-  inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
+  void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
     assert(act.size()==nA);
     Rvec dErrdP(nA*nA, 0), dPol(nA, 0), dAct(nA);
@@ -69,7 +69,7 @@ struct Quadratic_advantage: public Quadratic_term
     }
   }
 
-  inline Real computeAdvantage(const Rvec& action) const
+  Real computeAdvantage(const Rvec& action) const
   {
     Real ret = -quadraticTerm(action);
     if(policy not_eq nullptr)
@@ -81,22 +81,22 @@ struct Quadratic_advantage: public Quadratic_term
     return 0.5*ret;
   }
 
-  inline Real computeAdvantageNoncentral(const Rvec& action) const
+  Real computeAdvantageNoncentral(const Rvec& action) const
   {
     Real ret = -quadraticTerm(action);
     return 0.5*ret;
   }
 
-  inline Rvec getMean() const
+  Rvec getMean() const
   {
     return mean;
   }
-  inline Rvec getMatrix() const
+  Rvec getMatrix() const
   {
     return matrix;
   }
 
-  inline Real advantageVariance() const
+  Real advantageVariance() const
   {
     if(policy == nullptr) return 0;
     Rvec PvarP(nA*nA, 0);

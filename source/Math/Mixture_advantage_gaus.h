@@ -13,7 +13,7 @@ template<Uint nExperts>
 struct Mixture_advantage
 {
   template <typename T>
-  static inline string print(const array<T,nExperts> vals) {
+  static string print(const array<T,nExperts> vals) {
     std::ostringstream o;
     for (Uint i=0; i<nExperts-1; i++) o << vals[i] << " ";
     o << vals[nExperts-1];
@@ -48,7 +48,7 @@ struct Mixture_advantage
    matrix(extract_matrix()), aInfo(aI), policy(pol) {}
 
 private:
-  inline array<Rvec, nExperts> extract_matrix() const {
+  array<Rvec, nExperts> extract_matrix() const {
     array<Rvec, nExperts> ret;
     for (Uint e=0; e<nExperts; e++) {
       ret[e] = Rvec(2*nA);
@@ -57,13 +57,13 @@ private:
     }
     return ret;
   }
-  inline array<Real,nExperts> extract_coefs() const  {
+  array<Real,nExperts> extract_coefs() const  {
     array<Real, nExperts> ret;
     for(Uint e=0; e<nExperts;e++) ret[e]=unbPosMap_func(netOutputs[start_coefs+e]);
     return ret;
   }
 
-  inline void grad_matrix(Rvec& G, const Real err) const {
+  void grad_matrix(Rvec& G, const Real err) const {
     for (Uint e=0; e<nExperts; e++) {
       G[start_coefs+e] *= err * unbPosMap_diff(netOutputs[start_coefs+e]);
       for (Uint i=0, ind=start_matrix +2*nA*e; i<2*nA; i++, ind++)
@@ -73,7 +73,7 @@ private:
 
 public:
 
-  inline Real computeAdvantage(const Rvec& act) const {
+  Real computeAdvantage(const Rvec& act) const {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++) {
       const Real shape = -.5 * diagInvMul(act, matrix[e], policy->means[e]);
@@ -84,14 +84,14 @@ public:
     return ret;
   }
 
-  inline Real coefMixRatio(const Rvec&A, const Rvec&V) const {
+  Real coefMixRatio(const Rvec&A, const Rvec&V) const {
     Real ret = 1;
     for (Uint i=0; i<nA; i++)
       ret *= std::sqrt(A[i]/(A[i]+V[i]))/2 +std::sqrt(A[i+nA]/(A[i+nA]+V[i]))/2;
     return ret;
   }
 
-  inline array<Real,nExperts> expectation(const Uint expert) const {
+  array<Real,nExperts> expectation(const Uint expert) const {
     array<Real, nExperts> ret;
     for (Uint E=0; E<nExperts; E++) {
       const Real W = policy->experts[expert] * policy->experts[E];
@@ -106,7 +106,7 @@ public:
     return ret;
   }
 
-  inline void grad(const Rvec&a, const Real Qer, Rvec& G) const
+  void grad(const Rvec&a, const Real Qer, Rvec& G) const
   {
     assert(a.size()==nA);
     for (Uint e=0; e<nExperts; e++)
@@ -142,7 +142,7 @@ public:
     grad_matrix(G, Qer);
   }
 
-  static inline Uint compute_nL(const ActionInfo* const aI) {
+  static Uint compute_nL(const ActionInfo* const aI) {
     return nExperts*(1 + 2*aI->dim);
   }
 
@@ -182,7 +182,7 @@ public:
     #endif
   }
 
-  inline Real diagInvMul(const Rvec& act,
+  Real diagInvMul(const Rvec& act,
     const Rvec& mat, const Rvec& mean) const {
     assert(act.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;
@@ -193,7 +193,7 @@ public:
     return ret;
   }
 
-  inline Real diagInvMulVar(const Rvec&pol, const Rvec&mat,
+  Real diagInvMulVar(const Rvec&pol, const Rvec&mat,
     const Rvec& mean, const Rvec& var) const {
     assert(pol.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;

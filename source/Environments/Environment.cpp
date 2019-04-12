@@ -89,6 +89,7 @@ Communicator_internal Environment::create_communicator()
         &app_com);
       comm.set_application_mpicom(app_com, workerGroup);
       comm.ext_app_run(); //worker rank will remain here for ever
+      return comm;
     }
     else // master : unblock creation of app comm
     {

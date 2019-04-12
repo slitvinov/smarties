@@ -14,7 +14,7 @@ struct Quadratic_term
   const Uint start_matrix, start_mean, nA, nL;
   const Rvec netOutputs;
   const Rvec L, mean, matrix;
-  static inline Uint compute_nL(const ActionInfo* const aI)
+  static Uint compute_nL(const ActionInfo* const aI)
   {
     return (aI->dim*aI->dim + aI->dim)/2;
   }
@@ -41,7 +41,7 @@ struct Quadratic_term
     }
 
 protected:
-  inline Real quadMatMul(const Rvec& act, const Rvec& mat) const
+  Real quadMatMul(const Rvec& act, const Rvec& mat) const
   {
     assert(act.size() == nA && mat.size() == nA*nA);
     Real ret = 0;
@@ -51,12 +51,12 @@ protected:
     return ret;
   }
 
-  inline Real quadraticTerm(const Rvec& act) const
+  Real quadraticTerm(const Rvec& act) const
   {
     return quadMatMul(act, matrix);
   }
 
-  inline Rvec extract_L() const
+  Rvec extract_L() const
   {
     assert(netOutputs.size()>=start_matrix+nL);
     Rvec ret(nA*nA);
@@ -69,7 +69,7 @@ protected:
     return ret;
   }
 
-  inline Rvec extract_mean(const Rvec tmp) const
+  Rvec extract_mean(const Rvec tmp) const
   {
     //printf("%lu vec:%s\n", tmp.size(), print(tmp).c_str()); fflush(0);
     if(tmp.size() == nA) { assert(start_mean==0); return tmp; }
@@ -77,7 +77,7 @@ protected:
     return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
   }
 
-  inline Rvec extract_matrix() const //fill positive definite matrix P == L * L'
+  Rvec extract_matrix() const //fill positive definite matrix P == L * L'
   {
     assert(L.size() == nA*nA);
     Rvec ret(nA*nA,0);
@@ -91,7 +91,7 @@ protected:
     return ret;
   }
 
-  inline void grad_matrix(const Rvec&dErrdP, Rvec&netGradient) const
+  void grad_matrix(const Rvec&dErrdP, Rvec&netGradient) const
   {
     assert(netGradient.size() >= start_matrix+nL);
     for (Uint il=0; il<nL; il++)
@@ -130,34 +130,3 @@ protected:
     }
   }
 };
-
-
-
-/*
- inline Real diagTerm(const Rvec& S, const Rvec& mu,
-      const Rvec& a) const
-  {
-    assert(S.size() == nA);
-    assert(a.size() == nA);
-    assert(mu.size() == nA);
-    Real Q = 0;
-    for (Uint j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
-    return Q;
-  }
-  inline Real quadraticNoise(const Rvec& P, const Rvec& var, const int thrID) const
-  {
-    Rvec q(nA,0);
-    for (Uint j=0; j<nA; j++)
-    {
-      const Real scale = 0.1*std::sqrt(3)*std::sqrt(var[j]);
-      std::uniform_real_distribution<Real> distn(-scale, scale);
-      q[j] = distn(generators[thrID]);
-    }
-
-    Real Q = 0;
-    for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++)
-      Q += P[nA*j+i]*q[i]*q[j];
-
-    return Q;
-  }
- */

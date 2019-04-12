@@ -22,10 +22,10 @@ struct Discrete_policy
   Uint sampAct;
   Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0, sampKLdiv=0;
 
-  inline Uint map_action(const Rvec& sent) const {
+  Uint map_action(const Rvec& sent) const {
     return aInfo->actionToLabel(sent);
   }
-  static inline Uint compute_nA(const ActionInfo* const aI) {
+  static Uint compute_nA(const ActionInfo* const aI) {
     assert(aI->maxLabel);
     return aI->maxLabel;
   }
@@ -50,7 +50,7 @@ struct Discrete_policy
     }
 
  private:
-  inline Rvec extract_unnorm() const
+  Rvec extract_unnorm() const
   {
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
@@ -58,7 +58,7 @@ struct Discrete_policy
     return ret;
   }
 
-  inline Real compute_norm() const
+  Real compute_norm() const
   {
     assert(unnorm.size()==nA);
     Real ret = 0;
@@ -66,7 +66,7 @@ struct Discrete_policy
     return ret + nnEPS;
   }
 
-  inline Rvec extract_probabilities() const
+  Rvec extract_probabilities() const
   {
     assert(unnorm.size()==nA);
     Rvec ret(nA);
@@ -75,7 +75,7 @@ struct Discrete_policy
   }
 
  public:
-  inline void prepare(const Rvec& unbact, const Rvec& beta)
+  void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
     sampPonPolicy = probs[sampAct];
@@ -84,38 +84,38 @@ struct Discrete_policy
     sampKLdiv = kl_divergence(beta);
   }
 
-  static inline Real evalBehavior(const Uint& act, const Rvec& beta) {
+  static Real evalBehavior(const Uint& act, const Rvec& beta) {
     return beta[act];
   }
 
-  static inline Uint sample(mt19937*const gen, const Rvec& beta) {
+  static Uint sample(mt19937*const gen, const Rvec& beta) {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
   }
 
-  inline Uint sample(mt19937*const gen) const {
+  Uint sample(mt19937*const gen) const {
     std::discrete_distribution<Uint> dist(probs.begin(), probs.end());
     return dist(*gen);
   }
 
-  inline Real evalProbability(const Uint act) const {
+  Real evalProbability(const Uint act) const {
     return probs[act];
   }
 
-  inline Real logProbability(const Uint act) const {
+  Real logProbability(const Uint act) const {
     assert(act<=nA && probs.size()==nA);
     return std::log(probs[act]);
   }
 
   template<typename Advantage_t>
-  inline Rvec control_grad(const Advantage_t*const adv, const Real eta) const {
+  Rvec control_grad(const Advantage_t*const adv, const Real eta) const {
     Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++)
       ret[j] = eta*adv->computeAdvantage(j)/normalization;
     return ret;
   }
 
-  inline Rvec policy_grad(const Uint act, const Real factor) const {
+  Rvec policy_grad(const Uint act, const Real factor) const {
     Rvec ret(nA);
     //for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
     for (Uint i=0; i<nA; i++) ret[i] = -factor/normalization;
@@ -123,11 +123,11 @@ struct Discrete_policy
     return ret;
   }
 
-  inline Real kl_divergence(const Discrete_policy*const pol_hat) const {
+  Real kl_divergence(const Discrete_policy*const pol_hat) const {
     const Rvec vecTarget = pol_hat->getVector();
     return kl_divergence(vecTarget);
   }
-  inline Real kl_divergence(const Rvec& beta) const
+  Real kl_divergence(const Rvec& beta) const
   {
     Real ret = 0;
     for (Uint i=0; i<nA; i++)
@@ -135,11 +135,11 @@ struct Discrete_policy
     return ret;
   }
 
-  inline Rvec div_kl_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const {
+  Rvec div_kl_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const {
     const Rvec vecTarget = pol_hat->getVector();
     return div_kl_grad(vecTarget, fac);
   }
-  inline Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
+  Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
   {
     Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++){
@@ -149,21 +149,21 @@ struct Discrete_policy
     return ret;
   }
 
-  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
+  void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)
     netGradient[start_prob+j]= grad[j]*unbPosMap_diff(netOutputs[start_prob+j]);
   }
 
-  inline Rvec getProbs() const {
+  Rvec getProbs() const {
     return probs;
   }
-  inline Rvec getVector() const {
+  Rvec getVector() const {
     return probs;
   }
 
-  inline Uint finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
+  Uint finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
   {
     sampAct = bSample? sample(gen, beta) :
       std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));
@@ -178,15 +178,3 @@ struct Discrete_policy
 
   void test(const Uint act, const Rvec& beta) const;
 };
-/*
- inline Real diagTerm(const Rvec& S, const Rvec& mu,
-      const Rvec& a) const
-  {
-    assert(S.size() == nA);
-    assert(a.size() == nA);
-    assert(mu.size() == nA);
-    Real Q = 0;
-    for (Uint j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
-    return Q;
-  }
- */

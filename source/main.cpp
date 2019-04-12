@@ -22,8 +22,12 @@ void runWorker(Settings& S)
   Environment* env = factory.createEnvironment();
   Communicator_internal comm = env->create_communicator();
 
-  Worker simulation(&comm, env, S);
-  simulation.run();
+  if(not S.runInternalApp) {
+    // if not running an internal app, worker has forked and will now
+    // act as intermediary with master:
+    Worker simulation(&comm, env, S);
+    simulation.run();
+  }
 }
 
 void runMaster(Settings& S)
