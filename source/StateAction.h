@@ -9,31 +9,168 @@
 #pragma once
 
 #include "Settings.h"
-#include <cassert>
+
+struct MDPdescriptor
+{
+  // This struct contains all information to fully define the state and action
+  // space of an agent. Only source of complication is that this must hold for
+  // both discrete and continuous action problems
+  bool bInitialiazed = false;
+
+  ///////////////////////////// STATE DESCRIPTION /////////////////////////////
+  // Number of state dimensions and number of state dims observable to learner:
+  Uint dimState = 0, dimStateObserved = 0;
+  // vector specifying whether a state component is observable to the learner:
+  std::vector<bool> bStateVarObserved;
+  Rvec stateMean, stateScale; // mean and scale of state variables
+
+  // TODO: vector describing shape of state. To enable environment having
+  // separate preprocessing for sight as opposed to otehr sensors.
+  // This is vector of vectors because each input type will have a vector
+  // describing its shape. ( eg. [84 84 1] for atari )
+  // std::vector<std::vector<int>> stateShape;
+
+  ///////////////////////////// ACTION DESCRIPTION /////////////////////////////
+  // dimensionality of action vector
+  Uint dimAction;
+  // dimensionality of policy vector (typically 2*dimAction for continuous act,
+  // which are mean and diag covariance, or dimAction for discrete policy)
+  Uint policyVecDim;
+
+  // whether action have a lower && upper bounded (bool)
+  // if true scaled action = tanh ( unscaled action )
+  std::vector<bool> bActionSpaceBounded; // TODO 2 bools for semibounded
+  Rvec upperActionBoun, lowerActionBound;
+
+  bool bDiscreteActions = false;
+  // DISCRETE ACTION stuff:
+  //each component of action vector has a vector of possible values:
+  std::vector<Rvec> discreteActionValues;
+  Uint maxActionLabel; //number of actions options for discretized act spaces
+  // to map between value and dicrete action option we need 'shifts':
+  std::vector<Uint> discreteActionShifts;
+};
 
 struct StateInfo
 {
-  // number of state dimensions and number of state dims observable to learner:
-  Uint dim, dimUsed;
-  // vector specifying whether a state component is observable to the learner:
-  std::vector<bool> inUse;
-  Rvec mean, scale; // mean and scale of state variables. env. defined
+  MDPdescriptor& MDP;
+  StateInfo(MDPdescriptor& MDP_) : MDP(MDP_) {}
 
-  StateInfo& operator= (const StateInfo& stateInfo)
-  {
-    dim     = stateInfo.dim;
-    dimUsed = stateInfo.dimUsed;
-    assert(dimUsed<=dim);
-    inUse.resize(dim);
-    for (Uint i=0; i<dim; i++)
-      inUse[i] = (stateInfo.inUse[i]);
-    return *this;
-  }
 
   //functions returning std, mean, 1/std of observale state components
   std::vector<memReal> inUseStd() const;
   std::vector<memReal> inUseMean() const;
   std::vector<memReal> inUseInvStd() const;
+};
+
+struct ActionInfo
+{
+  MDPdescriptor& MDP;
+  ActionInfo(MDPdescriptor& MDP_) : MDP(MDP_) {}
+
+  ///////////////////////////// CONTINUOUS ACTIONS /////////////////////////////
+  Real getActMaxVal(const Uint i) const { return MDP.upperActionBound[i]; }
+  Real getActMinVal(const Uint i) const { return MDP.lowerActionBound[i]; }
+  Uint dim() const { return MDP.dimAction; }
+
+  static inline Real _tanh(const Real x) {
+    const Real e2x = std::exp( -2 * x );
+    return (1-e2x)/(1+e2x);
+  }
+  static inline Real _invTanh(const Real y) {
+    assert(std::fabs(y) < 1);
+    return std::log( (y+1)/(1-y) ) / 2;
+  }
+
+  Rvec action2scaledAction(const Rvec& unscaled) const
+  {
+    Rvec ret(MDP.dimAction);
+    assert( unscaled.size() == ret.size() );
+    for (Uint i=0; i<MDP.dimAction; i++)
+    {
+      const Real y = MDP.bActionSpaceBounded[i]? _tanh(unscaled[i]):unscaled[i];
+      const Real min_a=MDP.lowerActionBound[i], max_a=MDP.upperActionBound[i];
+      assert( max_a - min_a > std::numeric_limits<Real>::epsilon() );
+      ret[i] = min_a + (max_a-min_a)/2 * (y + 1);
+    }
+    return ret;
+  }
+
+  Rvec scaledAction2action(const Rvec& scaled) const
+  {
+    Rvec ret(MDP.dimAction);
+    assert( scaled.size() == ret.size() );
+    for (Uint i=0; i<MDP.dimAction; i++)
+    {
+      const Real min_a=MDP.lowerActionBound[i], max_a=MDP.upperActionBound[i];
+      assert( max_a - min_a > std::numeric_limits<Real>::epsilon() );
+      const Real y = 2 * (scaled[i] - min_a)/(max_a - min_a) - 1;
+      ret[i] = MDP.bActionSpaceBounded[i] ? _invTanh(y) : y;
+    }
+    return ret;
+  }
+
+  /////////////////////////// CONTINUOUS ACTIONS END ///////////////////////////
+  ////////////////////////////// DISCRETE ACTIONS //////////////////////////////
+
+  Uint action2label(const Rvec& action) const
+  {
+    //map from discretized action (entry per component of values vectors) to int
+    assert(action.size() == MDP.dimAction);
+    assert(MDP.discreteActionShifts.size() == MDP.dimAction);
+    Uint label = 0;
+    for (Uint i=0; i < MDP.dimAction; i++) {
+      const auto& options = MDP.discreteActionValues[i];
+      // From real action for i-th component of action vector
+      // convert to an entry in MDP.discreteActionValues vector
+      Real dist = 1e9; Uint index = 0;
+      for (Uint j=0; j < options.size(); j++) {
+        const Real _dist = std::fabs(options[j] - action[i]);
+        if (_dist < dist) { dist = _dist; index = j; }
+      }
+      label += MDP.discreteActionShifts[i] * index;
+    }
+    assert(label < MDP.maxActionLabel);
+    return label;
+  }
+
+  Rvec label2action(Uint label) const
+  {
+    assert(label < MDP.maxActionLabel);
+    //map an int to the corresponding entries in the values vec
+    Rvec action( MDP.dimAction );
+    for (Uint i = MDP.dimAction; i>0; i--) {
+      const Uint index_i = label / MDP.discreteActionShifts[i-1];
+      action[i-1] = values[i-1][index_i];
+      label = label % MDP.discreteActionShifts[i-1];
+    }
+    return action;
+  }
+
+  void updateDiscreteActionShifts()
+  {
+    if(MDP.bDiscreteActions == false) return;
+
+    MDP.discreteActionShifts = std::vector<Uint>(MDP.dimAction);
+    MDP.discreteActionShifts[0] = 1;
+    for (Uint i=1; i < MDP.dimAction; i++) {
+      assert(MDP.discreteActionValues[i-1].size() > 0);
+      MDP.discreteActionShifts[i] = MDP.discreteActionShifts[i-1] *
+                                    MDP.discreteActionValues[i-1].size();
+    }
+
+    MDP.maxActionLabel = MDP.discreteActionShifts[MDP.dimAction-1] *
+                         MDP.discreteActionValues[MDP.dimAction-1].size();
+
+    #ifndef NDEBUG
+    for(Uint i=0; i<MDP.maxActionLabel; i++)
+      if(i != action2label(label2action(i)))
+        _die("label %u, action [%s], ret %u",
+          i, print(label2action(i)).c_str(), action2label(label2action(i)) );
+    #endif
+  }
+
+  //////////////////////////// DISCRETE ACTIONS END ////////////////////////////
 };
 
 class State
@@ -84,64 +221,7 @@ class State
   }
 };
 
-struct ActionInfo
-{
-  Uint dim;      //number of actions per turn
-  Uint maxLabel; //number of actions options for discretized act spaces
-  Uint policyVecDim;
-  // whether action have a lower && upper bounded (bool)
-  // if true scaled action = tanh ( unscaled action )
-  std::vector<bool> bounded;
-  //vector<int> boundedTOP, boundedBOT; TODO
 
-  bool discrete = false;
-  //each component of action vector has a vector of possible values that action can take with DQN
-  std::vector<Rvec> values; //max and min of this vector also used for rescaling
-  std::vector<Uint> shifts; //used by DQN to map int to an (entry in each component of values)
-
-  ActionInfo() {}
-
-  ActionInfo& operator= (const ActionInfo& actionInfo)
-  {
-    dim = actionInfo.dim;
-    maxLabel = actionInfo.maxLabel;
-    assert(actionInfo.values.size() ==dim);
-    assert(actionInfo.shifts.size() ==dim);
-    assert(actionInfo.bounded.size()==dim);
-    values = actionInfo.values;
-    shifts = actionInfo.shifts;
-    bounded = actionInfo.bounded;
-    discrete = actionInfo.discrete;
-    return *this;
-  }
-
-  ///////////////////////////////////////////////////////////////////////////////
-  //CONTINUOUS ACTION STUFF
-  Real getActMaxVal(const Uint i) const;
-  Real getActMinVal(const Uint i) const;
-
-  Real getScaled(const Real unscaled, const Uint i) const;
-
-  Real getDactDscale(const Real unscaled, const Uint i) const;
-
-  Real getInvScaled(const Real scaled, const Uint i) const;
-
-  Rvec getInvScaled(const Rvec scaled) const;
-
-  Rvec getScaled(Rvec unscaled) const;
-
-  Real getUniformProbability() const;
-
-  //////////////////////////////////////////////////////////////////////////////
-  //DISCRETE ACTION STUFF
-  void updateShifts();
-
-  Uint actionToLabel(const Rvec vals) const;
-
-  Rvec labelToAction(Uint lab) const;
-
-  Uint realActionToIndex(const Real val, const Uint i) const;
-};
 
 class Action
 {
