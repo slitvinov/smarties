@@ -83,7 +83,127 @@ void Master::run()
   }
 }
 
-void Master::processWorker(const std::vector<int> workers)
+void Master::processCallers()
+{
+  // are we communicating with environments through sockets or mpi?
+  const bool socketsProcessing = COMM.clientSockets.size()        > 0;
+  const bool     mpiProcessing = MPICommSize(master_workers_comm) > 1;
+
+  assert( socketsProcessing not_eq mpiProcessing)
+    die("impossible: environments through mpi XOR sockets");
+  if(mpiProcessing)
+    assert(MPICommSize(master_workers_comm) == (size_t) nCallingEnvironments+1);
+  if(socketsProcessing)
+    assert(COMM.clientSockets.size() == (size_t) nCallingEnvironments);
+  assert(COMM.BUFF.size() == (size_t) nCallingEnvironments);
+
+  std::function<void(const std::vector<Uint>) const> callersProcessing;
+
+  if(socketsProcessing)
+  {
+    callersProcessing = [&] (const std::vector<Uint> givenWorkers) const
+    {
+      std::vector<unsigned> requests(givenWorkers.size(), 0);
+
+      while(true)
+      {
+        for(size_t i=0; i < givenWorkers.size(); ++i)
+        {
+          const Uint worker = givenWorkers[i];
+          const COMM_buffer& buffer = * COMM.BUFF[worker].get();
+          assert(worker < nCallingEnvironments && worker < COMM.BUFF.size());
+
+          const int ERR = SOCKET_Brecv(buffer.dataStateMsg, buffer.sizeStateMsg,
+              COMM->clientSockets[worker]);
+          if (ERR not_eq 0) die("lost communication with socket %d\n", worker);
+
+          // Learners lock workers queue if they have enough data to advance step
+          while ( bTrain && learnersLockQueue() ) {
+            usleep(1);
+            if( bExit.load() > 0 ) break;
+          }
+          processAgent(worker);
+          const int ERR = SOCKET_Bsend(buffer.dataActionMsg, buffer.sizeActionMsg,
+              COMM->clientSockets[worker]);
+          if (ERR not_eq 0) die("lost communication with socket %d\n", worker);
+        }
+      }
+    };
+  }
+  else
+  {
+    callersProcessing = [&] (const std::vector<Uint> givenWorkers) const
+    {
+      std::vector<MPI_Request> requests(givenWorkers.size(), MPI_REQUEST_NULL);
+      for(size_t i=0; i < givenWorkers.size(); ++i)
+      {
+        const COMM_buffer& buffer = * COMM.BUFF[ givenWorkers[i] ].get();
+        MPI(Irecv, buffer.dataStateMsg, buffer.sizeStateMsg, MPI_BYTE,
+            givenWorkers[i]+1, 78283, master_workers_comm, & requests[i]);
+      }
+
+      while(true)
+      {
+        for(size_t i=0; i < givenWorkers.size(); ++i)
+        {
+          const Uint worker = givenWorkers[i];
+          assert(worker < nCallingEnvironments && worker < COMM.BUFF.size());
+          const COMM_buffer& buffer = * COMM.BUFF[worker].get();
+
+          int completed = 0; MPI_Status mpistatus;
+          MPI(Test, &requests[i], &completed, &mpistatus);
+          if(completed) assert(worker+1 == mpistatus.MPI_SOURCE);
+
+          //Learners lock workers if they have enough data to advance step
+          while (bTrain && completed && learnersLockQueue()) {
+            usleep(1); // this is to avoid burning cpus when waiting learners
+            if (bExit.load()>0) break;
+          }
+
+          if(completed)
+          {
+            processAgent(worker);
+            MPI(Isend, buffer.dataActionMsg, buffer.sizeActionMsg, MPI_BYTE,
+                worker+1, 22846, master_workers_comm, & requests[i]);
+            MPI_Request_free(& requests[i]);
+            MPI(Irecv, buffer.dataStateMsg,  buffer.sizeStateMsg,  MPI_BYTE,
+                worker+1, 78283, master_workers_comm, & requests[i]);
+          }
+        }
+
+        usleep(1); // this is to avoid burning cpus when waiting environments
+        if (bExit.load()>0) break;
+      }
+
+      for(size_t i=0; i < givenWorkers.size(); ++i)
+      {
+        //const int agentID = bufferID * ENV.nAgentsPerEnvironment;
+        //Agent& agent = * agents[agentID].get();
+        //MPI(Isend, buffer.dataStateMsg, buffer.sizeActionMsg, MPI_BYTE,
+        //    worker+1, 22846, master_workers_comm, & requests[i]);
+      }
+    };
+  }
+
+  #pragma omp parallel num_threads(nThreads)
+  {
+    std::vector<int> shareWorkers;
+    const Uint thrN = omp_get_num_threads(), thrID = thrN-omp_get_thread_num();
+    const Uint workerShare = std::ceil(nWorkers_own / (double) thrN);
+    const Uint workerBeg = thrID * workerShare;
+    const Uint workerEnd = std::min(nWorkers_own, (thrID+1)*workerShare);
+    for(int i=workerBeg; i<workerEnd; i++) shareWorkers.push_back(i);
+
+    #pragma omp critical
+    if(shareWorkers.size( )
+      worker_replies.push_back
+      (
+        std::thread( [&, shareWorkers] () { callersProcessing(shareWorkers); } )
+      );
+  }
+}
+
+void Master::processWorkers(const std::vector<int> ownWorkers)
 {
   while(1)
   {
@@ -105,37 +225,36 @@ void Master::processWorker(const std::vector<int> workers)
   }
 }
 
-void Master::processAgent(const int worker)
+void Master::processAgent(const int bufferID)
 {
+  assert(bufferID < COMM.BUFF.size());
+  const COMM_buffer& buffer = * COMM.BUFF[bufferID].get();
+  const unsigned localAgentID = Agent::getMessageAgentID(buffer.dataStateBuf);
+  // compute agent's ID within worker from the agentid within environment:
+  const int agentID = bufferID * ENV.nAgentsPerEnvironment + localAgentID;
   //read from worker's buffer:
-  std::vector<double> recv_state(sI.dim);
-  int recv_agent  = -1; // id of agent inside environment
-  int recv_status = -1; // initial/normal/termination/truncation of episode
-  double reward   =  0;
-  comm->unpackState(worker-1, recv_agent, recv_status, recv_state, reward);
-  if (recv_status == FAIL_COMM) die("app crashed");
-
-  const int agent = (worker-1) * nPerRank + recv_agent;
-  Learner*const learner = pickLearner(agent, recv_agent);
-
-  agents[agent]->update(recv_status, recv_state, reward);
+  assert(agentID < agents.size());
+  Agent& agent = * agents[agentID].get();
+  agent.unpackStateMsg(buffer.dataStateBuf);
+  if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
+  // get learning algorithm:
+  Learner& algo = * learners[getLearnerID(localAgentID)].get();
   //pick next action and ...do a bunch of other stuff with the data:
-  learner->select(*agents[agent]);
+  algo.select(agent);
+  //debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
+  //  agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
+  //  agents[agent]->s._print().c_str(), agents[agent]->r,
+  //  agents[agent]->a._print().c_str());
 
-  debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
-    agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
-    agents[agent]->s._print().c_str(), agents[agent]->r,
-    agents[agent]->a._print().c_str());
+  // Some logging and passing around of step id:
+  const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
+  const Uint nSteps = algo.nLocTimeStepsTrain();
+  agent.learnerStepID = factor * nSteps;
 
-  std::vector<double> actVec = agents[agent]->getAct();
-  if(agents[agent]->Status >= TERM_COMM) {
-    const Real factor = learners.size() == 1? 1.0/nPerRank : 1;
-    const auto nSteps = learner->nLocTimeStepsTrain();
-    actVec[0] = factor * nSteps;
-    dumpCumulativeReward(recv_agent, worker, learner->nGradSteps(), nSteps);
-  }
+  if(agent.agentStatus >= TERM)
+    dumpCumulativeReward(localAgentID, bufferID, algo.nGradSteps(), nSteps);
 
-  debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
+  //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
   comm->sendBuffer(worker, actVec);
   comm->recvBuffer(worker); // prepare next recv
 }
@@ -204,10 +323,10 @@ void Master::dumpCumulativeReward(const int agent, const int worker,
 
 // MPI COMMUNICATORS:
 /*
-  - masters_train_comm : all masters
-  - masters_data_sharing_comm = for workerless masters
+  - learners_train_comm : all masters
+  - learners_data_sharing_comm : for workerless masters
   - master_workers_comm
-  - workers_application_comm
+  - workers_application_comm master_workers_comm
 */
 
 void Master::synchronizeEnvironments()
@@ -302,12 +421,8 @@ void Worker::synchronizeEnvironments()
 
 void Worker::loopSocketToMaster()
 {
-  auto& BUF = COMM->BUF;
-  const size_t numSockets = COMM->clientSockets.size();
+  const size_t numSockets = COMM.SOCK.clients.size();
   std::vector<unsigned> socketRequests(numSockets, 0);
-  // prepare state recv buffers for non-blocking socket communication:
-  std::vector<std::vector<double>> socketBuffers(numSockets);
-  for(size_t i=0; i<numSockets; ++i) socketBuffers[i] = BUF.dataStateMsg;
 
   while(true)
   {
@@ -412,12 +527,12 @@ void Worker::stepWorkerToMaster()
   {
     // MPI MSG to master of a single state:
     MPI_Request send_request, recv_request;
-    MPI_Isend(BUF.dataStateMsg.data(), BUF.sizeStateMsg, MPI_BYTE, 0, 1,
-        MPI.comm_learn_pool, &send_request);
+    MPI_Isend(BUF.dataStateMsg.data(), BUF.sizeStateMsg, MPI_BYTE,
+        0, 78283, comm_learn_pool, &send_request);
     MPI_Request_free(&send_request);
     // MPI MSG from master of a single action:
-    MPI_Irecv(BUF.dataActionMsg.data(), BUF.sizeActionMsg, MPI_BYTE, 0, 0,
-        MPI.comm_learn_pool, &recv_request);
+    MPI_Irecv(BUF.dataActionMsg.data(), BUF.sizeActionMsg, MPI_BYTE,
+        0, 22846, comm_learn_pool, &recv_request);
     while(1) // wait action from master without burning cpu resources
     {
       int completed = 0;
@@ -445,74 +560,3 @@ void Worker::stepWorkerToMaster()
 
   learner_step_id = (unsigned) BUF.dataActionMsg[0];
 }
-
-/*
-Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
-    Settings& _s):
-    learner(_l), comm(_c), env(_e), agents(_e->agents), aI(_e->aI), sI(_e->sI),
-    sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]),
-    aNew(_e->aI, &_s.generators[0]), status(_e->agents.size(),1)
-{}
-
-void Client::run()
-{
-  vector<double> state(env->sI.dim);
-  int iAgent, agentStatus;
-  double reward;
-
-  while(true)
-  {
-    if (comm->recvStateFromApp()) break; //sim crashed
-
-    prepareState(iAgent, agentStatus, reward);
-    learner->select(iAgent, sNew, aNew, sOld, aOld, agentStatus, reward);
-
-    debugS("Agent %d: [%s] -> [%s] with [%s] rewarded with %f going to [%s]\n",
-        iAgent, sOld._print().c_str(), sNew._print().c_str(),
-        aOld._print().c_str(), reward, aNew._print().c_str());
-    status[iAgent] = agentStatus;
-
-    if(agentStatus != _AGENT_LASTCOMM) {
-      prepareAction(iAgent);
-      comm->sendActionToApp();
-    } else {
-      bool bDone = true; //did all agents reach terminal state?
-      for (Uint i=0; i<status.size(); i++)
-        bDone = bDone && status[i] == _AGENT_LASTCOMM;
-      bDone = bDone || env->resetAll; //or does env end is any terminates?
-
-      if(bDone) {
-        comm->answerTerminateReq(-1);
-        return;
-      }
-      else comm->answerTerminateReq(1);
-    }
-  }
-}
-
-void Client::prepareState(int& iAgent, int& istatus, Real& reward)
-{
-  Rvec recv_state(sNew.sInfo.dim);
-
-  unpackState(comm->getDataState(), iAgent, istatus, recv_state, reward);
-  assert(iAgent>=0 && iAgent<static_cast<int>(agents.size()));
-
-  sNew.set(recv_state);
-  //agent's s is stored in sOld
-  agents[iAgent]->Status = istatus;
-  agents[iAgent]->swapStates();
-  agents[iAgent]->setState(sNew);
-  agents[iAgent]->getOldState(sOld);
-  agents[iAgent]->getAction(aOld);
-  agents[iAgent]->r = reward;
-}
-
-void Client::prepareAction(const int iAgent)
-{
-  if(iAgent<0) die("Error in iAgent number in Client::prepareAction\n");
-  assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
-  agents[iAgent]->act(aNew);
-  double* const buf = comm->getDataAction();
-  for (Uint i=0; i<aI.dim; i++) buf[i] = aNew.vals[i];
-}
-*/

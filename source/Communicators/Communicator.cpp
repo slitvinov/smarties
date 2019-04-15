@@ -6,45 +6,160 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#include "SocketsLib.h"
 #include "Communicator.h"
-#include "Communicator_utils.cpp"
-#include <iomanip>
-#include <fstream>
-#include <iostream>
-#include <sstream>
 
-#include <sys/un.h>
+#include <fstream>
 
 Communicator::Communicator(int number_of_agents)
 {
   set_num_agents(number_of_agents);
-  launch();
+  std::random_device RD;
+  gen = std::mt19937(RD);
+  SOCK.server = SOCKET_clientConnect();
 }
 
 Communicator::Communicator(int stateDim, int actionDim, int number_of_agents)
 {
   set_num_agents(number_of_agents);
   set_state_action_dims(stateDim, actionDim);
-  launch();
-}
-
-Communicator::commonInit()
-{
   std::random_device RD;
   gen = std::mt19937(RD);
-
-  if(ENV.nAgentsPerEnvironment <= 0) {
-    printf("FATAL: Must have at least one agent.\n");
-    fflush(0); abort();
-  }
-
-  connect2server();
+  SOCK.server = SOCKET_clientConnect();
 }
 
-// smarties side
-Communicator::Communicator(std::mt19937& G, bool _bTrain, int nEps) :
-  gen(G()), bTrain(_bTrain), nEpisodes(nEps)
+void Communicator::set_state_action_dims(const int dimState,
+                                         const int dimAct,
+                                         const int agentID)
 {
+  if(ENV.bFinalized)
+    die("Cannot edit env description after having sent first state.");
+  if( (size_t) agentID >= ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor");
+  ENV.descriptors[agentID]->dimState = dimState;
+  ENV.descriptors[agentID]->dimAct = dimAct;
+}
+
+void Communicator::set_action_scales(const std::vector<double> uppr,
+                                     const std::vector<double> lowr,
+                                     const bool bound,
+                                     const int agentID)
+{
+  set_action_scales(uppr,lowr, std::vector<bool>(uppr.size(),bound), agentID);
+}
+void Communicator::set_action_scales(const std::vector<double> upper,
+                                     const std::vector<double> lower,
+                                     const std::vector<bool>   bound,
+                                     const int agentID)
+{
+  if(ENV.bFinalized)
+    die("Cannot edit env description after having sent first state.");
+  if(agentID >= ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor");
+  if(upper.size() not_eq ENV.descriptors[agentID]->dimAction or
+     lower.size() not_eq ENV.descriptors[agentID]->dimAction or
+     bound.size() not_eq ENV.descriptors[agentID]->dimAction )
+    die("size mismatch");
+
+  ENV.descriptors[agentID]->bDiscreteActions = false;
+  ENV.descriptors[agentID]->upperActionValue =
+    Rvec(upper.begin(), upper.end());
+  ENV.descriptors[agentID]->lowerActionValue =
+    Rvec(lower.begin(), lower.end());
+  ENV.descriptors[agentID]->bActionSpaceBounded = bound;
+}
+
+void Communicator::set_action_options(const int options,
+                                      const int agentID)
+{
+  set_action_options(std::vector<int>(1, options), agentID);
+}
+
+void Communicator::set_action_options(const std::vector<int> options,
+                                      const int agentID)
+{
+  if(ENV.bFinalized)
+    die("Cannot edit env description after having sent first state.");
+  if(agentID >= ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor");
+  if(options.size() not_eq ENV.descriptors[agentID]->dimAction)
+    die("size mismatch");
+
+  ENV.descriptors[agentID]->bDiscreteActions = true;
+  ENV.descriptors[agentID]->discreteActionValues =
+    std::vector<Uint>(options.begin(), options.end());
+}
+
+void Communicator::set_state_observable(const std::vector<bool> observable,
+                                        const int agentID)
+{
+  if(ENV.bFinalized)
+    die("Cannot edit env description after having sent first state.");
+  if(agentID >= ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor");
+  if(observable.size() not_eq ENV.descriptors[agentID]->dimState)
+    die("size mismatch when defining observed/hidden state variables");
+
+  ENV.descriptors[agentID]->bStateVarObserved = observable;
+}
+
+void Communicator::set_state_scales(const std::vector<double> upper,
+                                    const std::vector<double> lower,
+                                    const int agentID)
+{
+  if(ENV.bFinalized)
+    die("Cannot edit env description after having sent first state.");
+  if(agentID >= ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor.");
+  if(upper.size() not_eq ENV.descriptors[agentID]->dimState or
+     lower.size() not_eq ENV.descriptors[agentID]->dimState )
+    die("size mismatch");
+  // For consistency with action space we ask user for a rough box of state vars
+  // but in reality we scale with mean and stdev computed during training.
+  // This function serves only as an optional initialization for statistiscs.
+  Rvec meanState(upper.size()), diffState(upper.size());
+  for (Uint i=0; i<upper.size(); ++i) {
+    meanState[i] = (upper[i]+lower[i])/2;
+    diffState[i] = std::fabs(upper[i]-lower[i]);
+  }
+  ENV.descriptors[agentID]->stateMean   = meanState;
+  ENV.descriptors[agentID]->stateStdDev = diffState;
+}
+
+void Communicator::set_num_agents(int _nAgents)
+{
+  ENV.nAgentsPerEnvironment = _nAgents;
+}
+
+void Communicator::env_has_distributed_agents()
+{
+  if(comm_inside_app == MPI_COMM_NULL) {
+    die("Distributed agents has no effect on single-process applications. "
+         "It means that each simulation rank holds different agents.");
+    bEnvDistributedAgents = false;
+    return;
+  }
+  if(ENV.bAgentsHaveSeparateMDPdescriptors) {
+    die("support either distributed agents (ie each worker holds some of the "
+        "agents) or each agent defining a different MDP (state/act spaces).");
+  }
+  bEnvDistributedAgents =  true;
+}
+
+void Communicator::agents_define_different_MDP()
+{
+  if(bEnvDistributedAgents) {
+    die("support either distributed agents (ie each worker holds some of the "
+        "agents) or each agent defining a different MDP (state/act spaces).");
+  }
+  ENV.initDescriptors(true);
+}
+
+void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
+{
+  ENV.bTrainFromAgentData.resize(ENV.nAgentsPerEnvironment, true);
+  for(int i=agentStart; i<agentEnd; i++)
+    ENV.bTrainFromAgentData[i] = false;
 }
 
 void Communicator::sendState(const int agentID, const episodeStatus status,
@@ -56,22 +171,24 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
   agents[agentID]->update(status, state, reward);
   agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
 
+#ifdef MPI_VERSION
   if(worker not_eq nullptr)
   {
     worker->stepSocketToMaster();
   }
   else
+#endif
   {
-    SOCKET_Send(BUFF[0]->dataStateMsg,  BUFF[0]->sizeStateMsg,  SOCK.Socket);
-    SOCKET_Recv(BUFF[0]->dataActionMsg, BUFF[0]->sizeActionMsg, SOCK.Socket);
+    SOCKET_Send(BUFF[0]->dataStateMsg,  BUFF[0]->sizeStateMsg,  SOCK.server);
+    SOCKET_Recv(BUFF[0]->dataActionMsg, BUFF[0]->sizeActionMsg, SOCK.server);
   }
 
   agents[agentID]->unpackActionMsg(BUFF[0]->dataActionMsg);
 
   // we cannot control application. if we received a termination signal we abort
-  if(agents[agentID]->learnStatus == KILL) die("App recvd kill signal...");
-
-  //if (status >= TERM_COMM) stored_actions[agentID][0] = AGENT_TERMSIGNAL;
+  if(agents[agentID]->learnStatus == KILL) {
+    printf("ABORTING: App recvd end-of-training signal.\n"); fflush(0); abort();
+  }
 }
 
 const std::vector<double>& Communicator::recvAction(const int agentID) const
@@ -85,20 +202,21 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
+#ifdef MPI_VERSION
   if(worker not_eq nullptr)
   {
     worker->synchronizeEnvironments();
   }
   else
+#endif
   {
     const auto sendBufferFunc = [&](void* buffer, size_t size) {
-      SOCKET_Bsend(buffer, size, SOCK.Socket);
+      SOCKET_Bsend(buffer, size, SOCK.server);
     };
     ENV.synchronizeEnvironments(sendBufferFunc);
     finalizeCommunicationBuffers();
   }
-
-  print();
+  assert(BUFF.size() > 0);
 }
 
 void Communicator::finalizeCommunicationBuffers()
@@ -110,45 +228,8 @@ void Communicator::finalizeCommunicationBuffers()
     maxDimState  = std::max(maxDimState,  ENV.descriptors[i]->dimState );
     maxDimAction = std::max(maxDimAction, ENV.descriptors[i]->dimAction);
   }
+  assert(nAgents > 0 && maxDimAction > 0); // state can be 0-D
   BUFF.emplace_back(maxStateDim, maxActionDim);
-}
-
-void Communicator::connect2server()
-{
-  if( ( SOCK.server = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 )
-  {
-    printf("Socket failed"); fflush(0); abort();
-  }
-
-  int _TRU = 1;
-  if( setsockopt(SOCK.server, SOL_SOCKET, SO_REUSEADDR, &_TRU, sizeof(int))<0 )
-  {
-    printf("Sockopt failed\n"); fflush(0); abort();
-  }
-
-  // Specify the socket
-  char SOCK_PATH[] = "../smarties_AFUNIX_socket_FD";
-
-  // Specify the server
-  struct sockaddr_un serverAddress;
-  bzero((char *)&serverAddress, sizeof(serverAddress));
-  serverAddress.sun_family = AF_UNIX;
-  strcpy(serverAddress.sun_path, SOCK_PATH);
-  const int servlen = sizeof(serverAddress.sun_family)
-                    + strlen(serverAddress.sun_path)+1;
-
-  // Connect to the server
-  size_t nAttempts = 0;
-  while (connect(SOCK.server, (struct sockaddr *)&serverAddress, servlen) < 0)
-  {
-    if(++nAttempts % 1000 == 0) {
-      printf("Application is taking too much time to connect to smarties."
-             " If your application needs to change directories (e.g. set up a"
-             " dedicated directory for each run) it should do so AFTER"
-             " the connection to smarties has been initialzed.\n");
-    }
-    usleep(1);
-  }
 }
 
 std::mt19937& Communicator::getPRNG() {

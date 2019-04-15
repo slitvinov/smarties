@@ -12,21 +12,68 @@
 #include <mutex>
 #include "../Learners/Learner.h"
 
-class Master
+class Worker
 {
-private:
   const Settings& settings;
-  Communicator_internal* const comm;
-  const std::vector<Learner*> learners;
-  const Environment* const env;
+
+  const Communicator_internal COMM;
+  const MPI_Comm master_workers_comm;
+
+  const std::vector<std::unique_ptr<Learner>> learners;
+  const MPI_Comm learners_train_comm;
+
+  const Environment& ENV = COMM.ENV;
+  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
+
+  const Uint nCallingEnvironments;
+};
+
+class Worker : public Worker
+{
+  const Settings& settings;
+
+  const std::unique_ptr<Communicator_internal> COMM;
+  const MPI_Comm master_workers_comm;
+
+  const std::vector<std::unique_ptr<Learner>> learners;
+  const MPI_Comm learners_train_comm;
+
+  const Environment& ENV = COMM.ENV;
+  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
+
+  const int nAgentsPerRank = ENV.nAgentsPerEnvironment;
+  const int bTrain = settings.bTrain;
+};
+
+class Worker
+{
+  const Environment& ENV = COMM.ENV;
+  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
+
+  const MPI_Comm learners_train_comm;
+  const std::vector<std::unique_ptr<Learner>> learners;
+
+  Uint getLearnerID(const Uint agentIDlocal) const
+  { // some asserts:
+    // 1) agentID within environment must match what we know about environment
+    // 2) either only one learner or ID of agent in ENV must match a learner
+    // 3) if i have more than one learner, then i have one per agent in env
+    assert(agentIDlocal < ENV.nAgentsPerEnvironment);
+    assert(learners.size() == 1 || agentIDlocal < learners.size());
+    if(learners.size()>1)
+      assert(learners.size() == (size_t) ENV.nAgentsPerEnvironment);
+    // if one learner, return learnerID=0, else learnID == ID of agent in ENV
+    return learners.size()>1? agentIDlocal : 0;
+  }
+
+  const int bTrain = settings.bTrain;
+};
+
+class Master : public Worker
+{
+  MPI_Comm learners_data_sharing_comm = MPI_COMM_SELF;
 
   TaskQueue tasks;
-
-  const ActionInfo& aI = env->aI;
-  const StateInfo&  sI = env->sI;
-  const std::vector<Agent*>& agents = env->agents;
-  const int nPerRank = env->nAgentsPerRank;
-  const int bTrain = settings.bTrain;
   const int nWorkers_own = settings.nWorkers_own;
   const int nThreads = settings.nThreads;
   const int learn_rank = settings.learner_rank;
@@ -39,15 +86,6 @@ private:
 
   std::atomic<Uint> bExit {0};
   std::vector<std::thread> worker_replies;
-
-  inline Learner* pickLearner(const Uint agentId, const Uint recvId)
-  {
-    assert(recvId < (Uint)nPerRank);
-    if(learners.size()>1) assert(learners.size() == (Uint)nPerRank);
-
-    assert( learners.size() == 1 || recvId < learners.size() );
-    return learners.size()>1? learners[recvId] : learners[0];
-  }
 
   bool learnersLockQueue() const;
 
@@ -76,7 +114,10 @@ public:
 
 class Worker
 {
-private:
+  MPI_Comm learners_train_comm = MPI_COMM_SELF;
+  MPI_Comm learners_data_sharing_comm = MPI_COMM_SELF;
+  MPI_Comm master_workers_comm = MPI_COMM_NULL;
+
   Communicator_internal* const comm;
   Environment* const env;
   const bool bTrain;
@@ -115,3 +156,18 @@ public:
   void run();
 };
 */
+
+#define MPI(NAME, ...)                                   \
+do {                                                     \
+  int MPIERR = 0;                                        \
+  if(bAsync) {                                           \
+    MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
+  } else {                                               \
+    std::lock_guard<std::mutex> lock(mpi_mutex);         \
+    MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
+  }                                                      \
+  if(MPIERR not_eq MPI_SUCCESS) {                        \
+    _warn("%s %d", #NAME, MPIERR);                       \
+    throw std::runtime_error("MPI ERROR");               \
+  }                                                      \
+} while(0)

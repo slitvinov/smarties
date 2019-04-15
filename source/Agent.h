@@ -58,7 +58,7 @@ struct Agent
   void update(const episodeStatus E, const std::vector<T>& S, const double R)
   {
     assert( S.size() == sInfo.dim() );
-    episodeStatus = E;
+    agentStatus = E;
 
     if(E == FAIL) { // app crash, probably
       reset();
@@ -99,6 +99,8 @@ struct Agent
     assert(buffer not_eq nullptr);
     const char * msgPos = (const char*) buffer;
     unsigned testAgentID, testStepID;
+    std::swap(sOld, state); //what is stored in state now is sold
+
     memcpy(&testAgentID,       msgPos, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
     memcpy(&agentStatus,       msgPos, sizeof(episodeStatus));
@@ -162,6 +164,11 @@ struct Agent
     memcpy( action.data(), msgPos, sizeof(double) * action.size());
     msgPos +=                      sizeof(double) * action.size() ;
     assert( testAgentID == localID );
+  }
+
+  static unsigned getMessageAgentID(const void *const buffer)
+  {
+    return * (unsigned*) buffer;
   }
 
   static size_t computeActionMsgSize(const size_t aDim)

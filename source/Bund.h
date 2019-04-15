@@ -238,21 +238,6 @@ inline Real annealRate(const Real eta, const Real t, const Real T) {
 #define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
 #endif
 
-#define MPI(NAME, ...)                                 \
-do {                                                   \
-  int mpiW = 0;                                        \
-  if(bAsync) {                                         \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );               \
-  } else {                                             \
-    std::lock_guard<std::mutex> lock(mpi_mutex);       \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );               \
-  }                                                    \
-  if(mpiW not_eq MPI_SUCCESS) {                        \
-    _warn("%s %d", #NAME, mpiW);                       \
-    throw std::runtime_error("MPI ERROR");             \
-  }                                                    \
-} while(0)
-
 inline float approxRsqrt( const float number )
 {
 	union { float f; uint32_t i; } conv;

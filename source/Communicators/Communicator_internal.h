@@ -15,18 +15,22 @@ class Communicator_internal: public Communicator
 {
  protected:
   const Settings& S;
-  char initd[512];
-  std::string execpath    = S.launchfile;
+  MPI_Comm workers_application_comm = MPI_COMM_SELF;
+
+  std::string execPath    = S.launchfile;
+  std::string setupFolder = S.setupFolder;
+
   std::string paramfile   = S.appSettings;
+  std::vector<std::string> argsFiles;
   std::string nStepPerFile= S.nStepPappSett;
-  std::string setupfolder = S.setupFolder;
-  const int nOwnWorkers = S.nWorkers_own;
-  const int bAsync = S.bAsync;
+  std::vector<Uint> argFilesStepsLimits;
+
+  const int nThreads = S.nThreads;
   const bool bSpawnApp = S.bSpawnApp;
+  const int nOwnWorkers = S.nWorkers_own;
 
   std::mutex& mpi_mutex = S.mpi_mutex;
-  std::vector<double*> inpBufs;
-  std::vector<double*> outBufs;
+  const int bAsync        = S.bAsync;
   std::vector<MPI_Request> requests =
                         std::vector<MPI_Request>(nOwnWorkers, MPI_REQUEST_NULL);
 
