@@ -9,35 +9,165 @@
 #pragma once
 #include "StateAction.h"
 #include "Settings.h"
-#include "Communicators/Communicator.h"
 #include <atomic>
 #define OUTBUFFSIZE 65536
-class Agent
-{
- public:
-  const StateInfo&  sInfo;
-  const ActionInfo& aInfo;
 
-  State  sOld =  State(sInfo); // previous state
-  State  s    =  State(sInfo); // current state
-  // Action performed by agent. Updated by Learner::select and sent to Slave
-  Action a    = Action(aInfo);
-  Real r = 0;              // current reward
-  Real cumulative_rewards = 0;
-  const Uint ID;
-  const Uint workerID;
-  const Uint localID;
-  // status of agent's episode. 1: initial; 0: middle; 2: terminal; 3: truncated
-  int Status = 1;
-  int transitionID = 0;
+enum episodeStatus {INIT, CONT, TERM, TRNC, FAIL};
+enum learnerStatus {WORK, KILL};
+
+struct Agent
+{
+  const unsigned ID;
+  const unsigned workerID;
+  const unsigned localID;
+
+  episodeStatus agentStatus = INIT;
+  unsigned timeStepInEpisode = 0;
+
+  learnerStatus learnStatus = CONT;
+  unsigned learnerStepID = 0;
+
   bool trackSequence = true;
+
+  MDPdescriptor& MDP;
+  StateInfo  sInfo = StateInfo(MDP);
+  ActionInfo aInfo = ActionInfo(MDP);
+
+  std::vector<double> sOld; // previous state
+  std::vector<double> state;  // current state
+  std::vector<double> action;
+  double reward; // current reward
+  double cumulativeRewards = 0;
 
   // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};
 
-  Agent(Uint _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo, Uint wID,
-    Uint lID): sInfo(_sInfo),aInfo(_aInfo),ID(_ID),workerID(wID),localID(lID) {}
+  Agent(Uint _ID, Uint workID, Uint _localID, MDPdescriptor& _MDP) :
+    ID(_ID), workerID(workID), localID(_localID), MDP(_MDP) {}
+
+  void reset()
+  {
+    agentStatus = INIT;
+    timeStepInEpisode=0;
+    cumulativeRewards=0;
+    reward=0;
+  }
+
+  template<typename T>
+  void update(const episodeStatus E, const std::vector<T>& S, const double R)
+  {
+    assert( S.size() == sInfo.dim() );
+    episodeStatus = E;
+
+    if(E == FAIL) { // app crash, probably
+      reset();
+      return;
+    }
+
+    std::swap(sOld, state); //what is stored in state now is sold
+    state = std::vector<double>(S.begin(), S.end());
+    reward = R;
+
+    if(E == INIT_COMM) {
+      cumulativeRewards = 0;
+      timeStepInEpisode = 0;
+    } else {
+      cumulativeRewards += R;
+      ++timeStepInEpisode;
+    }
+  }
+
+  void packStateMsg(void * const buffer) const // put agent's state into buffer
+  {
+    assert(buffer not_eq nullptr);
+    char * msgPos = (char*) buffer;
+    memcpy(msgPos, &localID,           sizeof(unsigned));
+    msgPos +=                          sizeof(unsigned) ;
+    memcpy(msgPos, &agentStatus,       sizeof(episodeStatus));
+    msgPos +=                          sizeof(episodeStatus) ;
+    memcpy(msgPos, &timeStepInEpisode, sizeof(unsigned));
+    msgPos +=                          sizeof(unsigned) ;
+    memcpy(msgPos, &reward,            sizeof(double));
+    msgPos +=                          sizeof(double) ;
+    memcpy(msgPos,  state.data(),      sizeof(double) * state.size());
+    msgPos +=                          sizeof(double) * state.size() ;
+  }
+
+  void unpackStateMsg(const void * const buffer) const // get state from buffer
+  {
+    assert(buffer not_eq nullptr);
+    const char * msgPos = (const char*) buffer;
+    unsigned testAgentID, testStepID;
+    memcpy(&testAgentID,       msgPos, sizeof(unsigned));
+    msgPos +=                          sizeof(unsigned) ;
+    memcpy(&agentStatus,       msgPos, sizeof(episodeStatus));
+    msgPos +=                          sizeof(episodeStatus) ;
+    memcpy(&testStepID,        msgPos, sizeof(unsigned));
+    msgPos +=                          sizeof(unsigned) ;
+    memcpy(&reward,            msgPos, sizeof(double));
+    msgPos +=                          sizeof(double) ;
+    memcpy( state.data(),      msgPos, sizeof(double) * state.size());
+    msgPos +=                          sizeof(double) * state.size() ;
+
+    if(agentStatus == INIT_COMM) {
+      cumulativeRewards = 0;
+      timeStepInEpisode = 0;
+    } else {
+      cumulativeRewards += reward;
+      ++timeStepInEpisode;
+    }
+    assert(testStepID == timeStepInEpisode && testAgentID == localID);
+  }
+
+  static size_t computeStateMsgSize(const size_t sDim)
+  {
+   return 2*sizeof(unsigned) + sizeof(episodeStatus) + (sDim+1)*sizeof(double);
+  }
+
+  void act(const Uint label)
+  {
+    action = aInfo.label2action<double>(label);
+  }
+  void act(const Rvec& _act)
+  {
+    action = std::vector<double>(_act.begin(), _act.end());
+  }
+
+  void packActionMsg(void * const buffer) const
+  {
+    assert(buffer not_eq nullptr);
+    char * msgPos = (char*) buffer;
+    memcpy(msgPos, &localID,       sizeof(unsigned));
+    msgPos +=                      sizeof(unsigned) ;
+    memcpy(msgPos, &learnStatus,   sizeof(learnerStatus));
+    msgPos +=                      sizeof(learnerStatus) ;
+    memcpy(msgPos, &learnerStepID, sizeof(unsigned));
+    msgPos +=                      sizeof(unsigned) ;
+    memcpy(msgPos,  action.data(), sizeof(double) * action.size());
+    msgPos +=                      sizeof(double) * action.size() ;
+  }
+
+  void unpackActionMsg(const void * const buffer)
+  {
+    assert(buffer not_eq nullptr);
+    const char * msgPos = (const char*) buffer;
+    unsigned testAgentID;
+    memcpy(&testAgentID,   msgPos, sizeof(unsigned));
+    msgPos +=                      sizeof(unsigned) ;
+    memcpy(&learnStatus,   msgPos, sizeof(learnerStatus));
+    msgPos +=                      sizeof(learnerStatus) ;
+    memcpy(&learnerStepID, msgPos, sizeof(unsigned));
+    msgPos +=                      sizeof(unsigned) ;
+    memcpy( action.data(), msgPos, sizeof(double) * action.size());
+    msgPos +=                      sizeof(double) * action.size() ;
+    assert( testAgentID == localID );
+  }
+
+  static size_t computeActionMsgSize(const size_t aDim)
+  {
+   return 2*sizeof(unsigned) +sizeof(learnerStatus) + aDim*sizeof(double);
+  }
 
   void writeBuffer(const int rank) const
   {
@@ -56,100 +186,34 @@ class Agent
     // possible race conditions, avoided by the fact that each worker
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads
-    const Uint writesize = 4 +sInfo.dim +aInfo.dim +mu.size();
-    if(OUTBUFFSIZE<writesize) die("Edit compile-time OUTBUFFSIZE variable.");
+    const Uint writesize = 4 + sInfo.dim() + aInfo.dim() + mu.size();
+    if(OUTBUFFSIZE<writesize) die("Increase compile-time OUTBUFFSIZE variable");
     assert( buffCnter % writesize == 0 );
     if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(rank);
     Uint ind = buffCnter;
     buf[ind++] = globalTstep + 0.1;
-    buf[ind++] = Status + 0.1;
-    buf[ind++] = transitionID + 0.1;
-
-    for (Uint i=0; i<sInfo.dim; i++) buf[ind++] = (float) s.vals[i];
-    for (Uint i=0; i<aInfo.dim; i++) buf[ind++] = (float) a.vals[i];
-    buf[ind++] = r;
+    buf[ind++] = status2int(episodeStatus) + 0.1;
+    buf[ind++] = timeStepInEpisode + 0.1;
+    assert( state.size() == state.dim());
+    for (Uint i=0; i<state.size(); i++) buf[ind++] = (float) state[i];
+    assert(action.size() == aInfo.dim());
+    for (Uint i=0; i<action.size(); i++) buf[ind++] = (float) action[i];
+    buf[ind++] = reward;
     for (Uint i=0; i<mu.size(); i++) buf[ind++] = (float) mu[i];
 
     buffCnter += writesize;
     assert(buffCnter == ind);
   }
 
-  inline void getState(State& _s) const
+  void checkNanInf()
   {
-    _s = s;
-  }
-
-  inline void setState(State& _s)
-  {
-    s = _s;
-  }
-
-  inline void swapStates()
-  {
-    std::swap(s.vals, sOld.vals);
-  }
-
-  inline void getAction(Action& _a) const
-  {
-    _a = a;
-  }
-
-  inline void getOldState(State& _s) const
-  {
-    _s = sOld;
-  }
-
-  inline void act(Action& _a)
-  {
-    a = _a;
-  }
-
-  template<typename T>
-  inline void act(const T action)
-  {
-    a.set(action);
-  }
-
-  std::vector<double> getAct() const
-  {
-    std::vector<double> ret(aInfo.dim);
-    for(Uint j=0; j<aInfo.dim; j++) ret[j] = a.vals[j];
-    return ret;
-  }
-
-  inline int getStatus() const
-  {
-    return Status;
-  }
-
-  inline Real getReward() const
-  {
-    return r;
-  }
-
-  inline void reset()
-  {
-    Status = 1; transitionID=0; cumulative_rewards=0; r=0;
-  }
-
-  template<typename T>
-  void update(const envInfo _i, const std::vector<T>& _s, const double _r)
-  {
-    if(_i == FAIL_COMM) {
-      cumulative_rewards = 0; transitionID = 0; r = 0;
-      return;
-    }
-    Status = _i;
-    swapStates(); //swap sold and snew
-    s.set(_s);
-    r = _r;
-    if(_i == INIT_COMM) {
-      cumulative_rewards = 0;
-      transitionID = 0;
-    }
-    else {
-      cumulative_rewards += _r;
-      transitionID++;
-    }
+    #ifndef NDEBUG
+      const auto isValid = [] (const double val) {
+        assert( not std::isnan(val) and not std::isinf(val) );
+      }
+      for (Uint j=0; j<action.size(); ++j) isValid(action[j]);
+      for (Uint j=0; j<state.size(); ++j) isValid(state[j]);
+      isValid(reward);
+    #endif
   }
 };

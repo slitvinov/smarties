@@ -12,40 +12,35 @@
 
 class Builder;
 
-class Environment
+struct Environment
 {
-protected:
-    std::mt19937 * const g; //only ok if only thread 0 accesses
-    Communicator_internal* comm_ptr = nullptr;
-    void commonSetup();
+  Uint nAgents, nAgentsPerEnvironment;
+  Uint nDescriptors = 1;
+  bool bAgentsHaveSeparateMDPdescriptors = false;
+  bool bFinalized = false;
 
-public:
-    Settings & settings;
-    Uint nAgents, nAgentsPerRank;
-    const Real gamma;
+  std::vector<std::unique_ptr<MDPdescriptor>> descriptors;
+  std::vector<std::unique_ptr<Agent>> agents;
+  std::vector<bool> bTrainFromAgentData;
 
-    std::vector<Agent*> agents;
-    StateInfo  sI;
-    ActionInfo aI;
-    Environment(Settings & _settings);
+  const MDPdescriptor& getDescriptor(int agentID = 0) const {
+    if(not bAgentsHaveSeparateMDPdescriptors) agentID = 0;
+    return * descriptors[agentID].get();
+  }
 
-    virtual ~Environment();
+  Settings * settings = nullptr;
 
-    virtual void setDims ();
+  Environment();
 
-    virtual bool pickReward(const Agent& agent) const;
-    virtual bool predefinedNetwork(Builder & input_net) const;
-    Communicator_internal create_communicator();
+  virtual bool pickReward(const Agent& agent) const;
+  virtual bool predefinedNetwork(Builder & input_net) const;
 
-    virtual Uint getNdumpPoints();
-    virtual Rvec getDumpState(Uint k);
+  // for a given environment, size of the IRL reward dictionary
+  virtual Uint getNumberRewardParameters();
 
-    // for a given environment, size of the IRL reward dictionary
-    virtual Uint getNumberRewardParameters();
+  // compute the reward given a certain state and param vector
+  virtual Real getReward(const std::vector<memReal> s, const Rvec params);
 
-    // compute the reward given a certain state and param vector
-    virtual Real getReward(const std::vector<memReal> s, const Rvec params);
-
-    // compute the gradient of the reward
-    virtual Rvec getRewardGrad(const std::vector<memReal> s, const Rvec params);
+  // compute the gradient of the reward
+  virtual Rvec getRewardGrad(const std::vector<memReal> s, const Rvec params);
 };

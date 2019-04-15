@@ -24,8 +24,6 @@ class Communicator_internal: public Communicator
   const int bAsync = S.bAsync;
   const bool bSpawnApp = S.bSpawnApp;
 
-  std::vector<int> clientSockets = std::vector<int>(nOwnWorkers, 0);
-
   std::mutex& mpi_mutex = S.mpi_mutex;
   std::vector<double*> inpBufs;
   std::vector<double*> outBufs;
@@ -39,9 +37,6 @@ public:
 
   int recvStateFromApp();
   int sendActionToApp();
-
-  double* getDataAction() { return data_action; }
-  double* getDataState()  { return data_state; }
 
   void answerTerminateReq(const double answer);
 
@@ -72,8 +67,4 @@ public:
   //called by smarties
   Communicator_internal(Settings& sett);
   ~Communicator_internal();
-
-  static std::vector<double*> alloc_bufs(const int size, const int num);
-  void unpackState(const int i, int& agent, envInfo& info,
-      std::vector<double>& state, double& reward);
 };

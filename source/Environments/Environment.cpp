@@ -9,65 +9,57 @@
 #include "Environment.h"
 #include "../Network/Builder.h"
 
-Environment::Environment(Settings& _settings) :
-g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
-
-void Environment::setDims()
+Environment::Environment()
 {
-  comm_ptr->getStateActionShape();
-  assert(comm_ptr->getDimS()>=0);
-  assert(comm_ptr->getDimA()>0);
-  assert(comm_ptr->getNagents()>0);
-  assert(comm_ptr->nDiscreteAct()>=0);
+  descriptors.emplace_back( std::make_unique<MDPdescriptor>() );
+}
 
-  sI.dim = comm_ptr->getDimS();
-  aI.dim = comm_ptr->getDimA();
-  nAgentsPerRank = comm_ptr->getNagents();
-  aI.discrete = comm_ptr->nDiscreteAct();
+void Environment::synchronizeEnvironments(
+  const std::function<void(void*, size_t)>& sendRecvFunc )
+{
+  if(bFinalized) die("Cannot synchronize env description multiple times");
+  bFinalized = true;
 
-  aI.values.resize(aI.dim);
-  aI.bounded.resize(aI.dim, 0);
-  sI.mean.resize(sI.dim);
-  sI.scale.resize(sI.dim);
-  sI.inUse.resize(sI.dim, 1);
+  sendRecvFunc(&nAgentsPerEnvironment, 1 * sizeof(Uint) );
+  sendRecvFunc(&bAgentsHaveSeparateMDPdescriptors, 1 * sizeof(bool) );
+  bTrainFromAgentData.resize(nAgentsPerEnvironment, true);
+  sendRecvFunc(&bTrainFromAgentData.data(), nAgentsPerEnvironment*sizeof(bool));
 
-  if(settings.world_rank==0) printf("State dimensionality : %d.",sI.dim);
-  for (unsigned i=0; i<sI.dim; i++) {
-    const bool inuse = comm_ptr->isStateObserved()[i] > 0.5;
-    const double upper = comm_ptr->stateBounds()[i*2+0];
-    const double lower = comm_ptr->stateBounds()[i*2+1];
-    sI.inUse[i] = inuse;
-    sI.mean[i]  = 0.5*(upper+lower);
-    sI.scale[i] = 0.5*std::fabs(upper-lower);
-    if(sI.scale[i]>=1e3 || sI.scale[i] < 1e-7) {
-      if(settings.world_rank == 0) printf(" unbounded");
-      sI.scale = Rvec(sI.dim, 1); sI.mean = Rvec(sI.dim, 0);
-      break;
-    }
-    if(settings.world_rank==0 && not inuse)
-      printf(" State component %u is hidden from the learner.", i);
+  if(settings not_eq nullptr) {
+    nAgents = nAgentsPerEnvironment * settings->nWorkers_own;
+    settings->nAgents = nAgents;
+  } else {
+    nAgents = nAgentsPerEnvironment;
   }
-  if(settings.world_rank==0) printf("\nAction dimensionality : %d.",aI.dim);
 
-  int k = 0;
-  for (Uint i=0; i<aI.dim; i++) {
-    aI.bounded[i]   = comm_ptr->actionOption()[i*2 +1] > 0.5;
-    const int nvals = comm_ptr->actionOption()[i*2 +0];
-    // if act space is continuous, only receive high and low val for each action
-    assert(aI.discrete || nvals == 2);
-    assert(nvals > 1);
-    aI.values[i].resize(nvals);
-    for(int j=0; j<nvals; j++)
-      aI.values[i][j] = comm_ptr->actionBounds()[k++];
+  initDescriptors(bAgentsHaveSeparateMDPdescriptors);
 
-    const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
-    if(settings.world_rank==0)
-    printf(" [%u: %.1f:%.1f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
+  agents.resize(nAgents, nullptr);
+  for(Uint i=0; i<nAgents; i++)
+  {
+    // contiguous agents belong to same environment
+    const Uint workerID = i / nAgentsPerEnvironment;
+    const Uint localID  = i % nAgentsPerEnvironment;
+    // agent with the same ID on different environment have the same MDP
+    const Uint descriptorID = i % nDescriptors;
+    MDPdescriptor& descriptor = descriptors[descriptorID].get();
+    agents[i] = new Agent(i, descriptor, workerID, localID);
+    agents[i]->trackSequence = bTrainFromAgentData[localID];
   }
-  if(settings.world_rank==0) printf("\n");
+}
 
-  commonSetup(); //required
-  assert(sI.dim == (Uint) comm_ptr->getDimS());
+void Environment::initDescriptors(const bool areDifferent)
+{
+  bAgentsHaveSeparateMDPdescriptors = areDifferent;
+  if(areDifferent) nDescriptors = nAgentsPerEnvironment;
+  else nDescriptors = 1;
+
+  if( descriptors.size() > nDescriptors)
+    die("conflicts in problem definition");
+
+  descriptors.reserve(nDescriptors);
+  for(Uint i=descriptors.size(); i<nDescriptors; ++i)
+    descriptors.emplace_back( std::make_unique<MDPdescriptor>() );
 }
 
 Communicator_internal Environment::create_communicator()
@@ -100,10 +92,10 @@ Communicator_internal Environment::create_communicator()
     }
   }
 
-  if(settings.bSpawnApp) { comm_ptr->launch(); }
-  setDims();
+  if(settings.bSpawnApp) comm_ptr->launch();
 
-  comm.update_state_action_dims(sI.dim, aI.dim);
+
+
   return comm;
 }
 
@@ -116,61 +108,6 @@ bool Environment::predefinedNetwork(Builder & input_net) const
   // this function is to be filled by child classes
   // to implement convolutional models
   return false;
-}
-
-void Environment::commonSetup()
-{
-  assert(nAgentsPerRank > 0);
-  nAgents = nAgentsPerRank * settings.nWorkers_own;
-  settings.nAgents = nAgents;
-
-  if(sI.dim == 0) sI.dim = sI.inUse.size();
-  if(sI.inUse.size() == 0 and sI.dim > 0) {
-    if(settings.world_rank == 0)
-    printf("Unspecified whether state vector components are available to learner, assumed yes\n");
-    sI.inUse = std::vector<bool>(sI.dim, true);
-  }
-  if(sI.dim not_eq sI.inUse.size()) { die("must be equal"); }
-
-  sI.dimUsed = 0;
-  for (Uint i=0; i<sI.inUse.size(); i++) if (sI.inUse[i]) sI.dimUsed++;
-
-  if(settings.world_rank == 0)
-  printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
-
-  aI.updateShifts();
-
-  if(0 == aI.bounded.size()) {
-    aI.bounded = std::vector<bool>(aI.dim, false);
-    if(settings.world_rank == 0)
-      printf("Unspecified whether action space is bounded: assumed not\n");
-  } else assert(aI.bounded.size() == aI.dim);
-
-  agents.resize(nAgents, nullptr);
-  for(Uint i=0; i<nAgents; i++) {
-    const Uint workerID = i / nAgentsPerRank;
-    const Uint localID = i % nAgentsPerRank;
-    agents[i] = new Agent(i, sI, aI, workerID, localID);
-  }
-
-  assert(sI.scale.size() == sI.mean.size());
-  assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
-  for (Uint i=0; i<sI.scale.size(); i++) assert(positive(sI.scale[i]));
-}
-
-bool Environment::pickReward(const Agent& agent) const
-{
-  return agent.Status == 2;
-}
-
-Uint Environment::getNdumpPoints()
-{
-  return 0;
-}
-
-Rvec Environment::getDumpState(Uint k)
-{
-  return Rvec();
 }
 
 Uint Environment::getNumberRewardParameters() {

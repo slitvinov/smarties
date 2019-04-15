@@ -15,273 +15,119 @@
 
 #include <sys/un.h>
 
-//APPLICATION SIDE CONSTRUCTOR
-Communicator::Communicator(int socket, int state_comp, int action_comp,
-  int number_of_agents) : gen(socket), bTrain(true), nEpisodes(-1)
+Communicator::Communicator(int number_of_agents)
 {
-  if(socket<0) {
-    printf("FATAL: Communicator created with socket < 0.\n");
-    fflush(0); abort();
-  }
-  if(state_comp<0) {
-    printf("FATAL: Cannot set negative state space dimensionality.\n");
-    fflush(0); abort();
-  }
-  if(action_comp<=0) {
-    printf("FATAL: Cannot set negative number of action degrees of freedom.\n");
-    fflush(0); abort();
-  }
-  if(number_of_agents<=0) {
-    printf("FATAL: Cannot set negative number of agents.\n");
-    fflush(0); abort();
-  }
-  assert(state_comp>=0 && action_comp>0 && number_of_agents>0);
-  nAgents = number_of_agents;
-  update_state_action_dims(state_comp, action_comp);
-  assert(socket not_eq 0);
-  socket_id = socket;
-  called_by_app = true;
+  set_num_agents(number_of_agents);
   launch();
 }
 
-#ifdef MPI_VERSION //MPI APPLICATION SIDE CONSTRUCTOR
-  Communicator::Communicator(const int socket, const int state_components,
-  const int action_components, const MPI_Comm app, const int number_of_agents)
-  : Communicator(socket, state_components, action_components, number_of_agents)
-  {
-    comm_inside_app = app;
-    update_rank_size();
-  }
-#endif
-
-// this function effectively sends the state of agent iAgent
-// (and additional info) and also waits for and stores selected action
-void Communicator::sendState(const int iAgent, const envInfo status,
-    const std::vector<double> state, const double reward)
+Communicator::Communicator(int stateDim, int actionDim, int number_of_agents)
 {
-  if(rank_inside_app <= 0)
-  { //only rank 0 of the app sends state
-    if(!sentStateActionShape) sendStateActionShape();
-    assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr);
-    assert(iAgent>=0 && iAgent<nAgents);
-
-    intToDoublePtr(iAgent, data_state+0);
-    intToDoublePtr(status, data_state+1);
-    for (int j=0; j<nStates; j++) {
-      data_state[j+2] = state[j];
-      assert(not std::isnan(state[j]) && not std::isinf(state[j]));
-    }
-    data_state[nStates+2] = reward;
-    assert(not std::isnan(reward) && not std::isinf(reward));
-
-    #ifdef MPI_VERSION
-      if (rank_learn_pool>0) workerSend_MPI();
-      else
-    #endif
-      sockSend(Socket, data_state, size_state);
-  }
-
-  // Now prepare next action for the same agent:
-  #ifdef MPI_VERSION
-    if(rank_inside_app <= 0)
-    {
-      if (rank_learn_pool>0) workerRecv_MPI();
-      else
-  #endif
-        sockRecv(Socket, data_action, size_action);
-
-  #ifdef MPI_VERSION // app rank 0 sends to other ranks
-      for (int i=1; i<size_inside_app; ++i)
-        MPI_Send(data_action, size_action, MPI_BYTE, i, 42, comm_inside_app);
-    } else {
-      MPI_Recv(data_action, size_action, MPI_BYTE, 0, 42, comm_inside_app, MPI_STATUS_IGNORE);
-    }
-  #endif
-
-  if(std::fabs(data_action[0]-AGENT_KILLSIGNAL)<2.2e-16) {
-    printf("Recvd kill signal: it's all over.\n"); fflush(0); abort();
-  }
-
-  if (status >= TERM_COMM) {
-    seq_id++;
-    msg_id = 0;
-    learner_step_id = (unsigned) * data_action;
-    stored_actions[iAgent][0] = AGENT_TERMSIGNAL;
-  } else {
-    for (int j=0; j<nActions; j++) {
-      stored_actions[iAgent][j] = data_action[j];
-      assert(not std::isnan(data_action[j]) && not std::isinf(data_action[j]));
-    }
-  }
+  set_num_agents(number_of_agents);
+  set_state_action_dims(stateDim, actionDim);
+  launch();
 }
 
-std::vector<double> Communicator::recvAction(const int iAgent)
+Communicator::commonInit()
 {
-  assert( std::fabs(stored_actions[iAgent][0]-AGENT_TERMSIGNAL) > 2.2e-16 );
-  return stored_actions[iAgent];
-}
+  std::random_device RD;
+  gen = std::mt19937(RD);
 
-void Communicator::setnAgents(int _nAgents)
-{
-  nAgents = _nAgents;
-}
-void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
-{
-  for(int i=agentStart; i<agentEnd; i++)
-    printf("TODO : Communicator::disableDataTrackingForAgents\n");
-}
-
-void Communicator::set_action_scales(const std::vector<double> upper,
-  const std::vector<double> lower, const bool bound)
-{
-  assert(!sentStateActionShape);
-  discrete_actions = 0;
-  assert(upper.size() == (size_t)nActions && lower.size() == (size_t)nActions);
-  for (int i=0; i<nActions; i++) action_bounds[2*i+0] = upper[i];
-  for (int i=0; i<nActions; i++) action_bounds[2*i+1] = lower[i];
-  for (int i=0; i<nActions; i++) action_options[2*i+0] = 2.1;
-  for (int i=0; i<nActions; i++) action_options[2*i+1] = bound ? 1.1 : 0;
-}
-
-void Communicator::set_action_options(const std::vector<int> action_option_num)
-{
-  assert(!sentStateActionShape);
-  discrete_actions = 1;
-  assert(action_option_num.size() == (size_t)nActions);
-  discrete_action_values = 0;
-  for (int i=0; i<nActions; i++) {
-    discrete_action_values += action_option_num[i];
-    action_options[2*i+0] = action_option_num[i];
-    action_options[2*i+1] = 1.1;
-  }
-
-  action_bounds.resize(discrete_action_values);
-  for(int i=0, k=0; i<nActions; i++)
-    for(int j=0; j<action_option_num[i]; j++)
-      action_bounds[k++] = j;
-}
-
-void Communicator::set_action_options(const int action_option_num)
-{
-  assert(!sentStateActionShape);
-  if(nActions != 1) {
-    printf("FATAL: Communicator::set_action_options perceived more than 1 action degree of freedom, but only one number of actions provided.\n");
+  if(ENV.nAgentsPerEnvironment <= 0) {
+    printf("FATAL: Must have at least one agent.\n");
     fflush(0); abort();
   }
-  assert(1 == nActions);
-  discrete_actions = 1;
-  discrete_action_values = action_option_num;
-  action_options[0] = action_option_num;
-  action_options[1] = 1.1;
 
-  action_bounds.resize(action_option_num);
-  for(int j=0; j<action_option_num; j++) action_bounds[j] = j;
+  connect2server();
 }
 
-void Communicator::set_state_scales(const std::vector<double> upper,
-  const std::vector<double> lower)
+// smarties side
+Communicator::Communicator(std::mt19937& G, bool _bTrain, int nEps) :
+  gen(G()), bTrain(_bTrain), nEpisodes(nEps)
 {
-  assert(!sentStateActionShape);
-  assert(upper.size() == (size_t)nStates && lower.size() == (size_t)nStates);
-  for (int i=0; i<nStates; i++) obs_bounds[2*i+0] = upper[i];
-  for (int i=0; i<nStates; i++) obs_bounds[2*i+1] = lower[i];
 }
 
-void Communicator::set_state_observable(const std::vector<bool> observable)
+void Communicator::sendState(const int agentID, const episodeStatus status,
+    const std::vector<double>& state, const double reward)
 {
-  assert(!sentStateActionShape);
-  assert(observable.size() == (size_t) nStates);
-  for (int i=0; i<nStates; i++) obs_inuse[i] = observable[i];
+  if ( not ENV.bFinalized ) synchronizeEnvironments();
+  const auto& MDP = ENV.getDescriptor(agentID);
+  assert(agentID>=0 && agentID<agents.size());
+  agents[agentID]->update(status, state, reward);
+  agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
+
+  if(worker not_eq nullptr)
+  {
+    worker->stepSocketToMaster();
+  }
+  else
+  {
+    SOCKET_Send(BUFF[0]->dataStateMsg,  BUFF[0]->sizeStateMsg,  SOCK.Socket);
+    SOCKET_Recv(BUFF[0]->dataActionMsg, BUFF[0]->sizeActionMsg, SOCK.Socket);
+  }
+
+  agents[agentID]->unpackActionMsg(BUFF[0]->dataActionMsg);
+
+  // we cannot control application. if we received a termination signal we abort
+  if(agents[agentID]->learnStatus == KILL) die("App recvd kill signal...");
+
+  //if (status >= TERM_COMM) stored_actions[agentID][0] = AGENT_TERMSIGNAL;
 }
 
-void Communicator::sendStateActionShape()
+const std::vector<double>& Communicator::recvAction(const int agentID) const
 {
-  if(sentStateActionShape) return;
-  sentStateActionShape = true;
+  assert( agents[agentID]->agentStatus < TERM && "Application read action for "
+    "a terminal state or truncated episode. Undefined behavior.");
+  return agents[agentID]->action;
+}
 
-  assert(obs_inuse.size() == (size_t) nStates);
-  assert(obs_bounds.size() == (size_t) nStates*2);
-  assert(action_bounds.size() == (size_t) nActions*2);
-  assert(action_options.size() == (size_t) discrete_action_values);
+void Communicator::synchronizeEnvironments()
+{
+  if ( ENV.bFinalized ) return;
 
-  // only rank 0 of MPI-based apps send the info to smarties:
-  if(rank_inside_app > 0) return;
-  // if app has multiple mpi groups, only rank 0 of first group sends state
-  if(workerGroup > 0) return;
-
-  double sizes[4] = {nStates+.1, nActions+.1, discrete_actions+.1, nAgents+.1};
-  #ifdef MPI_VERSION
-    if (rank_learn_pool>0) {
-      MPI_Ssend(sizes, 4*8, MPI_BYTE, 0,3, comm_learn_pool);
-      if(nStates>0)
-      {
-      MPI_Ssend(obs_inuse.data(), nStates*1*8, MPI_BYTE, 0, 3, comm_learn_pool);
-      MPI_Ssend(obs_bounds.data(), nStates*16, MPI_BYTE, 0, 4, comm_learn_pool);
-      }
-      MPI_Ssend(action_options.data(), nActions*16, MPI_BYTE, 0, 5, comm_learn_pool);
-      MPI_Ssend(action_bounds.data(), discrete_action_values*8, MPI_BYTE, 0, 6, comm_learn_pool);
-    } else
-  #endif
-    {
-      sockSend(Socket, sizes, 4 *sizeof(double));
-      if(nStates>0)
-      {
-      sockSend(Socket, obs_inuse.data(),      nStates *1*sizeof(double));
-      sockSend(Socket, obs_bounds.data(),     nStates *2*sizeof(double));
-      }
-      sockSend(Socket, action_options.data(), nActions*2*sizeof(double));
-      sockSend(Socket, action_bounds.data(),  discrete_action_values*8 );
-    }
+  if(worker not_eq nullptr)
+  {
+    worker->synchronizeEnvironments();
+  }
+  else
+  {
+    const auto sendBufferFunc = [&](void* buffer, size_t size) {
+      SOCKET_Bsend(buffer, size, SOCK.Socket);
+    };
+    ENV.synchronizeEnvironments(sendBufferFunc);
+    finalizeCommunicationBuffers();
+  }
 
   print();
 }
 
-void Communicator::update_state_action_dims(const int sdim, const int adim)
+void Communicator::finalizeCommunicationBuffers()
 {
-  if(sentStateActionShape) {
-    assert(adim==nActions);
-    assert(sdim==nStates);
-    return;
+  const Uint nAgents = ENV.nAgentsPerEnvironment;
+  Uint maxDimState  = 0, maxDimAction = 0;
+  for(size_t i=0; i<ENV.descriptors.size(); ++i)
+  {
+    maxDimState  = std::max(maxDimState,  ENV.descriptors[i]->dimState );
+    maxDimAction = std::max(maxDimAction, ENV.descriptors[i]->dimAction);
   }
-  assert(adim>0);
-  assert(sdim>=0);
-  assert(nAgents>0);
-  nStates = sdim;
-  nActions = adim;
-  discrete_action_values = 2*adim;
-  obs_inuse      = std::vector<double>(1*sdim, 1);
-  obs_bounds     = std::vector<double>(2*sdim, 0);
-  action_options = std::vector<double>(2*adim, 0);
-  action_bounds  = std::vector<double>(2*adim, 0);
-  for (int i = 0; i<2*sdim; i++) obs_bounds[i]     = i%2 == 0 ? 1   : -1;
-  for (int i = 0; i<2*adim; i++) action_options[i] = i%2 == 0 ? 2.1 :  0;
-  for (int i = 0; i<2*adim; i++) action_bounds[i]  = i%2 == 0 ? 1   : -1;
-  // agent number, initial/normal/terminal indicator, state,  reward
-  stored_actions = std::vector<std::vector<double>>(nAgents, std::vector<double>(nActions,0));
-  size_state = (3+sdim)*sizeof(double);
-  size_action = adim*sizeof(double);
-  _dealloc(data_action);
-  _dealloc(data_state);
-  data_action = _alloc(size_action);
-  data_state = _alloc(size_state);
+  BUFF.emplace_back(maxStateDim, maxActionDim);
 }
 
-void Communicator::launch()
+void Communicator::connect2server()
 {
-  assert(rank_inside_app < 1);
-
-  if ( ( Socket = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 ) {
-    printf("socket"); fflush(0); abort();
+  if( ( SOCK.server = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 )
+  {
+    printf("Socket failed"); fflush(0); abort();
   }
 
-  int _true = 1;
-  if( setsockopt(Socket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int)) < 0 ) {
+  int _TRU = 1;
+  if( setsockopt(SOCK.server, SOL_SOCKET, SO_REUSEADDR, &_TRU, sizeof(int))<0 )
+  {
     printf("Sockopt failed\n"); fflush(0); abort();
   }
 
   // Specify the socket
-  char SOCK_PATH[256];
-  sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
+  char SOCK_PATH[] = "../smarties_AFUNIX_socket_FD";
 
   // Specify the server
   struct sockaddr_un serverAddress;
@@ -292,92 +138,18 @@ void Communicator::launch()
                     + strlen(serverAddress.sun_path)+1;
 
   // Connect to the server
-  while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
-    usleep(1);
-}
-
-Communicator::~Communicator()
-{
-  if (rank_learn_pool>0) close(Socket); //if with forked process paradigm
-  if(data_state not_eq nullptr)  _dealloc(data_state);
-  if(data_action not_eq nullptr) _dealloc(data_action);
-}
-
-void Communicator::print()
-{
-  std::ostringstream fname;
-  int wrank = socket_id;
-  #ifdef MPI_VERSION
-    MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
-  #endif
-  fname<<"comm_"<<std::setw(3)<<std::setfill('0')<<wrank<<".log";
-  std::ofstream o(fname.str().c_str(), std::ios::app);
-  o <<(called_by_app?"Client":"Server")<<" communicator.\n";
-  o <<"nStates:"<<nStates<<" nActions:"<<nActions;
-  o <<" size_action:"<<size_action<< " size_state:"<< size_state<<"\n";
-  o <<"MPI comm: size_s"<<size_learn_pool<<" rank_s:"<<rank_learn_pool;
-  o <<" size_a:"<<size_inside_app<< " rank_a:"<< rank_inside_app<<"\n";
-  //o <<"Socket comm: prefix:"<<socket_id<<" PATH:"<<std::string(SOCK_PATH)<<"\n";
-  o.close();
-}
-
-void Communicator::update_rank_size()
-{
-  #ifdef MPI_VERSION
-  if (comm_inside_app != MPI_COMM_NULL) {
-    MPI_Comm_rank(comm_inside_app, &rank_inside_app);
-    MPI_Comm_size(comm_inside_app, &size_inside_app);
-  }
-  if (comm_learn_pool != MPI_COMM_NULL) {
-    MPI_Comm_rank(comm_learn_pool, &rank_learn_pool);
-    MPI_Comm_size(comm_learn_pool, &size_learn_pool);
-  }
-  #endif
-}
-
-#ifdef MPI_VERSION
-// ONLY FOR CHILD CLASS
-Communicator::Communicator(int socket, bool spawn, std::mt19937& G, int _bTr,
-  int nEps) : gen(G()), bTrain(_bTr), nEpisodes(nEps)
-{
-  if(socket<0) {
-    printf("FATAL: Communicator created with socket < 0.\n");
-    fflush(0); abort();
-  }
-  socket_id = socket;
-}
-
-void Communicator::workerSend_MPI()
-{
-  //if(send_request != MPI_REQUEST_NULL) MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-  //if(recv_request != MPI_REQUEST_NULL) workerRecv_MPI(iAgent);
-
-  assert(comm_learn_pool != MPI_COMM_NULL);
-  MPI_Request dummyreq;
-  MPI_Isend(data_state, size_state, MPI_BYTE,0,1,comm_learn_pool,&dummyreq);
-  MPI_Request_free(&dummyreq); //Not my problem? send_request
-  MPI_Irecv(data_action,size_action,MPI_BYTE,0,0,comm_learn_pool,&recv_request);
-}
-
-void Communicator::workerRecv_MPI()
-{
-  //auto start = std::chrono::high_resolution_clock::now();
-  assert(comm_learn_pool != MPI_COMM_NULL);
-  assert(recv_request != MPI_REQUEST_NULL);
-  //if(recv_request != MPI_REQUEST_NULL) {
-    while(true) {
-      int completed=0;
-      MPI_Test(&recv_request, &completed, MPI_STATUS_IGNORE);
-      if (completed) break;
-      usleep(1);
+  size_t nAttempts = 0;
+  while (connect(SOCK.server, (struct sockaddr *)&serverAddress, servlen) < 0)
+  {
+    if(++nAttempts % 1000 == 0) {
+      printf("Application is taking too much time to connect to smarties."
+             " If your application needs to change directories (e.g. set up a"
+             " dedicated directory for each run) it should do so AFTER"
+             " the connection to smarties has been initialzed.\n");
     }
-  //  memcpy(&stored_actions[iAgent], data_action, size_action);
-  //}
-  assert(recv_request == MPI_REQUEST_NULL);
-  //auto elapsed = std::chrono::high_resolution_clock::now() - start;
-  //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
+    usleep(1);
+  }
 }
-#endif
 
 std::mt19937& Communicator::getPRNG() {
   return gen;
@@ -387,28 +159,4 @@ bool Communicator::isTraining() {
 }
 int Communicator::desiredNepisodes() {
   return nEpisodes;
-}
-int Communicator::getDimS() {
-  return nStates;
-}
-int Communicator::getDimA() {
-  return nActions;
-}
-int Communicator::getNagents() {
-  return nAgents;
-}
-int Communicator::nDiscreteAct() {
-  return discrete_actions;
-}
-std::vector<double>& Communicator::stateBounds() {
-  return obs_bounds;
-}
-std::vector<double>& Communicator::isStateObserved() {
-  return obs_inuse;
-}
-std::vector<double>& Communicator::actionOption() {
-  return action_options;
-}
-std::vector<double>& Communicator::actionBounds() {
-  return action_bounds;
 }

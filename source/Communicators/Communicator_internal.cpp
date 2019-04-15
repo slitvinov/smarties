@@ -60,28 +60,7 @@ void Communicator_internal::createGo_rundir()
   }
 }
 
-int Communicator_internal::recvStateFromApp()
-{
-  assert(clientSockets.size() == 1);
-  int bytes = recv_all(clientSockets[0], data_state, size_state);
-  if(bytes not_eq size_state) {
-    if (bytes == 0) _warn("socket %d hung up\n", Socket);
-    else warn("(1) recv");
-    intToDoublePtr(0, data_state+0);
-    intToDoublePtr(FAIL_COMM, data_state+1);
-  }
-  if(comm_learn_pool not_eq MPI_COMM_NULL) workerSend_MPI();
-  return bytes <= 0;
-}
 
-int Communicator_internal::sendActionToApp()
-{
-  assert(clientSockets.size() == 1);
-  if(comm_learn_pool not_eq MPI_COMM_NULL) workerRecv_MPI();
-  bool endSignal = std::fabs(data_action[0] - AGENT_KILLSIGNAL) < 2.2e-16;
-  send_all(clientSockets[0], data_action, size_action);
-  return endSignal;
-}
 
 void Communicator_internal::answerTerminateReq(const double answer) {
   data_action[0] = answer;
@@ -191,101 +170,6 @@ void Communicator_internal::redirect_stdout_finalize()
   fsetpos(stdout, &pos);
 }
 
-void Communicator_internal::getStateActionShape()
-{
-  if(sentStateActionShape) die("undefined behavior");
-
-  double sizes[4] = {0, 0, 0, 0};
-  if(nOwnWorkers>0)
-  {
-    if (rank_learn_pool==0)
-      MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
-    else {
-      for(int i=0; i<nOwnWorkers; i++)
-        sockRecv(clientSockets[i], sizes, 4*sizeof(double));
-      if(rank_learn_pool==1)
-        MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
-    }
-  } else if (S.world_rank == 0) die("");
-
-  if(S.mastersComm not_eq MPI_COMM_NULL)
-    MPI_Bcast(sizes, 32, MPI_BYTE, 0, S.mastersComm);
-
-  nStates          = doublePtrToInt(sizes+0);
-  nActions         = doublePtrToInt(sizes+1);
-  discrete_actions = doublePtrToInt(sizes+2);
-  nAgents          = doublePtrToInt(sizes+3);
-
-  assert(nStates>=0 && nActions>0);
-  update_state_action_dims(nStates, nActions);
-  inpBufs = alloc_bufs(size_state,  nOwnWorkers);
-  outBufs = alloc_bufs(size_action, nOwnWorkers);
-
-  sentStateActionShape = true;
-
-  if(nOwnWorkers>0)
-  {
-   if (rank_learn_pool==0) {
-    if(nStates>0)
-    {
-    MPI_Recv(obs_inuse.data(),nStates*8,MPI_BYTE,1,3,comm_learn_pool, MPI_STATUS_IGNORE);
-    MPI_Recv(obs_bounds.data(),nStates*16,MPI_BYTE,1,4,comm_learn_pool, MPI_STATUS_IGNORE);
-    }
-    MPI_Recv(action_options.data(),nActions*16,MPI_BYTE,1,5,comm_learn_pool, MPI_STATUS_IGNORE);
-   } else {
-    for(int i=0; i<nOwnWorkers; i++)
-    {
-      if(nStates>0)
-      {
-      sockRecv(clientSockets[i], obs_inuse.data(), nStates*8);
-      sockRecv(clientSockets[i], obs_bounds.data(), nStates*16);
-      }
-      sockRecv(clientSockets[i], action_options.data(), nActions*16);
-    }
-    if (rank_learn_pool==1) {
-     if(nStates>0)
-     {
-     MPI_Ssend(obs_inuse.data(), nStates*8,MPI_BYTE,0,3, comm_learn_pool);
-     MPI_Ssend(obs_bounds.data(), nStates*16,MPI_BYTE,0,4, comm_learn_pool);
-     }
-     MPI_Ssend(action_options.data(),nActions*16,MPI_BYTE,0,5, comm_learn_pool);
-    }
-   }
-  }
-
-  if(S.mastersComm not_eq MPI_COMM_NULL)
-  {
-    if(nStates>0)
-    {
-    MPI_Bcast(obs_inuse.data(), nStates*8, MPI_BYTE, 0, S.mastersComm);
-    MPI_Bcast(obs_bounds.data(), nStates*16, MPI_BYTE, 0, S.mastersComm);
-    }
-    MPI_Bcast(action_options.data(), nActions*16, MPI_BYTE, 0, S.mastersComm);
-  }
-
-  int n_vals = 0;
-  for(int i=0; i<nActions; i++) n_vals += action_options[i*2];
-  discrete_action_values = n_vals;
-
-  action_bounds.resize(n_vals);
-  if(nOwnWorkers>0)
-  {
-    if (rank_learn_pool==0)
-      MPI_Recv(action_bounds.data(), n_vals*8, MPI_BYTE, 1, 6, comm_learn_pool, MPI_STATUS_IGNORE);
-    else {
-      for(int i=0; i<nOwnWorkers; i++)
-        sockRecv(clientSockets[i], action_bounds.data(), n_vals*8);
-      if (rank_learn_pool==1)
-       MPI_Ssend(action_bounds.data(),n_vals*8, MPI_BYTE,0,6, comm_learn_pool);
-    }
-  }
-
-  if(S.mastersComm not_eq MPI_COMM_NULL)
-    MPI_Bcast(action_bounds.data(), n_vals*8, MPI_BYTE, 0, S.mastersComm);
-
-  print();
-}
-
 void Communicator_internal::sendTerminateReq()
 {
   //it's awfully ugly, i send -256 to kill the workers... but...
@@ -295,13 +179,6 @@ void Communicator_internal::sendTerminateReq()
     if(bSpawnApp) send_all(clientSockets[i-1], outBufs[i-1], size_action);
     else MPI(Ssend, outBufs[i-1], size_action, MPI_BYTE, i, 0, comm_learn_pool);
   }
-}
-
-std::vector<double*> Communicator_internal::alloc_bufs(const int size, const int num)
-{
-  std::vector<double*> ret(num, nullptr);
-  for(int i=0; i<num; i++) ret[i] = _alloc(size);
-  return ret;
 }
 
 void Communicator_internal::unpackState(const int i, int& agent, envInfo& info,
@@ -319,51 +196,6 @@ void Communicator_internal::unpackState(const int i, int& agent, envInfo& info,
   reward = data[nStates+2];
   assert(not std::isnan(reward));
   assert(not std::isinf(reward));
-}
-
-void Communicator_internal::sendBuffer(const int i, const std::vector<double> V)
-{
-  assert(i>0 && i <= (int) outBufs.size() && V.size() == (size_t) nActions);
-  std::copy (V.begin(), V.end(), outBufs[i-1] );
-
-  if(bSpawnApp)
-    send_all(clientSockets[i-1], outBufs[i-1], size_action);
-  else {
-    MPI_Request tmp;
-    MPI(Isend, outBufs[i-1], size_action, MPI_BYTE, i, 0,
-      comm_learn_pool, &tmp);
-    MPI(Request_free, &tmp); //Not my problem
-  }
-}
-
-void Communicator_internal::recvBuffer(const int i)
-{
-  if(bSpawnApp) return;
-
-  MPI(Irecv, inpBufs[i-1], size_state, MPI_BYTE, i, 1,
-      comm_learn_pool, &requests[i-1]);
-}
-
-int Communicator_internal::testBuffer(const int i)
-{
-  int completed = 0;
-  if(bSpawnApp)
-  {
-    const int bytes = recv_all(clientSockets[i-1], inpBufs[i-1], size_state);
-    if(bytes not_eq size_state) {
-      if (bytes == 0) _die("socket %d hung up\n", clientSockets[i-1]);
-      else die("(1) recv");
-      intToDoublePtr(FAIL_COMM, data_state+1);
-    }
-    completed = 1;
-  }
-  else
-  {
-    MPI_Status mpistatus;
-    MPI(Test, &requests[i-1], &completed, &mpistatus);
-    if(completed) assert(i == mpistatus.MPI_SOURCE);
-  }
-  return completed;
 }
 
 void Communicator_internal::launch()

@@ -12,42 +12,104 @@
 /**************************   HELPER ROUTINES   **************************/
 /*************************************************************************/
 
-
-int recv_all(int fd, void *buffer, unsigned int size)
+int SOCKET_Irecv(void* const buffer,
+               const unsigned size,
+               const int socketid,
+               unsigned* const request
+)
 {
-  int result;
-  unsigned int s=size;
-  char *pos = (char*)buffer;
-
-
-  do {
-    result=recv(fd,pos,s,0);
-    if((result!=-1)&&(result>0)) {
-      s -= result;
-      pos += result;
-    }
-    else
-      return result; /*-1;*/
-  } while (s>0);
-  //printf("recver %f\n",*((double*)buffer));
-  return size;
+  char* const charbuf = (char*) buffer;
+  unsigned& received_size = * request;
+  const unsigned to_receive = size - received_size;
+  char* const recv_buffer = charbuf + received_size;
+  assert(received_size <= size);
+  if(to_receive == 0) return 0;
+  const int bytesrecv = recv(socketid, recv_buffer, to_receive, MSG_DONTWAIT);
+  if(bytesrecv >= 0)
+  {
+    received_size += bytesrecv;
+    assert(received_size <= size);
+    return 0;
+  } else return -1;
 }
 
-int send_all(int fd, void *buffer, unsigned int size)
+int SOCKET_Isend(const void* const buffer,
+               const unsigned size,
+               const int socketid,
+               unsigned* const request
+)
 {
-  int result;
-  unsigned int s=size;
-  char *pos = (char*)buffer;
+  const char* const charbuf = (const char*) buffer;
+  unsigned& sent_size = * request;
+  const unsigned to_send = size - sent_size;
+  const char* const send_buffer = charbuf + sent_size;
+  assert(sent_size <= size);
+  if(to_send == 0) return 0;
+  const int bytessent = recv(socketid, send_buffer, to_send, MSG_DONTWAIT);
+  if(bytessent >= 0)
+  {
+    sent_size += bytessent;
+    assert(sent_size <= size);
+    return 0;
+  } else return -1;
+}
 
-  do {
-    result=send(fd,pos,s,0);
-    if((result!=-1)&&(result>0)) {
-      s -= result;
-      pos += result;
+int SOCKET_Brecv(void* const buffer, const unsigned size, const int socketid)
+{
+  unsigned bytes_to_receive = size;
+  char* pos = (char*) buffer;
+  while (bytes_to_receive > 0)
+  {
+    const int bytesrecv = recv(socketid, pos, bytes_to_receive, 0);
+    assert(bytesrecv <= bytes_to_receive);
+    if( bytesrecv >= 0 ) {
+      bytes_to_receive -= bytesrecv;
+      pos += bytesrecv;
     }
-    else return result; /*-1;*/
-  } while (s>0);
-  return size;
+    else return -1;
+  }
+  return 0;
+}
+
+int SOCKET_Recv(void* const buffer, const unsigned size, const int socketid)
+{
+  unsigned request = 0;
+  while (1)
+  {
+    const int err = SOCKET_Irecv(buffer, size, socketid, &request);
+    if(err) return err;
+    if(request >= size) return 0;
+    usleep(1); // wait for master without burning a cpu
+  }
+}
+
+int SOCKET_Bsend(const void*const buffer,const unsigned size,const int socketid)
+{
+  unsigned bytes_to_send = size;
+  char* pos = (char*)buffer;
+  while ( bytes_to_send > 0 )
+  {
+    const int bytessent = send(socketid, pos, bytes_to_send, 0);
+    assert(bytessent <= bytes_to_send);
+    if( bytessent >= 0 ) {
+      bytes_to_send -= bytessent;
+      pos += bytessent;
+    }
+    else return -1;
+  }
+  return 0;
+}
+
+int SOCKET_Send(const void*const buffer,const unsigned size,const int socketid)
+{
+  unsigned request = 0;
+  while (1)
+  {
+    const int err = SOCKET_Isend(buffer, size, socketid, &request);
+    if(err) return err;
+    if(request >= size) return 0;
+    usleep(1); // wait for master without burning a cpu
+  }
 }
 
 int parse2(char *line, char **argv)
@@ -162,22 +224,4 @@ int copy_from_dir(const std::string name)
     return 1;
   }
   return 0;
-}
-
-void sockRecv(int fd, double*const data, const int size)
-{
-  int bytes = recv_all(fd, data, size);
-  if (bytes <= 0) {
-    printf("Lost contact with smarties, aborting..\n");
-    fflush(0); abort();
-  }
-}
-
-void sockSend(int fd, double*const data, const int size)
-{
-  int bytes = send_all(fd, data, size);
-  if (bytes <= 0) {
-    printf("Lost contact with smarties, aborting..\n");
-    fflush(0); abort();
-  }
 }

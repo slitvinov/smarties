@@ -162,10 +162,20 @@ void _dispose_object(T *const& ptr)
     delete ptr;
 }
 
-inline MPI_Comm MPIComDup(const MPI_Comm C) {
+inline MPI_Comm MPICommDup(const MPI_Comm C) {
   MPI_Comm ret;
   MPI_Comm_dup(C, &ret);
   return ret;
+}
+inline int MPICommSize(const MPI_Comm C) {
+  int size;
+  MPI_Comm_size(C, &size);
+  return size;
+}
+inline int MPICommRank(const MPI_Comm C) {
+  int rank;
+  MPI_Comm_rank(C, &rank);
+  return rank;
 }
 
 inline bool isZero(const Real vals)
