@@ -77,6 +77,14 @@ struct Agent
       ++timeStepInEpisode;
     }
   }
+  void act(const Uint label)
+  {
+    action = aInfo.label2action<double>(label);
+  }
+  void act(const Rvec& _act)
+  {
+    action = std::vector<double>(_act.begin(), _act.end());
+  }
 
   void packStateMsg(void * const buffer) const // put agent's state into buffer
   {
@@ -122,20 +130,6 @@ struct Agent
     assert(testStepID == timeStepInEpisode && testAgentID == localID);
   }
 
-  static size_t computeStateMsgSize(const size_t sDim)
-  {
-   return 2*sizeof(unsigned) + sizeof(episodeStatus) + (sDim+1)*sizeof(double);
-  }
-
-  void act(const Uint label)
-  {
-    action = aInfo.label2action<double>(label);
-  }
-  void act(const Rvec& _act)
-  {
-    action = std::vector<double>(_act.begin(), _act.end());
-  }
-
   void packActionMsg(void * const buffer) const
   {
     assert(buffer not_eq nullptr);
@@ -170,7 +164,20 @@ struct Agent
   {
     return * (unsigned*) buffer;
   }
-
+  static episodeStatus& messageEpisodeStatus(char * buffer)
+  {
+    buffer += sizeof(unsigned);
+    return * (episodeStatus *) buffer;
+  }
+  static learnerStatus& messageLearnerStatus(char * buffer)
+  {
+    buffer += sizeof(unsigned);
+    return * (learnerStatus *) buffer;
+  }
+  static size_t computeStateMsgSize(const size_t sDim)
+  {
+   return 2*sizeof(unsigned) + sizeof(episodeStatus) + (sDim+1)*sizeof(double);
+  }
   static size_t computeActionMsgSize(const size_t aDim)
   {
    return 2*sizeof(unsigned) +sizeof(learnerStatus) + aDim*sizeof(double);

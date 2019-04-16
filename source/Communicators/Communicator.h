@@ -133,14 +133,17 @@ protected:
   bool bTrain = true;
   int nEpisodes -1;
 
-  // To get access to smarties' internals:
-  #ifdef MPI_VERSION
-  std::shared_pointer<Worker> worker;
-  #endif
-
   //called by app to interact with smarties:
   void sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
+
+  #ifdef SMARTIES
+    //access to smarties' internals, available only if app is linked into exec
+    friend class Worker;
+    std::shared_pointer<Worker> worker;
+    MPI_Comm workers_application_comm = MPI_COMM_SELF;    
+  #endif
+
   //called as constructor only by child class: Communicator_internal
   Communicator(std::mt19937& G, bool _bTrain, int nEps) :
     gen(G()), bTrain(_bTrain), nEpisodes(nEps) { }

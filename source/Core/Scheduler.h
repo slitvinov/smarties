@@ -12,12 +12,126 @@
 #include <mutex>
 #include "../Learners/Learner.h"
 
+class WorkerSockets : Master<WorkerSockets>
+{
+  mutable std::vector<SOCKET_REQ> reqs = std::vector<SOCKET_REQ>(nCallingEnvs+1);
+
+protected:
+
+  void  Recv(void* const buffer, const Uint size, const int worker) const {
+    SOCKET_Brecv(buffer, size, getSocketID(worker));
+  }
+  void  RecvState(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Recv(buffer.dataStateMsg, buffer.sizeStateMsg, worker);
+  }
+
+  void Irecv(void* const buffer, const Uint size, const int worker) const {
+    SOCKET_Irecv(buffer, size, getSocketID(worker), reqs[worker]);
+  }
+  void IrecvState(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Irecv(buffer.dataStateMsg, buffer.sizeStateMsg, worker);
+  }
+
+  void  Send(void* const buffer, const Uint size, const int worker) const {
+    SOCKET_Bsend(buffer, size, getSocketID(worker));
+  }
+  void  SendAction(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Send(buffer.dataActionMsg, buffer.sizeActionMsg, worker);
+  }
+
+  void Isend(void* const buffer, const Uint size, const int worker) const {
+    SOCKET_Isend(buffer, size, getSocketID(worker), reqs[worker]);
+  }
+  void IsendAction(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Isend(buffer.dataActionMsg, buffer.sizeActionMsg, worker);
+  }
+
+  int TestComm(const int worker) const {
+    SOCKET_Test(reqs[worker].completed, reqs[worker]);
+    return reqs[worker].completed;
+  }
+  void WaitComm(const int worker) const {
+    SOCKET_Wait(reqs[worker]);
+  }
+};
+
+class WorkerMPI : Master<WorkerMPI>
+{
+  mutable std::vector<MPI_Request> reqs =
+    std::vector<MPI_Request>(nCallingEnvs+1, MPI_REQUEST_NULL);
+
+protected:
+
+  void  Recv(void* const buffer, const Uint size, const int worker) const {
+    MPI(Recv, buffer, size, MPI_BYTE, worker, 22846,
+        master_workers_comm, MPI_STATUS_IGNORE);
+  }
+  void  RecvState(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Recv(buffer.dataStateMsg, buffer.sizeStateMsg, worker);
+  }
+
+  void Irecv(void* const buffer, const Uint size, const int worker) const {
+    MPI(Irecv, buffer, size, MPI_BYTE, worker, 22846,
+        master_workers_comm, & reqs[worker]);
+  }
+  void IrecvState(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Irecv(buffer.dataStateMsg, buffer.sizeStateMsg, worker);
+  }
+
+  void  Send(void* const buffer, const Uint size, const int worker) const {
+    MPI(Send, buffer, size, MPI_BYTE, worker, 22846, master_workers_comm);
+  }
+  void  SendAction(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Send(buffer.dataActionMsg, buffer.sizeActionMsg, worker);
+  }
+
+  void Isend(void* const buffer, const Uint size, const int worker) const {
+    MPI(Isend, buffer, size, MPI_BYTE, worker, 22846,
+        master_workers_comm, & reqs[worker]);
+  }
+  void IsendAction(const int worker) const {
+    const COMM_buffer& buffer = getCommBuffer(worker);
+    Isend(buffer.dataActionMsg, buffer.sizeActionMsg, worker);
+    MPI_Request_free(& );
+  }
+
+  int TestComm(const int worker) const {
+    int completed = 0; MPI_Status mpistatus;
+    MPI(Test, &reqs[worker], &completed, &mpistatus);
+    assert(worker == mpistatus.MPI_SOURCE);
+    return completed;
+  }
+  void WaitComm(const int worker) const {
+    MPI_Status mpistatus;
+    MPI(Wait, &reqs[worker], &mpistatus);
+    assert(worker == mpistatus.MPI_SOURCE);
+  }
+};
+
+template <typename CommType>
+class Master : public Worker
+{
+protected:
+
+  CommType * interface() { return static_cast<CommType*> (this); }
+};
+
 class Worker
 {
+protected:
   const Settings& settings;
+  TaskQueue tasks;
 
   const Communicator_internal COMM;
   const MPI_Comm master_workers_comm;
+  const MPI_Comm workerless_masters_comm;
 
   const std::vector<std::unique_ptr<Learner>> learners;
   const MPI_Comm learners_train_comm;
@@ -25,55 +139,32 @@ class Worker
   const Environment& ENV = COMM.ENV;
   const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
 
-  const Uint nCallingEnvironments;
-};
+  const Uint nCallingEnvs;
 
-class Worker : public Worker
-{
-  const Settings& settings;
+  // small utility functions:
+  Uint getLearnerID(const Uint agentIDlocal) const;
+  bool learnersBlockingDataAcquisition() const;
+  void dumpCumulativeReward(const Agent&, const Uint k, const Uint t) const;
 
-  const std::unique_ptr<Communicator_internal> COMM;
-  const MPI_Comm master_workers_comm;
+  void answerStateActionCaller(const int bufferID);
 
-  const std::vector<std::unique_ptr<Learner>> learners;
-  const MPI_Comm learners_train_comm;
-
-  const Environment& ENV = COMM.ENV;
-  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
-
-  const int nAgentsPerRank = ENV.nAgentsPerEnvironment;
   const int bTrain = settings.bTrain;
-};
 
-class Worker
-{
-  const Environment& ENV = COMM.ENV;
-  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
 
-  const MPI_Comm learners_train_comm;
-  const std::vector<std::unique_ptr<Learner>> learners;
-
-  Uint getLearnerID(const Uint agentIDlocal) const
-  { // some asserts:
-    // 1) agentID within environment must match what we know about environment
-    // 2) either only one learner or ID of agent in ENV must match a learner
-    // 3) if i have more than one learner, then i have one per agent in env
-    assert(agentIDlocal < ENV.nAgentsPerEnvironment);
-    assert(learners.size() == 1 || agentIDlocal < learners.size());
-    if(learners.size()>1)
-      assert(learners.size() == (size_t) ENV.nAgentsPerEnvironment);
-    // if one learner, return learnerID=0, else learnID == ID of agent in ENV
-    return learners.size()>1? agentIDlocal : 0;
+  int getSocketID(const Uint worker) const {
+    assert( worker>=0 && worker <= COMM.SOCK.clients.size() );
+    return worker>0? COMM.SOCK.clients[worker-1] : COMM.SOCK.server;
   }
-
-  const int bTrain = settings.bTrain;
+  const COMM_buffer& buffer getCommBuffer(const Uint worker) const {
+    assert( worker>0 && worker <= COMM.BUFF.size() );
+    return * COMM.BUFF[worker-1].get();
+  }
 };
 
 class Master : public Worker
 {
   MPI_Comm learners_data_sharing_comm = MPI_COMM_SELF;
 
-  TaskQueue tasks;
   const int nWorkers_own = settings.nWorkers_own;
   const int nThreads = settings.nThreads;
   const int learn_rank = settings.learner_rank;

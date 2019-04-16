@@ -15,7 +15,6 @@ class Communicator_internal: public Communicator
 {
  protected:
   const Settings& S;
-  MPI_Comm workers_application_comm = MPI_COMM_SELF;
 
   std::string execPath    = S.launchfile;
   std::string setupFolder = S.setupFolder;
