@@ -22,6 +22,12 @@ void Environment::synchronizeEnvironments(
 
   sendRecvFunc(&nAgentsPerEnvironment, 1 * sizeof(Uint) );
   sendRecvFunc(&bAgentsHaveSeparateMDPdescriptors, 1 * sizeof(bool) );
+  sendRecvFunc(&nMPIranksPerEnvironment, 1 * sizeof(Uint) );
+  if(nMPIranksPerEnvironment <= 0) {
+    warn("Overriding nMPIranksPerEnvironment -> 1");
+    nMPIranksPerEnvironment = 1;
+  }
+
   bTrainFromAgentData.resize(nAgentsPerEnvironment, true);
   sendRecvFunc(&bTrainFromAgentData.data(), nAgentsPerEnvironment*sizeof(bool));
 

@@ -17,6 +17,7 @@ struct Environment
   Uint nAgents, nAgentsPerEnvironment;
   Uint nDescriptors = 1;
   bool bAgentsHaveSeparateMDPdescriptors = false;
+  Uint nMPIranksPerEnvironment = 1;
   bool bFinalized = false;
 
   std::vector<std::unique_ptr<MDPdescriptor>> descriptors;

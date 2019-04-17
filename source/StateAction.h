@@ -10,6 +10,14 @@
 
 #include "Settings.h"
 
+struct Conv2D_PreprocessingDescriptor
+{
+  std::array<Uint, 3> input_features;
+  std::array<Uint, 3> filter_size;
+  Uint stridex, stridey;
+  Uint paddinx, paddiny;
+};
+
 struct MDPdescriptor
 {
   // This struct contains all information to fully define the state and action
@@ -50,6 +58,9 @@ struct MDPdescriptor
   Uint maxActionLabel; //number of actions options for discretized act spaces
   // to map between value and dicrete action option we need 'shifts':
   std::vector<Uint> discreteActionShifts;
+
+  Uint nAppendedObs = 0;
+  bool isPartiallyObservable = false;
 
   void synchronizeDescriptor( const std::function<void(void*, size_t)>& );
 };

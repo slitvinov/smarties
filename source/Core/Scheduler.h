@@ -130,11 +130,11 @@ protected:
   TaskQueue tasks;
 
   const Communicator_internal COMM;
-  const MPI_Comm master_workers_comm;
-  const MPI_Comm workerless_masters_comm;
+  const MPI_Comm& master_workers_comm = settings.master_workers_comm;
+  const MPI_Comm& workerless_masters_comm = settings.workerless_masters_comm;
+  const MPI_Comm& learners_train_comm = settings.learners_train_comm;
 
   const std::vector<std::unique_ptr<Learner>> learners;
-  const MPI_Comm learners_train_comm;
 
   const Environment& ENV = COMM.ENV;
   const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;

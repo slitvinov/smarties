@@ -7,45 +7,230 @@
 //
 
 #pragma once
-#include "Utils/ArgParser.h"
+#include "CLI/CLI.hpp"
 #include "Utils/Warnings.h"
 #include "Settings.h"
 
-#include <functional>
-#include <getopt.h>
+DistributionInfo::DistributionInfo(int argc, char** argv)
+{
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
+  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  if (threadSafety < MPI_THREAD_SERIALIZED)
+    die("The MPI implementation does not have required thread support");
+  // this value will determine if we can use asynchronous mpi calls:
+  bAsync = threadSafety >= MPI_THREAD_MULTIPLE;
+  world_size = MPICommSize(MPI_COMM_WORLD);
+  world_rank = MPICommRank(MPI_COMM_WORLD);
 
-std::vector<ArgParser::OptionStruct> Settings::initializeOpts ()
-{ //  //{ CHARARG_, "", TYPENUM_, COMMENT_, &, (TYPEVAL_) DEFAULT_ },
-  //AVERT YOUR EYES!
+  if (not bAsync and world_rank == 0)
+    printf("MPI implementation does not support MULTIPLE thread safety!\n");
+}
 
-  return std::vector<ArgParser::OptionStruct> ({
-    // LEARNER ARGS: MUST contain all 17 mentioned above (more if modified)
-    READOPT(learner), READOPT(bTrain), READOPT(clipImpWeight),
-    READOPT(targetDelay), READOPT(explNoise), READOPT(ERoldSeqFilter),
-    READOPT(gamma), READOPT(dataSamplingAlgo), READOPT(klDivConstraint),
-    READOPT(lambda), READOPT(minTotObsNum), READOPT(maxTotObsNum),
-    READOPT(obsPerStep), READOPT(penalTol), READOPT(epsAnneal),
-    READOPT(bSampleSequences), READOPT(bSharedPol), READOPT(totNumSteps),
+~DistributionInfo::DistributionInfo()
+{
+  MPI_Finalize();
+}
 
-    // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
-    READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
-    READOPT(nnl5), READOPT(nnl6), READOPT(batchSize), READOPT(appendedObs),
-    READOPT(nnPdrop), READOPT(nnOutputFunc), READOPT(nnFunc),
-    READOPT(learnrate), READOPT(ESpopSize), READOPT(nnType),
-    READOPT(outWeightsPrefac),
-    READOPT(nnLambda), READOPT(splitLayers), READOPT(nnBPTTseq),
+void DistributionInfo::initializeOpts (CLI:App & parser)
+{
+  parser.add_option("--nThreads",          nThreads,          COMMENT_nThreads);
+  parser.add_option("--nMasters",          nMasters,          COMMENT_nMasters);
+  parser.add_option("--nWorkers",          nWorkers,          COMMENT_nWorkers);
+  parser.add_option("--logAllSamples",     logAllSamples,     COMMENT_logAllSamples);
+  parser.add_option("--maxTotSeqNum",      maxTotSeqNum,      COMMENT_maxTotSeqNum);
+  parser.add_option("--randSeed",          randSeed,          COMMENT_randSeed);
+  parser.add_option("--runInternalApp",    runInternalApp,    COMMENT_runInternalApp);
+  parser.add_option("--nStepPappSett",     nStepPappSett,     COMMENT_nStepPappSett);
+  parser.add_option("--appSettings",       appSettings,       COMMENT_appSettings);
+  parser.add_option("--launchFile",        launchFile,        COMMENT_launchFile);
+  parser.add_option("--setupFolder",       setupFolder,       COMMENT_setupFolder);
+  parser.add_option("--learnersOnWorkers", learnersOnWorkers, COMMENT_learnersOnWorkers);
+  parser.add_option("--fakeMastersRanks",  fakeMastersRanks,  COMMENT_fakeMastersRanks);
+}
 
-    // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
-    READOPT(nThreads), READOPT(nMasters), READOPT(nWorkers),
-    READOPT(isServer), READOPT(sockPrefix), READOPT(samplesFile),
-    READOPT(restart), READOPT(maxTotSeqNum),
-    READOPT(randSeed), READOPT(saveFreq), READOPT(runInternalApp),
+inline Uint notRoundedSplitting(const Uint nSplitters,
+                                const Uint nToSplit,
+                                const Uint splitterRank)
+{
+  const Uint nPerSplitter = std::ceil( nToSplit / (Real) nSplitters );
+  const Uint splitBeg = std::min( splitterRank    * nPerSplitter, nToSplit);
+  const Uint splitEnd = std::min((splitterRank+1) * nPerSplitter, nToSplit);
+  return splitEnd - splitBeg;
+}
+inline Uint indxStripedMPISplitting(const Uint nSplitters,
+                                    const Uint nToSplit,
+                                    const Uint indexedRank)
+{
+  assert(indexedRank < nSplitters + nToSplit);
+  for(Uint i=0, countIndex=0; i<nSplitters; ++i) {
+    const Uint nInGroup = notRoundedSplitting(nSplitters, nToSplit, i);
+    countIndex += nInGroup+1; // nInGroup resources + 1 handler
+    if(indexedRank < countIndex) return i;
+  }
+  assert(false && "logic error"); return 0;
+}
+inline Uint rankStripedMPISplitting(const Uint nSplitters,
+                                    const Uint nToSplit,
+                                    const Uint indexedRank)
+{
+  assert(indexedRank < nSplitters + nToSplit);
+  for(Uint i=0, countIndex=0; i<nSplitters; ++i) {
+    const Uint nInGroup = notRoundedSplitting(nSplitters, nToSplit, i);
+    if(indexedRank < countIndex + nInGroup+1)
+      return indexedRank - countIndex;
+    countIndex += nInGroup+1; // nInGroup resources + 1 handler
+  }
+  assert(false && "logic error"); return 0;
+}
 
-    // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
-    READOPT(environment), READOPT(workersPerEnv), READOPT(rType),
-    READOPT(senses), READOPT(nStepPappSett),
-    READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder)
-  });
+void DistributionInfo::figureOutWorkersPattern()
+{
+  nWorker_processes = world_size - nMasters;
+  bool bThereAreMasters = nMasters > 0;
+  bool bThereAreWorkerProcesses = nWorker_processes > 0;
+  if(nWorkers < nWorker_processes) {
+    _warn("Overriding user input! Setting nWorkers to %u to have at least one environment process per worker rank", nWorker_processes);
+    nWorkers = nWorker_processes;
+  }
+
+  bIsMaster = false;
+  nOwnedEnvironments = 0;
+  nForkedProcesses2spawn = 0;
+  master_workers_comm = MPI_COMM_NULL;
+  learners_train_comm = MPI_COMM_NULL;
+  workerless_masters_comm = MPI_COMM_NULL;
+
+  if(bThereAreMasters)
+  {
+    if(bThereAreWorkerProcesses)
+    { // then masters talk to workers, and workers own environments
+      // what is the size of the mpi communicator where we have workers?
+      bIsMaster =
+          rankStripedMPISplitting(nMaster, nWorker_processes, world_rank) == 0;
+      Uint masterWorkerCommID =
+          indxStripedMPISplitting(nMaster, nWorker_processes, world_rank);
+
+      if(fakeMastersRanks) { // overwrite splitting if we have only fake masters
+        bIsMaster = world_rank < nMaster;
+        masterWorkerCommID = 0;
+      }
+
+      // TEMPORARY:
+      if(nWorker_processes not_eq nWorkers) die("Mismach in number of worker processes");
+
+      MPI_Comm_split(MPI_COMM_WORLD, bIsMaster,          world_rank, & learners_train_comm);
+      MPI_Comm_split(MPI_COMM_WORLD, masterWorkerCommID, world_rank, & master_workers_comm);
+
+      if(bIsMaster)
+      {
+        nOwnedEnvironments = MPICommSize(master_workers_comm) - 1;
+        if(nWorker_processes < nMaster)
+             workerless_masters_comm = MPICommDup(learners_train_comm);
+        else workerless_masters_comm = MPI_COMM_NULL;
+        nForkedProcesses2spawn = 0;
+      }
+      else
+      {
+        if (MPICommSize(learners_train_comm) not_eq nWorker_processes) die("Logic error");
+        nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, MPICommRank(learners_train_comm));
+        assert(nOwnedEnvironments==1);
+
+        if(runInternalApp) nForkedProcesses2spawn = 0;
+        else nForkedProcesses2spawn = nOwnedEnvironments;
+
+        MPI_Comm_free(& learners_train_comm);
+        learners_train_comm = MPI_COMM_NULL;
+        workerless_masters_comm = MPI_COMM_NULL;
+      }
+    }
+    else
+    {
+      bIsMaster = true;
+      nOwnedEnvironments = notRoundedSplitting(nMaster, nWorkers, world_rank);
+      nForkedProcesses2spawn = nOwnedEnvironments;
+      if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of mpi processes.");
+      master_workers_comm = MPI_COMM_NULL;
+      learners_train_comm = MPI_COMM_WORLD;
+      if(nWorkers < nMaster) // then i need to share data
+           workerless_masters_comm = MPICommDup(learners_train_comm);
+      else workerless_masters_comm = MPI_COMM_NULL;
+    }
+  }
+  else // there are no masters : workers alternate environment and learner
+  {
+    // only have workers, 2 cases either evaluating a policy or alternate
+    // data gathering and learning algorithm iteration on same comp resources
+    die("TODO");
+    bIsMaster = false;
+    learnersOnWorkers = true;
+    if(nWorker_processes <= 0) die("Error in computation of world_size");
+    if(not runInternalApp) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
+    if(nWorkers not_eq nWorker_processes) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
+    nOwnedEnvironments = 1;
+    learners_train_comm  = MPI_COMM_WORLD;
+    master_workers_comm = MPI_COMM_NULL;
+    workerless_masters_comm = MPI_COMM_NULL; // all are workers implies all have data
+  }
+}
+
+void Settings::initializeOpts (CLI:App & parser)
+{
+  parser.add_option("--learner",          learner,          COMMENT_learner);
+  parser.add_option("--bTrain",           bTrain,           COMMENT_bTrain);
+  parser.add_option("--restart",          restart,          COMMENT_restart);
+  parser.add_option("--explNoise",        explNoise,        COMMENT_explNoise);
+  parser.add_option("--gamma",            gamma,            COMMENT_gamma);
+  parser.add_option("--lambda",           lambda,           COMMENT_lambda);
+  parser.add_option("--obsPerStep",       obsPerStep,       COMMENT_obsPerStep);
+  parser.add_option("--clipImpWeight",    clipImpWeight,    COMMENT_clipImpWeight);
+  parser.add_option("--penalTol",         penalTol,         COMMENT_penalTol);
+  parser.add_option("--klDivConstraint",  klDivConstraint,  COMMENT_klDivConstraint);
+  parser.add_option("--targetDelay",      targetDelay,      COMMENT_targetDelay);
+  parser.add_option("--epsAnneal",        epsAnneal,        COMMENT_epsAnneal);
+  parser.add_option("--ERoldSeqFilter",   ERoldSeqFilter,   COMMENT_ERoldSeqFilter);
+  parser.add_option("--dataSamplingAlgo", dataSamplingAlgo, COMMENT_dataSamplingAlgo);
+  parser.add_option("--minTotObsNum",     minTotObsNum,     COMMENT_minTotObsNum);
+  parser.add_option("--maxTotObsNum",     maxTotObsNum,     COMMENT_maxTotObsNum);
+  parser.add_option("--bSampleSequences", bSampleSequences, COMMENT_bSampleSequences);
+  parser.add_option("--saveFreq",         saveFreq,         COMMENT_saveFreq);
+  parser.add_option("--totNumSteps",      totNumSteps,      COMMENT_totNumSteps);
+
+
+  parser.add_option("--nnLayerSizes",     nnLayerSizes,     COMMENT_nnLayerSizes);
+  parser.add_option("--batchSize",        batchSize,        COMMENT_batchSize);
+  parser.add_option("--nnOutputFunc",     nnOutputFunc,     COMMENT_nnOutputFunc);
+  parser.add_option("--nnFunc",           nnFunc,           COMMENT_nnFunc);
+  parser.add_option("--learnrate",        learnrate,        COMMENT_learnrate);
+  parser.add_option("--ESpopSize",        ESpopSize,        COMMENT_ESpopSize);
+  parser.add_option("--nnType",           nnType,           COMMENT_nnType);
+  parser.add_option("--outWeightsPrefac", outWeightsPrefac, COMMENT_outWeightsPrefac);
+  parser.add_option("--nnLambda",         nnLambda,         COMMENT_nnLambda);
+  parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
+}
+
+void defineDistributedLearning(const MPI_Comm learnersComm, const MPI_Comm gatheringComm)
+{
+// each learner computes a fraction of the batch:
+  const Real nL = learner_size;
+  if(batchSize > 1) {
+    batchSize = std::ceil(batchSize / nL) * nL;
+    batchSize_loc = batchSize / learner_size;
+  } else batchSize_loc = batchSize;
+
+  if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
+  minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
+  minTotObsNum_loc = minTotObsNum / learner_size;
+  // each learner processes a fraction of the entire dataset:
+  maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
+  maxTotObsNum_loc = maxTotObsNum / learner_size;
+
+    // each worker collects a fraction of the initial memory buffer:
+   obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
+
+   if(batchSize_loc <= 0) die(" ");
+   if(obsPerStep_loc < 0) die(" ");
+   if(minTotObsNum_loc < 0) die(" ");
+   if(maxTotObsNum_loc <= 0) die(" ");
 }
 
 void Settings::check()
@@ -60,55 +245,17 @@ void Settings::check()
    restart = ".";
   }
 
-  if(mastersComm == MPI_COMM_NULL) die(" ");
-
-  MPI_Comm_rank(mastersComm, &learner_rank);
-  MPI_Comm_size(mastersComm, &learner_size);
-  assert(workers_rank == 0);
-
-  const Real nL = learner_size;
-  // each learner computes a fraction of the batch:
-  if(batchSize > 1) {
-    batchSize = std::ceil(batchSize / nL) * nL;
-    batchSize_loc = batchSize / learner_size;
-  } else batchSize_loc = batchSize;
-
-  // each worker collects a fraction of the initial memory buffer:
-  if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
-  minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
-  minTotObsNum_loc = minTotObsNum / learner_size;
-  // each learner processes a fraction of the entire dataset:
-  maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
-  maxTotObsNum_loc = maxTotObsNum / learner_size;
-
-  obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
-
-  if(batchSize_loc <= 0) die(" ");
-  if(obsPerStep_loc < 0) die(" ");
-  if(minTotObsNum_loc < 0) die(" ");
-  if(maxTotObsNum_loc <= 0) die(" ");
-
-  if(appendedObs<0)  die("appendedObs<0");
   if(targetDelay<0)  die("targetDelay<0");
-  if(splitLayers<0)  die("splitLayers<0");
-  if(totNumSteps<0)  die("totNumSteps<0");
-  if(sockPrefix<0)   die("sockPrefix<0");
+  //if(splitLayers<0)  die("splitLayers<0");
   if(obsPerStep<0)   die("obsPerStep<0");
-  if(learnrate>.1)   die("learnrate>.1");
+  if(learnrate>1)    die("learnrate>1");
   if(learnrate<0)    die("learnrate<0");
   if(explNoise<0)    die("explNoise<0");
   if(epsAnneal<0)    die("epsAnneal<0");
   if(batchSize<0)    die("batchSize<0");
   if(nnLambda<0)     die("nnLambda<0");
-  if(nThreads<1)     die("nThreads<1");
-  if(nMasters<1)     die("nMasters<1");
   if(gamma<0)        die("gamma<0");
   if(gamma>1)        die("gamma>1");
-  if(nnl1<0)         die("nnl1<0");
-  if(nnl2<0)         die("nnl2<0");
-  if(nnl3<0)         die("nnl3<0");
-  if(nnl4<0)         die("nnl4<0");
-  if(nnl5<0)         die("nnl5<0");
 
   if(epsAnneal>0.0001 || epsAnneal<0) {
     warn("epsAnneal should be tiny. It will be set to 5e-7 for this run.");
@@ -116,59 +263,26 @@ void Settings::check()
   }
 }
 
-void Settings::initRandomSeed()
+void DistributionInfo::initialzePRNG()
 {
-  if(randSeed<=0) {
+  if(nThreads<1) die("nThreads<1");
+  if(randSeed<=0)
+  {
     std::random_device rdev;
-    static constexpr long MAXINT = std::numeric_limits<int>::max();
-    randSeed = std::abs(rdev() % MAXINT);
-
-    std::cout << "Using seed " << randSeed << std::endl;
+    randSeed = std::abs(rdev() % std::numeric_limits<int>::max());
+    if(world_rank==0) printf("Using seed %d\n", randSeed);
     MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
-  sockPrefix = randSeed + world_rank;
   generators.resize(0);
   generators.reserve(omp_get_max_threads());
-  generators.push_back(std::mt19937(sockPrefix));
-  for(int i=1; i<omp_get_max_threads(); i++) {
-    const Uint seed = generators[0]();
-    generators.push_back(std::mt19937(seed));
-  }
+  generators.push_back(std::mt19937(randSeed));
+  for(int i=1; i<omp_get_max_threads(); i++)
+    generators.push_back( std::mt19937( generators[0]() ) );
 }
 
-void Settings::finalizeSeeds()
+void DistributionInfo::finalizePRNG(const Uint nAgents_local)
 {
-  const int currsize = generators.size();
-  if(currsize < nThreads + nAgents) {
-    generators.reserve(nThreads+nAgents);
-    for(int i=currsize; i<nThreads+nAgents; i++) {
-      const Uint seed = generators[0]();
-      generators.push_back(std::mt19937(seed));
-    }
-  }
-}
-
-std::vector<int> Settings::readNetSettingsSize() const
-{
-  std::vector<int> ret;
-  //if(nnl1<1) die("Add at least one hidden layer.\n");
-  if(nnl1>0) {
-    ret.push_back(nnl1);
-    if (nnl2>0) {
-      ret.push_back(nnl2);
-      if (nnl3>0) {
-        ret.push_back(nnl3);
-        if (nnl4>0) {
-          ret.push_back(nnl4);
-          if (nnl5>0) {
-            ret.push_back(nnl5);
-            if (nnl6>0) {
-              ret.push_back(nnl6);
-            }
-          }
-        }
-      }
-    }
-  }
-  return ret;
+  generators.reserve(generators.size() + nAgents_local);
+  for(size_t i=generators.size(); i < generators.size() + nAgents_local; i++)
+    generators.push_back( std::mt19937( generators[0]() ) );
 }

@@ -118,7 +118,7 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
 }
 
 template <typename T>
-inline std::string print(const std::vector<T> vals, const int width=-1)
+inline std::string vec2string(const std::vector<T> vals, const int width = -1)
 {
   std::ostringstream o;
   if(!vals.size()) return o.str();
