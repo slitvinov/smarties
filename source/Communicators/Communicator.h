@@ -8,15 +8,14 @@
 
 #pragma once
 #include <vector>
-#include <cstring>
+#include <memory>
 #include <random>
 
-#include <mpi.h>
-
-#include "Communicator_utils.h"
+#ifndef SMARTIES_LIB
+  #include <mpi.h>
+#endif
 
 struct COMM_buffer;
-class Worker;
 
 class Communicator
 {
@@ -126,7 +125,7 @@ protected:
   } SOCK;
 
   void synchronizeEnvironments();
-
+  void initOneCommunicationBuffer();
   //random number generation:
   std::mt19937 gen;
   //internal counters & flags
@@ -137,16 +136,22 @@ protected:
   void sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
-  #ifdef SMARTIES
+  #ifndef SMARTIES_LIB
+
+  public:
+    MPI_Comm getMPIcomm() const { rerturn workers_application_comm; }
+  protected:
+    MPI_Comm workers_application_comm = MPI_COMM_SELF;
+    void setMPIcomm(const MPI_Comm& C) { workers_application_comm = C; }
+
     //access to smarties' internals, available only if app is linked into exec
     friend class Worker;
     std::shared_pointer<Worker> worker;
-    MPI_Comm workers_application_comm = MPI_COMM_SELF;    
-  #endif
+    #ifndef MPI_VERSION
+      #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+    #endif
 
-  //called as constructor only by child class: Communicator_internal
-  Communicator(std::mt19937& G, bool _bTrain, int nEps) :
-    gen(G()), bTrain(_bTrain), nEpisodes(nEps) { }
+  #endif
 };
 
 struct COMM_buffer

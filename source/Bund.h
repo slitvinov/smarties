@@ -14,10 +14,6 @@
 #include <vector>
 #include <cassert>
 #include <limits>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
 
 #include <omp.h>
 #include <mpi.h>
@@ -216,38 +212,6 @@ inline nnReal nnSafeExp(const nnReal val) {
 
 inline Real annealRate(const Real eta, const Real t, const Real T) {
   return eta / (1 + t * T);
-}
-
-#ifdef __APPLE__
-#include <cpuid.h>
-#define CPUID(INFO, LEAF, SUBLEAF)                     \
-  __cpuid_count(LEAF, SUBLEAF, INFO[0], INFO[1], INFO[2], INFO[3])
-#define GETCPU(CPU) do {                               \
-        uint32_t CPUInfo[4];                           \
-        CPUID(CPUInfo, 1, 0);                          \
-        /* CPUInfo[1] is EBX, bits 24-31 are APIC ID */\
-        if ( (CPUInfo[3] & (1 << 9)) == 0) {           \
-          CPU = -1;  /* no APIC on chip */             \
-        }                                              \
-        else {                                         \
-          CPU = (unsigned)CPUInfo[1] >> 24;            \
-        }                                              \
-        if (CPU < 0) CPU = 0;                          \
-      } while(0)
-#else
-#define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
-#endif
-
-inline float approxRsqrt( const float number )
-{
-	union { float f; uint32_t i; } conv;
-	static constexpr float threehalfs = 1.5F;
-	const float x2 = number * 0.5F;
-	conv.f  = number;
-	conv.i  = 0x5f3759df - ( conv.i >> 1 );
-  // Uncomment to do 2 iterations:
-  //conv.f  = conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
-	return conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
 }
 
 

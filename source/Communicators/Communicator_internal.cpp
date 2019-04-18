@@ -12,14 +12,10 @@
 // main function call for user's application
 // arguments are: - the communicator with smarties
 //                - the mpi communicator to use within the app
-//                - number of (action-state) timesteps to perform
-//                  before returning (it can be ignored)
 //                - argc and argv read from settings file
 int app_main(Communicator*const smartiesCommunicator,
-             const MPI_Comm mpicom,
-             const Uint numDesiredTimeSteps,
-             int argc,
-             char**argv);
+             const MPI_Comm mpiCommunicator,
+             int argc, char**argv);
 
 Communicator_internal::Communicator_internal(Settings& _S) :
   Communicator(_S.generators[0], _S.bTrain, _S.totNumSteps), S(_S)
@@ -103,7 +99,7 @@ void Communicator_internal::runApplication()
     std::pair<int, fpos_t> currOutputFdescriptor;
     redirect_stdout_init(currOutputFdescriptor, 0);
 
-    app_main(commptr, numStepTSet, comm_inside_app, args.size()-1, args.data());
+    app_main(commptr, comm_inside_app, args.size()-1, args.data());
 
     redirect_stdout_finalize(currOutputFdescriptor);
 

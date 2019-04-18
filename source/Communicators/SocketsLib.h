@@ -28,7 +28,7 @@ inline int SOCKET_Irecv(void* const buffer,
                         SOCKET_REQ& request
 ) {
   request.client = socketid; request.buffer = buffer;
-  request.size = size; request.todo = size; type = SOCKET_RECV;
+  request.size = size; request.todo = size; request.type = SOCKET_RECV;
   return SOCKET_Test(request.completed, request);
 }
 
@@ -38,7 +38,7 @@ inline int SOCKET_Isend(void* const buffer,
                         SOCKET_REQ& request
 ) {
   request.client = socketid; request.buffer = buffer;
-  request.size = size; request.todo = size; type = SOCKET_SEND;
+  request.size = size; request.todo = size; request.type = SOCKET_SEND;
   return SOCKET_Test(request.completed, request);
 }
 

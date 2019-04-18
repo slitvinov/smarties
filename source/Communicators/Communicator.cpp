@@ -6,8 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "SocketsLib.h"
+#include "CommunicatorUtils.h"
 #include "Communicator.h"
+#include "SocketsLib.h"
 
 #include <fstream>
 
@@ -93,12 +94,15 @@ void Communicator::set_action_options(const std::vector<int> options,
 void Communicator::set_state_observable(const std::vector<bool> observable,
                                         const int agentID)
 {
-  if(ENV.bFinalized)
-    die("Cannot edit env description after having sent first state.");
-  if(agentID >= ENV.descriptors.size())
-    die("Attempted to write to uninitialized MDPdescriptor");
-  if(observable.size() not_eq ENV.descriptors[agentID]->dimState)
-    die("size mismatch when defining observed/hidden state variables");
+  if(ENV.bFinalized) {
+    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+  }
+  if(agentID >= ENV.descriptors.size()) {
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+  }
+  if(observable.size() not_eq ENV.descriptors[agentID]->dimState) {
+    printf("ABORTING: size mismatch when defining observed/hidden state variables."); fflush(0); abort();
+  }
 
   ENV.descriptors[agentID]->bStateVarObserved = observable;
 }
@@ -107,13 +111,16 @@ void Communicator::set_state_scales(const std::vector<double> upper,
                                     const std::vector<double> lower,
                                     const int agentID)
 {
-  if(ENV.bFinalized)
-    die("Cannot edit env description after having sent first state.");
-  if(agentID >= ENV.descriptors.size())
-    die("Attempted to write to uninitialized MDPdescriptor.");
+  if(ENV.bFinalized) {
+    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+  }
+  if(agentID >= ENV.descriptors.size()) {
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+  }
   if(upper.size() not_eq ENV.descriptors[agentID]->dimState or
-     lower.size() not_eq ENV.descriptors[agentID]->dimState )
-    die("size mismatch");
+     lower.size() not_eq ENV.descriptors[agentID]->dimState ) {
+    printf("ABORTING: upper/lower size mismatch."); fflush(0); abort();
+  }
   // For consistency with action space we ask user for a rough box of state vars
   // but in reality we scale with mean and stdev computed during training.
   // This function serves only as an optional initialization for statistiscs.
@@ -133,15 +140,19 @@ void Communicator::set_num_agents(int _nAgents)
 
 void Communicator::env_has_distributed_agents()
 {
+  /*
   if(comm_inside_app == MPI_COMM_NULL) {
-    die("Distributed agents has no effect on single-process applications. "
-         "It means that each simulation rank holds different agents.");
+    printf("ABORTING: Distributed agents has no effect on single-process "
+    " applications. It means that each simulation rank holds different agents.");
+    fflush(0); abort();
     bEnvDistributedAgents = false;
     return;
   }
+  */
   if(ENV.bAgentsHaveSeparateMDPdescriptors) {
-    die("support either distributed agents (ie each worker holds some of the "
-        "agents) or each agent defining a different MDP (state/act spaces).");
+    printf("ABORTING: Smarties supports either distributed agents (ie each "
+    "worker holds some of the agents) or each agent defining a different MDP "
+    "(state/act spaces)."); fflush(0); abort();
   }
   bEnvDistributedAgents =  true;
 }
@@ -149,8 +160,9 @@ void Communicator::env_has_distributed_agents()
 void Communicator::agents_define_different_MDP()
 {
   if(bEnvDistributedAgents) {
-    die("support either distributed agents (ie each worker holds some of the "
-        "agents) or each agent defining a different MDP (state/act spaces).");
+    printf("ABORTING: Smarties supports either distributed agents (ie each "
+    "worker holds some of the agents) or each agent defining a different MDP "
+    "(state/act spaces)."); fflush(0); abort();
   }
   ENV.initDescriptors(true);
 }
@@ -202,7 +214,7 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-#ifdef MPI_VERSION
+#ifdef SMARTIES_INTERNAL
   if(worker not_eq nullptr)
   {
     worker->synchronizeEnvironments();
@@ -214,12 +226,13 @@ void Communicator::synchronizeEnvironments()
       SOCKET_Bsend(buffer, size, SOCK.server);
     };
     ENV.synchronizeEnvironments(sendBufferFunc);
-    finalizeCommunicationBuffers();
+    // application process only needs one communication buffer:
+    initOneCommunicationBuffer();
   }
   assert(BUFF.size() > 0);
 }
 
-void Communicator::finalizeCommunicationBuffers()
+void Communicator::initOneCommunicationBuffer()
 {
   const Uint nAgents = ENV.nAgentsPerEnvironment;
   Uint maxDimState  = 0, maxDimAction = 0;

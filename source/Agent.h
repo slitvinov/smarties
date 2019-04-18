@@ -8,9 +8,11 @@
 
 #pragma once
 #include "StateAction.h"
-#include "Settings.h"
+
+#ifndef SMARTIES_LIB
 #include <atomic>
 #define OUTBUFFSIZE 65536
+#endif
 
 enum episodeStatus {INIT, CONT, TERM, TRNC, FAIL};
 enum learnerStatus {WORK, KILL};
@@ -38,10 +40,6 @@ struct Agent
   std::vector<double> action;
   double reward; // current reward
   double cumulativeRewards = 0;
-
-  // for dumping to state-action-reward-policy binary log (writeBuffer):
-  mutable float buf[OUTBUFFSIZE];
-  mutable std::atomic<Uint> buffCnter {0};
 
   Agent(Uint _ID, Uint workID, Uint _localID, MDPdescriptor& _MDP) :
     ID(_ID), workerID(workID), localID(_localID), MDP(_MDP) {}
@@ -183,6 +181,11 @@ struct Agent
    return 2*sizeof(unsigned) +sizeof(learnerStatus) + aDim*sizeof(double);
   }
 
+#ifndef SMARTIES_LIB
+  // for dumping to state-action-reward-policy binary log (writeBuffer):
+  mutable float buf[OUTBUFFSIZE];
+  mutable std::atomic<Uint> buffCnter {0};
+
   void writeBuffer(const int rank) const
   {
     if(buffCnter == 0) return;
@@ -219,15 +222,16 @@ struct Agent
     assert(buffCnter == ind);
   }
 
-  void checkNanInf()
-  {
+#endif
+
+  void checkNanInf() const {
     #ifndef NDEBUG
-      const auto isValid = [] (const double val) {
+      const auto assertValid = [] (const double val) {
         assert( not std::isnan(val) and not std::isinf(val) );
       }
-      for (Uint j=0; j<action.size(); ++j) isValid(action[j]);
-      for (Uint j=0; j<state.size(); ++j) isValid(state[j]);
-      isValid(reward);
+      for (Uint j=0; j<action.size(); ++j) assertValid(action[j]);
+      for (Uint j=0; j<state.size(); ++j) assertValid(state[j]);
+      assertValid(reward);
     #endif
   }
 };

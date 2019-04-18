@@ -15,9 +15,8 @@ class Builder;
 struct Environment
 {
   Uint nAgents, nAgentsPerEnvironment;
-  Uint nDescriptors = 1;
   bool bAgentsHaveSeparateMDPdescriptors = false;
-  Uint nMPIranksPerEnvironment = 1;
+  //Uint nMPIranksPerEnvironment = 1;
   bool bFinalized = false;
 
   std::vector<std::unique_ptr<MDPdescriptor>> descriptors;
@@ -29,12 +28,11 @@ struct Environment
     return * descriptors[agentID].get();
   }
 
-  Settings * settings = nullptr;
+  void synchronizeEnvironments(
+    const std::function<void(void*, size_t)>& sendRecvFunc,
+    const Uint nCallingEnvironments = 1);
 
   Environment();
-
-  virtual bool pickReward(const Agent& agent) const;
-  virtual bool predefinedNetwork(Builder & input_net) const;
 
   // for a given environment, size of the IRL reward dictionary
   virtual Uint getNumberRewardParameters();

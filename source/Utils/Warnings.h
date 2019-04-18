@@ -7,9 +7,9 @@
 //
 
 #pragma once
-#include "../Bund.h"
+//#include "../Bund.h"
 #include <mutex>
-#include <sstream>
+//#include <sstream>
 #include <stdarg.h>
 
 namespace ErrorHandling
@@ -22,9 +22,9 @@ namespace ErrorHandling
   //static constexpr Debug_level level = SCHEDULER;
 
 //#define PR_ERR(fd,a,...) fprintf(fd,a,__func__,__FILE__,__LINE__,##__VA_ARGS__);
-#define FLUSHALL fflush(stdout); fflush(stderr); fflush(0);
-#define KILLALL MPI_Abort(MPI_COMM_WORLD, 1);
-#define LOCKCOMM std::lock_guard<std::mutex> wlock(ErrorHandling::warn_mutex);
+#define SMARTIES_FLUSHALL fflush(stdout); fflush(stderr); fflush(0);
+#define SMARTIES_KILLALL  MPI_Abort(MPI_COMM_WORLD, 1);
+#define SMARTIES_LOCKCOMM std::lock_guard<std::mutex> wlock(ErrorHandling::warn_mutex);
 
 inline static void printfmt(char*const p, const int N, const char*const a, ... )
 {
@@ -33,8 +33,6 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
   vsnprintf (p, N, a, args);
   va_end (args);
 }
-
-
 // THESE ARE ALL DEFINES ALLOWING PRINTING FILE, FUNC, LINE
 
 #define    die(format)      do { LOCKCOMM  \
@@ -116,6 +114,10 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
     " ", BUF); FLUSHALL} } while(0)
 
 }
+
+#undef FLUSHALL
+#undef KILLALL
+#undef LOCKCOMM
 
 template <typename T>
 inline std::string vec2string(const std::vector<T> vals, const int width = -1)

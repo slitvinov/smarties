@@ -7,9 +7,6 @@
 //
 
 #pragma once
-#include <getopt.h>
-#include "Utils/ArgParser.h"
-#include "Utils/Warnings.h"
 #include <functional>
 
 class TaskQueue
@@ -41,23 +38,20 @@ struct DistributionInfo
   Uint world_rank;
   Uint world_size;
 
-  Uint nWorker_processes;
-
-   // for workers to talk to their master
-  MPI_Comm master_workers_comm = MPI_COMM_NULL;
-  // for masters to talk among themselves
-  MPI_Comm workerless_masters_comm = MPI_COMM_NULL;
-  MPI_Comm learners_train_comm = MPI_COMM_NULL;
-
-  // number of workers (usually per master)
-  Uint nOwnedEnvironments = 1;
-  //int learGroupSize = -1;
-  //int workerCommInd = -1;
-  bool bIsMaster;
-
   int threadSafety = -1;
   bool bAsync;
   mutable std::mutex mpi_mutex;
+
+  Uint nWorker_processes;
+
+  MPI_Comm master_workers_comm = MPI_COMM_NULL;
+  MPI_Comm workerless_masters_comm = MPI_COMM_NULL;
+  MPI_Comm learners_train_comm = MPI_COMM_NULL;
+  MPI_Comm environment_app_comm = MPI_COMM_NULL;
+
+  bool bIsMaster;
+  Uint nOwnedEnvironments = 0;
+  Uint nForkedProcesses2spawn = 0;
 
   //random number generators (one per thread)
   mutable std::vector<std::mt19937> generators;
@@ -103,6 +97,11 @@ except for one to sleep. smarties will behave as if node 0 is the master and \
 all other nodes are workers, with 1 process per CPU core. "
 #define DEFAULT_fakeMastersRanks false
   bool fakeMastersRanks = DEFAULT_fakeMastersRanks;
+
+#define COMMENT_workerProcessesPerEnv "Number of MPI ranks required by the the env \
+application. It is 1 for serial/shared-memory solvers.""
+#define DEFAULT_workerProcessesPerEnv 1
+  Uint workerProcessesPerEnv = DEFAULT_workerProcessesPerEnv;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT
@@ -300,10 +299,6 @@ multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
   Uint minTotObsNum_local = -1;
   Uint maxTotObsNum_local = -1;
 
-  //number of agents that:
-  // in case of worker: # of agents that are contained in an environment
-  // in case of master: nWorkers * # are contained in an environment
-  int nAgents = -1;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
 

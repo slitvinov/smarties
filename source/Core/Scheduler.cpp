@@ -26,8 +26,10 @@ Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
   for(const auto& L : learners) L->setupTasks(tasks);
 }
 
-Worker::Worker(Communicator_internal*const _c,Environment*const _e,Settings&_s)
-: comm(_c), env(_e) {}
+Worker::Worker(Settings& settings, DistributionInfo& distrib)
+: comm(_c), env(_e)
+{
+}
 
 void Worker::runTraining()
 {
@@ -265,7 +267,27 @@ void Worker::synchronizeEnvironments()
     }
   };
 
-  synchronizeEnvironments( recvBuffer );
+  synchronizeEnvironments(recvBuffer, distrib.nOwnedEnvironments);
+
+  for(Uint i=0; i<distrib.nOwnedEnvironments; ++i)
+    COMM.initOneCommunicationBuffer();
+
+  // now i know nAgents, might need more generators:
+  distrib.finalizePRNG(ENV.nAgents);
+
+  // return if this process should not host the learning algorithms
+  if(not distrib.bIsMaster and not distrib.learnersOnWorkers) return;
+
+  const Uint nLearners = ENV.bAgentsHaveSeparateMDPdescriptors? 1 : ENV.nAgentsPerEnvironment;
+  learners.reserve(nLearners);
+  for(Uint i = 0; i<nLearners; i++)
+  {
+    std::stringstream ss; ss<<"agent_"<<std::setw(2)<<std::setfill('0')<<i;
+    if(distrib.world_rank == 0) printf("Learner: %s\n", ss.str().c_str());
+    learners[i] = createLearner(ENV, settings);
+    learners[i]->setLearnerName(ss.str() +"_", i);
+    learners[i]->restart();
+  }
 }
 
 void Worker::loopSocketToMaster() const

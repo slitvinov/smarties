@@ -6,7 +6,6 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
 #include "CLI/CLI.hpp"
 #include "Utils/Warnings.h"
 #include "Settings.h"
@@ -28,24 +27,34 @@ DistributionInfo::DistributionInfo(int argc, char** argv)
 
 ~DistributionInfo::DistributionInfo()
 {
+  if(MPI_COMM_NULL not_eq     master_workers_comm)
+          MPI_Comm_free(&     master_workers_comm);
+  if(MPI_COMM_NULL not_eq workerless_masters_comm)
+          MPI_Comm_free(& workerless_masters_comm);
+  if(MPI_COMM_NULL not_eq     learners_train_comm)
+          MPI_Comm_free(&     learners_train_comm);
+  if(MPI_COMM_NULL not_eq    environment_app_comm)
+          MPI_Comm_free(&    environment_app_comm);
   MPI_Finalize();
 }
 
 void DistributionInfo::initializeOpts (CLI:App & parser)
 {
-  parser.add_option("--nThreads",          nThreads,          COMMENT_nThreads);
-  parser.add_option("--nMasters",          nMasters,          COMMENT_nMasters);
-  parser.add_option("--nWorkers",          nWorkers,          COMMENT_nWorkers);
-  parser.add_option("--logAllSamples",     logAllSamples,     COMMENT_logAllSamples);
-  parser.add_option("--maxTotSeqNum",      maxTotSeqNum,      COMMENT_maxTotSeqNum);
-  parser.add_option("--randSeed",          randSeed,          COMMENT_randSeed);
-  parser.add_option("--runInternalApp",    runInternalApp,    COMMENT_runInternalApp);
-  parser.add_option("--nStepPappSett",     nStepPappSett,     COMMENT_nStepPappSett);
-  parser.add_option("--appSettings",       appSettings,       COMMENT_appSettings);
-  parser.add_option("--launchFile",        launchFile,        COMMENT_launchFile);
-  parser.add_option("--setupFolder",       setupFolder,       COMMENT_setupFolder);
-  parser.add_option("--learnersOnWorkers", learnersOnWorkers, COMMENT_learnersOnWorkers);
-  parser.add_option("--fakeMastersRanks",  fakeMastersRanks,  COMMENT_fakeMastersRanks);
+  parser.add_option("--nThreads",               nThreads,               COMMENT_nThreads);
+  parser.add_option("--nMasters",               nMasters,               COMMENT_nMasters);
+  parser.add_option("--nWorkers",               nWorkers,               COMMENT_nWorkers);
+  parser.add_option("--logAllSamples",          logAllSamples,          COMMENT_logAllSamples);
+  parser.add_option("--maxTotSeqNum",           maxTotSeqNum,           COMMENT_maxTotSeqNum);
+  parser.add_option("--randSeed",               randSeed,               COMMENT_randSeed);
+  parser.add_option("--runInternalApp",         runInternalApp,         COMMENT_runInternalApp);
+  parser.add_option("--nStepPappSett",          nStepPappSett,          COMMENT_nStepPappSett);
+  parser.add_option("--appSettings",            appSettings,            COMMENT_appSettings);
+  parser.add_option("--launchFile",             launchFile,             COMMENT_launchFile);
+  parser.add_option("--setupFolder",            setupFolder,            COMMENT_setupFolder);
+  parser.add_option("--learnersOnWorkers",      learnersOnWorkers,      COMMENT_learnersOnWorkers);
+  parser.add_option("--fakeMastersRanks",       fakeMastersRanks,       COMMENT_fakeMastersRanks);
+  parser.add_option("--workerProcessesPerEnv",  workerProcessesPerEnv,  COMMENT_workerProcessesPerEnv);
+
 }
 
 inline Uint notRoundedSplitting(const Uint nSplitters,
@@ -93,11 +102,27 @@ void DistributionInfo::figureOutWorkersPattern()
     nWorkers = nWorker_processes;
   }
 
+  // the rest of this method will define (or leave untouched) these entities:
+  // 1) will this process run a master (in a master-worker pattern) process
   bIsMaster = false;
+  // 2) for how many environments will this process have to compute actions
+  //    (principally affects how many Agents and associated memory buffers
+  //     are allocated)
   nOwnedEnvironments = 0;
+  // 3) does this process need to fork to create child processes which will
+  //    in turn run the environment application (communication over sockets)
   nForkedProcesses2spawn = 0;
+  // 4) mpi communicator to send state/actions or data/parameters from a process
+  //    hosting the learning algo and other proc. handling data collection
   master_workers_comm = MPI_COMM_NULL;
+  // 5) mpi communicator shared by all ranks that host the learning algorithms
+  //    and perform the actual parameter update steps
   learners_train_comm = MPI_COMM_NULL;
+  // 6) mpi communicator given to a group of worker processes that should pool
+  //    together to run an environment app which requires distributed computing
+  environment_app_comm = MPI_COMM_NULL;
+  // 7) mpi communicator for masters without direct link to a worker to recv
+  //    training data from other masters
   workerless_masters_comm = MPI_COMM_NULL;
 
   if(bThereAreMasters)
@@ -116,10 +141,12 @@ void DistributionInfo::figureOutWorkersPattern()
       }
 
       // TEMPORARY:
-      if(nWorker_processes not_eq nWorkers) die("Mismach in number of worker processes");
+      if(nWorker_processes not_eq nWorkers) die("Mismach in number of worker processes. We do not have a way for the master to know how many environments are hosted on its workers");
 
       MPI_Comm_split(MPI_COMM_WORLD, bIsMaster,          world_rank, & learners_train_comm);
       MPI_Comm_split(MPI_COMM_WORLD, masterWorkerCommID, world_rank, & master_workers_comm);
+      printf("Process %d is a %s part of comm %d.\n",
+          world_rank, bIsMaster? "master" : "worker", masterWorkerCommID);
 
       if(bIsMaster)
       {
@@ -128,15 +155,35 @@ void DistributionInfo::figureOutWorkersPattern()
              workerless_masters_comm = MPICommDup(learners_train_comm);
         else workerless_masters_comm = MPI_COMM_NULL;
         nForkedProcesses2spawn = 0;
+
+        if(runInternalApp) { // unblock creation of environment's mpi communicator
+          MPI_Comm dummy; // no need to free this
+          MPI_Comm_split(master_workers_comm, MPI_UNDEFINED, 0, &dummy);
+        }
       }
       else
       {
-        if (MPICommSize(learners_train_comm) not_eq nWorker_processes) die("Logic error");
-        nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, MPICommRank(learners_train_comm));
-        assert(nOwnedEnvironments==1);
+        const Uint totalWorkRank = MPICommRank(learners_train_comm);
+        const Uint totalWorkSize = MPICommRank(learners_train_comm);
+        assert(totalWorkSize == nWorker_processes && "Code logic error");
+        nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, totalWorkRank);
 
-        if(runInternalApp) nForkedProcesses2spawn = 0;
-        else nForkedProcesses2spawn = nOwnedEnvironments;
+        const Uint innerWorkRank = MPICommSize(master_workers_comm);
+        const Uint innerWorkSize = MPICommSize(master_workers_comm);
+        assert(nOwnedEnvironments==1 && innerWorkRank>0 && innerWorkSize>1);
+
+        if(runInternalApp)
+        {
+          nForkedProcesses2spawn = 0;
+          if( (innerWorkSize-1) % workerProcessesPerEnv not_eq 0) {
+            _die("Number of worker ranks per master (%u) must be a multiple of "
+            "the nr. of ranks that the environment app requires to run (%u).\n",
+            innerWorkSize-1, workerProcessesPerEnv);
+          }
+          const Uint workerGroup = (innerWorkRank-1) / workerProcessesPerEnv;
+          MPI_Comm_split(master_workers_comm, workerGroup, innerWorkRank, &environment_app_comm);
+        } else
+          nForkedProcesses2spawn = nOwnedEnvironments;
 
         MPI_Comm_free(& learners_train_comm);
         learners_train_comm = MPI_COMM_NULL;
@@ -147,8 +194,10 @@ void DistributionInfo::figureOutWorkersPattern()
     {
       bIsMaster = true;
       nOwnedEnvironments = notRoundedSplitting(nMaster, nWorkers, world_rank);
+      // should also equal:
+      // nWorkers/world_size + ( (nWorkers%world_size) > world_rank );
       nForkedProcesses2spawn = nOwnedEnvironments;
-      if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of mpi processes.");
+      if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of worker mpi processes.");
       master_workers_comm = MPI_COMM_NULL;
       learners_train_comm = MPI_COMM_WORLD;
       if(nWorkers < nMaster) // then i need to share data
@@ -160,7 +209,6 @@ void DistributionInfo::figureOutWorkersPattern()
   {
     // only have workers, 2 cases either evaluating a policy or alternate
     // data gathering and learning algorithm iteration on same comp resources
-    die("TODO");
     bIsMaster = false;
     learnersOnWorkers = true;
     if(nWorker_processes <= 0) die("Error in computation of world_size");
@@ -170,6 +218,16 @@ void DistributionInfo::figureOutWorkersPattern()
     learners_train_comm  = MPI_COMM_WORLD;
     master_workers_comm = MPI_COMM_NULL;
     workerless_masters_comm = MPI_COMM_NULL; // all are workers implies all have data
+
+    const Uint totalWorkRank = MPICommRank(learners_train_comm);
+    const Uint totalWorkSize = MPICommRank(learners_train_comm);
+    if( (totalWorkSize-1) % workerProcessesPerEnv not_eq 0) {
+      _die("Number of worker ranks per master (%u) must be a multiple of "
+      "the nr. of ranks that the environment app requires to run (%u).\n",
+      totalWorkSize-1, workerProcessesPerEnv);
+    }
+    const Uint workerGroup = (totalWorkRank-1) / workerProcessesPerEnv;
+    MPI_Comm_split(learners_train_comm, workerGroup, totalWorkRank, &environment_app_comm);
   }
 }
 
@@ -208,7 +266,7 @@ void Settings::initializeOpts (CLI:App & parser)
   parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
 }
 
-void defineDistributedLearning(const MPI_Comm learnersComm, const MPI_Comm gatheringComm)
+void Settings::defineDistributedLearning(const MPI_Comm learnersComm, const MPI_Comm gatheringComm)
 {
 // each learner computes a fraction of the batch:
   const Real nL = learner_size;

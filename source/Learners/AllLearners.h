@@ -21,7 +21,7 @@
 #include "VRACER.h"
 #include "Learner_pytorch.h"
 
-inline void print(std::ostringstream& o, std::string fname, int rank)
+inline static void printLogfile(std::ostringstream& o, std::string fname, int rank)
 {
   if(rank != 0) return;
   std::ofstream fout(fname.c_str(), std::ios::app);
@@ -30,102 +30,102 @@ inline void print(std::ostringstream& o, std::string fname, int rank)
   fout.close();
 }
 
-inline Learner* createLearner(Environment*const env, Settings&settings)
+inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settings)
 {
-  Learner * ret = nullptr;
+  std::unique_ptr<Learner> ret;
   std::ostringstream o;
-  o << env->sI.dim << " ";
+  o << env.sI.dim << " ";
 
   if (settings.learner == "PYTORCH")
   {
-    ret = new Learner_pytorch(env, settings);
+    ret = std::make_unique<Learner_pytorch>(env, settings);
   }
   else
   if (settings.learner == "RACER")
   {
-    if(env->aI.discrete) {
+    if(env.aI.discrete) {
       using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
-      env->aI.policyVecDim = RACER_discrete::getnDimPolicy(&env->aI);
-      o << env->aI.maxLabel << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
-      ret = new RACER_discrete(env, settings);
+      env.aI.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
+      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
+      ret = std::make_unique<RACER_discrete>(env, settings);
     } else {
       //using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
       using RACER_continuous = RACER<Param_advantage,Gaussian_policy,Rvec>;
-      env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
-      o << env->aI.dim << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
-      ret = new RACER_continuous(env, settings);
+      env.aI.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
+      o << env.aI.dim << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
+      ret = std::make_unique<RACER_continuous>(env, settings);
     }
   }
   else
   if (settings.learner == "VRACER")
   {
-    if(env->aI.discrete) {
+    if(env.aI.discrete) {
       using RACER_discrete = VRACER<Discrete_policy, Uint>;
-      env->aI.policyVecDim = RACER_discrete::getnDimPolicy(&env->aI);
-      o << env->aI.maxLabel << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
-      ret = new RACER_discrete(env, settings);
+      env.aI.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
+      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
+      ret = std::make_unique<RACER_discrete>(env, settings);
     } else {
       //using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
       using RACER_continuous = VRACER<Gaussian_policy, Rvec>;
-      env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
-      o << env->aI.dim << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
-      ret = new RACER_continuous(env, settings);
+      env.aI.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
+      o << env.aI.dim << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
+      ret = std::make_unique<RACER_continuous>(env, settings);
     }
   }
   /*
   else
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
-    assert(env->aI.discrete);
-    o << env->aI.maxLabel << " " << env->aI.maxLabel;
-    print(o, "problem_size.log", settings.world_rank);
-    env->aI.policyVecDim = env->aI.maxLabel;
+    assert(env.aI.discrete);
+    o << env.aI.maxLabel << " " << env.aI.maxLabel;
+    printLogfile(o, "problem_size.log", settings.world_rank);
+    env.aI.policyVecDim = env.aI.maxLabel;
     ret = new DQN(env, settings);
   }
   else if (settings.learner == "ACER")
   {
     settings.bSampleSequences = true;
-    assert(env->aI.discrete == false);
-    env->aI.policyVecDim = ACER::getnDimPolicy(&env->aI);
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
+    assert(env.aI.discrete == false);
+    env.aI.policyVecDim = ACER::getnDimPolicy(&env.aI);
+    o << env.aI.dim << " " << env.aI.policyVecDim;
+    printLogfile(o, "problem_size.log", settings.world_rank);
     ret = new ACER(env, settings);
   }
   else
   if (settings.learner == "NA" || settings.learner == "NAF")
   {
     settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
-    assert(not env->aI.discrete);
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
+    env.aI.policyVecDim = 2*env.aI.dim;
+    assert(not env.aI.discrete);
+    o << env.aI.dim << " " << env.aI.policyVecDim;
+    printLogfile(o, "problem_size.log", settings.world_rank);
     ret = new NAF(env, settings);
   }
   else
   if (settings.learner == "DP" || settings.learner == "DPG")
   {
     settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
+    env.aI.policyVecDim = 2*env.aI.dim;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
     if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
+    o << env.aI.dim << " " << env.aI.policyVecDim;
+    printLogfile(o, "problem_size.log", settings.world_rank);
     ret = new DPG(env, settings);
   }
   else
   if (settings.learner == "RETPG")
   {
     settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
+    env.aI.policyVecDim = 2*env.aI.dim;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
     if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
+    o << env.aI.dim << " " << env.aI.policyVecDim;
+    printLogfile(o, "problem_size.log", settings.world_rank);
     ret = new RETPG(env, settings);
   }
   else
@@ -141,18 +141,18 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     if( settings.ESpopSize % settings.nWorkers )
       die("CMA pop size must be multiple of nWorkers");
 
-    if(env->aI.discrete) {
+    if(env.aI.discrete) {
       using CMA_discrete = CMALearner<Uint>;
-      env->aI.policyVecDim = CMA_discrete::getnDimPolicy(&env->aI);
-      o << env->aI.maxLabel << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
+      env.aI.policyVecDim = CMA_discrete::getnDimPolicy(&env.aI);
+      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
       ret = new CMA_discrete(env, settings);
     } else {
       using CMA_continuous = CMALearner<Rvec>;
-      env->aI.policyVecDim = CMA_continuous::getnDimPolicy(&env->aI);
-      if(settings.explNoise > 0) env->aI.policyVecDim += env->aI.dim;
-      o << env->aI.dim << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
+      env.aI.policyVecDim = CMA_continuous::getnDimPolicy(&env.aI);
+      if(settings.explNoise > 0) env.aI.policyVecDim += env.aI.dim;
+      o << env.aI.dim << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
       ret = new CMA_continuous(env, settings);
     }
   }
@@ -160,23 +160,22 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   if (settings.learner == "GAE" || settings.learner == "PPO")
   {
     settings.bSampleSequences = false;
-    if(env->aI.discrete) {
+    if(env.aI.discrete) {
       using PPO_discrete = PPO<Discrete_policy, Uint>;
-      env->aI.policyVecDim = PPO_discrete::getnDimPolicy(&env->aI);
-      o << env->aI.maxLabel << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
+      env.aI.policyVecDim = PPO_discrete::getnDimPolicy(&env.aI);
+      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
       ret = new PPO_discrete(env, settings);
     } else {
       using PPO_continuous = PPO<Gaussian_policy, Rvec>;
-      env->aI.policyVecDim = PPO_continuous::getnDimPolicy(&env->aI);
-      o << env->aI.dim << " " << env->aI.policyVecDim;
-      print(o, "problem_size.log", settings.world_rank);
+      env.aI.policyVecDim = PPO_continuous::getnDimPolicy(&env.aI);
+      o << env.aI.dim << " " << env.aI.policyVecDim;
+      printLogfile(o, "problem_size.log", settings.world_rank);
       ret = new PPO_continuous(env, settings);
     }
   }
   */
-  else die("Learning algorithm not recognized\n");
+  else die("Learning algorithm not recognized");
 
-  assert(ret not_eq nullptr);
-  return ret;
+  return std::move(ret);
 }
