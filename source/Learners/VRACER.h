@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_RACER_h
+#define smarties_RACER_h
+
 #include "Learner_approximator.h"
+
+namespace smarties
+{
 
 class Discrete_policy;
 class Gaussian_policy;
@@ -72,7 +77,7 @@ class VRACER : public Learner_approximator
   static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
   void setupNet();
  public:
-  VRACER(Environment*const _env, Settings& _set);
+  VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
   ~VRACER() { }
 
   void select(Agent& agent) override;
@@ -82,3 +87,6 @@ class VRACER : public Learner_approximator
 
   void restart() override;
 };
+
+}
+#endif

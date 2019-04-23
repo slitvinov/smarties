@@ -6,7 +6,15 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_AllLearners_h
+#define smarties_AllLearners_h
+
+#include "RACER.h"
+#include "VRACER.h"
+#include "Learner_pytorch.h"
+
+namespace smarties
+{
 
 /*
 #include "DQN.h"
@@ -17,9 +25,6 @@
 #include "CMALearner.h"
 #include "PPO.h"
 */
-#include "RACER.h"
-#include "VRACER.h"
-#include "Learner_pytorch.h"
 
 inline static void printLogfile(std::ostringstream& o, std::string fname, int rank)
 {
@@ -30,11 +35,13 @@ inline static void printLogfile(std::ostringstream& o, std::string fname, int ra
   fout.close();
 }
 
-inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settings)
+inline std::unique_ptr<Learner> createLearner(
+  MDPdescriptor& MDP, Settings& settings, DistributionInfo& distrib
+)
 {
   std::unique_ptr<Learner> ret;
   std::ostringstream o;
-  o << env.sI.dim << " ";
+  o << MDP.dimState << " ";
 
   if (settings.learner == "PYTORCH")
   {
@@ -45,16 +52,16 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
   {
     if(env.aI.discrete) {
       using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
-      env.aI.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
-      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
+      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = std::make_unique<RACER_discrete>(env, settings);
     } else {
       //using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
       using RACER_continuous = RACER<Param_advantage,Gaussian_policy,Rvec>;
-      env.aI.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
-      o << env.aI.dim << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
+      o << MDP.dimAction << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = std::make_unique<RACER_continuous>(env, settings);
     }
   }
@@ -63,16 +70,16 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
   {
     if(env.aI.discrete) {
       using RACER_discrete = VRACER<Discrete_policy, Uint>;
-      env.aI.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
-      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = RACER_discrete::getnDimPolicy(&env.aI);
+      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = std::make_unique<RACER_discrete>(env, settings);
     } else {
       //using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
       using RACER_continuous = VRACER<Gaussian_policy, Rvec>;
-      env.aI.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
-      o << env.aI.dim << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = RACER_continuous::getnDimPolicy(&env.aI);
+      o << MDP.dimAction << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = std::make_unique<RACER_continuous>(env, settings);
     }
   }
@@ -80,52 +87,52 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
   else
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
     assert(env.aI.discrete);
-    o << env.aI.maxLabel << " " << env.aI.maxLabel;
-    printLogfile(o, "problem_size.log", settings.world_rank);
-    env.aI.policyVecDim = env.aI.maxLabel;
+    o << MDP.maxActionLabel << " " << MDP.maxActionLabel;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
+    MDP.policyVecDim = MDP.maxActionLabel;
     ret = new DQN(env, settings);
   }
   else if (settings.learner == "ACER")
   {
     settings.bSampleSequences = true;
     assert(env.aI.discrete == false);
-    env.aI.policyVecDim = ACER::getnDimPolicy(&env.aI);
-    o << env.aI.dim << " " << env.aI.policyVecDim;
-    printLogfile(o, "problem_size.log", settings.world_rank);
+    MDP.policyVecDim = ACER::getnDimPolicy(&env.aI);
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = new ACER(env, settings);
   }
   else
   if (settings.learner == "NA" || settings.learner == "NAF")
   {
     settings.bSampleSequences = false;
-    env.aI.policyVecDim = 2*env.aI.dim;
+    MDP.policyVecDim = 2*MDP.dimAction;
     assert(not env.aI.discrete);
-    o << env.aI.dim << " " << env.aI.policyVecDim;
-    printLogfile(o, "problem_size.log", settings.world_rank);
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = new NAF(env, settings);
   }
   else
   if (settings.learner == "DP" || settings.learner == "DPG")
   {
     settings.bSampleSequences = false;
-    env.aI.policyVecDim = 2*env.aI.dim;
+    MDP.policyVecDim = 2*MDP.dimAction;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
     if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env.aI.dim << " " << env.aI.policyVecDim;
-    printLogfile(o, "problem_size.log", settings.world_rank);
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = new DPG(env, settings);
   }
   else
   if (settings.learner == "RETPG")
   {
     settings.bSampleSequences = false;
-    env.aI.policyVecDim = 2*env.aI.dim;
+    MDP.policyVecDim = 2*MDP.dimAction;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
     if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env.aI.dim << " " << env.aI.policyVecDim;
-    printLogfile(o, "problem_size.log", settings.world_rank);
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = new RETPG(env, settings);
   }
   else
@@ -143,16 +150,16 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
 
     if(env.aI.discrete) {
       using CMA_discrete = CMALearner<Uint>;
-      env.aI.policyVecDim = CMA_discrete::getnDimPolicy(&env.aI);
-      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = CMA_discrete::getnDimPolicy(&env.aI);
+      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = new CMA_discrete(env, settings);
     } else {
       using CMA_continuous = CMALearner<Rvec>;
-      env.aI.policyVecDim = CMA_continuous::getnDimPolicy(&env.aI);
-      if(settings.explNoise > 0) env.aI.policyVecDim += env.aI.dim;
-      o << env.aI.dim << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = CMA_continuous::getnDimPolicy(&env.aI);
+      if(settings.explNoise > 0) MDP.policyVecDim += MDP.dimAction;
+      o << MDP.dimAction << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = new CMA_continuous(env, settings);
     }
   }
@@ -162,15 +169,15 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
     settings.bSampleSequences = false;
     if(env.aI.discrete) {
       using PPO_discrete = PPO<Discrete_policy, Uint>;
-      env.aI.policyVecDim = PPO_discrete::getnDimPolicy(&env.aI);
-      o << env.aI.maxLabel << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = PPO_discrete::getnDimPolicy(&env.aI);
+      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = new PPO_discrete(env, settings);
     } else {
       using PPO_continuous = PPO<Gaussian_policy, Rvec>;
-      env.aI.policyVecDim = PPO_continuous::getnDimPolicy(&env.aI);
-      o << env.aI.dim << " " << env.aI.policyVecDim;
-      printLogfile(o, "problem_size.log", settings.world_rank);
+      MDP.policyVecDim = PPO_continuous::getnDimPolicy(&env.aI);
+      o << MDP.dimAction << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = new PPO_continuous(env, settings);
     }
   }
@@ -179,3 +186,6 @@ inline std::unique_ptr<Learner> createLearner(Environment& env, Settings& settin
 
   return std::move(ret);
 }
+
+}
+#endif

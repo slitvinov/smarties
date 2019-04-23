@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Learner_approximator_h
+#define smarties_Learner_approximator_h
+
 #include "Learner.h"
+
+namespace smarties
+{
 
 class Approximator;
 class Encapsulator;
@@ -47,3 +52,6 @@ class Learner_approximator: public Learner
   virtual void save() override;
   virtual void restart() override;
 };
+
+}
+#endif

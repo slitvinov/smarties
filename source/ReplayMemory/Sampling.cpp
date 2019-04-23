@@ -9,8 +9,11 @@
 #include "Sampling.h"
 #include <parallel/algorithm>
 
-Sampling::Sampling(const Settings& S, MemoryBuffer*const R) :
-gens(S.generators), RM(R), Set(RM->Set), bSampleSequences(S.bSampleSequences) {}
+namespace smarties
+{
+
+Sampling::Sampling(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq)
+: gens(G), RM(R), Set(RM->Set), bSampleSequences(bSeq) {}
 
 long Sampling::nSequences() const { return RM->readNSeq(); }
 long Sampling::nTransitions() const { return RM->readNData(); }
@@ -44,8 +47,7 @@ void Sampling::IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,
 
 
 
-Sample_uniform::Sample_uniform(const Settings&S, MemoryBuffer*const R):
-  Sampling(S,R) {}
+Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
   if(seq.size() not_eq obs.size()) die(" ");
@@ -91,8 +93,7 @@ bool Sample_uniform::requireImportanceWeights() { return false; }
 
 
 
-Sample_impLen::Sample_impLen(const Settings&S, MemoryBuffer*const R):
-Sampling(S,R) {}
+Sample_impLen::Sample_impLen(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_impLen::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
   if(seq.size() not_eq obs.size()) die(" ");
@@ -146,8 +147,7 @@ bool Sample_impLen::requireImportanceWeights() { return false; }
 
 
 
-TSample_shuffle::TSample_shuffle(const Settings&S, MemoryBuffer*const R):
-Sampling(S,R) {}
+TSample_shuffle::TSample_shuffle(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
 {
   if(not needs_pass) return;
@@ -197,8 +197,7 @@ static inline float approxRsqrt( const float number )
 	return conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
 }
 
-TSample_impRank::TSample_impRank(const Settings&S, MemoryBuffer*const R):
-Sampling(S,R) {}
+TSample_impRank::TSample_impRank(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
 {
   if( ( stepSinceISWeep++ >= 10 || needs_pass ) == false ) return;
@@ -269,8 +268,7 @@ bool TSample_impRank::requireImportanceWeights() { return true; }
 
 
 
-TSample_impErr::TSample_impErr(const Settings&S, MemoryBuffer*const R):
-Sampling(S,R) {}
+TSample_impErr::TSample_impErr(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
 {
   if( ( stepSinceISWeep++ >= 10 || needs_pass ) == false ) return;
@@ -337,8 +335,7 @@ bool TSample_impErr::requireImportanceWeights() { return true; }
 
 
 
-Sample_impSeq::Sample_impSeq(const Settings&S, MemoryBuffer*const R):
-Sampling(S,R) {}
+Sample_impSeq::Sample_impSeq(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
 {
   if( stepSinceISWeep++ < 5 && not needs_pass ) return;
@@ -414,3 +411,5 @@ void Sample_impSeq::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   }
 }
 bool Sample_impSeq::requireImportanceWeights() { return true; }
+
+}

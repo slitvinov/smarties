@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_RACER_h
+#define smarties_RACER_h
+
 #include "Learner_approximator.h"
+
+namespace smarties
+{
 
 class Discrete_policy;
 class Gaussian_policy;
@@ -100,7 +105,7 @@ class RACER : public Learner_approximator
   static std::vector<Uint> count_adv_starts(const ActionInfo*const aI);
   void setupNet();
  public:
-  RACER(Environment*const _env, Settings& _set);
+  RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
   ~RACER() { }
 
   void select(Agent& agent) override;
@@ -108,3 +113,6 @@ class RACER : public Learner_approximator
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
+
+}
+#endif

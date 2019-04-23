@@ -10,6 +10,9 @@
 #include "Aggregator.h"
 #include "Builder.h"
 
+namespace smarties
+{
+
 Approximator::Approximator(const string _name, Settings&S, Encapsulator*const E,
   MemoryBuffer* const data_ptr, const Aggregator* const r) :
 settings(S), name(_name), input(E), data(data_ptr), relay(r) { }
@@ -34,7 +37,8 @@ Builder Approximator::buildFromSettings(Settings& _s, const Uint n_outputs) {
   return build;
 }
 
-void Approximator::allocMorePerThread(const Uint nAlloc) {
+void Approximator::allocMorePerThread(const Uint nAlloc)
+{
   assert(nAlloc > 0 && extraAlloc == 0);
   extraAlloc = nAlloc;
   assert(opt not_eq nullptr && net not_eq nullptr);
@@ -400,3 +404,5 @@ void Approximator::restart(const string base) {
   if(opt == nullptr) die("Attempted to restart uninitialized net!");
   opt->restart(base+name);
 }
+
+} // end namespace smarties

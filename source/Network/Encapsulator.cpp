@@ -6,10 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-
 #include "Encapsulator.h"
 #include "Network.h"
 #include "Optimizer.h"
+
+namespace smarties
+{
 
 Encapsulator::Encapsulator(const string N,const Settings&S,MemoryBuffer*const M)
 : name(N), settings(S), data(M) { }
@@ -173,3 +175,5 @@ void Encapsulator::getMetrics(ostringstream& buff) const
   if(opt->tgtUpdateAlpha > 0)
     real2SS(buff, net->weights->compute_weight_dist(net->tgt_weights), 6, 1);
 }
+
+} // end namespace smarties

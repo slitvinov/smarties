@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Network_h
+#define smarties_Network_h
+
 #include "Layers.h"
+
+namespace smarties
+{
 
 class Builder;
 
@@ -33,7 +38,7 @@ public:
   //  for (Uint j=0; j<num; j++) ret[j] = allocate_activation(layers);
   //  return ret;
   //}
-  inline Activation* allocateActivation() const {
+  Activation* allocateActivation() const {
     std::vector<Uint> sizes, output, input;
     for(const auto & l : layers) l->requiredActivation(sizes, output, input);
     return new Activation(sizes, output, input);
@@ -49,7 +54,7 @@ public:
     for(const auto & l : layers) l->transpose(weights);
   }
 
-  inline void prepForBackProp(std::vector<Activation*>& series, const Uint N) const
+  void prepForBackProp(std::vector<Activation*>& series, const Uint N) const
   {
     if (series.size() < N)
       for(Uint j=series.size(); j<N; j++)
@@ -65,7 +70,8 @@ public:
     for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
     #endif
   }
-  inline void prepForFwdProp (std::vector<Activation*>& series, const Uint N) const
+
+  void prepForFwdProp (std::vector<Activation*>& series, const Uint N) const
   {
     prepForBackProp(series, N);
     #if 0
@@ -93,7 +99,7 @@ public:
     _dispose_object(weights);
   }
 
-  inline std::vector<Real> predict(const std::vector<Real>& _inp,
+  std::vector<Real> predict(const std::vector<Real>& _inp,
     const std::vector<Activation*>& timeSeries, const Uint step,
     const Parameters*const _weights = nullptr) const
   {
@@ -103,7 +109,7 @@ public:
     return predict(_inp, prevStep, currStep, _weights);
   }
 
-  inline std::vector<Real> predict(const std::vector<Real>& _inp,
+  std::vector<Real> predict(const std::vector<Real>& _inp,
     const Activation* const currStep,
     const Parameters*const _weights = nullptr) const
   {
@@ -155,3 +161,6 @@ public:
   void checkGrads();
   //void dump(const int agentID);
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

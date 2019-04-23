@@ -11,7 +11,10 @@
 #include "../Network/Builder.h"
 #include <chrono>
 
-Learner_approximator::Learner_approximator(Environment*const E, Settings&S): Learner(E, S), input(new Encapsulator("input", S, data))
+namespace smarties
+{
+
+Learner_approximator::Learner_approximator(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_), input(new Encapsulator("input", S, data))
 {
   if(input->nOutputs() == 0) return;
   Builder input_build(S);
@@ -172,3 +175,4 @@ void Learner_approximator::createSharedEncoder(const Uint privateNum)
 //{
 //  return false;
 //}
+}

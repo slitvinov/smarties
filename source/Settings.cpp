@@ -7,8 +7,15 @@
 //
 
 #include "CLI/CLI.hpp"
+#include <mpi.h>
+#include <omp.h>
+
 #include "Utils/Warnings.h"
 #include "Settings.h"
+#include <cassert>
+
+namespace smarties
+{
 
 DistributionInfo::DistributionInfo(int argc, char** argv)
 {
@@ -25,7 +32,7 @@ DistributionInfo::DistributionInfo(int argc, char** argv)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
 }
 
-~DistributionInfo::DistributionInfo()
+DistributionInfo::~DistributionInfo()
 {
   if(MPI_COMM_NULL not_eq     master_workers_comm)
           MPI_Comm_free(&     master_workers_comm);
@@ -38,7 +45,7 @@ DistributionInfo::DistributionInfo(int argc, char** argv)
   MPI_Finalize();
 }
 
-void DistributionInfo::initializeOpts (CLI:App & parser)
+void DistributionInfo::initializeOpts(CLI::App & parser)
 {
   parser.add_option("--nThreads",               nThreads,               COMMENT_nThreads);
   parser.add_option("--nMasters",               nMasters,               COMMENT_nMasters);
@@ -131,12 +138,12 @@ void DistributionInfo::figureOutWorkersPattern()
     { // then masters talk to workers, and workers own environments
       // what is the size of the mpi communicator where we have workers?
       bIsMaster =
-          rankStripedMPISplitting(nMaster, nWorker_processes, world_rank) == 0;
+          rankStripedMPISplitting(nMasters, nWorker_processes, world_rank) == 0;
       Uint masterWorkerCommID =
-          indxStripedMPISplitting(nMaster, nWorker_processes, world_rank);
+          indxStripedMPISplitting(nMasters, nWorker_processes, world_rank);
 
       if(fakeMastersRanks) { // overwrite splitting if we have only fake masters
-        bIsMaster = world_rank < nMaster;
+        bIsMaster = world_rank < nMasters;
         masterWorkerCommID = 0;
       }
 
@@ -151,7 +158,7 @@ void DistributionInfo::figureOutWorkersPattern()
       if(bIsMaster)
       {
         nOwnedEnvironments = MPICommSize(master_workers_comm) - 1;
-        if(nWorker_processes < nMaster)
+        if(nWorker_processes < nMasters)
              workerless_masters_comm = MPICommDup(learners_train_comm);
         else workerless_masters_comm = MPI_COMM_NULL;
         nForkedProcesses2spawn = 0;
@@ -193,14 +200,14 @@ void DistributionInfo::figureOutWorkersPattern()
     else
     {
       bIsMaster = true;
-      nOwnedEnvironments = notRoundedSplitting(nMaster, nWorkers, world_rank);
+      nOwnedEnvironments = notRoundedSplitting(nMasters, nWorkers, world_rank);
       // should also equal:
       // nWorkers/world_size + ( (nWorkers%world_size) > world_rank );
       nForkedProcesses2spawn = nOwnedEnvironments;
       if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of worker mpi processes.");
       master_workers_comm = MPI_COMM_NULL;
       learners_train_comm = MPI_COMM_WORLD;
-      if(nWorkers < nMaster) // then i need to share data
+      if(nWorkers < nMasters) // then i need to share data
            workerless_masters_comm = MPICommDup(learners_train_comm);
       else workerless_masters_comm = MPI_COMM_NULL;
     }
@@ -231,7 +238,7 @@ void DistributionInfo::figureOutWorkersPattern()
   }
 }
 
-void Settings::initializeOpts (CLI:App & parser)
+void Settings::initializeOpts (CLI::App & parser)
 {
   parser.add_option("--learner",          learner,          COMMENT_learner);
   parser.add_option("--bTrain",           bTrain,           COMMENT_bTrain);
@@ -266,9 +273,22 @@ void Settings::initializeOpts (CLI:App & parser)
   parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
 }
 
+/* big choices here.
+What should determine distribution of data acquisition?
+Two options:
+1) number of learners that process said data
+2) number of worker that acquire said data
+Main advantage of distributing everything according to workers is that synchronization is easier: stop when enough data.
+Con is that all workers need to know the global number of grad steps
+Also, end up waiting for slowest simulation every time (because each sim wants to do eg 1 time step per grad step).
+Main advantage of distributing according to learners is that synch is centralized: do not give agents actions/parameters unless they can continue to acquire data.
+Problem is what happens for multiple workerless masters?
+*/
+
 void Settings::defineDistributedLearning(const MPI_Comm learnersComm, const MPI_Comm gatheringComm)
 {
-// each learner computes a fraction of the batch:
+  #if 0
+  // each learner computes a fraction of the batch:
   const Real nL = learner_size;
   if(batchSize > 1) {
     batchSize = std::ceil(batchSize / nL) * nL;
@@ -282,24 +302,22 @@ void Settings::defineDistributedLearning(const MPI_Comm learnersComm, const MPI_
   maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
   maxTotObsNum_loc = maxTotObsNum / learner_size;
 
-    // each worker collects a fraction of the initial memory buffer:
-   obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
+  // each worker collects a fraction of the initial memory buffer:
+  obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
 
-   if(batchSize_loc <= 0) die(" ");
-   if(obsPerStep_loc < 0) die(" ");
-   if(minTotObsNum_loc < 0) die(" ");
-   if(maxTotObsNum_loc <= 0) die(" ");
+  if(batchSize_loc <= 0) die(" ");
+  if(obsPerStep_loc < 0) die(" ");
+  if(minTotObsNum_loc < 0) die(" ");
+  if(maxTotObsNum_loc <= 0) die(" ");
+  #endif
 }
 
 void Settings::check()
 {
   bRecurrent = nnType=="LSTM" || nnType=="RNN" || nnType == "MGU" || nnType == "GRU";
 
-  if(bSampleSequences && maxTotSeqNum<batchSize)
-    die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
-
   if(bTrain == false && restart == "none") {
-   std::cout<<"Did not specify path for restart files, assumed current dir."<<std::endl;
+   printf("Did not specify path for restart files, assumed current dir.\n");
    restart = ".";
   }
 
@@ -326,8 +344,8 @@ void DistributionInfo::initialzePRNG()
   if(nThreads<1) die("nThreads<1");
   if(randSeed<=0)
   {
-    std::random_device rdev;
-    randSeed = std::abs(rdev() % std::numeric_limits<int>::max());
+    std::random_device rdev; const Uint rdSeed = rdev();
+    randSeed = rdSeed % std::numeric_limits<Uint>::max();
     if(world_rank==0) printf("Using seed %d\n", randSeed);
     MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
@@ -343,4 +361,6 @@ void DistributionInfo::finalizePRNG(const Uint nAgents_local)
   generators.reserve(generators.size() + nAgents_local);
   for(size_t i=generators.size(); i < generators.size() + nAgents_local; i++)
     generators.push_back( std::mt19937( generators[0]() ) );
+}
+
 }

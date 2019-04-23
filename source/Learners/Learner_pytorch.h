@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Learner_pytorch_h
+#define smarties_Learner_pytorch_h
+
 #include "Learner.h"
+
+namespace smarties
+{
 
 class Learner_pytorch: public Learner
 {
@@ -20,11 +25,11 @@ class Learner_pytorch: public Learner
   const Real explNoise = settings.explNoise;
 
  protected:
- 
+
   void spawnTrainTasks();
 
  public:
-  Learner_pytorch(Environment*const env, Settings & settings);
+  Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
   void select(Agent& ) override {}
   void setupTasks(TaskQueue&) override {}
@@ -35,3 +40,6 @@ class Learner_pytorch: public Learner
   virtual void save() override;
   virtual void restart() override;
 };
+
+}
+#endif

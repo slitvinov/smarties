@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-#include "Parameters.h"
+#ifndef smarties_Optimizer_h
+#define smarties_Optimizer_h
+
+#include "Layers/Parameters.h"
+
+namespace smarties
+{
 
 class Optimizer
 {
@@ -16,7 +21,7 @@ class Optimizer
   const Uint learn_size, pop_size, nThreads;
   const Parameters * const weights;
   const Parameters * const tgt_weights;
-  const vector<Parameters*> sampled_weights;
+  const std::vector<Parameters*> sampled_weights;
   const Uint pDim = weights->nParams;
   const Real eta_init;
   const Uint batchSize;
@@ -103,3 +108,6 @@ class AdamOptimizer : public Optimizer
   void getMetrics(ostringstream& buff) override {}
   void getHeaders(ostringstream& buff) override {}
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

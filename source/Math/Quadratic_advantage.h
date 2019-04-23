@@ -6,9 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Quadratic_advantage_h
+#define smarties_Quadratic_advantage_h
+
 #include "Gaussian_policy.h"
 #include "Quadratic_term.h"
+
+namespace smarties
+{
 
 struct Quadratic_advantage: public Quadratic_term
 {
@@ -143,3 +148,6 @@ struct Quadratic_advantage: public Quadratic_term
     fout.close();
   }
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_advantage_h

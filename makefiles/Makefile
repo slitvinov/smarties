@@ -60,37 +60,36 @@ else
 include make.gcc.flags
 endif
 
+CPPFLAGS+= -I../extern/CLI11/include/
+
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
-	ArgParser.o \
 	Profiler.o \
-	ObjectFactory.o \
-	Communicator.o \
-	Communicator_internal.o \
-	AtariEnvironment.o \
-	Environment.o \
-	Network.o \
-	Optimizer.o \
-	CMA_Optimizer_MPI.o \
-	Aggregator.o \
-	Encapsulator.o \
-	Approximator.o \
-	Sequences.o \
-	MemoryBuffer.o \
-	MemoryProcessing.o \
-	MemorySharing.o \
+	main.o \
+	Settings.o \
 	StatsTracker.o \
-	Collector.o \
+	Communicator.o \
+	Launcher.o \
+	Master.o \
+	Worker.o \
+	Sequences.o \
 	Sampling.o \
+	Collector.o \
+	Math_tests.o \
+	MemoryBuffer.o \
+	MemorySharing.o \
+	MemoryProcessing.o \
 	Learner_approximator.o \
 	Learner_pytorch.o \
 	Learner.o \
-	StateAction.o \
-	Math_tests.o \
-	Scheduler.o \
 	RACER.o \
 	VRACER.o \
-	main.o
+	Aggregator.o \
+	Encapsulator.o \
+	Approximator.o \
+	Network.o \
+	Optimizer.o \
+	CMA_Optimizer.o
 	#PPO.o \
 	#RETPG.o \
 	#DPG.o \

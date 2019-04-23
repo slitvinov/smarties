@@ -9,6 +9,9 @@
 #include "Optimizer.h"
 #include "saruprng.h"
 
+namespace smarties
+{
+
 struct AdaMax {
   const nnReal eta, B1, B2, lambda, fac;
   AdaMax(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
@@ -215,16 +218,22 @@ int AdamOptimizer::restart(const string fname)
   return ret;
 }
 
-Optimizer::Optimizer(const Settings&S, const Parameters*const W,
-  const Parameters*const WT, const vector<Parameters*>& samples) :
+Optimizer::Optimizer(const Settings&S,
+                     const Parameters*const W,
+                     const Parameters*const WT,
+                     const std::vector<Parameters*>& samples) :
 mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
 pop_size(S.ESpopSize), nThreads(S.nThreads), weights(W), tgt_weights(WT),
 sampled_weights(samples), eta_init(S.learnrate), batchSize(S.batchSize),
 bAsync(S.bAsync), mpi_mutex(S.mpi_mutex), lambda(S.nnLambda),
 epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
 
-AdamOptimizer::AdamOptimizer(const Settings&S, const Parameters*const W,
-  const Parameters*const WT, const vector<Parameters*>& samples,
-  const vector<Parameters*>&G, const Real B1, const Real B2) :
+AdamOptimizer::AdamOptimizer(const Settings&S,
+                             const Parameters*const W,
+                             const Parameters*const WT, const std::vector<Parameters*>& samples,
+                             const vector<Parameters*>&G,
+                             const Real B1, const Real B2) :
   Optimizer(S,W,WT,samples), beta_1(B1), beta_2(B2), generators(S.generators),
   grads(G) { }
+
+} // end namespace smarties

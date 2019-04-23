@@ -6,6 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+namespace smarties
+{
+
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Uint wID, const Uint bID, const Uint thrID) const
@@ -151,4 +154,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
 
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
+}
+
 }

@@ -10,6 +10,9 @@
 #include "RACER_common.cpp"
 #include "RACER_train.cpp"
 
+namespace smarties
+{
+
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
 select(Agent& agent)
@@ -134,3 +137,5 @@ template class RACER<Discrete_advantage, Discrete_policy, Uint>;
 template class RACER<Param_advantage, Gaussian_policy, Rvec>;
 
 template class RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
+
+}

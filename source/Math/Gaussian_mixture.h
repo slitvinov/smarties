@@ -6,9 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Gaussian_mixture_h
+#define smarties_Gaussian_mixture_h
+
 #include "Utils.h"
 #include <algorithm>
+
+namespace smarties
+{
 
 template<Uint nExperts>
 struct Gaussian_mixture
@@ -470,3 +475,6 @@ private:
     return o.str();
   }
 };
+
+} // end namespace smarties
+#endif // smarties_Gaussian_mixture_h

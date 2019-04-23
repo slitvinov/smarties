@@ -10,28 +10,35 @@
 #include <iterator>
 #include <algorithm>
 
-MemoryBuffer::MemoryBuffer(const Settings&S, const Environment*const E):
- settings(S), env(E), sampler(prepareSampler(S, this)) {
+namespace smarties
+{
+
+MemoryBuffer::MemoryBuffer(MDPdescriptor&M_, Settings&S_, DistributionInfo&D_):
+ MDP(M_), settings(S_), distrib(D_), sampler( prepareSampler(this, S_, D_) )
+{
   Set.reserve(settings.maxTotObsNum);
 }
 
 void MemoryBuffer::save(const std::string base, const Uint nStep, const bool bBackup)
 {
+  const auto write2file = [&] (FILE * wFile) {
+    std::vector<double> V = std::vector<double>(mean.begin(), mean.end());
+    fwrite(V.data(), sizeof(double), V.size(), wFile);
+    V = std::vector<double>(invstd.begin(), invstd.end());
+    fwrite(V.data(), sizeof(double), V.size(), wFile);
+    V = std::vector<double>(std.begin(), std.end());
+    fwrite(V.data(), sizeof(double), V.size(), wFile);
+    V.resize(2); V[0] = stddev_reward; V[1] = invstd_reward;
+    fwrite(V.data(), sizeof(double), 2, wFile);
+  }
+
   FILE * wFile = fopen((base+"scaling.raw").c_str(), "wb");
-  fwrite(   mean.data(), sizeof(memReal),   mean.size(), wFile);
-  fwrite( invstd.data(), sizeof(memReal), invstd.size(), wFile);
-  fwrite(    std.data(), sizeof(memReal),    std.size(), wFile);
-  fwrite(&invstd_reward, sizeof(Real),             1, wFile);
-  fflush(wFile); fclose(wFile);
+  write2file(wFile); fflush(wFile); fclose(wFile);
 
   if(bBackup) {
     std::ostringstream S; S<<std::setw(9)<<std::setfill('0')<<nStep;
     wFile = fopen((base+"scaling_"+S.str()+".raw").c_str(), "wb");
-    fwrite(   mean.data(), sizeof(memReal),   mean.size(), wFile);
-    fwrite( invstd.data(), sizeof(memReal), invstd.size(), wFile);
-    fwrite(    std.data(), sizeof(memReal),    std.size(), wFile);
-    fwrite(&invstd_reward, sizeof(Real),             1, wFile);
-    fflush(wFile); fclose(wFile);
+    write2file(wFile); fflush(wFile); fclose(wFile);
   }
 }
 
@@ -47,12 +54,19 @@ void MemoryBuffer::restart(const std::string base)
       fflush(0);
     }
 
-    size_t size1 = fread(   mean.data(), sizeof(memReal),   mean.size(), wFile);
-    size_t size2 = fread( invstd.data(), sizeof(memReal), invstd.size(), wFile);
-    size_t size3 = fread(    std.data(), sizeof(memReal),    std.size(), wFile);
-    size_t size4 = fread(&invstd_reward, sizeof(Real),             1, wFile);
+    const Uint dimS = MDP.dimStateObserved; assert(mean.size() == dimS);
+    std::vector<double> V(dimS);
+    size_t size1 = fread(V.data(), sizeof(double), dimS, wFile);
+    mean   = std::vector<nnReal>(V.begin(), V.end());
+    size_t size2 = fread(V.data(), sizeof(double), dimS, wFile);
+    invstd = std::vector<nnReal>(V.begin(), V.end());
+    size_t size3 = fread(V.data(), sizeof(double), dimS, wFile);
+    std    = std::vector<nnReal>(V.begin(), V.end());
+    V.resize(2);
+    size_t size4 = fread(V.data(), sizeof(double),    2, wFile);
+    stddev_reward = V[0]; invstd_reward = V[1];
     fclose(wFile);
-    if(size1!=mean.size()|| size2!=invstd.size()|| size3!=std.size()|| size4!=1)
+    if (size1!=dimS || size2!=dimS || size3!=dimS || size4!=2)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
   }
 }
@@ -61,7 +75,7 @@ void MemoryBuffer::clearAll()
 {
   std::lock_guard<std::mutex> lock(dataset_mutex);
   //delete already-used trajectories
-  for(auto& old_traj: Set) _dispose_object(old_traj);
+  for(auto& S: Set) Utilities::dispose_object(S);
 
   Set.clear(); //clear trajectories used for learning
   nTransitions = 0;
@@ -90,7 +104,7 @@ void MemoryBuffer::removeSequence(const Uint ind)
   needs_pass = true;
   nTransitions -= Set[ind]->ndata();
   std::swap(Set[ind], Set.back());
-  _dispose_object(Set.back());
+  Utilities::dispose_object(Set.back());
   Set.pop_back();
   assert(nSequences == (long) Set.size());
 }
@@ -118,10 +132,11 @@ void MemoryBuffer::initialize()
 
 MemoryBuffer::~MemoryBuffer()
 {
-  for (auto & trash : Set) _dispose_object( trash);
+  for(auto & S : Set) Utilities::dispose_object(S);
 }
 
-void MemoryBuffer::checkNData() {
+void MemoryBuffer::checkNData()
+{
   #ifndef NDEBUG
     Uint cntSamp = 0;
     for(Uint i=0; i<Set.size(); i++) {
@@ -133,31 +148,39 @@ void MemoryBuffer::checkNData() {
   #endif
 }
 
-Sampling* MemoryBuffer::prepareSampler(const Settings&S, MemoryBuffer* const R)
+std::unique_ptr<Sampling> MemoryBuffer::prepareSampler(MemoryBuffer* const R, Settings&S_, DistributionInfo&D_)
 {
-  Sampling* ret = nullptr;
+  std::unique_ptr<Sampling> ret = nullptr;
 
-  if(S.dataSamplingAlgo == "uniform") ret = new Sample_uniform(S, R);
+  if(S.dataSamplingAlgo == "uniform") ret = std::make_unique<Sample_uniform>(
+    D_.generators, R, S_.bSampleSequences);
 
-  if(S.dataSamplingAlgo == "impLen")  ret = new Sample_impLen(S, R);
+  if(S.dataSamplingAlgo == "impLen")  ret = std::make_unique<Sample_impLen>(
+    D_.generators, R, S_.bSampleSequences);
 
   if(S.dataSamplingAlgo == "shuffle") {
-    ret = new TSample_shuffle(S, R);
+    ret = std::make_unique<TSample_shuffle>(
+      D_.generators, R, S_.bSampleSequences);
     if(S.bSampleSequences) die("Change importance sampling algorithm");
   }
 
   if(S.dataSamplingAlgo == "PERrank") {
-    ret = new TSample_impRank(S, R);
+    ret = std::make_unique<TSample_impRank>(
+      D_.generators, R, S_.bSampleSequences);
     if(S.bSampleSequences) die("Change importance sampling algorithm");
   }
 
   if(S.dataSamplingAlgo == "PERerr") {
-    ret = new TSample_impErr(S, R);
+    ret = std::make_unique<TSample_impErr>(
+      D_.generators, R, S_.bSampleSequences);
     if(S.bSampleSequences) die("Change importance sampling algorithm");
   }
 
-  if(S.dataSamplingAlgo == "PERseq") ret = new Sample_impSeq(S, R);
+  if(S.dataSamplingAlgo == "PERseq") ret = std::make_unique<Sample_impSeq>(
+    D_.generators, R, S_.bSampleSequences);
 
   assert(ret not_eq nullptr);
-  return ret;
+  return std::move(ret);
+}
+
 }

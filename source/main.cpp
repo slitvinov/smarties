@@ -7,7 +7,7 @@
 //
 
 #include "Learners/AllLearners.h"
-#include "Utils/Scheduler.h"
+#include "Core/Master.h"
 
 int main (int argc, char** argv)
 {
@@ -36,9 +36,9 @@ int main (int argc, char** argv)
   if(distrib.bIsMaster)
   {
     if(distrib.nForkedProcesses2spawn > 0)
-      process = std::make_unique<WorkerSockets>(settings, distrib);
+      process = std::make_unique<MasterSockets>(settings, distrib);
     else
-      process = std::make_unique<WorkerMPI>(settings, distrib);
+      process = std::make_unique<MasterMPI>(settings, distrib);
 
     process->synchronizeEnvironments();
     process.setupCallers();

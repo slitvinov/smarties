@@ -11,6 +11,9 @@
 #include "VRACER_common.cpp"
 #include "VRACER_train.cpp"
 
+namespace smarties
+{
+
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::select(Agent& agent)
 {
@@ -158,3 +161,4 @@ void VRACER<Policy_t, Action_t>::restart()
   #endif
 }
 
+}

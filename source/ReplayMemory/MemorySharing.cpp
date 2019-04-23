@@ -8,10 +8,60 @@
 
 #include "MemorySharing.h"
 
-MemorySharing::MemorySharing(const Settings&S, MemoryBuffer*const RM) : settings(S), replay(RM)
+namespace smarties
 {
-  completed.reserve(S.nAgents);
-  if(SZ <= 1) return;
+
+MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
+{
+  completed.reserve(distrib.nAgents);
+
+  if(distrib.workerless_masters_comm == MPI_COMM_NULL &&
+     distrib.learnersOnWorkers == false) return;
+  if(distrib.workerless_masters_comm != MPI_COMM_NULL &&
+     distrib.learnersOnWorkers) die("TODO: workerlessmasters & workerlearner");
+
+  if(distrib.learnersOnWorkers) {
+    if(distrib.master_workers_comm == MPI_COMM_NULL) {
+      warn("learning algorithm entirely hosted on workers"); return;
+    }
+    // rank>0 (worker) will always send to rank==0 (master)
+    workerComm = MPICommDup( distrib.master_workers_comm);
+    workerSize = MPICommSize(workerComm);
+    workerRank = MPICommRank(workerComm);
+    if(sizeWorkers < 2) {
+      warn("detected no workers in the wrong spot..."); return;
+    }
+    if(sharingRank == 0) {
+      if(not distrib.bIsMaster) die("impossible");
+      workerRecvSizeReq = std::vector<MPI_Request>(workerSize);
+      workerRecvSeqSize = std::vector<unsigned long>(workerSize);
+      workerRecvSeq = std::vector<Fvec>(workerSize);
+    } else {
+      if(distrib.bIsMaster) die("impossible");
+      return; // do not create thread
+    }
+  } else {
+    workerSize = 0; workerRank = 0; workerComm = MPI_COMM_NULL;
+  }
+
+  if(distrib.workerless_masters_comm != MPI_COMM_NULL) {
+    sharingComm = MPICommDup( distrib.workerless_masters_comm);
+    sharingSize = MPICommSize(workerComm);
+    sharingRank = MPICommRank(workerComm);
+    sharingTurn = sharingRank; // says that first full episode stays on rank
+    shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
+    shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
+    shareSendSeqReq  = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
+    shareSendSeqSize = std::vector<unsigned long>(sendSize);
+    shareRecvSeqSize = std::vector<unsigned long>(sendSize);
+    shareSendSeq = std::vector<Fvec>(sendSize);
+    shareRecvSeq = std::vector<Fvec>(sendSize);
+  } else {
+    sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
+  }
+
+  //if(distrib.bIsMaster) { } else { }
+
   #pragma omp parallel
   {
     const int thrID = omp_get_thread_num();
@@ -24,64 +74,86 @@ MemorySharing::~MemorySharing()
 {
   bExit = 1;
   if(SZ > 1) fetcher.join();
-  for(const auto& S : completed) _dispose_object(S);
-}
-
-int MemorySharing::testBuffer(MPI_Request& req)
-{
-  if(req == MPI_REQUEST_NULL) return 0;
-  int bRecvd = 0;
-  MPI(Test, &req, &bRecvd, MPI_STATUS_IGNORE);
-  return bRecvd;
-}
-
-void MemorySharing::recvEP(const int ID2)
-{
-  if( testBuffer(RRq[ID2]) ) {
-   recvSq[ID2].resize(recvSz[ID2]);
-   const auto NOSTS = MPI_STATUS_IGNORE;
-
-   MPI(Recv, recvSq[ID2].data(), recvSz[ID2], MPI_Fval, ID2, 98, comm, NOSTS);
-   MPI(Irecv, &recvSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &RRq[ID2]);
-
-   Sequence * const tmp = new Sequence();
-   tmp->unpackSequence(recvSq[ID2], dimS, dimA, dimP);
-   replay->pushBackSequence(tmp);
-  }
-}
-
-void MemorySharing::sendEp(const int ID2, Sequence* const EP)
-{
-  if(CRq[ID2] not_eq MPI_REQUEST_NULL) MPI(Wait, &CRq[ID2], MPI_STATUS_IGNORE);
-  if(SRq[ID2] not_eq MPI_REQUEST_NULL) MPI(Wait, &SRq[ID2], MPI_STATUS_IGNORE);
-
-  sendSq[ID2] = EP->packSequence(dimS, dimA, dimP);
-  sendSz[ID2] = sendSq[ID2].size();
-
-  MPI(Isend, &sendSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &CRq[ID2]);
-  MPI(Isend, sendSq[ID2].data(),sendSz[ID2], MPI_Fval,ID2,98,comm,&SRq[ID2]);
+  for(auto & S : completed) Utilities::dispose_object(S);
 }
 
 void MemorySharing::run()
 {
-  for(int i=0; i<SZ; i++) if(i not_eq ID)
-    MPI(Irecv, &recvSz[i], 1, MPI_UNSIGNED, i, 99, comm, &RRq[i]);
+  for(Uint i=1; i<workerSize; i++)
+    IrecvSize(workerRecvSeqSize[i], i, workerComm, workerRecvSizeReq[i]);
+
+  for(Uint i=0; i<sharingSize; i++)
+    if(i not_eq sharingRank)
+      IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
 
   while(true)
   {
     {
       std::lock_guard<std::mutex> lock(complete_mutex);
-      while ( completed.size() ) {
-        if (EpOwnerID == ID) replay->pushBackSequence(completed.back());
-        else {
-          sendEp(EpOwnerID, completed.back());
-          _dispose_object(completed.back());
+      while ( completed.size() )
+      {
+        if (sharingTurn == sharingRank)
+          replay->pushBackSequence(completed.back());
+        else
+        {
+          const Uint I = sharingTurn;
+          Sequence* const EP = completed.back();
+          if(shareSendSizeReq[I] not_eq MPI_REQUEST_NULL)
+            MPI(Wait, & shareSendSizeReq[I], MPI_STATUS_IGNORE);
+          if( shareSendSeqReq[I] not_eq MPI_REQUEST_NULL)
+            MPI(Wait, &  shareSendSeqReq[I], MPI_STATUS_IGNORE);
+
+          shareSendSeq[I] = EP->packSequence(sI.dimObs(),aI.dim(),aI.dimPol());
+          Utilities::dispose_object(completed.back());
+          shareSendSeqSize[I] = shareSendSeq[I].size();
+
+          IsendSize(shareSendSeqSize[I], I, sharingComm, shareSendSizeReq[I]);
+          IsendSeq(shareSendSeq[I], I, sharingComm, shareSendSeqReq[I]);
         }
         completed.pop_back();
-        EpOwnerID = (EpOwnerID+1) % SZ;
+        // who's turn is next to receive an episode?
+        sharingTurn = (sharingTurn+1) % sharingSize;
       }
     }
-    for(int i=0; i<SZ; i++) if(i not_eq ID) recvEP(i);
+
+    for(Uint i=1; i<workerSize; i++)
+      if (isComplete(workerRecvSizeReq[i]))
+      {
+        Fvec EP(workerRecvSeqSize[i], (Fval)0);
+        RecvSeq(EP, i, workerComm);
+        // prepare the next one:
+        IrecvSize(workerRecvSeqSize[i], i, workerComm, workerRecvSizeReq[i]);
+        if (sharingTurn == sharingRank) {
+          Sequence * const tmp = new Sequence();
+          tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
+          replay->pushBackSequence(tmp);
+        } else {
+          const Uint I = sharingTurn;
+          if(shareSendSizeReq[I] not_eq MPI_REQUEST_NULL)
+            MPI(Wait, & shareSendSizeReq[I], MPI_STATUS_IGNORE);
+          if( shareSendSeqReq[I] not_eq MPI_REQUEST_NULL)
+            MPI(Wait, &  shareSendSeqReq[I], MPI_STATUS_IGNORE);
+
+          shareSendSeq[I] = EP;
+          shareSendSeqSize[I] = shareSendSeq[I].size();
+
+          IsendSize(shareSendSeqSize[I], I, sharingComm, shareSendSizeReq[I]);
+          IsendSeq(shareSendSeq[I], I, sharingComm, shareSendSeqReq[I]);
+        }
+        sharingTurn = (sharingTurn+1) % sharingSize;
+      }
+
+    for(Uint i=0; i<sharingSize; i++)
+      if (isComplete(shareRecvSizeReq[i]))
+      {
+        Fvec EP(shareRecvSeqSize[i], (Fval)0);
+        RecvSeq(EP, i, sharingComm);
+        // prepare the next one:
+        IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
+        Sequence * const tmp = new Sequence();
+        tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
+        replay->pushBackSequence(tmp);
+      }
 
     usleep(1);
     if( bExit.load() > 0 ) break;
@@ -90,10 +162,25 @@ void MemorySharing::run()
 
 void MemorySharing::addComplete(Sequence* const EP)
 {
-  if(SZ <= 1) {
-    replay->pushBackSequence(EP);
-  } else {
+  if(sharingComm not_eq MPI_COMM_NULL)
+  {
     std::lock_guard<std::mutex> lock(complete_mutex);
     completed.push_back(EP);
   }
+  else if(workerComm not_eq MPI_COMM_NULL)
+  {
+    // if we created data structures for worker to send eps to master
+    // this better be a worker!
+    assert(workerRank>0 && workerSize>1 && not distrib.bIsMaster);
+    Fvec sendSq = EP->packSequence(sI.dimObs(), aI.dim(), aI.dimPol());
+    unsigned long sendSz = sendSq.size();
+    MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
+    MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 98, workerComm);
+  }
+  else // data stays here
+  {
+    replay->pushBackSequence(EP);
+  }
+}
+
 }

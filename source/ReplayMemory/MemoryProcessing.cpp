@@ -9,8 +9,10 @@
 #include "MemoryProcessing.h"
 #include <algorithm>
 
-MemoryProcessing::MemoryProcessing(const Settings&S, MemoryBuffer*const _RM) :
-settings(S), RM(_RM) { }
+namespace smarties
+{
+
+MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM) { }
 
 // update the second order moment of the rewards in the memory buffer
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
@@ -53,7 +55,6 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   }
 
   static constexpr Real EPS = std::numeric_limits<float>::epsilon();
-
   const long double count = Csum1Rdx.get<0>(bInit);
 
   if(WR>0)
@@ -225,6 +226,7 @@ void MemoryProcessing::finalize()
   const long nSeq = RM->readNSeq();
   nPruned += nB4 - nSeq;
 
+  // update sampling algorithm:
   RM->sampler->prepare(RM->needs_pass);
 }
 
@@ -234,9 +236,9 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
   const long nSeq = nSequences.load();
   for(long i=0; i<nSeq; i++) avgR += Set[i]->totR;
 
-  real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
-  real2SS(buff, 1/invstd_reward, 6, 1);
-  real2SS(buff, avgDKL, 6, 1);
+  Utilities::real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
+  Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
+  Utilities::real2SS(buff, avgDKL, 6, 1);
 
   buff<<" "<<std::setw(5)<<nSeq;
   buff<<" "<<std::setw(7)<<nTransitions.load();
@@ -269,4 +271,6 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   }
   die("ERoldSeqFilter not recognized");
   return OLDEST; // to silence warning
+}
+
 }

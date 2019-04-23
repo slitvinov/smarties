@@ -5,21 +5,29 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#pragma once
+
+#ifndef smarties_MemoryProcessing_h
+#define smarties_MemoryProcessing_h
 
 #include "MemoryBuffer.h"
 
+namespace smarties
+{
+
 enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV};
+
 class MemoryProcessing
 {
 private:
-  const Settings & settings;
-  const int ID = settings.learner_rank;
-  MemoryBuffer * const RM;
+  MemoryBuffer* const RM;
+  const MDPdescriptor & MDP = RM->MDP;
+  const Settings & settings = RM->settings;
+  const DistributionInfo & distrib = RM->distrib;
 
-  std::vector<memReal>& invstd = RM->invstd;
-  std::vector<memReal>& mean = RM->mean;
-  std::vector<memReal>& std = RM->std;
+  std::vector<nnReal>& invstd = RM->invstd;
+  std::vector<nnReal>& mean = RM->mean;
+  std::vector<nnReal>& std = RM->std;
+  Real& stddev_reward = RM->stddev_reward;
   Real& invstd_reward = RM->invstd_reward;
 
   const Uint dimS = RM->dimS;
@@ -42,9 +50,7 @@ private:
 
 public:
 
-  MemoryProcessing(const Settings&S, MemoryBuffer*const _RM);
-
-  ~MemoryProcessing() { }
+  MemoryProcessing(MemoryBuffer*const _RM);
 
   void updateRewardsStats(const Real WR, const Real WS, const bool bInit=false);
 
@@ -61,3 +67,6 @@ public:
     return nOffPol;
   }
 };
+
+}
+#endif

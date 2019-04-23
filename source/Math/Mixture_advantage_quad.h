@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_QuadMixture_advantage_h
+#define smarties_QuadMixture_advantage_h
+
 #include "Gaussian_mixture.h"
+
+namespace smarties
+{
 
 template<Uint nExperts>
 struct Mixture_advantage
@@ -246,3 +251,6 @@ public:
     return ret;
   }
 };
+
+} // end namespace smarties
+#endif // smarties_QuadMixture_advantage_h

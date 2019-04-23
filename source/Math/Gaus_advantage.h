@@ -6,9 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Gaussian_advantage_h
+#define smarties_Gaussian_advantage_h
 
 #include "Gaussian_policy.h"
+
+namespace smarties
+{
 
 struct Gaussian_advantage
 {
@@ -138,3 +142,6 @@ public:
     return ret;
   }
 };
+
+} // end namespace smarties
+#endif // smarties_Gaussian_advantage_h

@@ -5,35 +5,41 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#pragma once
-#include <thread>
+
+#ifndef smarties_MemorySharing_h
+#define smarties_MemorySharing_h
 
 #include "MemoryBuffer.h"
+#include <thread>
+
+namespace smarties
+{
 
 struct MemorySharing
 {
-  const Settings& settings;
   MemoryBuffer* const replay;
+  const Settings & settings = replay->settings;
+  const DistributionInfo & distrib = replay->distrib;
 
   const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;
-  const Uint dimS = sI.dimUsed, dimA = aI.dim, dimP = aI.policyVecDim;
+  std::vector<Sequence*> completed;
 
-  const MPI_Comm comm = MPIComDup(settings.mastersComm);
-  const int ID = settings.learner_rank, SZ = settings.learner_size;
+  // allows masters to share episodes between each others
+  // each master sends the size (in floats) of the episode
+  // then sends the episode itself. same goes for receiving
+  MPI_Comm sharingComm;
+  Uint sharingSize, sharingRank, sharingTurn;
+  std::vector<MPI_Request> shareSendSizeReq, shareSendSeqReq, shareRecvSizeReq;
+  std::vector<unsigned long> shareSendSeqSize, shareRecvSeqSize;
+  std::vector<Fvec> shareSendSeq;
+
+  MPI_Comm workerComm;
+  Uint workerSize, workerRank;
+  std::vector<MPI_Request> workerRecvSizeReq;
+  std::vector<unsigned long> workerRecvSeqSize;
 
   int EpOwnerID = ID; // first episode stays on rank
-
-  std::vector<Sequence*> completed;
-  std::vector<Uint> sendSz = std::vector<Uint>(SZ);
-  std::vector<Uint> recvSz = std::vector<Uint>(SZ);
-
-  std::vector<Fvec> sendSq = std::vector<Fvec>(SZ);
-  std::vector<Fvec> recvSq = std::vector<Fvec>(SZ);
-
-  std::vector<MPI_Request> RRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
-  std::vector<MPI_Request> SRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
-  std::vector<MPI_Request> CRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
 
   std::mutex complete_mutex;
   const bool bAsync = settings.bAsync;
@@ -58,4 +64,33 @@ struct MemorySharing
   void run();
 
   void addComplete(Sequence* const EP);
+
+  void IrecvSize(unsigned long& size, const int rank, const MPI_Comm C, MPI_Request&R) const
+  {
+    MPI(Irecv, &size, 1, MPI_UNSIGNED_LONG, rank, 99, C, &R);
+  }
+  void IsendSize(const unsigned long& size, const int rank, const MPI_Comm C, MPI_Request&R) const
+  {
+    MPI(Isend, &size, 1, MPI_UNSIGNED_LONG, rank, 99, C, &R);
+  }
+
+  void RecvSeq(Fvec&V, const int rank, const MPI_Comm C) const
+  {
+    MPI( Recv, V.data(), V.size(), MPI_Fval, rank, 98, C, NOSTS);
+  }
+  void IsendSeq(const Fvec&V, const int rank, const MPI_Comm C, MPI_Request&R) const
+  {
+    MPI(Isend, V.data(), V.size(), MPI_Fval, rank, 98, C, &R);
+  }
+
+  bool isComplete(MPI_Request& req)
+  {
+    if(req == MPI_REQUEST_NULL) return false;
+    int bRecvd = 0;
+    MPI(Test, &req, &bRecvd, MPI_STATUS_IGNORE);
+    return bRecvd > 0;
+  }
 };
+
+}
+#endif

@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Quadratic_term_h
+#define smarties_Quadratic_term_h
+
 #include "Utils.h"
+
+namespace smarties
+{
 
 struct Quadratic_term
 {
@@ -19,7 +24,8 @@ struct Quadratic_term
     return (aI->dim*aI->dim + aI->dim)/2;
   }
 
-  Rvec getParam() const {
+  Rvec getParam() const
+  {
      Rvec ret(nL, 0);
      for (Uint ind=0, j=0; j<nA; j++)
        for (Uint i=0; i<nA; i++)
@@ -130,3 +136,6 @@ protected:
     }
   }
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

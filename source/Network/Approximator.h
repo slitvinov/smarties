@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Approximator_h
+#define smarties_Approximator_h
+
 #include "Encapsulator.h"
+
+namespace smarties
+{
 
 struct Aggregator;
 
@@ -154,3 +159,6 @@ struct Approximator
 
   void applyImpSampling(Rvec& G, const Sequence*const S, const Uint t) const;
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

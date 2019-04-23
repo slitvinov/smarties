@@ -6,8 +6,13 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Gaussian_policy_h
+#define smarties_Gaussian_policy_h
+
 #include "Utils.h"
+
+namespace smarties
+{
 
 struct Gaussian_policy
 {
@@ -292,3 +297,6 @@ struct Gaussian_policy
 
   void test(const Rvec& act, const Rvec& beta) const;
 };
+
+} // end namespace smarties
+#endif // smarties_Gaussian_policy_h

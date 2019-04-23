@@ -6,8 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Quadratic_term_h
+#define smarties_Quadratic_term_h
 #include "Approximator.h"
+
+namespace smarties
+{
 
 enum RELAY {VEC, ACT, NET};
 struct Aggregator
@@ -51,3 +55,6 @@ struct Aggregator
 
   inline Uint nOutputs() const { return nOuts; }
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

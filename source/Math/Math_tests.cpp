@@ -10,6 +10,8 @@
 #include "../Math/Discrete_advantage.h"
 #include "../Math/Gaussian_policy.h"
 
+namespace smarties
+{
 
 void Gaussian_policy::test(const Rvec& act, const Rvec& beta) const
 {
@@ -101,3 +103,5 @@ void Discrete_policy::test(const Uint act, const Rvec& beta) const
   }
   fout.close();
 }
+
+} // end namespace smarties

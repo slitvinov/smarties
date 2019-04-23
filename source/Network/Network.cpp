@@ -9,6 +9,9 @@
 #include "Builder.h"
 #include "Network.h"
 
+namespace smarties
+{
+
 /*
   predict output of network given input:
   - vector<Real> _inp: must be same size as input layer
@@ -223,3 +226,5 @@ void Network::dump(const int agentID)
   dump_ID[agentID]++;
 }
 #endif
+
+} // end namespace smarties

@@ -5,11 +5,15 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#pragma once
 
-#include "../StateAction.h"
-#include "../Settings.h"
-#include "../Environments/Environment.h"
+#ifndef smarties_Sequences_h
+#define smarties_Sequences_h
+
+#include "../Utils/Definitions.h"
+#include <mutex>
+
+namespace smarties
+{
 
 struct Sequence
 {
@@ -21,7 +25,7 @@ struct Sequence
     rewards.reserve(MAX_SEQ_LEN);
   }
   // Fval is just a storage format, probably float while Real is prob. double
-  std::vector<std::vector<memReal>> states;
+  std::vector<std::vector<nnReal>> states;
   std::vector<std::vector<Real>> actions;
   std::vector<std::vector<Real>> policies;
   std::vector<Real> rewards;
@@ -157,3 +161,6 @@ struct Sequence
     return nStep;
   }
 };
+
+} // namespace smarties
+#endif // smarties_Sequences_h

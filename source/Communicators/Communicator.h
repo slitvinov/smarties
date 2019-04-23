@@ -6,14 +6,20 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-#include <vector>
-#include <memory>
-#include <random>
+#ifndef smarties_Communicator_h
+#define smarties_Communicator_h
 
 #ifndef SMARTIES_LIB
-  #include <mpi.h>
+#include <mpi.h>
+class Worker;
 #endif
+
+#include "../Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
+
+#include <random>
+
+namespace smarties
+{
 
 struct COMM_buffer;
 
@@ -62,33 +68,33 @@ public:
   }
 
   // receive action for the latest given state:
-  const std::vector<double>& recvAction(const int agentID = 0);
+  const std::vector<double>& recvAction(const int agentID = 0) const;
 
   void set_state_action_dims(const int dimState, const int dimAct,
-                             const int agentID);
+                             const int agentID = 0);
 
   void set_action_scales(const std::vector<double> uppr,
                          const std::vector<double> lowr,
                          const bool bound,
-                         const int agentID);
+                         const int agentID = 0);
 
   void set_action_scales(const std::vector<double> upper,
                          const std::vector<double> lower,
                          const std::vector<bool>   bound,
-                         const int agentID);
+                         const int agentID = 0);
 
   void set_action_options(const int options,
-                          const int agentID);
+                          const int agentID = 0);
 
   void set_action_options(const std::vector<int> options,
-                          const int agentID);
+                          const int agentID = 0);
 
   void set_state_observable(const std::vector<bool> observable,
-                            const int agentID);
+                            const int agentID = 0);
 
   void set_state_scales(const std::vector<double> upper,
                         const std::vector<double> lower,
-                        const int agentID);
+                        const int agentID = 0);
 
   void set_num_agents(int _nAgents);
 
@@ -130,36 +136,41 @@ protected:
   std::mt19937 gen;
   //internal counters & flags
   bool bTrain = true;
-  int nEpisodes -1;
+  int nEpisodes = -1;
+  Uint globalTstepCounter = 0;
 
   //called by app to interact with smarties:
   void sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
   #ifndef SMARTIES_LIB
+  #ifndef MPI_VERSION
+    #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+  #endif
 
   public:
-    MPI_Comm getMPIcomm() const { rerturn workers_application_comm; }
+    MPI_Comm getMPIcomm() const { return workers_application_comm; }
+
   protected:
     MPI_Comm workers_application_comm = MPI_COMM_SELF;
     void setMPIcomm(const MPI_Comm& C) { workers_application_comm = C; }
 
     //access to smarties' internals, available only if app is linked into exec
     friend class Worker;
-    std::shared_pointer<Worker> worker;
-    #ifndef MPI_VERSION
-      #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
-    #endif
+    // ref to worker ensures that if SMARTIES_LIB is not defined we can only
+    // construct a communicator with the protected constructor defined below
+    Worker& worker;
 
+    Communicator(Worker* const, std::mt19937&, bool);
   #endif
 };
 
 struct COMM_buffer
 {
-  COMM_buffer(const size_t maxStateDim, const size_t maxActionDim) :
-    maxStateDim(maxStateDim), maxActionDim(maxActionDim),
-    sizeStateMsg(Agent::computeStateMsgSize(maxStateDimension)),
-    sizeActionMsg(Agent::computeActionMsgSize(maxActionDimension)),
+  COMM_buffer(const size_t maxSdim, const size_t maxAdim) :
+    maxStateDim(maxSdim), maxActionDim(maxAdim),
+    sizeStateMsg(Agent::computeStateMsgSize(maxSdim)),
+    sizeActionMsg(Agent::computeActionMsgSize(maxAdim)),
     dataStateBuf(malloc(sizeStateMsg)), dataActionBuf(malloc(sizeActionMsg)) { }
 
   ~COMM_buffer() {
@@ -175,3 +186,6 @@ struct COMM_buffer
   void * const dataStateBuf;
   void * const dataActionBuf;
 };
+
+} // end namespace smarties
+#endif // smarties_Communicator_h

@@ -6,17 +6,21 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "CommunicatorUtils.h"
 #include "Communicator.h"
-#include "SocketsLib.h"
+#include "../Utils/SocketsLib.h"
 
-#include <fstream>
+#ifndef SMARTIES_LIB
+#include "../Core/Worker.h"
+#endif
+
+namespace smarties
+{
 
 Communicator::Communicator(int number_of_agents)
 {
   set_num_agents(number_of_agents);
-  std::random_device RD;
-  gen = std::mt19937(RD);
+  //std::random_device RD;
+  //gen = std::mt19937(RD);
   SOCK.server = SOCKET_clientConnect();
 }
 
@@ -24,8 +28,8 @@ Communicator::Communicator(int stateDim, int actionDim, int number_of_agents)
 {
   set_num_agents(number_of_agents);
   set_state_action_dims(stateDim, actionDim);
-  std::random_device RD;
-  gen = std::mt19937(RD);
+  //std::random_device RD;
+  //gen = std::mt19937(RD);
   SOCK.server = SOCKET_clientConnect();
 }
 
@@ -38,7 +42,7 @@ void Communicator::set_state_action_dims(const int dimState,
   if( (size_t) agentID >= ENV.descriptors.size())
     die("Attempted to write to uninitialized MDPdescriptor");
   ENV.descriptors[agentID]->dimState = dimState;
-  ENV.descriptors[agentID]->dimAct = dimAct;
+  ENV.descriptors[agentID]->dimAction = dimAct;
 }
 
 void Communicator::set_action_scales(const std::vector<double> uppr,
@@ -64,10 +68,11 @@ void Communicator::set_action_scales(const std::vector<double> upper,
 
   ENV.descriptors[agentID]->bDiscreteActions = false;
   ENV.descriptors[agentID]->upperActionValue =
-    Rvec(upper.begin(), upper.end());
+                Rvec(upper.begin(), upper.end());
   ENV.descriptors[agentID]->lowerActionValue =
-    Rvec(lower.begin(), lower.end());
-  ENV.descriptors[agentID]->bActionSpaceBounded = bound;
+                Rvec(lower.begin(), lower.end());
+  ENV.descriptors[agentID]->bActionSpaceBounded =
+    std::vector<int>(bound.begin(), bound.end());
 }
 
 void Communicator::set_action_options(const int options,
@@ -104,7 +109,8 @@ void Communicator::set_state_observable(const std::vector<bool> observable,
     printf("ABORTING: size mismatch when defining observed/hidden state variables."); fflush(0); abort();
   }
 
-  ENV.descriptors[agentID]->bStateVarObserved = observable;
+  ENV.descriptors[agentID]->bStateVarObserved =
+    std::vector<int>(observable.begin(), observable.end());
 }
 
 void Communicator::set_state_scales(const std::vector<double> upper,
@@ -169,9 +175,9 @@ void Communicator::agents_define_different_MDP()
 
 void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
 {
-  ENV.bTrainFromAgentData.resize(ENV.nAgentsPerEnvironment, true);
+  ENV.bTrainFromAgentData.resize(ENV.nAgentsPerEnvironment, 1);
   for(int i=agentStart; i<agentEnd; i++)
-    ENV.bTrainFromAgentData[i] = false;
+    ENV.bTrainFromAgentData[i] = 0;
 }
 
 void Communicator::sendState(const int agentID, const episodeStatus status,
@@ -191,11 +197,11 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
   else
 #endif
   {
-    SOCKET_Send(BUFF[0]->dataStateMsg,  BUFF[0]->sizeStateMsg,  SOCK.server);
-    SOCKET_Recv(BUFF[0]->dataActionMsg, BUFF[0]->sizeActionMsg, SOCK.server);
+    SOCKET_Bsend(BUFF[0]->dataStateBuf,  BUFF[0]->sizeStateMsg,  SOCK.server);
+    SOCKET_Brecv(BUFF[0]->dataActionBuf, BUFF[0]->sizeActionMsg, SOCK.server);
   }
 
-  agents[agentID]->unpackActionMsg(BUFF[0]->dataActionMsg);
+  agents[agentID]->unpackActionMsg(BUFF[0]->dataActionBuf);
 
   // we cannot control application. if we received a termination signal we abort
   if(agents[agentID]->learnStatus == KILL) {
@@ -242,7 +248,7 @@ void Communicator::initOneCommunicationBuffer()
     maxDimAction = std::max(maxDimAction, ENV.descriptors[i]->dimAction);
   }
   assert(nAgents > 0 && maxDimAction > 0); // state can be 0-D
-  BUFF.emplace_back(maxStateDim, maxActionDim);
+  BUFF.emplace_back(std::make_unique<COMM_buffer>(maxDimState, maxDimAction) );
 }
 
 std::mt19937& Communicator::getPRNG() {
@@ -253,4 +259,15 @@ bool Communicator::isTraining() {
 }
 int Communicator::desiredNepisodes() {
   return nEpisodes;
+}
+
+#ifndef SMARTIES_LIB
+#ifndef MPI_VERSION
+  #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+#endif
+
+
+Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
+worker(*W), gen(G()), bTrain(isTraining) {}
+
 }

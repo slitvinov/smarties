@@ -6,6 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+namespace smarties
+{
+
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
   const Uint wID, const Uint bID, const Uint thrID) const
@@ -153,4 +156,6 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     F[0]->backward(G, t, thrID);
     F[0]->gradient(thrID);  // backprop
   }
+}
+
 }

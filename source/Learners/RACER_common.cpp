@@ -17,6 +17,9 @@
 #endif
 #include "../Math/Discrete_advantage.h"
 
+namespace smarties
+{
+
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
 {
@@ -112,7 +115,7 @@ getnDimPolicy(const ActionInfo*const aI) {
 
 template<>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
-RACER(Environment*const _env, Settings& _set) : Learner_approximator(_env,_set),
+RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
@@ -162,7 +165,7 @@ getnDimPolicy(const ActionInfo*const aI) {
 
 template<>
 RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-RACER(Environment*const _env, Settings& _set) : Learner_approximator(_env,_set),
+RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
@@ -233,7 +236,7 @@ getnDimPolicy(const ActionInfo*const aI) {
 
 template<>
 RACER<Param_advantage, Gaussian_policy, Rvec>::
-RACER(Environment*const _env, Settings& _set) : Learner_approximator(_env,_set),
+RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
@@ -264,4 +267,6 @@ RACER(Environment*const _env, Settings& _set) : Learner_approximator(_env,_set),
     pol.prepare(act, mu);
     pol.test(act, mu);
   }
+}
+
 }

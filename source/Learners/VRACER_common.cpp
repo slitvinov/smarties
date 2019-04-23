@@ -12,6 +12,9 @@
 #include "../Math/Gaussian_policy.h"
 #include "../Math/Discrete_policy.h"
 
+namespace smarties
+{
+
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::prepareCMALoss()
 {
@@ -127,7 +130,7 @@ template<> Uint VRACER<Discrete_policy, Uint>::
 getnDimPolicy(const ActionInfo*const aI) { return aI->maxLabel; }
 
 template<> VRACER<Discrete_policy, Uint>::
-VRACER(Environment*const _env, Settings& _set): Learner_approximator(_env,_set),
+VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 {
   printf("Discrete-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
@@ -156,7 +159,8 @@ count_pol_starts(const ActionInfo*const aI) {
 template<> Uint VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
 getnDimPolicy(const ActionInfo*const aI) { return NEXPERTS*(1 +2*aI->dim); }
 
-template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::VRACER(Environment*const _env, Settings& _set): Learner_approximator(_env,_set),
+template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
+VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 {
   printf("Mixture-of-experts continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
@@ -204,7 +208,7 @@ template<> Uint VRACER<Gaussian_policy, Rvec>::
 getnDimPolicy(const ActionInfo*const aI) { return 2*aI->dim; }
 
 template<> VRACER<Gaussian_policy, Rvec>::
-VRACER(Environment*const _env, Settings& _set): Learner_approximator(_env,_set),
+VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   printf("Gaussian continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
   computeQretrace = true;
@@ -225,4 +229,6 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     pol.prepare(act, mu);
     pol.test(act, mu);
   }
+}
+
 }

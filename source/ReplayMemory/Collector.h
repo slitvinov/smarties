@@ -5,21 +5,24 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#pragma once
+
+#ifndef smarties_Collector_h
+#define smarties_Collector_h
 
 #include "MemorySharing.h"
+
+namespace smarties
+{
 
 class Collector
 {
 private:
-  const Settings & settings;
-  const Environment * const env;
   MemoryBuffer * const replay;
-  MemorySharing * const sharing;
-
-  const bool bWriteToFile = settings.samplesFile;
-  const Uint policyVecDim = env->aI.policyVecDim;
-  const int learn_rank = settings.learner_rank;
+  const MDPdescriptor & MDP = replay->MDP;
+  const Settings & settings = replay->settings;
+  const DistributionInfo & distrib = RM->distrib;
+  const StateInfo& sI = replay->sI;
+  const ActionInfo& aI = replay->aI;
 
   std::vector<Sequence*> inProgress;
 
@@ -48,3 +51,6 @@ public:
 
   ~Collector();
 };
+
+}
+#endif

@@ -6,9 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Discrete_policy_h
+#define smarties_Discrete_policy_h
+
 #include "Utils.h"
 #include <algorithm>
+
+namespace smarties
+{
 
 struct Discrete_policy
 {
@@ -178,3 +183,6 @@ struct Discrete_policy
 
   void test(const Uint act, const Rvec& beta) const;
 };
+
+} // end namespace smarties
+#endif // smarties_Discrete_policy_h

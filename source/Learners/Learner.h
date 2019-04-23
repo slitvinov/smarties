@@ -6,52 +6,52 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Learner_h
+#define smarties_Learner_h
 
-#include "../ReplayMemory/MemoryBuffer.h"
-#include "../ReplayMemory/Collector.h"
-#include "../ReplayMemory/MemoryProcessing.h"
 #include "../Utils/Profiler.h"
+#include "../Core/Profiler.h"
 
+namespace smarties
+{
 
 class Learner
 {
- protected:
+protected:
   const Uint freqPrint = 1000;
+  DistributionInfo & distrib;
   Settings & settings;
-  Environment * const env;
+  MDPdescriptor & MDP;
 
- public:
-  const MPI_Comm mastersComm = settings.mastersComm;
+public:
+  const MPI_Comm learnersComm = distrib.learners_train_comm;
+  const Uint learn_rank = MPICommRank(learnersComm);
+  const Uint learn_size = MPICommSize(learnersComm);
+  const Uint nThreads = distrib.nThreads;
+  const Uint nAgents = distrib.nAgents;
 
+  const Uint policyVecDim = MDP.policyVecDim;
+  const ActionInfo& aInfo = ActionInfo(MDP);
+  const StateInfo&  sInfo = StateInfo(MDP);
+
+  // training loop scheduling:
+  const Uint totNumSteps = settings.totNumSteps;
+  const Real obsPerStep_loc = settings.obsPerStep_loc;
   const Uint nObsB4StartTraining = settings.minTotObsNum_loc;
   const bool bTrain = settings.bTrain;
-  const Real obsPerStep_loc = settings.obsPerStep_loc;
 
-  const Uint policyVecDim = env->aI.policyVecDim;
-  const Uint nAgents = settings.nAgents;
-  const Uint nThreads = settings.nThreads;
-
-  const int learn_rank = settings.learner_rank;
-  const int learn_size = settings.learner_size;
-  const int dropRule = settings.nnPdrop;
-  // hyper-parameters:
-  const Uint totNumSteps = settings.totNumSteps;
-
+  // some algorithm hyper-parameters:
   const Real gamma = settings.gamma;
-  const Real CmaxPol = settings.clipImpWeight;
   const Real ReFtol = settings.penalTol;
+  const Real CmaxPol = settings.clipImpWeight;
   const Real epsAnneal = settings.epsAnneal;
 
   const FORGET ERFILTER =
     MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
   DelayedReductor<long double> ReFER_reduce = DelayedReductor<long double>(settings, LDvec{ 0.0, 1.0 } );
 
-  const StateInfo&  sInfo = env->sI;
-  const ActionInfo& aInfo = env->aI;
-  const ActionInfo* const aI = &aInfo;
 
- protected:
+protected:
   long nDataGatheredB4Startup = 0;
   int algoSubStepID = -1;
 
@@ -63,12 +63,12 @@ class Learner
 
   std::atomic<long> _nGradSteps{0};
 
-  std::vector<std::mt19937>& generators = settings.generators;
+  std::vector<std::mt19937>& generators = distrib.generators;
 
-  MemoryBuffer* const data = new MemoryBuffer(settings, env);
-  MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Collector* const data_get = new Collector(settings, data);
-  Profiler* const profiler = new Profiler();
+  const std::unique_ptr<MemoryBuffer>     data;
+  const std::unique_ptr<MemoryProcessing> data_proc;
+  const std::unique_ptr<Collector>        data_get;
+  const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
 
   TrainData* trainInfo = nullptr;
   mutable std::mutex buffer_mutex;
@@ -79,13 +79,7 @@ class Learner
   std::string learner_name;
   Uint learnID;
 
-  Learner(Environment*const env, Settings & settings);
-
-  virtual ~Learner() {
-    _dispose_object(data_proc);
-    _dispose_object(data_get);
-    _dispose_object(data);
-  }
+  Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
   inline void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
@@ -151,3 +145,6 @@ class Learner
     return std::fabs(S->Q_RET[t-1] - oldRet);
   }
 };
+
+}
+#endif

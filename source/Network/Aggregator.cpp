@@ -9,6 +9,9 @@
 #include "Aggregator.h"
 #include "Builder.h"
 
+namespace smarties
+{
+
 void Aggregator::prepare(Sequence*const traj, const Uint thrID,
   const RELAY SET) const {
   seq[thrID] = traj;
@@ -80,3 +83,5 @@ Rvec Aggregator::get(const Uint samp, const Uint thrID, const int USEW) const {
     return ret;
   }
 }
+
+} // end namespace smarties

@@ -8,6 +8,9 @@
 
 #include "Sequences.h"
 
+namespace smarties
+{
+
 std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uint dP)
 {
   const Uint seq_len = states.size();
@@ -59,7 +62,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   const Fval* buf = data.data();
   assert(states.size() == 0);
   for (Uint i = 0; i<seq_len; i++) {
-    states.push_back(std::vector<memReal>(buf, buf+dS));
+    states.push_back(std::vector<nnReal>(buf, buf+dS));
     rewards.push_back(buf[dS]); buf += dS + 1;
     actions.push_back(std::vector<Fval>(buf, buf+dA)); buf += dA;
     policies.push_back(std::vector<Fval>(buf, buf+dP)); buf += dP;
@@ -86,4 +89,6 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
     die("mismatch");
   unpackSequence(buffer, dS, dA, dP);
   return 0;
+}
+
 }

@@ -6,10 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Encapsulator_h
+#define smarties_Encapsulator_h
 
 #include "../ReplayMemory/MemoryBuffer.h"
 #include "Network.h"
+
+namespace smarties
+{
 
 class Builder;
 class Optimizer;
@@ -77,3 +81,6 @@ struct Encapsulator
   void getHeaders(std::ostringstream& buff) const;
   void getMetrics(std::ostringstream& buff) const;
 };
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

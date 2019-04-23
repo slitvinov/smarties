@@ -9,7 +9,10 @@
 #include "Learner_pytorch.h"
 #include <chrono>
 
-Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
+namespace smarties
+{
+
+Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_)
 {
 
 }
@@ -73,4 +76,4 @@ void Learner_pytorch::save()
   Learner::save();
 }
 
-
+}

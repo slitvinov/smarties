@@ -6,34 +6,27 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-#include <functional>
+#ifndef smarties_Settings_h
+#define smarties_Settings_h
 
-class TaskQueue
+#include "Utils/Definitions.h"
+#include <random>
+#include <mutex>
+
+namespace CLI { class App; }
+
+namespace smarties
 {
-  using cond_t = std::function<bool()>;
-  using func_t = std::function<void()>;
-  std::vector<std::pair<cond_t, func_t>> tasks;
-
-public:
-  inline void add(cond_t && cond, func_t && func) {
-    tasks.emplace_back(std::move(cond), std::move(func));
-  }
-
-  inline void run()
-  {
-    // go through task list once and execute all that are ready:
-    for(Uint i=0; i<tasks.size(); ++i) if( tasks[i].first() ) tasks[i].second();
-  }
-};
 
 struct DistributionInfo
 {
   DistributionInfo(int argc, char** argv);
+  ~DistributionInfo();
 
   void figureOutWorkersPattern();
-
-  ~DistributionInfo();
+  void initializeOpts(CLI::App & parser);
+  void initialzePRNG();
+  void finalizePRNG(const Uint nAgents_local);
 
   Uint world_rank;
   Uint world_size;
@@ -43,6 +36,7 @@ struct DistributionInfo
   mutable std::mutex mpi_mutex;
 
   Uint nWorker_processes;
+  Uint nAgents;
 
   MPI_Comm master_workers_comm = MPI_COMM_NULL;
   MPI_Comm workerless_masters_comm = MPI_COMM_NULL;
@@ -84,7 +78,7 @@ training buffer"
 
 #define COMMENT_learnersOnWorkers "Whether to enable hosting learning algos \
 on worker processes such that workers send training data and recv parameters \
-from masters. If false workers only send states and recv actions from masters.
+from masters. If false workers only send states and recv actions from masters."
 #define DEFAULT_learnersOnWorkers false
   bool learnersOnWorkers = DEFAULT_learnersOnWorkers;
 
@@ -99,7 +93,7 @@ all other nodes are workers, with 1 process per CPU core. "
   bool fakeMastersRanks = DEFAULT_fakeMastersRanks;
 
 #define COMMENT_workerProcessesPerEnv "Number of MPI ranks required by the the env \
-application. It is 1 for serial/shared-memory solvers.""
+application. It is 1 for serial/shared-memory solvers."
 #define DEFAULT_workerProcessesPerEnv 1
   Uint workerProcessesPerEnv = DEFAULT_workerProcessesPerEnv;
 
@@ -116,7 +110,7 @@ through sockets (=1)."
 #define COMMENT_nStepPappSett "Number of time steps per appSettings file to \
 use. Must be a list of positive numbers separated by semicolons. Last number \
 will be overwritten to 0; i.e. last appSettings will be used til termination."
-#define DEFAULT_nStepPappSett ""
+#define DEFAULT_nStepPappSett 0
   std::string nStepPappSett = DEFAULT_nStepPappSett;
 
 #define COMMENT_appSettings "Name of file containing the command line arguments for user's application."
@@ -136,6 +130,11 @@ base run folder."
 
 struct Settings
 {
+  void check();
+  void initializeOpts(CLI::App & parser);
+  void defineDistributedLearning(const MPI_Comm learnersComm,
+                                 const MPI_Comm gatheringComm);
+
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO LEARNING ALGORITHM
 ///////////////////////////////////////////////////////////////////////////////
@@ -232,9 +231,9 @@ std::string restart = DEFAULT_restart;
 //SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
 ///////////////////////////////////////////////////////////////////////////////
 
-#define COMMENT_nnLayerSizes "Sizes of non-convolutional layers \"
-"(LSTM/RNN/FFNN). E.g. '128 128'."
-#define DEFAULT_nnLayerSizes 0
+#define COMMENT_nnLayerSizes "Sizes of non-convolutional layers \
+(LSTM/RNN/FFNN). E.g. '128 128'."
+#define DEFAULT_nnLayerSizes std::vector<Uint>(0)
   std::vector<Uint> nnLayerSizes = DEFAULT_nnLayerSizes;
 
 #define COMMENT_batchSize "Network training batch size."
@@ -290,23 +289,17 @@ multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
   Uint splitLayers = DEFAULT_splitLayers;
 
 
-///////////////////////////////////////////////////////////////////////////////
-//SETTINGS THAT ARE NOT READ FROM FILE
-///////////////////////////////////////////////////////////////////////////////
-  // rank-local data-acquisition goals
+  ///////////////////////////////////////////////////////////////////////////////
+  //SETTINGS THAT ARE NOT READ FROM FILE
+  ///////////////////////////////////////////////////////////////////////////////
+  // rank-local data-acquisition goals:
   Uint batchSize_local = -1;
   Real obsPerStep_local = -1;
   Uint minTotObsNum_local = -1;
   Uint maxTotObsNum_local = -1;
-
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
-
-  void check();
-
-  void initRandomSeed();
-
-  void finalizeSeeds();
-
-  std::vector<int> readNetSettingsSize() const;
 };
+
+} // end namespace smarties
+#endif // smarties_Settings_h

@@ -8,12 +8,11 @@
 
 #include "Collector.h"
 
-Collector::Collector(const Settings&S, MemoryBuffer*const RM) :
- settings(S), env(RM->env), replay(RM), sharing( new MemorySharing(S, RM) )
+Collector::Collector(MemoryBuffer*const RM) : replay(RM), sharing(new MemorySharing(RM))
 {
   globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
-  inProgress.resize(S.nAgents, nullptr);
-  for (int i=0; i<S.nAgents; i++) inProgress[i] = new Sequence();
+  inProgress.resize(distrib.nAgents, nullptr);
+  for (int i=0; i<distrib.nAgents; i++) inProgress[i] = new Sequence();
 }
 
 // Once learner receives a new observation, first this function is called
@@ -23,26 +22,27 @@ void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
   Sequence* const S = inProgress[a.ID];
-  const std::vector<memReal> storedState = a.s.copy_observed<memReal>();
-  if(a.trackSequence == false) {
+  const std::vector<nnReal> storedState = a.s.copy_observed<memReal>();
+  if(a.trackSequence == false)
+  {
     // contain only one state and do not add more. to not store rewards either
     // RNNs then become automatically not supported because no time series!
     // (this is accompained by check in approximator)
-    S->states = std::vector<std::vector<memReal>>{ storedState };
+    S->states = std::vector<std::vector<nnReal>>{ storedState };
     S->rewards = std::vector<Real>{ (Real)0 };
     S->SquaredError.clear(); S->Q_RET.clear();
     S->offPolicImpW.clear(); S->action_adv.clear();
     S->KullbLeibDiv.clear(); S->state_vals.clear();
-    a.Status = INIT_COMM; // one state stored, lie to avoid catching asserts
+    a.agentStatus = INIT; // one state stored, lie to avoid catching asserts
     return;
   }
 
   // if no tuples, init state. if tuples, cannot be initial state:
-  assert( (S->nsteps() == 0) == (a.Status == INIT_COMM) );
+  assert( (S->nsteps() == 0) == (a.agentStatus == INIT) );
   #ifndef NDEBUG // check that last new state and new old state are the same
     if( S->nsteps() ) {
       bool same = true;
-      const std::vector<memReal> vecSold = a.sOld.copy_observed<memReal>();
+      const std::vector<nnReal> vecSold = a.sOld.copy_observed<nnReal>();
       const auto memSold = S->states.back();
       for (Uint i=0; i<vecSold.size() && same; i++)
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
@@ -53,19 +53,19 @@ void Collector::add_state(Agent&a)
   #endif
 
   // environment interface can overwrite reward. why? it can be useful.
-  env->pickReward(a);
-  S->ended = a.Status==TERM_COMM;
+  //env->pickReward(a);
+  S->ended = a.agentStatus == TERM;
   S->states.push_back(storedState);
   S->rewards.push_back(a.r);
-  if( a.Status not_eq INIT_COMM ) S->totR += a.r;
+  if( a.Status not_eq INIT ) S->totR += a.r;
   else assert(std::fabs(a.r)<2.2e-16); //rew for init state must be 0
 }
 
 // Once network picked next action, call this method
 void Collector::add_action(const Agent& a, const Rvec pol)
 {
-  assert(pol.size() == policyVecDim);
-  assert(a.Status < TERM_COMM);
+  assert(pol.size() == aI.dimPol());
+  assert(a.agentStatus < TERM);
   if(a.trackSequence == false) {
     // do not store more stuff in sequence but also do not track data counter
     inProgress[a.ID]->actions = std::vector<std::vector<Real>>{ a.a.vals };
@@ -73,23 +73,24 @@ void Collector::add_action(const Agent& a, const Rvec pol)
     return;
   }
 
-  if(a.Status not_eq INIT_COMM) nSeenTransitions_loc ++;
+  if(a.agentStatus not_eq INIT) nSeenTransitions_loc ++;
   inProgress[a.ID]->actions.push_back(a.a.vals);
   inProgress[a.ID]->policies.push_back(pol);
-  if(bWriteToFile) a.writeData(learn_rank, pol, nSeenTransitions_loc.load());
+  if(distrib.logAllSamples)
+    a.writeData(learn_rank, pol, nSeenTransitions_loc.load());
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
 void Collector::terminate_seq(Agent&a)
 {
-  assert(a.Status>=TERM_COMM);
+  assert(a.agentStatus >= TERM);
   if(a.trackSequence == false) return; // do not store seq
   // fill empty action and empty policy:
-  a.act(Rvec(env->aI.dim, 0));
-  inProgress[a.ID]->actions.push_back(  Rvec(env->aI.dim,  0) );
-  inProgress[a.ID]->policies.push_back( Rvec(policyVecDim, 0) );
+  a.act(Rvec(aI.dim(), 0));
+  inProgress[a.ID]->actions.push_back(  Rvec(aI.dim(),  0) );
+  inProgress[a.ID]->policies.push_back( Rvec(aI.dimPol(), 0) );
 
-  if(bWriteToFile)
+  if(distrib.logAllSamples)
     a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions_loc.load());
   push_back(a.ID);
 }
@@ -121,5 +122,5 @@ void Collector::push_back(const int & agentId)
 
 Collector::~Collector() {
   delete sharing;
-  for (auto & trash : inProgress) _dispose_object( trash);
+  for (auto & S : inProgress) Utilities::dispose_object(S);
 }
