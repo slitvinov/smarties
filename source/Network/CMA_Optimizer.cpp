@@ -7,42 +7,40 @@
 //
 
 #include "CMA_Optimizer.h"
+#include "Utils/SstreamUtilities.h"
 #include "saruprng.h"
 #include <algorithm>
 
 namespace smarties
 {
 
-CMA_Optimizer::CMA_Optimizer(const Settings&S,
-                             const Parameters*const W,
-                             const Parameters*const WT,
-                             const std::vector<Parameters*>&G):
-  Optimizer(S,W,WT,G),
-  pStarts(computePstarts()), pCounts(computePcounts()),
-  pStart(pStarts[S.learner_rank]), pCount(pCounts[S.learner_rank])
+CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
+                             const std::shared_ptr<Parameters>& W):
+  Optimizer(S,D,W), pStarts(computePstarts()), pCounts(computePcounts()),
+  pStart(pStarts[learn_rank]), pCount(pCounts[learn_rank])
 {
   diagCov->set(1);
   pathCov->set(0);
   pathDif->set(0);
 
-  std::vector<unsigned long> seed(3*pop_size) ;
-  std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
-  generators.resize(pop_size, nullptr);
-  stdgens.resize(pop_size, nullptr);
+  std::vector<unsigned long> seed(3*populationSize);
+  std::generate(seed.begin(), seed.end(), [&](){ return D.generators[0](); } );
+  generators.resize(populationSize, nullptr);
+  stdgens.resize(populationSize, nullptr);
   #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-  for(Uint i=0; i<pop_size; i++) {
-    generators[i] = new Saru(seed[3*i +0], seed[3*i +1], seed[3*i +2]);
-    stdgens[i] = new std::mt19937(seed[3*i +0]);
+  for(Uint i=0; i<populationSize; i++) {
+    generators[i] = std::make_unique<Saru>(seed[3*i], seed[3*i+1], seed[3*i+2]);
+    stdgens[i] = std::make_unique<std::mt19937>(seed[3*i +0]);
   }
 
   const nnReal* const _S = diagCov->params;
   const nnReal* const M = weights->params;
   //const nnReal* const D = pathDif->params;
-  const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
+  const nnReal _eta = computeStdDevScale();
   #pragma omp parallel num_threads(nThreads)
-  for(Uint i=1; i<pop_size; i++)
+  for(Uint i=1; i<populationSize; i++)
   {
-    Saru & gen = * generators[omp_get_thread_num()];
+    Saru & gen = * generators[omp_get_thread_num()].get();
     nnReal* const Y = popNoiseVectors[i]->params;
     nnReal* const X = sampled_weights[i]->params;
     #pragma omp for schedule(static)
@@ -54,20 +52,8 @@ CMA_Optimizer::CMA_Optimizer(const Settings&S,
     startAllGather(i);
   }
 
-  for(Uint i=1; i<pop_size; i++) MPI(Wait, &wVecReq[i], MPI_STATUS_IGNORE);
-}
-
-CMA_Optimizer::~CMA_Optimizer() {
-  _dispose_object(momNois);
-  _dispose_object(avgNois);
-  _dispose_object(negNois);
-
-  _dispose_object(pathCov);
-  _dispose_object(pathDif);
-  _dispose_object(diagCov);
-
- for(auto& ptr: popNoiseVectors) _dispose_object(ptr);
- for(auto& ptr: generators) _dispose_object(ptr);
+  for(Uint i=1; i<populationSize; i++)
+    MPI(Wait, &weightsMPIrequests[i], MPI_STATUS_IGNORE);
 }
 
 void CMA_Optimizer::prepare_update(const Rvec&L)
@@ -75,8 +61,8 @@ void CMA_Optimizer::prepare_update(const Rvec&L)
   assert(L.size() == pop_size);
   losses = L;
   if (learn_size > 1) { //add up losses across master ranks
-    MPI(Iallreduce, MPI_IN_PLACE, losses.data(), pop_size, MPI_VALUE_TYPE,
-                   MPI_SUM, mastersComm, &paramRequest);
+    MPI(Iallreduce, MPI_IN_PLACE, losses.data(), populationSize, MPI_VALUE_TYPE,
+                   MPI_SUM, learnersComm, &paramRequest);
   }
   nStep++;
 }
@@ -89,7 +75,7 @@ void CMA_Optimizer::apply_update()
     MPI(Wait, &paramRequest, MPI_STATUS_IGNORE);
   }
 
-  std::vector<Uint> inds(pop_size,0);
+  std::vector<Uint> inds(populationSize, 0);
   std::iota(inds.begin(), inds.end(), 0);
   std::sort(inds.begin(), inds.end(), // is i1 before i2
        [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
@@ -105,27 +91,31 @@ void CMA_Optimizer::apply_update()
   const nnReal alphaP = 1 - c_sig;
 
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
+  const nnReal _eta = computeStdDevScale();
 
   #pragma omp parallel num_threads(nThreads)
   {
     const Uint thrID = omp_get_thread_num();
-    for(Uint i=0; i<pop_size; i++)
+    // compute weighted mean. vectors parallelize over chunks of param vector:
+    for(Uint i=0; i<populationSize; i++)
     {
+      nnReal * const M = weights->params;
       const nnReal wC = popWeights[i];
       #ifndef FDIFF_CMA
         if(wC <=0 ) continue;
       #endif
-      nnReal * const M = weights->params;
       const nnReal* const X = sampled_weights[ inds[i] ]->params;
       #pragma omp for simd schedule(static) aligned(M,X : VEC_WIDTH) nowait
       for(Uint w=pStart; w<pStart+pCount; w++) M[w] += wC * X[w];
     }
 
     #pragma omp barrier
+    // init gather of mean weight vector across ranks
     if(thrID == 0) startAllGather(0);
 
-    for(Uint i=0; i<pop_size; i++) {
+    // compute weighted avg noise and noise second moment:
+    for(Uint i=0; i<populationSize; i++)
+    {
       const nnReal wC = popWeights[i];
       #ifdef FDIFF_CMA
         const nnReal wZ = wC;
@@ -137,7 +127,8 @@ void CMA_Optimizer::apply_update()
       const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
       #pragma omp for simd schedule(static) aligned(A,B,Y : VEC_WIDTH) nowait
       for(Uint w=pStart; w<pStart+pCount; w++) {
-        B[w] += wC * Y[w]*Y[w]; A[w] += wZ * Y[w];
+        B[w] += wC * Y[w]*Y[w];
+        A[w] += wZ * Y[w];
       }
     }
 
@@ -149,7 +140,8 @@ void CMA_Optimizer::apply_update()
     nnReal * const S = diagCov->params;
 
     #pragma omp for simd schedule(static) aligned(P,A,S,B : VEC_WIDTH)
-    for(Uint w=pStart; w<pStart+pCount; w++) {
+    for(Uint w=pStart; w<pStart+pCount; w++)
+    {
       P[w] = alphaP * P[w] + updSigP * A[w];
       S[w] = std::sqrt( alpha*S[w]*S[w] + c1cov*P[w]*P[w] + mu_eff*c1cov*B[w] );
       S[w] = std::min(S[w], (nnReal) 10); //safety
@@ -157,52 +149,53 @@ void CMA_Optimizer::apply_update()
     }
 
     const nnReal* const M = weights->params;
-    Saru & gen = * generators[thrID];
+    Saru & gen = * generators[thrID].get();
     #pragma omp for schedule(static) nowait
-    for(Uint i=1; i<pop_size; i++)
+    for(Uint i=1; i<populationSize; ++i)
     {
       nnReal* const Y = popNoiseVectors[i]->params;
       nnReal* const X = sampled_weights[i]->params;
-      #ifdef ACCEL_CMA
-      if(i==1) {
-        popNoiseVectors[1]->copy(avgNois);
-        for(Uint w=pStart; w<pStart+pCount; w++) X[w] = M[w] + _eta * A[w];
-      } else
-      #endif
-      for(Uint w=pStart; w<pStart+pCount; w++) {
+      for(Uint w=pStart; w<pStart+pCount; ++w) {
         Y[w] = gen.f_mean0_var1() * S[w];
         X[w] = M[w] + _eta * Y[w]; //+ _eta*1e-2*D[w];
       }
-      if( i % nThreads == thrID ) startAllGather(i);
+      startAllGather(i);
     }
+    //for(Uint i=1; i<populationSize; ++i)
+    //  if( i % nThreads == thrID ) startAllGather(i);
   }
   //for(Uint i=1; i<pop_size; i++) startAllGather(i);
-  MPI(Wait, &wVecReq[0], MPI_STATUS_IGNORE);
+  MPI(Wait, &weightsMPIrequests[0], MPI_STATUS_IGNORE);
 }
 
-void CMA_Optimizer::save(const string fname, const bool backup) {
+void CMA_Optimizer::save(const std::string fname, const bool backup)
+{
   weights->save(fname+"_weights");
   pathCov->save(fname+"_pathCov");
   diagCov->save(fname+"_diagCov");
 
   if(backup) {
-    ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
+    std::ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
     weights->save(fname+"_"+ss.str()+"_weights");
     pathCov->save(fname+"_"+ss.str()+"_pathCov");
     diagCov->save(fname+"_"+ss.str()+"_diagCov");
   }
 }
-int CMA_Optimizer::restart(const string fname) {
+
+int CMA_Optimizer::restart(const std::string fname)
+{
   pathCov->restart(fname+"_pathCov");
   diagCov->restart(fname+"_diagCov");
   return weights->restart(fname+"_weights");
 }
 
-void CMA_Optimizer::getMetrics(ostringstream& buff) {
+void CMA_Optimizer::getMetrics(std::ostringstream& buff)
+{
   //buff<<" "<<std::setw(5)<<Nswap/2; Nswap = 0; //each swap counted twice
-  real2SS(buff, std::pow(diagCov->compute_weight_norm(), 2) / pDim, 6, 1);
+  const Real norm = std::pow(diagCov->compute_weight_norm(),2)/weights->nParams;
+  Utilities::real2SS(buff, norm, 6, 1);
 }
-void CMA_Optimizer::getHeaders(ostringstream& buff) {
+void CMA_Optimizer::getHeaders(std::ostringstream& buff) {
   buff << "| avgC "; //Nswp |
 }
 
@@ -211,14 +204,14 @@ void CMA_Optimizer::startAllGather(const Uint ID)
   nnReal * const P = ID? sampled_weights[ID]->params : weights->params;
   if( learn_size < 2 ) return;
 
-  if(wVecReq[ID] not_eq MPI_REQUEST_NULL) {
-    MPI(Wait, &wVecReq[ID], MPI_STATUS_IGNORE);
+  if(weightsMPIrequests[ID] not_eq MPI_REQUEST_NULL) {
+    MPI(Wait, &weightsMPIrequests[ID], MPI_STATUS_IGNORE);
   }
 
   //MPI(Iallgatherv, MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, P, pCounts.data(),
   //  pStarts.data(), MPI_NNVALUE_TYPE, mastersComm, &wVecReq[ID]);
-  MPI(Iallgather, MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, P, mpi_stride,
-    MPI_NNVALUE_TYPE, mastersComm, &wVecReq[ID]);
+  MPI(Iallgather, MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, P, mpiDistribOpsStride,
+    MPI_NNVALUE_TYPE, learnersComm, &weightsMPIrequests[ID]);
 }
 
 } // end namespace smarties

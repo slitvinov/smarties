@@ -48,7 +48,8 @@ class LSTMLayer: public Layer
   */
   void requiredActivation(vector<Uint>& sizes,
                           vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+                          vector<Uint>& bInputs) const override
+  {
     sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
@@ -59,11 +60,13 @@ class LSTMLayer: public Layer
 
   LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),
-    nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType)) {
+    nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType))
+  {
     spanCompInpGrads = _nInputs;
   }
 
-  string printSpecs() const override {
+  string printSpecs() const override
+  {
     std::ostringstream o;
     o<<"("<<ID<<") "<<cell->name()
      <<string(bOutput? " output ":" ")
@@ -84,10 +87,10 @@ class LSTMLayer: public Layer
     {
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
-      for (Uint i = 0; i < nInputs; i++) {
+      for (Uint i = 0; i < nInputs; ++i) {
         const nnReal* const W = weight + (4*nCells)*i;
         #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
-        for (Uint o = 0; o < 4*nCells; o++) suminp[o] += inputs[i] * W[o];
+        for (Uint o = 0; o < 4*nCells; ++o) suminp[o] += inputs[i] * W[o];
       }
     }
 
@@ -96,10 +99,10 @@ class LSTMLayer: public Layer
       const nnReal* const inputs = prev->Y(ID);
       const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
       //first input loop, here input only prev step LSTM's output
-      for (Uint i = 0; i < nCells; i++) {
+      for (Uint i = 0; i < nCells; ++i) {
         const nnReal* const W = weight + (4*nCells)*i;
         #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
-        for (Uint o = 0; o < 4*nCells; o++) suminp[o] += inputs[i] * W[o];
+        for (Uint o = 0; o < 4*nCells; ++o) suminp[o] += inputs[i] * W[o];
       }
     }
     {
@@ -115,7 +118,7 @@ class LSTMLayer: public Layer
       const nnReal*const forgtG = curr->X(ID)+ 2*nCells;
       const nnReal*const outptG = curr->X(ID)+ 3*nCells;
 
-      for (Uint o=0; o<nCells; o++) {
+      for (Uint o=0; o<nCells; ++o) {
        const nnReal oldStatePass = prev==nullptr? 0 : prevSt[o] * forgtG[o];
        currSt[o] = suminp[o] * inputG[o] + oldStatePass;
        cellOp[o] = Tanh::_eval(currSt[o]);
@@ -145,7 +148,7 @@ class LSTMLayer: public Layer
     const nnReal*const nxtStErr = next==nullptr? nullptr :next->Y(ID) +3*nCells;
     const nnReal*const nxtFGate = next==nullptr? nullptr :next->X(ID) +2*nCells;
 
-    for (Uint o=0; o<nCells; o++) {
+    for (Uint o=0; o<nCells; ++o) {
       const nnReal D = deltas[o]; //before overwriting it
       //                  |      derivative of tanh     |
       const nnReal diff = (1-cellOutput[o]*cellOutput[o]) * deltas[o];

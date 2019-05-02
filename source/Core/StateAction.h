@@ -68,8 +68,8 @@ struct MDPdescriptor
 
 struct StateInfo
 {
-  MDPdescriptor& MDP;
-  StateInfo(MDPdescriptor& MDP_) : MDP(MDP_) {}
+  const MDPdescriptor& MDP;
+  StateInfo(const MDPdescriptor& MDP_) : MDP(MDP_) {}
   StateInfo(const StateInfo& SI) : MDP(SI.MDP) {}
 
   Uint dim() const { return MDP.dimState; }
@@ -104,8 +104,8 @@ struct StateInfo
 
 struct ActionInfo
 {
-  MDPdescriptor& MDP;
-  ActionInfo(MDPdescriptor & MDP_) : MDP(MDP_) {}
+  const MDPdescriptor& MDP;
+  ActionInfo(const MDPdescriptor & MDP_) : MDP(MDP_) {}
   ActionInfo(const ActionInfo& AI) : MDP(AI.MDP) {}
 
   ///////////////////////////// CONTINUOUS ACTIONS /////////////////////////////
@@ -264,8 +264,8 @@ void MDPdescriptor::synchronizeDescriptor (
   dimStateObserved = 0;
   for(Uint i=0; i<dimState; ++i) if(bStateVarObserved[i]) dimStateObserved++;
   if(world_rank == 0) {
-   printf("SETUP: State vector has %d components, %d of which are observed. "
-   "Action vector has %d components and it consists of %s actions.\n", dimState,
+   printf("SETUP: State vector has %lu components, %lu of which are observed. "
+   "Action vector has %lu %s-valued components.\n", dimState,
    dimStateObserved, dimAction, bDiscreteActions? "discrete" : "continuous");
   }
 
@@ -295,7 +295,7 @@ void MDPdescriptor::synchronizeDescriptor (
     if(world_rank==0) {
       printf("Action vector components :");
       for (Uint i=0; i<dimAction; i++) {
-        printf(" [ %u : %s to (%.1f:%.1f) ]", i,
+        printf(" [ %lu : %s to (%.1f:%.1f) ]", i,
         bActionSpaceBounded[i] ? "bound" : "scaled",
         upperActionValue[i], lowerActionValue[i]);
       }
@@ -320,7 +320,7 @@ void MDPdescriptor::synchronizeDescriptor (
       die("Application error in setup of discreteActionValues: "
           "found less than 2 options to choose from.");
     if(world_rank==0)
-      printf(" [ %u : %u options ]", i, discreteActionValues[i]);
+      printf(" [ %lu : %lu options ]", i, discreteActionValues[i]);
   }
   if(world_rank==0) printf("\n");
 

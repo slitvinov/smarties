@@ -9,7 +9,7 @@
 #ifndef smarties_Network_h
 #define smarties_Network_h
 
-#include "Layers.h"
+#include "Layers/Layers.h"
 
 namespace smarties
 {
@@ -19,49 +19,45 @@ class Builder;
 class Network
 {
 public:
-  const Uint nThreads, nInputs, nOutputs, nLayers;
-  const bool bDump;
-  const Real gradClip;
-  const std::vector<Layer*> layers;
-  const Parameters* const weights;
-  const Parameters* const tgt_weights;
-  const std::vector<Parameters*> Vgrad;
-  const std::vector<Parameters*> sampled_weights;
-  std::vector<std::mt19937>& generators;
-
+  const std::vector<std::unique_ptr<Layer>> layers;
+  const Uint nInputs, nOutputs, nLayers = layers.size();
+  const std::shared_ptr<Parameters> weights;
   Uint getnOutputs() const { return nOutputs; }
   Uint getnInputs()  const { return nInputs;  }
   Uint getnLayers()  const { return nLayers;  }
 
-  //inline vector<Activation*> allocateUnrolledActivations(const Uint num) const {
-  //  vector<Activation*> ret(num, nullptr);
-  //  for (Uint j=0; j<num; j++) ret[j] = allocate_activation(layers);
-  //  return ret;
-  //}
-  Activation* allocateActivation() const {
+  static std::shared_ptr<Parameters> allocParameters(
+        const std::vector<std::unique_ptr<Layer>>& layers, const Uint mpiSize)
+  {
+    std::vector<Uint> nWeight, nBiases;
+    for(const auto & l : layers) l->requiredParameters(nWeight, nBiases);
+    return std::make_shared<Parameters>(nWeight, nBiases, mpiSize);
+  }
+  static std::unique_ptr<Activation> allocActivation(
+        const std::vector<std::unique_ptr<Layer>>& layers)
+  {
     std::vector<Uint> sizes, output, input;
     for(const auto & l : layers) l->requiredActivation(sizes, output, input);
-    return new Activation(sizes, output, input);
+    return std::make_unique<Activation>(sizes, output, input);
+  }
+  std::unique_ptr<Activation> allocActivation() const
+  {
+    return allocActivation(layers);
+  }
+  std::shared_ptr<Parameters> allocParameters() const
+  {
+    return weights->allocateEmptyAlike();
   }
 
-  //inline Parameters* allocateParameters() const {
-  //  vector<Uint> nWeight, nBiases;
-  //  for(const auto & l : layers) l->requiredParameters(nWeight, nBiases);
-  //  return new Parameters(nWeight, nBiases);
-  //}
-
-  void updateTransposed() const {
-    for(const auto & l : layers) l->transpose(weights);
-  }
-
-  void prepForBackProp(std::vector<Activation*>& series, const Uint N) const
+  void allocTimeSeries(std::vector<std::unique_ptr<Activation>>& series,
+                       const Uint N) const
   {
     if (series.size() < N)
-      for(Uint j=series.size(); j<N; j++)
-        series.push_back(allocateActivation());
+      for(Uint j=series.size(); j<N; ++j)
+        series.emplace_back( allocActivation() );
     assert(series.size()>=N);
 
-    for(Uint j=0; j<series.size(); j++) {
+    for(Uint j=0; j<series.size(); ++j) {
       series[j]->clearErrors();
       series[j]->written = false;
     }
@@ -71,33 +67,9 @@ public:
     #endif
   }
 
-  void prepForFwdProp (std::vector<Activation*>& series, const Uint N) const
-  {
-    prepForBackProp(series, N);
-    #if 0
-    if (series.size() < N)
-      for(Uint j=series.size(); j<N; j++)
-        series.push_back(allocateActivation());
-    assert(series.size()>=N);
-
-    for(Uint j=0; j<series.size() && series[j]->written; j++) //; j++)
-      series[j]->written = false;
-
-    #ifndef NDEBUG
-    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
-    #endif
-    #endif
-  }
-
-  Network(Builder* const B, const Settings & settings) ;
-
-  ~Network() {
-    for(auto& ptr: sampled_weights) _dispose_object(ptr);
-    for(auto& ptr: layers) _dispose_object(ptr);
-    for(auto& ptr: Vgrad) _dispose_object(ptr);
-    _dispose_object(tgt_weights);
-    _dispose_object(weights);
-  }
+  Network(const Uint _nInp, const Uint _nOut,
+          std::vector<std::unique_ptr<Layer>>& _layers,
+          const std::shared_ptr<Parameters>& _weights);
 
   std::vector<Real> predict(const std::vector<Real>& _inp,
     const std::vector<Activation*>& timeSeries, const Uint step,
@@ -125,6 +97,7 @@ public:
   {
     return backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
+
   void backProp(const std::vector<Real>& _errors, const Activation*const currStep,
     const Parameters*const _grad, const Parameters*const _weights=nullptr) const
   {
@@ -135,19 +108,12 @@ public:
     backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
 
-  std::vector<Real> inpBackProp(const std::vector<Real>&err, Activation*const act,
-    const Parameters*const W, const Uint ID) const
-  {
-    act->clearErrors();
-    act->setOutputDelta(err);
-    assert(act->written && act->input[ID]);
-    for(Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
-      layers[i]->backward(nullptr, act, nullptr, nullptr, W);
-    return act->getInputGradient(ID);
-  }
+  std::vector<Real> backPropToLayer(const std::vector<Real>& gradient,
+                                    const Uint toLayerID,
+                                          Activation*const activation,
+                                    const Parameters*const _weights) const;
 
-
-  void backProp(const std::vector<Activation*>& timeSeries,
+  void backProp(const std::vector<std::unique_ptr<Activation>>& timeSeries,
                 const Uint stepLastError,
                 const Parameters*const _gradient,
                 const Parameters*const _weights = nullptr) const;

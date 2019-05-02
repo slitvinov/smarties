@@ -20,60 +20,66 @@ namespace smarties
 
 class CMA_Optimizer : public Optimizer
 {
- protected:
-  const vector<nnReal> popWeights = initializePopWeights(pop_size);
-  const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
-  const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size, learn_size);
-  const Parameters * const momNois = weights->allocateGrad(learn_size);
-  const Parameters * const avgNois = weights->allocateGrad(learn_size);
-  const Parameters * const negNois = weights->allocateGrad(learn_size);
-  const Parameters * const pathCov = weights->allocateGrad(learn_size);
-  const Parameters * const pathDif = weights->allocateGrad(learn_size);
-  const Parameters * const diagCov = weights->allocateGrad(learn_size);
-  const int mpi_stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
+protected:
+  const std::vector<nnReal> popWeights = initializePopWeights(populationSize);
+  const nnReal mu_eff = initializeMuEff(popWeights, populationSize);
+  const nnReal sumW = initializeSumW(popWeights, populationSize);
+  const Uint mpiDistribOpsStride = Utilities::roundUpSimd( std::ceil( weights->nParams/(Real)learn_size ) );
+  const std::vector<std::shared_ptr<Parameters>> popNoiseVectors =
+                                       allocManyParams(weights, populationSize);
+  const std::shared_ptr<Parameters> momNois = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> avgNois = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> negNois = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> pathCov = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> pathDif = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> diagCov = weights->allocateEmptyAlike();
 
-  const std::vector<int> pStarts, pCounts;
+  const std::vector<Uint> pStarts, pCounts;
   const Uint pStart, pCount;
-  std::vector<Saru *> generators;
-  std::vector<std::mt19937 *> stdgens;
+  std::vector<std::shared_ptr<Saru>> generators;
+  std::vector<std::shared_ptr<std::mt19937>> stdgens;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
-  std::vector<Real> losses = vector<Real>(pop_size, 0);
+  std::vector<Real> losses = std::vector<Real>(populationSize, 0);
   //Uint Nswap = 0;
 
- public:
+  nnReal computeStdDevScale() const
+  {
+    return bAnnealLearnRate? Utilities::annealRate(eta, nStep, epsAnneal) : eta;
+  }
+public:
 
-  CMA_Optimizer(const Settings&S, const Parameters*const W,
-    const Parameters*const WT, const vector<Parameters*>&G);
-
-  ~CMA_Optimizer();
+  CMA_Optimizer(const Settings& S, const DistributionInfo& D,
+                const std::shared_ptr<Parameters>& W);
 
   void prepare_update(const Rvec& L) override;
   void apply_update() override;
 
-  void save(const string fname, const bool bBackup) override;
-  int restart(const string fname) override;
+  void save(const std::string fname, const bool bBackup) override;
+  int restart(const std::string fname) override;
 
  protected:
-  static inline vector<nnReal> initializePopWeights(const Uint popsz)
+  static inline std::vector<nnReal> initializePopWeights(const Uint popSize)
   {
-    vector<nnReal> ret(popsz); nnReal sum = 0;
-    for(Uint i=0; i<popsz; i++) {
-      ret[i] = std::log(0.5*(popsz+1)) - std::log(i+1.);
+    std::vector<nnReal> ret(popSize);
+    nnReal sum = 0;
+    for(Uint i=0; i<popSize; i++)
+    {
+      ret[i] = std::log(0.5*(popSize+1)) - std::log(i+1.);
       #ifdef FDIFF_CMA
         sum += std::fabs( ret[i] );
       #else
         sum += std::max( ret[i], (nnReal) 0 );
       #endif
     }
-    for(Uint i=0; i<popsz; i++) ret[i] /= sum;
+    for(Uint i=0; i<popSize; i++) ret[i] /= sum;
     return ret;
   }
 
-  static inline Real initializeMuEff(const vector<nnReal>popW, const Uint popsz)
+  static inline Real initializeMuEff(const std::vector<nnReal>popW,
+                                     const Uint populationSize)
   {
     Real sum = 0, sumsq = 0;
-    for(Uint i=0; i<popsz; i++) {
+    for(Uint i=0; i<populationSize; i++) {
       #ifdef FDIFF_CMA
         const nnReal W = std::fabs( popW[i] );
       #else
@@ -84,29 +90,36 @@ class CMA_Optimizer : public Optimizer
     return sum * sum / sumsq;
   }
 
-  static inline Real initializeSumW(const vector<nnReal>popW, const Uint popsz)
+  static inline Real initializeSumW(const std::vector<nnReal>popW, const Uint popsz)
   {
     Real sum = 0;
     for(Uint i=0; i<popsz; i++) sum += popW[i];
     return sum;
   }
-  void getMetrics(ostringstream& buff) override;
-  void getHeaders(ostringstream& buff) override;
+  void getMetrics(std::ostringstream& buff) override;
+  void getHeaders(std::ostringstream& buff) override;
 
-  std::vector<int> computePstarts() const {
-    std::vector<int> ret (learn_size, 0);
-    for (int i=0; i < (int) learn_size; i++) ret[i] = mpi_stride * i;
+  std::vector<Uint> computePstarts() const
+  {
+    std::vector<Uint> ret (learn_size, 0);
+    for (Uint i=0; i < learn_size; i++)
+      ret[i] = mpiDistribOpsStride * i;
     return ret;
   }
-  std::vector<int> computePcounts() const {
-    std::vector<int> ret (learn_size, 0);
-    for (int i=0; i < (int) learn_size; i++)
-      ret[i] = std::min(mpi_stride * (i+1), (int) pDim) - mpi_stride * i;
+  std::vector<Uint> computePcounts() const
+  {
+    std::vector<Uint> ret (learn_size, 0);
+    for (Uint i=0; i < learn_size; i++) {
+      const Uint end = std::min(mpiDistribOpsStride*(i+1), weights->nParams);
+      const Uint beg = mpiDistribOpsStride * i;
+      ret[i] = end - beg;
+    }
     return ret;
   }
 
   bool ready2UpdateWeights() override
   {
+    if(paramRequest == MPI_REQUEST_NULL) return true;
     int completed = 0;
     MPI(Test, &paramRequest, &completed, MPI_STATUS_IGNORE);
     return completed;

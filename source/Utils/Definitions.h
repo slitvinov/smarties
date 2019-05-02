@@ -11,11 +11,13 @@
 
 #include <vector>
 #include <array>
+#include <limits>
 
 namespace smarties
 {
 
-typedef unsigned Uint;
+using Uint = size_t;
+using Sint = ptrdiff_t;
 ////////////////////////////////////////////////////////////////////////////////
 #if 1 // MAIN CODE PRECISION
 using Real = double;
@@ -42,18 +44,17 @@ using Real = float;
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
 #ifndef SINGLE_PREC
-using memReal = double;
 using Fval = double;
 #define MPI_Fval MPI_DOUBLE
 #else
-using memReal = float;
 using Fval = float;
 #define MPI_Fval MPI_FLOAT
 #endif
 
-typedef std::vector<Fval> Fvec;
-typedef std::vector<Real> Rvec;
-typedef std::vector<long double> LDvec;
+using Fvec = std::vector<Fval>;
+using Rvec = std::vector<Real>;
+using NNvec = std::vector<nnReal>;
+using LDvec = std::vector<long double>;
 
 struct Conv2D_Descriptor
 {
@@ -64,4 +65,5 @@ struct Conv2D_Descriptor
   Uint paddinx, paddiny;
 };
 
+}
 #endif

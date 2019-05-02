@@ -14,6 +14,9 @@
 namespace smarties
 {
 
+struct Activation;
+using ActivationPtr_t = std::unique_ptr<Activation>;
+
 struct Activation
 {
   Uint _nOuts(std::vector<Uint> _sizes, std::vector<Uint> _bOut)
@@ -32,9 +35,14 @@ struct Activation
     return ret;
   }
 
-  Activation(std::vector<Uint>_sizes, std::vector<Uint>_bOut, std::vector<Uint>_bInp):
-    nLayers(_sizes.size()), nOutputs(_nOuts(_sizes,_bOut)), nInputs(_nInps(_sizes,_bInp)), sizes(_sizes), output(_bOut), input(_bInp),
-    suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)), errvals(allocate_vec(_sizes)) {
+  Activation(const std::vector<Uint> _sizes,
+             const std::vector<Uint> _bOut,
+             const std::vector<Uint> _bInp):
+    nLayers(_sizes.size()), nOutputs(_nOuts(_sizes,_bOut)), nInputs(_nInps(_sizes,_bInp)),
+    sizes(_sizes), output(_bOut), input(_bInp),
+    suminps(Utilities::allocate_vec(_sizes)),
+    outvals(Utilities::allocate_vec(_sizes)),
+    errvals(Utilities::allocate_vec(_sizes)) {
     assert(suminps.size()== (size_t) nLayers);
     assert(outvals.size()== (size_t) nLayers);
     assert(errvals.size()== (size_t) nLayers);
@@ -143,7 +151,7 @@ struct Activation
   {
     for(int i=0; i<nLayers; i++) {
       assert(outvals[i] not_eq nullptr);
-      std::memset( outvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
+      memset( outvals[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
@@ -151,7 +159,7 @@ struct Activation
   {
     for(int i=0; i<nLayers; i++) {
       assert(errvals[i] not_eq nullptr);
-      std::memset( errvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
+      memset( errvals[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
@@ -159,7 +167,7 @@ struct Activation
   {
     for(int i=0; i<nLayers; i++) {
       assert(suminps[i] not_eq nullptr);
-      std::memset( suminps[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
+      memset( suminps[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
@@ -189,17 +197,6 @@ struct Activation
   const std::vector<nnReal*> errvals;
   mutable bool written = false;
 };
-
-inline void deallocateUnrolledActivations(std::vector<Activation*>& r)
-{
-  for (auto & ptr : r) _dispose_object(ptr);
-  r.clear();
-}
-inline void deallocateUnrolledActivations(std::vector<Activation*>* r)
-{
-  for (auto & ptr : *r) _dispose_object(ptr);
-  r->clear();
-}
 
 } // end namespace smarties
 #endif // smarties_Quadratic_term_h

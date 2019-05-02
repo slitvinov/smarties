@@ -24,11 +24,11 @@ DistributionInfo::DistributionInfo(int argc, char** argv)
   if (threadSafety < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support");
   // this value will determine if we can use asynchronous mpi calls:
-  bAsync = threadSafety >= MPI_THREAD_MULTIPLE;
+  bAsyncMPI = threadSafety >= MPI_THREAD_MULTIPLE;
   world_size = MPICommSize(MPI_COMM_WORLD);
   world_rank = MPICommRank(MPI_COMM_WORLD);
 
-  if (not bAsync and world_rank == 0)
+  if (not bAsyncMPI and world_rank == 0)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
 }
 

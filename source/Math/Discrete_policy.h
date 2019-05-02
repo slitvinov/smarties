@@ -9,8 +9,8 @@
 #ifndef smarties_Discrete_policy_h
 #define smarties_Discrete_policy_h
 
-#include "Utils.h"
-#include <algorithm>
+#include "Utils/FunctionUtilties.h"
+//#include <algorithm>
 
 namespace smarties
 {
@@ -93,12 +93,12 @@ struct Discrete_policy
     return beta[act];
   }
 
-  static Uint sample(mt19937*const gen, const Rvec& beta) {
+  static Uint sample(std::mt19937*const gen, const Rvec& beta) {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
   }
 
-  Uint sample(mt19937*const gen) const {
+  Uint sample(std::mt19937*const gen) const {
     std::discrete_distribution<Uint> dist(probs.begin(), probs.end());
     return dist(*gen);
   }

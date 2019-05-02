@@ -84,9 +84,6 @@ OBJ_FILES = \
 	Learner.o \
 	RACER.o \
 	VRACER.o \
-	Aggregator.o \
-	Encapsulator.o \
-	Approximator.o \
 	Network.o \
 	Optimizer.o \
 	CMA_Optimizer.o
@@ -96,7 +93,7 @@ OBJ_FILES = \
 	#NAF.o \
 	#DQN.o \
 	#ACER.o \
-	CMALearner.o \
+	#CMALearner.o \
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
@@ -107,7 +104,7 @@ ifneq "$(MAKECMDGOALS)" "clean"
 endif
 
 LIBS+= -L. -lsimulation
-
+CPPFLAGS+= -I../source
 ############### Compile application as static library if needed ###############
 ifneq "$(app)" "ext_app_test"
 

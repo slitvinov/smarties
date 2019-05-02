@@ -9,6 +9,9 @@
 #ifndef smarties_Builder_h
 #define smarties_Builder_h
 
+#include "Optimizer.h"
+#include "Network.h"
+
 namespace smarties
 {
 
@@ -53,25 +56,19 @@ public:
   // layers (nnl1, nnl2, ...) and builds a network with given number of nInputs
   // and nOutputs. Supports LSTM, RNN and MLP (aka InnerProduct or Dense).
   //void stackSimple(Uint ninps,Uint nouts) { return stackSimple(ninps,{nouts}); }
-  void stackSimple(const Uint ninps, const vector<Uint> nouts);
+  void stackSimple(const Uint ninps, const std::vector<Uint> nouts);
 
 private:
   bool bBuilt = false;
 public:
   const Settings & settings;
-  const Uint nThreads = settings.nThreads;
-  const Uint CMApopSize = settings.ESpopSize;
-  const Uint mpisize = settings.learner_size;
   Uint nInputs=0, nOutputs=0, nLayers=0;
-  Real gradClip = 1;
-  std::vector<std::mt19937>& generators = settings.generators;
-  Parameters *weights, *tgt_weights;
-  std::vector<Parameters*> Vgrad;
-  std::vector<Parameters*> popW;
-  std::vector<Layer*> layers;
 
-  Network* net = nullptr;
-  Optimizer* opt = nullptr;
+  std::vector<std::shared_ptr<Parameters>> thread_gradients;
+  std::vector<std::unique_ptr<Layer>> layers;
+
+  std::shared_ptr<Network> net;
+  std::shared_ptr<Optimizer> opt;
 
   Builder(const Settings& _sett);
 };

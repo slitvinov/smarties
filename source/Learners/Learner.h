@@ -9,11 +9,19 @@
 #ifndef smarties_Learner_h
 #define smarties_Learner_h
 
-#include "../Utils/Profiler.h"
-#include "../Core/Profiler.h"
+#include "Utils/Profiler.h"
+#include "Core/StateAction.h"
+#include "Core/StateAction.h"
+#include "ReplayMemory/MemoryBuffer.h"
+#include "Utils/StatsTracker.h"
+#include "Utils/TaskQueue.h"
+#include "Settings.h"
 
 namespace smarties
 {
+
+class MemoryProcessing;
+class Collector;
 
 class Learner
 {
@@ -36,8 +44,8 @@ public:
 
   // training loop scheduling:
   const Uint totNumSteps = settings.totNumSteps;
-  const Real obsPerStep_loc = settings.obsPerStep_loc;
-  const Uint nObsB4StartTraining = settings.minTotObsNum_loc;
+  const Real obsPerStep_loc = settings.obsPerStep_local;
+  const Uint nObsB4StartTraining = settings.minTotObsNum_local;
   const bool bTrain = settings.bTrain;
 
   // some algorithm hyper-parameters:
@@ -46,8 +54,7 @@ public:
   const Real CmaxPol = settings.clipImpWeight;
   const Real epsAnneal = settings.epsAnneal;
 
-  const FORGET ERFILTER =
-    MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
+  const FORGET ERFILTER;
   DelayedReductor<long double> ReFER_reduce = DelayedReductor<long double>(settings, LDvec{ 0.0, 1.0 } );
 
 

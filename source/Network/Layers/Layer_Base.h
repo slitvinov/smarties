@@ -111,29 +111,31 @@ class BaseLayer: public Layer
             prev, curr, next, grad, para);
   }
 
-  void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override
   {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
     const nnReal init = fac * func->initFactor(nInputs, nNeurons);
     std::uniform_real_distribution<nnReal> dis(-init, init);
     {
-      nnReal* const biases = para->B(ID);
+      nnReal* const biases = W->B(ID);
       for(Uint o=0; o<nNeurons; ++o)
-        if(initVals.size() != nNeurons) biases[o] = dis(*gen);
+        if(initVals.size() != nNeurons) biases[o] = dis(G);
         else biases[o] = func->inverse(initVals[o]);
     }
     {
-      nnReal* const weight = para->W(ID);
-      for(Uint i=0; i<nInputs;  ++i) for(Uint o=0; o<nNeurons; ++o)
-        weight[o +nOut_simd*i] = dis(*gen);
+      nnReal* const weight = W->W(ID);
+      for(Uint i=0; i<nInputs;  ++i)
+        for(Uint o=0; o<nNeurons; ++o)
+          weight[o +nOut_simd*i] = dis(G);
       //if(std::fabs(fac-1)<nnEPS) orthogonalize(para, gen, init);
     }
     if(bRecurrent)
     {
-      nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
-      for(Uint i=0; i<nNeurons;  ++i) for(Uint o=0; o<nNeurons; ++o)
-        weight[o +nOut_simd*i] = dis(*gen);
+      nnReal* const weight = W->W(ID) +nOut_simd*nInputs;
+      for(Uint i=0; i<nNeurons;  ++i)
+        for(Uint o=0; o<nNeurons; ++o)
+          weight[o +nOut_simd*i] = dis(G);
     }
   }
 

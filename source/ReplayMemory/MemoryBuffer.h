@@ -9,20 +9,23 @@
 #ifndef smarties_MemoryBuffer_h
 #define smarties_MemoryBuffer_h
 
-#include "Sampling.h"
 #include "Sequences.h"
-#include "../Core/Agent.h"
-#include "../Utils/Settings.h"
+#include "Core/Agent.h"
+#include "Settings.h"
 #include <atomic>
 #include <mutex>
 
 namespace smarties
 {
 
+class Sampling;
+// algorithm to filter past episodes:
+enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV};
+
 class MemoryBuffer
 {
  public:
-  const MDPdescriptor & MDP;
+  MDPdescriptor & MDP;
   const Settings & settings;
   const DistributionInfo & distrib;
   const StateInfo sI = StateInfo(MDP);
@@ -42,15 +45,14 @@ class MemoryBuffer
   std::vector<nnReal>& std = MDP.stateStdDev;
   Real& stddev_reward = MDP.rewardsStdDev;
   Real& invstd_reward = MDP.rewardsScale;
+  const bool bSampleSequences = settings.bSampleSequences;
   const Uint nAppended = MDP.nAppendedObs;
-
-  const Uint dimS = MDP.dimState;
   const Real gamma = settings.gamma;
 
   std::atomic<bool> needs_pass {false};
 
   std::vector<Sequence*> Set;
-  std::vector<Uint> sampled;
+  std::vector<Uint> lastSampledEps;
   std::mutex dataset_mutex;
 
   std::atomic<long> nSequences{0};
@@ -61,9 +63,8 @@ class MemoryBuffer
   std::atomic<long> nSeenTransitions_loc{0};
 
   const std::unique_ptr<Sampling> sampler;
-
-  Real minPriorityImpW = 1;
-  Real maxPriorityImpW = 1;
+  nnReal minPriorityImpW = 1;
+  nnReal maxPriorityImpW = 1;
 
   void checkNData();
 
@@ -76,28 +77,32 @@ class MemoryBuffer
 
   void clearAll();
 
-  template<typename T>
-  Rvec standardizeAppended(const std::vector<T>& state) const {
-    Rvec ret(sI.dimObs()*(1+nAppended));
-    assert(state.size() == sI.dimObs()*(1+nAppended));
-    for (Uint j=0, k=0; j<1+nAppended; ++j)
-      for (Uint i=0; i<sI.dimObs(); ++i, ++k)
-        ret[k] = (state[k]-mean[i]) * invstd[i];
-    return ret;
+  template<typename V = nnReal, typename T>
+  std::vector<V> standardizedState(const T seq, const T samp) const {
+    return standardizedState<V>(Set[seq], samp);
   }
-  template<typename T>
-  Rvec standardize(const std::vector<T>& state) const {
-    Rvec ret(sI.dimObs());
-    assert(state.size() == sI.dimObs() && mean.size() == sI.dimObs());
-    for (Uint i=0; i<sI.dimObs(); i++) ret[i] = (state[i]-mean[i])*invstd[i];
+  template<typename V = nnReal, typename T>
+  std::vector<V> standardizedState(const Sequence*const seq, const T samp) const
+  {
+    const Uint dimS = sI.dimObs();
+    std::vector<V> ret( dimS * (1+nAppended) );
+    for (Sint j=0, k=0; j <= nAppended; ++j)
+    {
+      const Sint t = std::max((Sint)samp - j, (Sint)0);
+      const auto& state = seq->states[t];
+      assert(state.size() == dimS);
+      for (Uint i=0; i<dimS; ++i, ++k) ret[k] = (state[i]-mean[i]) * invstd[i];
+    }
     return ret;
   }
 
-  Real scaledReward(const Uint seq, const Uint samp) const {
+  template<typename T>
+  Real scaledReward(const T seq, const T samp) const {
     return scaledReward(Set[seq], samp);
   }
-  Real scaledReward(const Sequence*const seq,const Uint samp) const {
-    assert(samp < seq->rewards.size());
+  template<typename T>
+  Real scaledReward(const Sequence*const seq, const T samp) const {
+    assert(samp < (T) seq->rewards.size());
     return scaledReward(seq->rewards[samp]);
   }
   Real scaledReward(const Real r) const { return r * invstd_reward; }
@@ -105,7 +110,9 @@ class MemoryBuffer
   void restart(const std::string base);
   void save(const std::string base, const Uint nStep, const bool bBackup);
 
-  void sample(std::vector<Uint>& seq, std::vector<Uint>& obs);
+  MiniBatch sampleMinibatch(const std::vector<Sequence*>& sampleE,
+                            const std::vector<Sint     >& sampleT);
+  const std::vector<Uint>& lastSampledEpisodes() { return lastSampledEps; }
 
   long readNSeen_loc()    const { return nSeenTransitions_loc.load();  }
   long readNSeenSeq_loc() const { return nSeenSequences_loc.load();  }
@@ -128,11 +135,6 @@ class MemoryBuffer
     Set[ID] = S;
   }
 
-  float getMinPriorityImpW() { return minPriorityImpW; }
-  float getMaxPriorityImpW() { return maxPriorityImpW; }
-  const bool requireImpWeights = sampler->requireImportanceWeights();
-
-  const std::vector<Uint>& listSampled() { return sampled; }
   static Sampling* prepareSampler(const Settings&S, MemoryBuffer* const R);
 };
 

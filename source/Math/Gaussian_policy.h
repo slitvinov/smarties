@@ -9,7 +9,7 @@
 #ifndef smarties_Gaussian_policy_h
 #define smarties_Gaussian_policy_h
 
-#include "Utils.h"
+#include "Utils/FunctionUtilties.h"
 
 namespace smarties
 {
@@ -156,7 +156,7 @@ struct Gaussian_policy
     }
     return ret;
   }
-  Rvec sample(mt19937*const gen) const
+  Rvec sample(std::mt19937*const gen) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -278,7 +278,7 @@ struct Gaussian_policy
   Rvec getBest() const {
     return mean;
   }
-  Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
+  Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint i=0; i<nA; i++)
       if (aInfo->bounded[i]) {

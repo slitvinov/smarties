@@ -7,6 +7,7 @@
 //
 
 #include "MemoryBuffer.h"
+#include "Sampling.h"
 #include <iterator>
 #include <algorithm>
 
@@ -83,15 +84,99 @@ void MemoryBuffer::clearAll()
   needs_pass = true;
 }
 
-void MemoryBuffer::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
+MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
+                                        const Uint stepID) const
 {
-  sampler->sample(seq, obs);
-  // remember which episodes were just sampled:
-  sampled = seq;
-  std::sort(sampled.begin(), sampled.end());
-  sampled.erase(std::unique(sampled.begin(), sampled.end()), sampled.end());
+  std::vector<Uint> sampleEID(batchSize), sampleT(batchSize);
+  sampler->sample(sampleEID, sampleT);
+  assert( batchSize == sampleEID.size() && batchSize == sampleT.size() );
+  {
+    // remember which episodes were just sampled:
+    lastSampledEps = sampleEID;
+    std::sort(lastSampledEps.begin(), lastSampledEps.end());
+    lastSampledEps.erase( std::unique(lastSampledEps.begin(), lastSampledEps.end()), lastSampledEps.end() );
+  }
 
-  for(Uint i=0; i<seq.size(); i++) Set[seq[i]]->setSampled(obs[i]);
+  MiniBatch ret(batchSize);
+  for(Uint b=0; b<batchSize; ++b)
+  {
+    ret.episodes[b] = Set[ sampleEID[b] ];
+    ret.episodes[b]->setSampled(sampleT[i]);
+    const Uint nEpSteps = ret.episodes[b]->nsteps();
+    if(bSampledSeqs)
+    {
+      // check that we may have to update estimators from S_{0} to S_{T_1}
+      assert( sampleT[b] == ret.episodes[b]->ndata() - 1 );
+      ret.begTimeStep[b] = 0;        // prepare to compute for steps from init
+      ret.endTimeStep[b] = nEpSteps; // to terminal state
+    }
+    else
+    {
+      // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
+      const Uint nRecurr = bRecurrent? std::min(nMaxBPTT, sampleT[b]) : 0;
+      // prepare to compute from step t-reccurrentwindow up to t+1
+      // because some methods may require tnext.
+      // todo: add option for n-steps ahead
+      ret.begTimeStep[b] = sampleT[b] - nRecurr;
+      ret.endTimeStep[b] = sampleT[b] + 2;
+    }
+    // number of states to process ( also, see why we used sampleT[b]+2 )
+    const Uint nSteps = ret.endTimeStep[b] - ret.begTimeStep[b];
+    ret.resizeStep(b, nSteps);
+  }
+  const std::vector<Sequence*>& sampleE = ret.episodes;
+
+  const bool bRequireImportanceSampling = sampler->requireImportanceWeights();
+  const nnReal importanceSampAnneal = std::min( (Real)1, stepID*epsAnneal);
+  const nnReal beta = 0.5 + 0.5 * anneal;
+
+  #pragma omp parallel for schedule(static) collapse(2)
+  for(Uint b=0; b<batchSize; ++b)
+  for(Uint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
+  {
+    ret.state(b, t)  = standardizedState<nnReal>(sampleE[b], t);
+    ret.set_action(b, t, sampleE[b]->actions[t] );
+    ret.set_mu(b, t, sampleE[b]->policies[t] );
+    ret.reward(b, t) = scaledReward(sampleE[b], t);
+    if(bRequireImportanceSampling) {
+      const nnReal impW_undef = sampleE[b]->priorityImpW[t];
+      // if imp weight is 0 or less assume it was not computed and therefore
+      // ep is probably a new experience that should be given high priority
+      const nnReal impW_unnorm = impW_undef<=0 ? maxPriorityImpW : impW_undef;
+      ret.importanceWeight(b, t) = std::pow(minPriorityImpW/impW_unnorm, beta);
+    } else ret.importanceWeight(b, t) = 1;
+  }
+
+  return ret;
+}
+
+MiniBatch MemoryBuffer::agentToMinibatch(const Sequence* const inProgress) const
+{
+  MiniBatch ret(1);
+  ret.episodes[0] = inProgress;
+  if(bSampledSeqs) {
+    // we may have to update estimators from S_{0} to S_{T_1}
+    ret.begTimeStep[0] = 0;        // prepare to compute for steps from init
+    ret.endTimeStep[0] = inProgress->nsteps(); // to current step
+  } else {
+    const Uint currStep = inProgress->nsteps() - 1;
+    // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
+    const Uint nRecurr = bRecurrent? std::min(nMaxBPTT, currStep) : 0;
+    // prepare to compute from step t-reccurrentwindow up to t
+    ret.begTimeStep[0] = currStep - nRecurr;
+    ret.endTimeStep[0] = currStep + 1;
+  }
+  // number of states to process ( also, see why we used sampleT[b]+2 )
+  const Uint nSteps = ret.endTimeStep[0] - ret.begTimeStep[0];
+  ret.resizeStep(0, nSteps);
+  for(Uint t=ret.begTimeStep[0]; t<ret.endTimeStep[0]; ++t)
+  {
+    ret.state(0, t) = standardizedState<nnReal>(inProgress, t);
+    ret.set_action(0, t, inProgress->actions[t] );
+    ret.set_mu(0, t, inProgress->policies[t] );
+    ret.reward(0, t) = scaledReward(inProgress, t);
+  }
+  return ret;
 }
 
 void MemoryBuffer::removeSequence(const Uint ind)

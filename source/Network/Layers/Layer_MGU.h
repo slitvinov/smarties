@@ -71,39 +71,41 @@ class MGULayer: public Layer
       memcpy(allinp, para->B(ID), 2*nCells*sizeof(nnReal));
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
-      for (Uint i = 0; i < nInputs; i++) {
+      for (Uint i = 0; i < nInputs; ++i) {
         const nnReal* const W = weight + (2*nCells)*i;
         #pragma omp simd aligned(allinp, inputs, W : VEC_WIDTH)
-        for (Uint o = 0; o < 2*nCells; o++) allinp[o] += inputs[i] * W[o];
+        for (Uint o = 0; o < 2*nCells; ++o) allinp[o] += inputs[i] * W[o];
       }
     }
 
-    if(prev not_eq nullptr) {
+    if(prev not_eq nullptr)
+    {
       const nnReal* const inputs = prev->Y(ID);
       const nnReal* const weight = para->W(ID) +(2*nCells)*nInputs;
-      for (Uint i=0; i<nCells; i++) {
+      for (Uint i=0; i<nCells; ++i) {
         const nnReal* const W = weight + (2*nCells)*i;
         #pragma omp simd aligned(forget, inputs, W : VEC_WIDTH)
-        for(Uint o=0; o<nCells; o++) forget[o] += W[o] * inputs[i];
+        for(Uint o=0; o<nCells; ++o) forget[o] += W[o] * inputs[i];
       }
       Sigm::_eval(forget, forget, nCells);
 
-      for (Uint i=0; i<nCells; i++) {
+      for (Uint i=0; i<nCells; ++i) {
         const nnReal* const W = weight +(2*nCells)*i +nCells;
         #pragma omp simd aligned(cellst, forget, inputs, W : VEC_WIDTH)
-        for(Uint o=0; o<nCells; o++) cellst[o] += W[o] * inputs[i] * forget[i];
+        for(Uint o=0; o<nCells; ++o) cellst[o] += W[o] * inputs[i] * forget[i];
       }
       Tanh::_eval(cellst, cellst, nCells);
 
       #pragma omp simd aligned(output, forget, inputs, cellst : VEC_WIDTH)
-      for (Uint o=0; o<nCells; o++)
+      for (Uint o=0; o<nCells; ++o)
         output[o] = forget[o]*inputs[o] + (1-forget[o])*cellst[o];
     }
-    else {
+    else
+    {
       Sigm::_eval(forget, forget, nCells);
       Tanh::_eval(cellst, cellst, nCells);
       #pragma omp simd aligned(output, forget, cellst : VEC_WIDTH)
-      for (Uint o=0; o<nCells; o++) output[o] = (1-forget[o])*cellst[o];
+      for (Uint o=0; o<nCells; ++o) output[o] = (1-forget[o])*cellst[o];
     }
   }
 
@@ -125,7 +127,7 @@ class MGULayer: public Layer
     nnReal* const tmp = allocate_dirty(nCells);
 
     #pragma omp simd aligned(deltaC, deltas, forget, cellst : VEC_WIDTH)
-    for (Uint o=0; o<nCells; o++)
+    for (Uint o=0; o<nCells; ++o)
       deltaC[o] = deltas[o] * (1-forget[o]) * (1-cellst[o]*cellst[o]);
 
     #if 1
@@ -135,13 +137,13 @@ class MGULayer: public Layer
     } else memset( tmp, 0, nCells*sizeof(nnReal) );
 
     #pragma omp simd aligned(deltaF,prvOut,cellst,deltas,forget,tmp : VEC_WIDTH)
-    for (Uint o=0; o<nCells; o++)
+    for (Uint o=0; o<nCells; ++o)
       deltaF[o] = ((prvOut[o]-cellst[o])*deltas[o] + tmp[o]*prvOut[o]) *forget[o]*(1-forget[o]);
     #else // more compact and readable:
-      for (Uint o=0; o<nCells; o++) {
+      for (Uint o=0; o<nCells; ++o) {
         nnReal dF = (prvOut[o] - cellst[o]) * deltas[o];
         const nnReal*const weight = para->W(ID) +(2*nCells)*(nInputs+o) +nCells;
-        for (Uint k = 0; k < nCells && prev not_eq nullptr; k++)
+        for (Uint k = 0; k < nCells && prev not_eq nullptr; ++k)
           dF += deltaC[k] * prvOut[o] * weight[k];
         deltaF[o] = dF * forget[o] * (1-forget[o]);
       }
@@ -150,17 +152,17 @@ class MGULayer: public Layer
     #if 1
     if(prev not_eq nullptr) {
       #pragma omp simd aligned(prvErr, forget, deltas, tmp : VEC_WIDTH)
-      for(Uint o=0; o<nCells; o++) prvErr[o] += forget[o]*(deltas[o] + tmp[o]);
+      for(Uint o=0; o<nCells; ++o) prvErr[o] += forget[o]*(deltas[o] + tmp[o]);
 
       gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1,
         para->W(ID) +(2*nCells)*nInputs, 2*nCells, deltaF, 1, 1, prvErr, 1);
     }
     free(tmp);
     #else // more compact and readable
-    for (Uint o=0; o<nCells && prev not_eq nullptr; o++) {
+    for (Uint o=0; o<nCells && prev not_eq nullptr; ++o) {
       prvErr[o] += forget[o] * deltas[o];
       const nnReal* const weight = para->W(ID) +(2*nCells)*(nInputs+o);
-      for (Uint k = 0; k < nCells; k++)
+      for (Uint k = 0; k < nCells; ++k)
         prvErr[o] += deltaF[k]*weight[k] + deltaC[k]*forget[o]*weight[k+nCells];
     }
     #endif
@@ -184,7 +186,7 @@ class MGULayer: public Layer
     {
       nnReal* const grad_b = grad->B(ID);
       #pragma omp simd aligned(grad_b, deltaF, deltaC : VEC_WIDTH)
-      for(Uint o=0; o<nCells; o++) {
+      for(Uint o=0; o<nCells; ++o) {
         grad_b[o]        += deltaF[o];
         grad_b[o+nCells] += deltaC[o];
       }
@@ -192,10 +194,10 @@ class MGULayer: public Layer
 
     {
       const nnReal* const inputs = curr->Y(ID-link);
-      for(Uint i=0; i<nInputs;  i++) {
+      for(Uint i=0; i<nInputs;  ++i) {
         nnReal* const G = grad->W(ID) + (2*nCells)*i;
         #pragma omp simd aligned(G, inputs, deltaF, deltaC : VEC_WIDTH)
-        for(Uint o=0; o<nCells; o++) {
+        for(Uint o=0; o<nCells; ++o) {
           G[o]        += inputs[i] * deltaF[o];
           G[o+nCells] += inputs[i] * deltaC[o];
         }
@@ -204,10 +206,10 @@ class MGULayer: public Layer
 
     if(prev not_eq nullptr)
     {
-      for(Uint i=0; i<nCells; i++) {
+      for(Uint i=0; i<nCells; ++i) {
         nnReal* const G = grad->W(ID) + 2*nCells * (nInputs + i);
         #pragma omp simd aligned(G, prvOut, deltaF, deltaC, forget : VEC_WIDTH)
-        for(Uint o=0; o<nCells; o++) {
+        for(Uint o=0; o<nCells; ++o) {
           G[o]        += prvOut[i] * deltaF[o];
           G[o+nCells] += prvOut[i] * deltaC[o] * forget[i];
         }
@@ -215,20 +217,20 @@ class MGULayer: public Layer
     }
   }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override
   {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
     const nnReal init = fac * cell->initFactor(nInputs, nCells);
-    uniform_real_distribution<nnReal> dis(-init, init);
+    std::uniform_real_distribution<nnReal> dis(-init, init);
     { // forget gate starts open, inp/out gates are closed
-     nnReal* const BB = para->B(ID);
-     for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen);
+      nnReal* const BB = W->B(ID);
+      for(Uint o=0*nCells; o<1*nCells; ++o) BB[o] = dis(G)+LSTM_PRIME_FAC;
+      for(Uint o=1*nCells; o<2*nCells; ++o) BB[o] = dis(G);
     }
     {
-     nnReal* const weight = para->W(ID);
-     for(Uint w=0; w<2*nCells*(nInputs+nCells); w++) weight[w] = dis(*gen);
+      nnReal* const weight = W->W(ID);
+      for(Uint w=0; w<2*nCells*(nInputs+nCells); ++w) weight[w] = dis(G);
     }
   }
 };

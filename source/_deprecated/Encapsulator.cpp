@@ -37,7 +37,8 @@ void Encapsulator::initializeNetwork(Network* _net, Optimizer* _opt)
 }
 
 void Encapsulator::prepare(Sequence*const traj, const Uint len,
-  const Uint samp, const Uint thrID) {
+  const Uint samp, const Uint thrID)
+{
   thread_seq[thrID] = traj;
   if(net==nullptr) return;
   // before clearing out gradient, check if a backprop was ready
@@ -51,6 +52,33 @@ void Encapsulator::prepare(Sequence*const traj, const Uint len,
   first_sample[thrID] = samp;
   net->prepForBackProp(series[thrID], len);
   net->prepForFwdProp(series_tgt[thrID], len);
+}
+
+
+
+void Encapsulator::loadInputs(const int t, const Uint thrID) const
+{
+  const Sequence*const traj = thread_seq[thrID];
+  assert(t<(int)traj->nsteps());
+  const Uint nSvar = traj->states[t].size();
+  assert(nSvar == data->sI.dimUsed);
+  if (nAppended>0)
+  {
+    vector <Real> inp((nAppended+1)*nSvar, 0);
+    for(int k=t, j=0; j<=(int)nAppended; k--, j++)
+    {
+      const int kk = k<0 ? 0 : k; // copy multiple times s_0 at start of seq
+      for(Uint i = 0; i < nSvar; i++)
+      // j is fast index (different t of same feature are close, think CNN)
+        inp[j + i*(nAppended+1)] = traj->states[kk][i];
+    }
+    return data->standardizeAppended(inp);
+  }
+  else
+  {
+    debugS("encapsulate state %s", print(traj->states[t]).c_str() );
+    return data->standardize(traj->states[t]);
+  }
 }
 
 Rvec Encapsulator::state2Inp(const int t, const Uint thrID) const

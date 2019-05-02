@@ -11,93 +11,117 @@
 #include "CMA_Optimizer.h"
 #include "Optimizer.h"
 #include "Network.h"
+#include "Utils/SstreamUtilities.h"
 #include "Layers/Layer_Base.h"
 #include "Layers/Layer_Conv2D.h"
 #include "Layers/Layer_LSTM.h"
 #include "Layers/Layer_MGU.h"
 
-using namespace smarties
+namespace smarties
 {
 
 Builder::Builder(const Settings& _sett) : settings(_sett) { }
 
-void Builder::addInput(const int size)
+void Builder::addInput(const Uint size)
 {
+  if(size==0) die("Requested an empty input layer");
   if(bBuilt) die("Cannot build the network multiple times");
-  if(size<=0) die("Requested an empty input layer\n");
-  const int ID = layers.size();
-  layers.push_back(new InputLayer(size, ID));
-  assert(layers[ID]->nOutputs() == (Uint) size);
+  const Uint ID = layers.size();
+  layers.emplace_back(
+    std::make_unique<InputLayer>(size, ID)
+  );
+  assert(layers[ID]->nOutputs() == size);
+
+  // if this is not first layer, glue this layer and previous together:
   if(nInputs > 0) {
+    assert(ID>0);
     const Uint twoLayersSize = layers[ID-1]->nOutputs() + size;
-    layers.push_back(new JoinLayer(ID+1, twoLayersSize, 2));
+    layers.emplace_back(
+      std::make_unique<JoinLayer>(ID+1, twoLayersSize, 2)
+    );
   } else assert(ID == 0);
   nInputs += size;
 }
 
-void Builder::addLayer(const int nNeurons, const std::string funcType,
-                       const bool bOutput, const std::string layerType,
-                       const int iLink)
+void Builder::addLayer(const Uint layerSize,
+                       const std::string funcType,
+                       const bool isOutputLayer,
+                       const std::string layerType,
+                       const Uint iLink)
 {
   if(bBuilt) die("Cannot build the network multiple times");
-  const int ID = layers.size();
+
+  const Uint ID = layers.size();
   if(iLink<1 || ID<iLink || layers[ID-iLink]==nullptr || nInputs==0)
     die("Missing input layer.");
-  if(nNeurons <= 0)  die("Requested empty layer.");
-  const Uint layInp = layers[ID-iLink]->nOutputs();
-  Layer* l = nullptr;
-         if (layerType == "LSTM") {
-    l = new LSTMLayer(ID, layInp, nNeurons, funcType, bOutput, iLink);
-  } else if (layerType == "MGU" || layerType == "GRU") {
-    l = new MGULayer(ID, layInp, nNeurons, funcType, bOutput, iLink);
-  } else if (layerType == "IntegrateFire") {
-    //l = new IntegrateFireLayer(nInputs, nNeurons, layers.size());
-  } else {
-    const bool bRecur = (layerType=="RNN") || (layerType=="Recurrent");
-    l = new BaseLayer(ID, layInp, nNeurons, funcType, bRecur, bOutput, iLink);
-  }
-  assert(l not_eq nullptr);
-  layers.push_back(l);
+  if(layerSize <= 0)  die("Requested empty layer.");
 
-  const bool bResLayer = (int) layers[ID-1]->nOutputs()==nNeurons && !bOutput;
+  const Uint layerInputSize = layers[ID-iLink]->nOutputs();
+
+  if (layerType == "LSTM")
+  {
+    layers.emplace_back(
+      std::make_unique<LSTMLayer>(ID, layerInputSize, layerSize, funcType, isOutputLayer, iLink)
+    );
+  }
+  else if (layerType == "MGU" || layerType == "GRU")
+  {
+    layers.emplace_back(
+      std::make_unique<MGULayer>(ID, layerInputSize, layerSize, funcType, isOutputLayer, iLink)
+    );
+  }
+  else
+  {
+    const bool bRecurrent = (layerType=="RNN") || (layerType=="Recurrent");
+    layers.emplace_back(
+      std::make_unique<BaseLayer>(ID, layerInputSize, layerSize, funcType, bRecurrent, isOutputLayer, iLink)
+    );
+  }
+
+  const bool bResidualLayer = layers[ID-1]->nOutputs() == layerSize
+                              && not isOutputLayer;
   //const bool bResLayer = not bOutput;
-  if(bResLayer)
+  if(bResidualLayer)
     layers.push_back(new ResidualLayer(ID+1, nNeurons));
 
-  if(bOutput) nOutputs += l->nOutputs();
+  if(isOutputLayer) nOutputs += layers.back()->nOutputs();
 }
 
-void Builder::setLastLayersBias(std::vector<Real> init_vals)
+template<typename T>
+void Builder::setLastLayersBias(const std::vector<T> init_vals)
 {
-  layers.back()->biasInitialValues(init_vals);
+  NNvec init = NNvec(init_vals.begin(), init_vals.end());
+  layers.back()->biasInitialValues(init);
 }
 
-void Builder::addParamLayer(int size, std::string funcType, Real init_vals)
+void Builder::addParamLayer(Uint size, std::string funcType, Real init_vals)
 {
   addParamLayer(size, funcType, std::vector<Real>(size, init_vals) );
 }
 
-void Builder::addParamLayer(int size, std::string funcType, std::vector<Real> init_vals)
+void Builder::addParamLayer(Uint size,
+                            std::string funcType,
+                            std::vector<Real> init_vals)
 {
   const Uint ID = layers.size();
   if(bBuilt) die("Cannot build the network multiple times\n");
   if(size<=0) die("Requested an empty layer\n");
-  Layer* l = new ParamLayer(ID, size, funcType, init_vals);
-  layers.push_back(l);
-  assert(l not_eq nullptr);
+  layers.emplace_back(
+    std::make_unique<ParamLayer>(ID, size, funcType, init_vals)
+  );
   nOutputs += l->nOutputs();
 }
 
 void Builder::stackSimple(const Uint ninps, const std::vector<Uint> nouts)
 {
-  const int sumout=static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
-  const string netType = settings.nnType, funcType = settings.nnFunc;
-  const vector<int> lsize = settings.readNetSettingsSize();
+  const Uint sumout = accumulate(nouts.begin(), nouts.end(), 0);
+  const std::string netType = settings.nnType, funcType = settings.nnFunc;
+  const std::vector<Uint>& layerSizes = settings.nnLayerSizes;
 
   if(ninps == 0)
   {
     warn("network with no input space. will return a param layer");
-    addParamLayer(sumout, settings.nnOutputFunc, vector<Real>(sumout,0));
+    addParamLayer(sumout, settings.nnOutputFunc, std::vector<Real>(sumout,0));
     return;
   }
 
@@ -108,40 +132,47 @@ void Builder::stackSimple(const Uint ninps, const std::vector<Uint> nouts)
   // sizes and splitLayers=1, the network will have 2 shared bottom Layers
   // (not counting input layer) and then for each of the outputs a separate
   // third layer each connected back to the second layer.
-  const Uint nL = lsize.size();
-  const Uint nsplit = std::min((Uint) settings.splitLayers, nL);
-  const Uint firstSplit = nL - nsplit;
+  const Uint nLayers = layerSizes.size();
+  const Uint nsplit = std::min((Uint) settings.splitLayers, nLayers);
+  const Uint firstSplit = nLayers - nsplit;
 
-  for(Uint i=0; i<firstSplit; i++) addLayer(lsize[i],funcType,false,netType);
-  if(sumout) {
-    if(nsplit) {
-      const Uint lastShared = layers.back()->number();
-      for (Uint i=0; i<nouts.size(); i++) {
+  for(Uint i=0; i<firstSplit; i++)
+    addLayer(layerSizes[i], funcType, false, netType);
+
+  if(sumout > 0)
+  {
+    if(nsplit)
+    {
+      const Uint lastShared = layers.size() - 1;
+      for (Uint i=0; i<nouts.size(); i++)
+      {
         //`link' specifies how many layers back should layer take input from
         // use layers.size()-lastShared >=1 to link back to last shared layer
-        addLayer(lsize[lastShared], funcType, false, netType, nL-lastShared);
+        const Uint nConnectBack = layers.size() - lastShared;
+        addLayer(layerSizes[firstSplit], funcType,false,netType, nConnectBack);
 
-        for (Uint j=firstSplit+1; j<lsize.size(); j++)
-          addLayer(lsize[j], funcType, false, netType);
+        for (Uint j=firstSplit+1; j<layerSizes.size(); j++)
+          addLayer(layerSizes[j], funcType,false,netType);
 
         addLayer(nouts[i], settings.nnOutputFunc, true);
       }
-    } else addLayer(sumout, settings.nnOutputFunc, true);
+    }
+    else addLayer(sumout, settings.nnOutputFunc, true);
   }
 }
 
-Network* Builder::build(const bool isInputNet)
+std::shared_ptr<Network> Builder::build(const bool isInputNet)
 {
   if(bBuilt) die("Cannot build the network multiple times\n");
   bBuilt = true;
 
   nLayers = layers.size();
-  weights = allocate_parameters(layers, mpisize);
-  tgt_weights = allocate_parameters(layers, mpisize);
+  std::shared_ptr<Parameters> weights = Network::allocParameters(layers, mpisize);
 
+  std::mt19937 * gen = & generators[0];
   // Initialize weights
   for(const auto & l : layers)
-    l->initialize(&generators[0], weights,
+    l->initialize(gen, weights,
       l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
   if(settings.learner_rank == 0) {
@@ -150,37 +181,30 @@ Network* Builder::build(const bool isInputNet)
 
   // Make sure that all ranks have the same weights (copy from rank 0)
   weights->broadcast(settings.mastersComm);
-  //weights->allocateTransposed();
-  tgt_weights->copy(weights); //copy weights onto tgt_weights
-
-  // Allocate a gradient for each thread.
-  Vgrad.resize(nThreads, nullptr);
-
-  #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-  for (Uint i=0; i<Vgrad.size(); i++)
-    #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
-      Vgrad[i] = allocate_parameters(layers, mpisize);
-
   // Initialize network workspace to check that all is ok
-  Activation*const test = allocate_activation(layers);
-
+  const std::unique_ptr<Activation> test = Network::allocActivation(layers);
   if(test->nInputs not_eq (int) nInputs)
     _die("Mismatch between Builder's computed inputs:%u and Activation's:%u",
-      nInputs, test->nInputs);
+         nInputs, test->nInputs);
 
   if(test->nOutputs not_eq (int) nOutputs) {
-    _warn("Mismatch between Builder's computed outputs:%u and Activation's:%u. Overruled Builder: probable cause is that user's net did not specify which layers are output. If multiple output layers expect trouble\n",
-      nOutputs, test->nOutputs);
+    _warn("Mismatch between Builder's computed outputs:%u and Activation's:%u. "
+          "Overruled Builder: probable cause is that user net did not specify "
+          "which layers are output. If multiple output layers expect trouble\n",
+          nOutputs, test->nOutputs);
     nOutputs = test->nOutputs;
   }
 
-  _dispose_object(test);
+  thread_gradients = allocManyParams(weights, settings.nThreads);
 
-  popW = initWpop(weights, CMApopSize, mpisize);
+  net = std::make_shared<Network>(nInputs, nOutputs, layers, weights);
+  // ownership of layers passed onto network, builder should have an empty vec:
+  assert(layers.size() == 0);
 
-  net = new Network(this, settings);
-  if(CMApopSize>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
-  else opt = new AdamOptimizer(settings, weights,tgt_weights, popW, Vgrad);
+  if(settings.CMApopSize>1)
+    opt = std::make_shared<CMA_Optimizer>(settings, weights);
+  else
+    opt = std::make_shared<AdamOptimizer>(settings, weights, thread_gradients);
 
   return net;
 }

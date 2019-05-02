@@ -8,17 +8,18 @@
 
 #include "Learner.h"
 //#include <chrono>
-#include "../ReplayMemory/MemoryBuffer.h"
-#include "../ReplayMemory/Collector.h"
-#include "../ReplayMemory/MemoryProcessing.h"
+#include "ReplayMemory/MemoryProcessing.h"
+#include "ReplayMemory/Collector.h"
 
 namespace smarties
 {
 
-Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): distrib(D_), settings(S), MDP(MDP_),
-data     ( std::make_unique<MemoryBuffer    >(MDP_, S_, D_) ),
-data_proc( std::make_unique<MemoryProcessing>(MDP_, S_, D_, data) ),
-data_get ( std::make_unique<Collector       >(MDP_, S_, D_, data) ) {}
+Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+  distrib(D_), settings(S), MDP(MDP_),
+  ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
+  data     ( std::make_unique<MemoryBuffer    >(MDP_, S_, D_) ),
+  data_proc( std::make_unique<MemoryProcessing>(MDP_, S_, D_, data) ),
+  data_get ( std::make_unique<Collector       >(MDP_, S_, D_, data) ) {}
 
 void Learner::initializeLearner()
 {

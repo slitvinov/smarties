@@ -104,4 +104,30 @@ void Discrete_policy::test(const Uint act, const Rvec& beta) const
   fout.close();
 }
 
+void Gaussian_advantage::test(const Rvec& act, std::mt19937*const gen) const
+{
+  const Uint numNetOutputs = netOutputs.size();
+  Rvec _grad(numNetOutputs, 0);
+  grad(act, 1, _grad);
+  std::ofstream fout("mathtest.log", ios::app);
+  for(Uint i = 0; i<nL; i++)
+  {
+    Rvec out_1 = netOutputs, out_2 = netOutputs;
+    const Uint index = start_coefs+i;
+    out_1[index] -= 0.0001; out_2[index] += 0.0001;
+
+    Gaussian_advantage a1(std::vector<Uint>{start_coefs}, aInfo, out_1, policy);
+    Gaussian_advantage a2(std::vector<Uint>{start_coefs}, aInfo, out_2, policy);
+    const Real A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
+    const Real fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
+    const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
+    //if(abserr>1e-7 && abserr/scale>1e-4)
+    {
+      fout<<"Adv grad "<<i<<" finite differences "<<fdiff<<" analytic "
+        <<_grad[index]<<" error "<<abserr<<" "<<abserr/scale<<"\n";
+    }
+  }
+  fout.close();
+}
+
 } // end namespace smarties

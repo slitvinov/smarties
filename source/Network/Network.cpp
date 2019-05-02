@@ -22,17 +22,16 @@ namespace smarties
                          `outvals` (containing func(suminps)). No need to clear.
   - Parameters _weights: network weights to use. If nullptr then we use default.
 */
-vector<Real> Network::predict(const vector<Real>& _inp,
-  const Activation*const prevStep, const Activation*const currStep,
-  const Parameters*const _weights) const
+NNvec Network::predict(const NNvec& input,
+                       const Activation*const prevStep,
+                       const Activation*const currStep,
+                       const Parameters*const _weights) const
 {
-  assert(_inp.size()==nInputs && layers.size()==nLayers);
-  currStep->setInput(_inp);
-  const Parameters*const W = _weights==nullptr? weights : _weights;
-  for(Uint j=0; j<nLayers; j++) //skip 0: input layer
-    layers[j]->forward(prevStep, currStep, W);
+  assert(input.size()==nInputs && layers.size()==nLayers);
+  currStep->setInput(input);
+  const Parameters*const W = _weights==nullptr? weights.get() : _weights;
+  for(Uint j=0; j<nLayers; ++j) layers[j]->forward(prevStep, currStep, W);
   currStep->written = true;
-
   return currStep->getOutput();
 }
 
@@ -57,8 +56,8 @@ void Network::backProp( const Activation*const prevStep,
 {
   assert(currStep->written);
   _gradient->written = true;
-  const Parameters*const W = _weights == nullptr ? weights : _weights;
-  for (int i=layers.size()-1; i>=0; i--) //skip 0: input layer
+  const Parameters*const W = _weights == nullptr ? weights.get() : _weights;
+  for (Sint i = (Sint)layers.size()-1; i>=0; --i)
     layers[i]->backward(prevStep, currStep, nextStep, _gradient, W);
 }
 
@@ -67,60 +66,78 @@ void Network::backProp( const Activation*const prevStep,
   layers and from last time step to first, with layer being the 'slow index'
   maximises reuse of weights in cache by getting each layer done in turn
 */
-void Network::backProp(const vector<Activation*>& netSeries,
+void Network::backProp(const std::vector<std::unique_ptr<Activation>>& series,
                        const Uint stepLastError,
                        const Parameters*const _grad,
                        const Parameters*const _weights) const
 {
-  assert(stepLastError <= netSeries.size());
-  const Parameters*const W = _weights == nullptr ? weights : _weights;
+  assert(stepLastError <= series.size());
+  const Parameters*const W = _weights == nullptr ? weights.get() : _weights;
 
   if (stepLastError == 0) return; //no errors placed
   else
   if (stepLastError == 1)
   { //errors placed at first time step
-    assert(netSeries[0]->written);
-    for(int i=layers.size()-1; i>=0; i--)
-      layers[i]->backward(nullptr, netSeries[0], nullptr, _grad, W);
+    assert(series[0]->written);
+    for (Sint i = (Sint)layers.size()-1; i>=0; --i)
+      layers[i]->backward(nullptr, series[0].get(), nullptr, _grad, W);
   }
   else
   {
     const Uint T = stepLastError - 1;
-    for(int i=layers.size()-1; i>=0; i--) //skip 0: input layer
+    for (Sint i = (Sint)layers.size()-1; i>=0; --i)
     {
-      assert(netSeries[T]->written);
-      layers[i]->backward(netSeries[T-1],netSeries[T],nullptr,        _grad,W);
+      assert(series[T]->written);
+      layers[i]->backward(series[T-1].get(), series[T].get(), nullptr,
+                          _grad, W);
 
-      for (Uint k=T-1; k>0; k--) {
-      assert(netSeries[k]->written);
-      layers[i]->backward(netSeries[k-1],netSeries[k],netSeries[k+1], _grad,W);
+      for (Uint k = T-1; k>0; --k) {
+      assert(series[k]->written);
+      layers[i]->backward(series[k-1].get(), series[k].get(), series[k+1].get(),
+                          _grad, W);
       }
 
-      assert(netSeries[0]->written);
-      layers[i]->backward(       nullptr,netSeries[0],netSeries[1],   _grad,W);
+      assert(series[0]->written);
+      layers[i]->backward(          nullptr, series[0].get(), series[  1].get(),
+                          _grad, W);
     }
   }
   _grad->written = true;
 }
 
-Network::Network(Builder* const B, const Settings & settings) :
-  nThreads(B->nThreads), nInputs(B->nInputs),
-  nOutputs(B->nOutputs), nLayers(B->nLayers), bDump(not settings.bTrain),
-  gradClip(B->gradClip), layers(B->layers), weights(B->weights),
-  tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), sampled_weights(B->popW),
-  generators(settings.generators) {
-  updateTransposed();
+std::vector<Real> Network::backPropToLayer(const std::vector<Real>& gradient,
+                                           const Uint toLayerID,
+                                                 Activation*const activation,
+                                           const Parameters*const _weight) const
+{
+  const Parameters*const W = _weight==nullptr? weights.get() : _weight;
+  activation->clearErrors();
+  activation->setOutputDelta(gradient);
+  assert(activation->written && activation->input[toLayerID]);
+  //backprop from output layer down to layer we want grad for
+  for(Uint i=layers.size()-1; i>toLayerID; --i)
+    layers[i]->backward(nullptr, activation, nullptr, nullptr, W);
+  return activation->getInputGradient(toLayerID);
 }
+
+Network::Network(const Uint _nInp, const Uint _nOut,
+                 std::vector<std::unique_ptr<Layer>>& L,
+                 const std::shared_ptr<Parameters>& W) :
+  layers(std::move(L)), nInputs(_nInp), nOutputs(_nOut), weights(W) {}
 
 void Network::checkGrads()
 {
+  /*
   const Uint seq_len = 5;
-  const nnReal incr = std::cbrt(numeric_limits<nnReal>::epsilon()), tol = incr;
-  cout<<"Checking grads with increment "<<incr<<" and tolerance "<<tol<<endl;
-  vector<Activation*> timeSeries;
+  const nnReal incr = std::cbrt(std::numeric_limits<nnReal>::epsilon())
+  const nnReal tol  = incr;
+  printf("Checking grads with increment %e and tolerance %e\n", incr,tol);
+
+  std::vector<Activation*> timeSeries;
   if(Vgrad.size() < 4) die("I'm the worst, just use 4 threads and forgive me");
   Vgrad[1]->clear(); Vgrad[2]->clear(); Vgrad[3]->clear();
-
+  std::random_device rd;
+  std::mt19937 gen(rd());
   for(Uint t=0; t<seq_len; t++)
   for(Uint o=0; o<nOutputs; o++)
   {
@@ -129,7 +146,7 @@ void Network::checkGrads()
     Vgrad[0]->clear();
     normal_distribution<nnReal> dis_inp(0, 1);
     for(Uint i=0; i<seq_len; i++)
-      for(Uint j=0; j<nInputs; j++) inputs[i][j] = dis_inp(generators[0]);
+      for(Uint j=0; j<nInputs; j++) inputs[i][j] = dis_inp(gen);
 
     for (Uint k=0; k<seq_len; k++) {
       predict(inputs[k], timeSeries, k);
@@ -190,6 +207,7 @@ void Network::checkGrads()
   deallocateUnrolledActivations(&timeSeries);
   Vgrad[0]->clear(); Vgrad[1]->clear(); Vgrad[2]->clear(); Vgrad[3]->clear();
   die("done");
+  */
 }
 
 #if 0

@@ -11,9 +11,9 @@
 
 #include "Bund.h"
 
-#include <vector>
+#include <cassert>
 #include <cmath> // log, exp, ...
-#include <limits>
+#include <cstring> // memset, memcpy, ...
 
 namespace smarties
 {
@@ -21,19 +21,22 @@ namespace smarties
 namespace Utilities
 {
 
-inline bool isZero(const Real vals)
+template <typename T>
+inline bool isZero(const T vals)
 {
-  return std::fabs(vals) < std::numeric_limits<Real>::epsilon();
+  return std::fabs(vals) < std::numeric_limits<T>::epsilon();
 }
 
-inline bool nonZero(const Real vals)
+template <typename T>
+inline bool nonZero(const T vals)
 {
-  return std::fabs(vals) > std::numeric_limits<Real>::epsilon();
+  return std::fabs(vals) > std::numeric_limits<T>::epsilon();
 }
 
-inline bool isPositive(const Real vals)
+template <typename T>
+inline bool isPositive(const T vals)
 {
-  return vals > std::numeric_limits<Real>::epsilon();
+  return vals > std::numeric_limits<T>::epsilon();
 }
 
 template <typename T>
@@ -41,14 +44,15 @@ inline bool isValidValue(const T vals) {
   return ( not std::isnan(vals) ) and ( not std::isinf(vals) );
 }
 
-inline Real safeExp(const Real val)
+template <typename T = Real>
+inline T safeExp(const T val)
 {
-  return std::exp( std::min((Real)EXP_CUT, std::max(-(Real)EXP_CUT, val) ) );
+  return std::exp( std::min( (T)EXP_CUT, std::max( - (T)EXP_CUT, val) ) );
 }
 template <typename T = nnReal>
 inline T nnSafeExp(const T val)
 {
-  return std::exp( std::min( (T)EXP_CUT, std::max( - (T)EXP_CUT, val) ) );
+  return safeExp<T>(val);
 }
 
 inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
@@ -59,76 +63,86 @@ inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
 }
 
 template <typename T>
-inline T annealRate(const T eta, const Real t, const Real T)
+inline T annealRate(const T eta, const Real t, const Real time)
 {
-  return eta / (1 + (T) t * T);
+  return eta / (1 + (T) t * time);
 }
 
+inline Uint roundUp(const Real N, const Uint size)
+{
+  return std::ceil(N / size) * size;
+}
+template<typename T = nnReal>
 inline Uint roundUpSimd(const Real N)
 {
-  return std::ceil(N/ARY_WIDTH)*ARY_WIDTH;
+  static_assert(VEC_WIDTH % sizeof(T) == 0, "Invalid vectorization");
+  return roundUp(N, VEC_WIDTH / sizeof(T) );
 }
 
-inline nnReal* allocate_dirty(const Uint _size)
+template<typename T = nnReal>
+inline T* allocate_dirty(const Uint _size)
 {
-  nnReal* ret = nullptr;
+  T* ret = nullptr;
   assert(_size > 0);
-  posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size)*sizeof(nnReal));
+  posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size) * sizeof(T));
   return ret;
 }
 
-inline nnReal* allocate_ptr(const Uint _size)
+template<typename T = nnReal>
+inline T* allocate_ptr(const Uint _size)
 {
-  nnReal* ret = allocate_dirty(_size);
-  memset(ret, 0, roundUpSimd(_size)*sizeof(nnReal) );
+  T* const ret = allocate_dirty(_size);
+  memset(ret, 0, roundUpSimd(_size) * sizeof(T) );
   return ret;
 }
 
-inline nnReal* allocate_param(const Uint _size, const Real mpiSz)
+template<typename T = nnReal>
+inline std::vector<T*> allocate_vec(std::vector<Uint> _sizes)
 {
-  const Uint extraSize = roundUpSimd(std::ceil(_size / mpiSz)) * mpiSz;
-  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
-  //  _size, sizeof(nnReal), extraSize*sizeof(nnReal));
-  nnReal* ret = allocate_dirty(extraSize);
-  memset(ret, 0, extraSize * sizeof(nnReal) );
-  return ret;
-}
-
-
-inline std::vector<nnReal*> allocate_vec(std::vector<Uint> _sizes)
-{
-  std::vector<nnReal*> ret(_sizes.size(), nullptr);
+  std::vector<T*> ret(_sizes.size(), nullptr);
   for(Uint i=0; i<_sizes.size(); i++) ret[i] = allocate_ptr(_sizes[i]);
   return ret;
 }
 
 #ifdef CHEAP_SOFTPLUS
-  inline Real unbPosMap_func(const Real in)
+
+  template<typename T>
+  inline T unbPosMap_func(const T in)
   {
-    return  .5*(in + std::sqrt(1+in*in));
+    return ( in + std::sqrt(1+in*in) )/2;
   }
-  inline Real unbPosMap_diff(const Real in)
+
+  template<typename T>
+  inline T unbPosMap_diff(const T in)
   {
-    return .5*(1 + in/std::sqrt(1+in*in));
+    return ( 1 + in/std::sqrt(1+in*in) )/2;
   }
-  inline Real unbPosMap_inverse(Real in)
+
+  template<typename T>
+  inline T unbPosMap_inverse(T in)
   {
     if(in<=0) {
-      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.");
+      printf("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.\n");
       in = std::numeric_limits<float>::epsilon();
     }
-    return (in*in - 0.25)/in;
+    return (in*in - (T)0.25)/in;
   }
 #else
-  inline Real unbPosMap_func(const Real in)
+
+  template<typename T>
+  inline T unbPosMap_func(const T in)
   {
     return std::log(1+safeExp(in));
   }
-  inline Real unbPosMap_diff(const Real in)
+
+  template<typename T>
+  inline T unbPosMap_diff(const T in)
   {
     return 1/(1+safeExp(-in));
   }
-  inline Real unbPosMap_inverse(Real in)
+
+  template<typename T>
+  inline T unbPosMap_inverse(T in)
   {
     if(in<=0) {
       warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.");
@@ -138,7 +152,8 @@ inline std::vector<nnReal*> allocate_vec(std::vector<Uint> _sizes)
   }
 #endif
 
-inline Real noiseMap_func(const Real val)
+template<typename T>
+inline T noiseMap_func(const T val)
 {
   #ifdef UNBND_VAR
     return unbPosMap_func(val);
@@ -146,7 +161,9 @@ inline Real noiseMap_func(const Real val)
     return Sigm::_eval(val);
   #endif
 }
-inline Real noiseMap_diff(const Real val)
+
+template<typename T>
+inline T noiseMap_diff(const T val)
 {
   #ifdef UNBND_VAR
     return unbPosMap_diff(val);
@@ -154,7 +171,9 @@ inline Real noiseMap_diff(const Real val)
     return Sigm::_evalDiff(val);
   #endif
 }
-inline Real noiseMap_inverse(Real val)
+
+template<typename T>
+inline T noiseMap_inverse(T val)
 {
   #ifdef UNBND_VAR
     return unbPosMap_inverse(val);
@@ -168,7 +187,8 @@ inline Real noiseMap_inverse(Real val)
   #endif
 }
 
-inline Real clip(const Real val, const Real ub, const Real lb)
+template<typename T>
+inline T clip(const T val, const T ub, const T lb)
 {
   assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));
   assert(!std::isinf(val) && !std::isinf(ub) && !std::isinf(lb));
@@ -206,7 +226,7 @@ inline Rvec trust_region_update(const Rvec& grad,
 {
   assert(grad.size() == trust.size());
   Rvec ret(nA);
-  Real dot=0, norm = numeric_limits<Real>::epsilon();
+  Real dot=0, norm = std::numeric_limits<Real>::epsilon();
   for (Uint j=0; j<nA; j++) {
     norm += trust[j] * trust[j];
     dot +=  trust[j] *  grad[j];

@@ -163,8 +163,8 @@ class Layer
 
   // Initialize the weights and biases. Probably by sampling.
   virtual void transpose(const Parameters*const para) const {}
-  virtual void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const = 0;
+  virtual void initialize(std::mt19937& G, const Parameters*const W,
+                          Real initializationFac) const = 0;
 };
 
 class InputLayer: public Layer
@@ -172,9 +172,8 @@ class InputLayer: public Layer
  public:
   InputLayer(Uint _size, Uint _ID) : Layer(_ID, _size, false, true) { }
   std::string printSpecs() const override {
-    std::ostringstream o;
-    o<<"("<<ID<<") Input Layer of size:"<<size<<"\n";
-    return o.str();
+    return "(" + std::to_string(ID) + ") Input Layer of size:"
+           + std::to_string(size) + "\n";
   }
 
   void requiredParameters(std::vector<Uint>& nWeight,
@@ -202,8 +201,8 @@ class InputLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override { }
 
-  void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override { }
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override { }
 };
 
 class JoinLayer: public Layer
@@ -214,10 +213,9 @@ class JoinLayer: public Layer
     assert(nJoin>1);
   }
   std::string printSpecs() const override {
-    std::ostringstream o;
-    o<<"("<<ID<<") Join Layer of size:"<<size
-     <<" joining the previous "<<nJoin<<" layers"<<"\n";
-    return o.str();
+    return "(" + std::to_string(ID) + ") Join Layer of size:"
+           + std::to_string(size) + " joining the previous "
+           + std::to_string(nJoin) + " layers\n";
   }
 
   void requiredParameters(std::vector<Uint>& nWeight,
@@ -251,18 +249,20 @@ class JoinLayer: public Layer
                   const Activation*const curr,
                   const Activation*const next,
                   const Parameters*const grad,
-                  const Parameters*const para) const override {
+                  const Parameters*const para) const override
+  {
     const nnReal* const errors = curr->E(ID);
     Uint k = 0;
-    for (Uint i=1; i<=nJoin; i++) {
+    for (Uint i=1; i<=nJoin; ++i)
+    {
       nnReal* const ret = curr->E(ID-i);
-      for (Uint j=0; j<curr->sizes[ID-i]; j++) ret[j] = errors[k++];
+      for (Uint j=0; j<curr->sizes[ID-i]; ++j) ret[j] = errors[k++];
     }
     assert(k==size);
   }
 
-  void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override { }
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override { }
 };
 
 
@@ -272,9 +272,8 @@ class ResidualLayer: public Layer
   ResidualLayer(Uint _ID, Uint _N): Layer(_ID,_N,false) { }
 
   std::string printSpecs() const override {
-    std::ostringstream o;
-    o<<"("<<ID<<") Residual Connection of size:"<<size<<"\n";
-    return o.str();
+    return "(" + std::to_string(ID) + ") Residual Connection of size:"
+           + std::to_string(size) + "\n";
   }
 
   void requiredParameters(std::vector<Uint>& nWeight,
@@ -292,14 +291,16 @@ class ResidualLayer: public Layer
   void biasInitialValues(const std::vector<Real> init) override { }
   void forward( const Activation*const prev,
                 const Activation*const curr,
-                const Parameters*const para) const override {
+                const Parameters*const para) const override
+  {
     nnReal* const ret = curr->Y(ID);
     std::memset( ret, 0, size * sizeof(nnReal) );
-    for (Uint i=1; i<=2; i++) {
+    for (Uint i=1; i<=2; ++i)
+    {
       const Uint sizeInp = std::min(curr->sizes[ID-i], size);
       const nnReal* const inputs = curr->Y(ID-i);
       #pragma omp simd aligned(ret, inputs : VEC_WIDTH)
-      for (Uint j=0; j<sizeInp; j++) ret[j] += inputs[j];
+      for (Uint j=0; j<sizeInp; ++j) ret[j] += inputs[j];
     }
   }
 
@@ -309,14 +310,14 @@ class ResidualLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override {
     const nnReal* const errors = curr->E(ID);
-    for (Uint i=1; i<=2; i++) {
+    for (Uint i=1; i<=2; ++i) {
       const Uint sizeInp = std::min(curr->sizes[ID-i], size);
       memcpy( curr->E(ID-i), errors, sizeInp * sizeof(nnReal) );
     }
   }
 
-  void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override { }
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override { }
 };
 
 class ParamLayer: public Layer
@@ -330,11 +331,10 @@ class ParamLayer: public Layer
     biasInitialValues(init);
   }
   std::string printSpecs() const override {
-    std::ostringstream o;
-    o<<"("<<ID<<") "<<func->name()
-     <<"Parameter Layer of size:"<<size<<". Initialized:"
-     <<print(initVals, 3).c_str()<<"\n";
-    return o.str();
+    std::string ret = "(" + std::to_string(ID) + ") Parameter Layer of size:"
+           + std::to_string(size) + ". Initialized:";
+    for(Uint i=0; i<size; ++i) { ret += " " + std::to_string(initVals[i]); }
+    return ret + "\n";
   }
 
   void requiredParameters(std::vector<Uint>& nWeight,
@@ -358,7 +358,7 @@ class ParamLayer: public Layer
           nnReal* const inputs = curr->X(ID);
           nnReal* const output = curr->Y(ID);
     const nnReal* const bias = para->B(ID);
-    for (Uint n=0; n<size; n++) {
+    for (Uint n=0; n<size; ++n) {
       inputs[n] = bias[n];
       output[n] = func->eval(bias[n]);
     }
@@ -374,33 +374,19 @@ class ParamLayer: public Layer
           nnReal* const grad_b = grad->B(ID);
     const nnReal* const inputs = curr->X(ID);
     const nnReal* const outval = curr->Y(ID);
-    for(Uint o=0; o<size; o++) {
+    for(Uint o=0; o<size; ++o) {
       deltas[o] *= func->evalDiff(inputs[o], outval[o]);
       grad_b[o] += deltas[o];
     }
   }
 
-  void initialize(std::mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override
   {
-    nnReal* const biases = para->B(ID);
+    nnReal* const biases = W->B(ID);
     for(Uint o=0; o<size; o++) biases[o] = func->inverse(initVals[o]);
   }
 };
-
-
-inline Activation* allocate_activation(const std::vector<Layer*>& layers) {
-  std::vector<Uint> sizes, output, input;
-  for(const auto & l : layers) l->requiredActivation(sizes, output, input);
-  return new Activation(sizes, output, input);
-}
-
-inline Parameters* allocate_parameters(const std::vector<Layer*>&L, const Uint mpiSz)
-{
-  std::vector<Uint> nWeight, nBiases;
-  for(const auto & l : L) l->requiredParameters(nWeight, nBiases);
-  return new Parameters(nWeight, nBiases, mpiSz);
-}
 
 } // end namespace smarties
 #endif // smarties_Quadratic_term_h

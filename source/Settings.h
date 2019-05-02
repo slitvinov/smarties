@@ -32,7 +32,7 @@ struct DistributionInfo
   Uint world_size;
 
   int threadSafety = -1;
-  bool bAsync;
+  bool bAsyncMPI;
   mutable std::mutex mpi_mutex;
 
   Uint nWorker_processes;

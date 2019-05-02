@@ -133,19 +133,19 @@ struct Conv2DLayer: public Layer
     }
   }
 
-  void initialize(std::mt19937* const G, const Parameters*const para,
-    Real initializationFac) const override
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override
   {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
     const int nAdded = InC * KnX * KnY;
     const nnReal init = fac * func::_initFactor(nAdded, KnC);
     std::uniform_real_distribution<nnReal> dis(-init, init);
-    nnReal* const biases = para->B(ID);
-    nnReal* const weight = para->W(ID);
-    assert(para->NB(ID) == out_size);
-    assert(para->NW(ID) == Kn_X * Kn_Y * Kn_C * In_C);
-    for(Uint o=0; o<para->NB(ID); o++) biases[o] = dis(*G);
-    for(Uint o=0; o<para->NW(ID); o++) weight[o] = dis(*G);
+    nnReal* const biases = W->B(ID);
+    nnReal* const weight = W->W(ID);
+    assert(W->NB(ID) == out_size);
+    assert(W->NW(ID) == Kn_X * Kn_Y * Kn_C * In_C);
+    for(Uint o=0; o<para->NB(ID); ++o) biases[o] = dis(G);
+    for(Uint o=0; o<para->NW(ID); ++o) weight[o] = dis(G);
   }
 
   void orthogonalize(const Parameters*const para) const {}

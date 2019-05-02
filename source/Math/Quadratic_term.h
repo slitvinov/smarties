@@ -9,7 +9,7 @@
 #ifndef smarties_Quadratic_term_h
 #define smarties_Quadratic_term_h
 
-#include "Utils.h"
+#include "Utils/FunctionUtilties.h"
 
 namespace smarties
 {

@@ -27,14 +27,14 @@ struct THRvec
   THRvec(const Uint size, const T init=T()) : nThreads(size), initial(init)
   {
     m_v.resize(nThreads);
-    #pragma omp parallel num_threads(nThreads) schedule(static, 1)
+    #pragma omp parallel for num_threads(nThreads) schedule(static, 1)
     for(Uint i=0; i<nThreads; ++i) m_v[i] = std::make_shared<T>(initial);
   }
 
   THRvec(const THRvec&c) : nThreads(c.nThreads), initial(c.initial)
   {
     m_v.resize(nThreads);
-    #pragma omp parallel num_threads(nThreads) schedule(static, 1)
+    #pragma omp parallel for num_threads(nThreads) schedule(static, 1)
     for(Uint i=0; i<nThreads; ++i) m_v[i] = c.m_v[i];
   }
 

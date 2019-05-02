@@ -122,32 +122,7 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); Warnings::flushAll(); } } while(0)
 
-}
-
-/*
-#define MPI(NAME, ...)                                   \
-do {                                                     \
-  int MPIERR = 0;                                        \
-  if(bAsync) {                                           \
-    MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
-  } else {                                               \
-    std::lock_guard<std::mutex> lock(mpi_mutex);         \
-    MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
-  }                                                      \
-  if(MPIERR not_eq MPI_SUCCESS) {                        \
-    _warn("%s %d", #NAME, MPIERR);                       \
-    throw std::runtime_error("MPI ERROR");               \
-  }                                                      \
-} while(0)
-*/
-#define MPI(NAME, ...)                                   \
-do {                                                     \
-  int MPIERR = MPI_ ## NAME ( __VA_ARGS__ );             \
-  if(MPIERR not_eq MPI_SUCCESS) {                        \
-    _warn("%s %d", #NAME, MPIERR);                       \
-    throw std::runtime_error("MPI ERROR");               \
-  }                                                      \
-} while(0)
+} // end namespace Warnings
 
 } // end namespace smarties
-#endif // smarties_Warnings_h
+#endif

@@ -9,8 +9,8 @@
 #ifndef smarties_Gaussian_mixture_h
 #define smarties_Gaussian_mixture_h
 
-#include "Utils.h"
-#include <algorithm>
+#include "Utils/FunctionUtilties.h"
+//#include <algorithm>
 
 namespace smarties
 {

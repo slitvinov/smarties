@@ -14,13 +14,11 @@
 namespace smarties
 {
 
-enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV};
-
 class MemoryProcessing
 {
 private:
   MemoryBuffer* const RM;
-  const MDPdescriptor & MDP = RM->MDP;
+  MDPdescriptor & MDP = RM->MDP;
   const Settings & settings = RM->settings;
   const DistributionInfo & distrib = RM->distrib;
 

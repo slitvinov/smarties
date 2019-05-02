@@ -105,34 +105,11 @@ public:
     grad_matrix(G, Qer);
   }
 
-  void test(const Rvec& act, mt19937*const gen) const
-  {
-    const Uint numNetOutputs = netOutputs.size();
-    Rvec _grad(numNetOutputs, 0);
-    grad(act, 1, _grad);
-    ofstream fout("mathtest.log", ios::app);
-    for(Uint i = 0; i<nL; i++)
-    {
-      Rvec out_1 = netOutputs, out_2 = netOutputs;
-      const Uint index = start_coefs+i;
-      out_1[index] -= 0.0001; out_2[index] += 0.0001;
-
-      Gaussian_advantage a1(vector<Uint>{start_coefs}, aInfo, out_1, policy);
-      Gaussian_advantage a2(vector<Uint>{start_coefs}, aInfo, out_2, policy);
-      const Real A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
-      const Real fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
-      const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
-      //if(abserr>1e-7 && abserr/scale>1e-4)
-      {
-        fout<<"Adv grad "<<i<<" finite differences "<<fdiff<<" analytic "
-          <<_grad[index]<<" error "<<abserr<<" "<<abserr/scale<<endl;
-      }
-    }
-    fout.close();
-  }
+  void test(const Rvec& act, std::mt19937*const gen) const;
 
   Real diagInvMul(const Rvec& act,
-    const Rvec& mat, const Rvec& mean) const {
+    const Rvec& mat, const Rvec& mean) const
+  {
     assert(act.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;
     for (Uint i=0; i<nA; i++) {
