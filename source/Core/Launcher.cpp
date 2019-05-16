@@ -35,7 +35,7 @@ Launcher::Launcher(Worker* const W, DistributionInfo& D, bool isTraining) :
 void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
 {
   #pragma omp parallel num_threads(nThreads)
-  for(int i = 0; i<nOwnWorkers; i++)
+  for(Uint i = 0; i<nOwnWorkers; i++)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
@@ -67,7 +67,7 @@ void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
 
 void Launcher::runApplication(const MPI_Comm envApplication_comm,
                               const Uint totalNumWorkers,
-                              const Uint thisWorkerGroupID )
+                              const Sint thisWorkerGroupID )
 {
   if(thisWorkerGroupID<0) die("Error in setup of envApplication_comm");
   assert(envApplication_comm not_eq MPI_COMM_NULL);
@@ -144,7 +144,7 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom)
 
   while(true)
   {
-    sprintf(newDir, "%s/%s_%03d_%05lu", initDir, "simulation", folderID, iter);
+    sprintf(newDir,"%s/%s_%03lud_%05lu", initDir, "simulation", folderID, iter);
     if ( stat(newDir, &fileStat) >= 0 ) iter++; // directory already exists
     else
     {

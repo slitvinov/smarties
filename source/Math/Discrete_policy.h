@@ -28,11 +28,11 @@ struct Discrete_policy
   Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0, sampKLdiv=0;
 
   Uint map_action(const Rvec& sent) const {
-    return aInfo->actionToLabel(sent);
+    return aInfo->actionMessage2label(sent);
   }
   static Uint compute_nA(const ActionInfo* const aI) {
-    assert(aI->maxLabel);
-    return aI->maxLabel;
+    assert(aI->dimDiscrete());
+    return aI->dimDiscrete();
   }
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
@@ -46,7 +46,7 @@ struct Discrete_policy
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
-    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
+    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->dimDiscrete()), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), probs(extract_probabilities())
     {
       //printf("Discrete_policy: %u %u %u %lu %lu %lu %lu\n",
@@ -168,7 +168,7 @@ struct Discrete_policy
     return probs;
   }
 
-  Uint finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
+  Uint finalize(const bool bSample, std::mt19937*const gen, const Rvec& beta)
   {
     sampAct = bSample? sample(gen, beta) :
       std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));

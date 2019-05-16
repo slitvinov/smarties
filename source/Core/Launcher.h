@@ -40,7 +40,7 @@ public:
   void forkApplication(const Uint nThreads, const Uint nOwnWorkers);
   void runApplication(const MPI_Comm envApplication_comm,
                       const Uint totalNumWorkers,
-                      const Uint thisWorkerGroupID);
+                      const Sint thisWorkerGroupID);
 
   Launcher(Worker* const W, DistributionInfo& D, bool isTraining);
 };

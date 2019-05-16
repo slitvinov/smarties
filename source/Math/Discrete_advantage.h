@@ -24,13 +24,13 @@ struct Discrete_advantage
 
   static Uint compute_nL(const ActionInfo* const aI)
   {
-   assert(aI->maxLabel);
-   return aI->maxLabel;
+   assert(aI->dimDiscrete());
+   return aI->dimDiscrete();
   }
   static void setInitial(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-   const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->maxLabel), netOutputs(out),
+   const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->dimDiscrete()), netOutputs(out),
    advantages(extract(out)), policy(pol) {}
 
   protected:

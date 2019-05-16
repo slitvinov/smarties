@@ -42,7 +42,7 @@ struct MemorySharing
   std::mutex complete_mutex;
 
   std::thread fetcher;
-  std::atomic<Uint> bExit {0};
+  std::atomic<Uint> bFetcherRunning {0};
 
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;

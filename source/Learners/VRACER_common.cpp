@@ -114,7 +114,7 @@ void VRACER<Policy_t, Action_t>::setupNet()
 
 template<> vector<Uint> VRACER<Discrete_policy, Uint>::
 count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, aI->maxLabel};
+  return vector<Uint>{1, aI->dimDiscrete()};
 }
 template<> vector<Uint> VRACER<Discrete_policy, Uint>::
 count_pol_starts(const ActionInfo*const aI) {
@@ -127,7 +127,7 @@ count_pol_starts(const ActionInfo*const aI) {
   #endif
 }
 template<> Uint VRACER<Discrete_policy, Uint>::
-getnDimPolicy(const ActionInfo*const aI) { return aI->maxLabel; }
+getnDimPolicy(const ActionInfo*const aI) { return aI->dimDiscrete(); }
 
 template<> VRACER<Discrete_policy, Uint>::
 VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),

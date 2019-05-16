@@ -1,3 +1,2 @@
-CC=mpic++
 LIBS+= -L/opt/OpenBLAS/lib/ -lopenblas
 CPPFLAGS+= -I/opt/OpenBLAS/include/

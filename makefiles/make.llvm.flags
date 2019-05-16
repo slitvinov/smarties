@@ -1,0 +1,13 @@
+
+CPPFLAGS+= -std=c++14 -fopenmp
+LIBS+= -fopenmp
+
+CPPFLAGS+= -Wall -Weverything
+
+ifeq "$(config)" "debug"
+CPPFLAGS+= -g -O0
+endif
+
+ifeq "$(config)" "prod"
+CPPFLAGS += -DNDEBUG -O3
+endif

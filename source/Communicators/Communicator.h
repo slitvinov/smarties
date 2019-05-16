@@ -9,11 +9,6 @@
 #ifndef smarties_Communicator_h
 #define smarties_Communicator_h
 
-#ifndef SMARTIES_LIB
-#include <mpi.h>
-class Worker;
-#endif
-
 #include "Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
 
 #include <random>
@@ -22,6 +17,9 @@ namespace smarties
 {
 
 struct COMM_buffer;
+#ifndef SMARTIES_LIB
+class Worker;
+#endif
 
 class Communicator
 {
@@ -171,7 +169,8 @@ struct COMM_buffer
     maxStateDim(maxSdim), maxActionDim(maxAdim),
     sizeStateMsg(Agent::computeStateMsgSize(maxSdim)),
     sizeActionMsg(Agent::computeActionMsgSize(maxAdim)),
-    dataStateBuf(malloc(sizeStateMsg)), dataActionBuf(malloc(sizeActionMsg)) { }
+    dataStateBuf (aligned_alloc(1024, sizeStateMsg) ),
+    dataActionBuf(aligned_alloc(1024, sizeActionMsg)) { }
 
   ~COMM_buffer() {
     assert(dataStateBuf not_eq nullptr && dataActionBuf not_eq nullptr);

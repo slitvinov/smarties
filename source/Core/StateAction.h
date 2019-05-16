@@ -14,6 +14,7 @@
 #include <array>
 #include <cmath> // log, exp, ...
 #include <cassert>
+#include <functional>
 
 namespace smarties
 {
@@ -111,8 +112,9 @@ struct ActionInfo
   ///////////////////////////// CONTINUOUS ACTIONS /////////////////////////////
   Real getActMaxVal(const Uint i) const { return MDP.upperActionValue[i]; }
   Real getActMinVal(const Uint i) const { return MDP.lowerActionValue[i]; }
-  Uint dim()    const { return MDP.dimAction; }
-  Uint dimPol() const { return MDP.policyVecDim; }
+  Uint dim()         const { return MDP.dimAction;      }
+  Uint dimPol()      const { return MDP.policyVecDim;   }
+  Uint dimDiscrete() const { return MDP.maxActionLabel; }
 
   template<typename T>
   static inline T _tanh(const T x) {
@@ -168,7 +170,6 @@ struct ActionInfo
     assert(MDP.discreteActionShifts.size() == MDP.dimAction);
     Uint label = 0;
     for (Uint i=0; i < MDP.dimAction; ++i) {
-      const Uint nOptions = MDP.discreteActionValues[i];
       // actions are passed around like doubles, but here map to int
       const Uint valI = std::floor(action[i]);
       assert(valI < MDP.discreteActionValues[i]);

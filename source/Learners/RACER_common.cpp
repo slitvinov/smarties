@@ -86,7 +86,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
 template<> vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, aI->maxLabel, aI->maxLabel};
+  return vector<Uint>{1, aI->dimDiscrete(), aI->dimDiscrete()};
 }
 template<> vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
@@ -105,12 +105,12 @@ count_adv_starts(const ActionInfo*const aI) {
 template<> Uint
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 getnOutputs(const ActionInfo*const aI) {
-  return 1 + aI->maxLabel + aI->maxLabel;
+  return 1 + aI->dimDiscrete() + aI->dimDiscrete();
 }
 template<> Uint
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 getnDimPolicy(const ActionInfo*const aI) {
-  return aI->maxLabel;
+  return aI->dimDiscrete();
 }
 
 template<>

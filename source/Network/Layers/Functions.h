@@ -11,6 +11,7 @@
 
 #include "Utils/FunctionUtilities.h"
 #include "Utils/Warnings.h"
+#include <memory>
 
 #ifndef PRELU_FAC
 #define PRELU_FAC 0.1

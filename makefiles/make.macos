@@ -1,5 +1,2 @@
-CC=mpic++
-LD=mpic++
-
 LIBS += -L/usr/local/opt/openblas/lib/ -lopenblas
 CPPFLAGS += -I/usr/local/opt/openblas/include/

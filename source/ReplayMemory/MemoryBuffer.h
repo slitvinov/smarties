@@ -12,6 +12,7 @@
 #include "Sequences.h"
 #include "Core/Agent.h"
 #include "Settings.h"
+#include <memory>
 #include <atomic>
 #include <mutex>
 
@@ -36,7 +37,7 @@ class MemoryBuffer
 
   friend class Sampling;
   friend class Collector;
-  friend class MemorySharing;
+  friend struct MemorySharing;
   friend class MemoryProcessing;
 
   std::vector<std::mt19937>& generators = distrib.generators;
@@ -136,7 +137,9 @@ class MemoryBuffer
     Set[ID] = S;
   }
 
-  static std::unique_ptr<Sampling> prepareSampler(const Settings&S, MemoryBuffer* const R);
+  static std::unique_ptr<Sampling> prepareSampler(MemoryBuffer* const R,
+                                                  Settings&S_,
+                                                  DistributionInfo&D_);
 };
 
 }

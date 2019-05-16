@@ -29,7 +29,7 @@ inline int status2int(const episodeStatus status) {
   if(status == TERM) return 2;
   if(status == TRNC) return 3;
   if(status == FAIL) return 4;
-  die("unreachable");
+  die("unreachable"); return 0;
 }
 
 struct Agent

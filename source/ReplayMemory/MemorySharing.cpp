@@ -7,6 +7,7 @@
 //
 
 #include "MemorySharing.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -42,7 +43,7 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
       if(not distrib.bIsMaster) die("impossible");
       workerRecvSizeReq = std::vector<MPI_Request>(workerSize);
       workerRecvSeqSize = std::vector<unsigned long>(workerSize);
-      workerRecvSeq = std::vector<Fvec>(workerSize);
+      //workerRecvSeq = std::vector<Fvec>(workerSize);
     } else {
       if(distrib.bIsMaster) die("impossible");
       return; // do not create thread
@@ -57,16 +58,16 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareSendSeqReq  = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
-    shareSendSeqSize = std::vector<unsigned long>(sendSize);
-    shareRecvSeqSize = std::vector<unsigned long>(sendSize);
-    shareSendSeq = std::vector<Fvec>(sendSize);
-    shareRecvSeq = std::vector<Fvec>(sendSize);
+    shareSendSeqSize = std::vector<unsigned long>(sharingSize);
+    shareRecvSeqSize = std::vector<unsigned long>(sharingSize);
+    shareSendSeq = std::vector<Fvec>(sharingSize);
+    //shareRecvSeq = std::vector<Fvec>(sharingSize);
   } else {
     sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
   }
 
   //if(distrib.bIsMaster) { } else { }
-
+  bFetcherRunning = 1;
   #pragma omp parallel
   {
     const int thrID = omp_get_thread_num();
@@ -77,8 +78,11 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
 
 MemorySharing::~MemorySharing()
 {
-  bExit = 1;
-  if(SZ > 1) fetcher.join();
+  if(bFetcherRunning) {
+    bFetcherRunning = 0;
+    fetcher.join();
+  }
+
   for(auto & S : completed) Utilities::dispose_object(S);
 }
 
@@ -161,7 +165,7 @@ void MemorySharing::run()
       }
 
     usleep(1);
-    if( bExit.load() > 0 ) break;
+    if( bFetcherRunning.load() == 0 ) break;
   }
 }
 

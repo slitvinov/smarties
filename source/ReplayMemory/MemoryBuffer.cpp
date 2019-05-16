@@ -15,7 +15,8 @@ namespace smarties
 {
 
 MemoryBuffer::MemoryBuffer(MDPdescriptor&M_, Settings&S_, DistributionInfo&D_):
- MDP(M_), settings(S_), distrib(D_), sampler( prepareSampler(this, S_, D_) )
+ MDP(M_), settings(S_), distrib(D_),
+ sampler( MemoryBuffer::prepareSampler(this, S_, D_) )
 {
   Set.reserve(settings.maxTotObsNum);
 }
@@ -31,15 +32,14 @@ void MemoryBuffer::save(const std::string base, const Uint nStep, const bool bBa
     fwrite(V.data(), sizeof(double), V.size(), wFile);
     V.resize(2); V[0] = stddev_reward; V[1] = invstd_reward;
     fwrite(V.data(), sizeof(double), 2, wFile);
-  }
+  };
 
   FILE * wFile = fopen((base+"scaling.raw").c_str(), "wb");
   write2file(wFile); fflush(wFile); fclose(wFile);
 
   if(bBackup) {
-    std::ostringstream S; S<<std::setw(9)<<std::setfill('0')<<nStep;
-    wFile = fopen((base+"scaling_"+S.str()+".raw").c_str(), "wb");
-    write2file(wFile); fflush(wFile); fclose(wFile);
+    char fName[256]; sprintf(fName, "%sscaling_%09lu.raw", base.c_str(), nStep);
+    wFile = fopen(lName, "wb"); write2file(wFile); fflush(wFile); fclose(wFile);
   }
 }
 

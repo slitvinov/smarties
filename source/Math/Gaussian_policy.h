@@ -31,7 +31,7 @@ struct Gaussian_policy
  public:
 
   Rvec map_action(const Rvec& sent) const {
-    return aInfo->getInvScaled(sent);
+    return aInfo->scaledAction2action(sent);
   }
   static Uint compute_nA(const ActionInfo* const aI) {
     assert(aI->dim()); return aI->dim();

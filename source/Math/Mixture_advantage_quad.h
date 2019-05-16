@@ -77,7 +77,7 @@ private:
       return ret;
     }
 
-    array<Rvec,nExperts> extract_L() const
+    std::array<Rvec,nExperts> extract_L() const
     {
       array<Rvec,nExperts> ret;
       Uint kL = start_matrix;
@@ -92,7 +92,7 @@ private:
       return ret;
     }
 
-    array<Rvec,nExperts> extract_matrix() const
+    std::array<Rvec,nExperts> extract_matrix() const
     {
       array<Rvec,nExperts> ret;
       for (Uint e=0; e<nExperts; e++) {

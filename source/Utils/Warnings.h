@@ -12,7 +12,7 @@
 #include "MPIUtilities.h"
 #include <mutex>
 //#include <sstream>
-//#include <stdarg.h>
+#include <stdarg.h>
 
 namespace smarties
 {

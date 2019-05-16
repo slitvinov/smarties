@@ -45,7 +45,7 @@ public:
     return aI->dim();
   }
   Rvec map_action(const Rvec& sent) const {
-    return aInfo->getInvScaled(sent);
+    return aInfo->scaledAction2action(sent);
   }
 
   Gaussian_mixture(const std::vector <Uint> starts, const ActionInfo*const aI,

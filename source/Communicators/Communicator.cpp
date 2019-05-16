@@ -184,7 +184,7 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward)
 {
   if ( not ENV.bFinalized ) synchronizeEnvironments();
-  const auto& MDP = ENV.getDescriptor(agentID);
+  //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && agentID<agents.size());
   agents[agentID]->update(status, state, reward);
   agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
@@ -192,7 +192,7 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
 #ifndef SMARTIES_LIB
   if(worker not_eq nullptr)
   {
-    worker->stepSocketToMaster();
+    worker->stepWorkerToMaster(1);
   }
   else
 #endif
@@ -240,14 +240,13 @@ void Communicator::synchronizeEnvironments()
 
 void Communicator::initOneCommunicationBuffer()
 {
-  const Uint nAgents = ENV.nAgentsPerEnvironment;
   Uint maxDimState  = 0, maxDimAction = 0;
   for(size_t i=0; i<ENV.descriptors.size(); ++i)
   {
     maxDimState  = std::max(maxDimState,  ENV.descriptors[i]->dimState );
     maxDimAction = std::max(maxDimAction, ENV.descriptors[i]->dimAction);
   }
-  assert(nAgents > 0 && maxDimAction > 0); // state can be 0-D
+  assert(ENV.nAgentsPerEnvironment>0 && maxDimAction>0); // state can be 0-D
   BUFF.emplace_back(std::make_unique<COMM_buffer>(maxDimState, maxDimAction) );
 }
 
@@ -268,7 +267,7 @@ int Communicator::desiredNepisodes() {
 
 
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
-worker(W), gen(G()), bTrain(isTraining) {}
+gen(G()), bTrain(isTraining), worker(W) {}
 
 }
 #endif

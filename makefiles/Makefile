@@ -3,10 +3,25 @@ username ?= $(shell whoami)
 UNAME_S := $(shell uname -s)
 config ?= prod
 extra ?=
-ifeq ($(INTEL_LICENSE_FILE),)
-compiler ?= gnu
+
+ifeq "$(findstring daint,$(shell hostname))" "daint"
+CXX=CC
+LD=CC
 else
-compiler ?= intel
+CXX=mpic++
+LD=mpic++
+endif
+
+isICPC=$(shell $(CXX) -v | grep -c "icpc" )
+isLLVM=$(shell $(CXX) -v | grep -c "llvm" )
+ifeq "$(isICPC)" "0"
+ifeq "$(isLLVM)" "0"
+compiler=gnu
+else
+compiler=llvm
+endif
+else
+compiler=intel
 endif
 
 CPPFLAGS=-DSMARTIES
@@ -57,6 +72,9 @@ app ?= ext_app_test
 ifeq "$(compiler)" "intel"
 include make.icc.flags
 else
+ifeq "$(compiler)" "llvm"
+include make.llvm.flags
+endif
 include make.gcc.flags
 endif
 
@@ -117,7 +135,7 @@ CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib:
 	+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config) precision=$(app_precision)
+	+make -C ../apps/$(app)/ CC=$(CXX) CXX=$(CXX) compiler=$(compiler) config=$(config) precision=$(app_precision)
 
 else
 
@@ -127,15 +145,16 @@ lib: ext_app_test.o
 	ar rs libsimulation.a $^
 
 endif
+###############################################################################
 
 rl: $(OBJ_FILES) lib
-	$(CC) $(OBJ_FILES) $(LIBS) -o $@
+	$(LD) $(OBJ_FILES) $(LIBS) -o $@
 
 %.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c -MD $<
+	$(CXX) $(extra)  $(CPPFLAGS) -c -MD $<
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
