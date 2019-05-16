@@ -10,6 +10,7 @@
 #define smarties_Sequences_h
 
 #include "Utils/Bund.h"
+#include "Utils/Warnings.h"
 #include <cassert>
 #include <mutex>
 
@@ -223,6 +224,18 @@ struct MiniBatch
   {
     return * MU[b][mapInd2Time(b, t)];
   }
+  const NNvec& state(const Uint b, const Uint t) const
+  {
+    return S[b][mapInd2Time(b, t)];
+  }
+  const Rvec& action(const Uint b, const Uint t) const
+  {
+    return * A[b][mapInd2Time(b, t)];
+  }
+  const Rvec& mu(const Uint b, const Uint t) const
+  {
+    return * MU[b][mapInd2Time(b, t)];
+  }
   void set_action(const Uint b, const Uint t, std::vector<Real>& act)
   {
     A[b][mapInd2Time(b, t)] = & act;
@@ -236,6 +249,14 @@ struct MiniBatch
     return R[b][mapInd2Time(b, t)];
   }
   nnReal& importanceWeight(const Uint b, const Uint t)
+  {
+    return W[b][mapInd2Time(b, t)];
+  }
+  const Real& reward(const Uint b, const Uint t) const
+  {
+    return R[b][mapInd2Time(b, t)];
+  }
+  const nnReal& importanceWeight(const Uint b, const Uint t) const
   {
     return W[b][mapInd2Time(b, t)];
   }

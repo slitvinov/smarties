@@ -10,7 +10,6 @@
 #define smarties_Parameters_h
 
 #include "Functions.h"
-#include "Utils/MPIUtilities.h"
 
 namespace smarties
 {
@@ -74,7 +73,8 @@ struct Parameters
       assert( thrN * shift >= nParams ); // ensure coverage
       const nnReal *const src = grads[thrI]->params;
             nnReal *const dst = params;
-      for(Uint i=0; i<thrN; i++) {
+      for(Uint i=0; i<thrN; i++)
+      {
         const Uint turn = (thrI + i) % thrN;
         const Uint start = turn * shift;
         const Uint end = std::min(nParams, (turn+1)*shift);

@@ -7,19 +7,17 @@
 //
 
 #include "Learner.h"
-//#include <chrono>
-#include "ReplayMemory/MemoryProcessing.h"
-#include "ReplayMemory/Collector.h"
+#include "Utils/FunctionUtilities.h"
+#include "Utils/SstreamUtilities.h"
 
 namespace smarties
 {
 
 Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
-  distrib(D_), settings(S), MDP(MDP_),
+  distrib(D_), settings(S_), MDP(MDP_),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
-  data     ( std::make_unique<MemoryBuffer    >(MDP_, S_, D_) ),
-  data_proc( std::make_unique<MemoryProcessing>(MDP_, S_, D_, data) ),
-  data_get ( std::make_unique<Collector       >(MDP_, S_, D_, data) ) {}
+  data_proc( std::make_unique<MemoryProcessing>(data) ),
+  data_get ( std::make_unique<Collector       >(data) ) {}
 
 void Learner::initializeLearner()
 {
@@ -39,8 +37,7 @@ void Learner::initializeLearner()
   profiler->stop_start("PRE");
   data_proc->updateRewardsStats(1, 1, true);
   //data_proc->updateRewardsStats(1, 1e-3, true);
-  if( learn_rank == 0 )
-    std::cout << "Initial reward std " << 1/data->scaledReward(1) << std::endl;
+  if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
 
   data->initialize();
 
@@ -65,7 +62,7 @@ void Learner::processMemoryBuffer()
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
 
-  CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
+  CmaxRet = 1 + Utilities::annealRate(CmaxPol, currStep, epsAnneal);
   CinvRet = 1 / CmaxRet;
   if(CmaxRet<=1 and CmaxPol>0)
     die("Either run lasted too long or epsAnneal is wrong.");
@@ -91,7 +88,7 @@ void Learner::processMemoryBuffer()
 void Learner::updateRetraceEstimates()
 {
   profiler->stop_start("QRET");
-  const std::vector<Uint>& sampled = data->listSampled();
+  const std::vector<Uint>& sampled = data->lastSampledEpisodes();
   const Uint setSize = sampled.size();
   #pragma omp parallel for schedule(dynamic, 1)
   for(Uint i = 0; i < setSize; i++) {
@@ -139,7 +136,7 @@ void Learner::logStats()
   const Uint currStep = nGradSteps()+1;
   if(currStep%(freqPrint*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
-    std::cout << profiler->printStatAndReset() << std::endl;
+    printf("%s\n", profiler->printStatAndReset().c_str() );
     save();
   }
 
@@ -189,12 +186,12 @@ void Learner::processStats()
       fprintf(fout, "ID #/T   %s\n", head.str().c_str());
   }
   #ifdef PRINT_ALL_RANKS
-    printf("%01d-%01d %05u%s\n",
+    printf("%01lu-%01lu %05u%s\n",
       learn_rank, learnID, currStep/freqPrint, buf.str().c_str());
   #else
-    printf("%02d %05u%s\n", learnID, currStep/freqPrint, buf.str().c_str());
+    printf("%02lu %05lu%s\n", learnID, currStep/freqPrint, buf.str().c_str());
   #endif
-  fprintf(fout, "%02d %05u%s\n", learnID,currStep/freqPrint,buf.str().c_str());
+  fprintf(fout,"%02lu %05lu%s\n", learnID,currStep/freqPrint,buf.str().c_str());
   fclose(fout);
   fflush(0);
 }
@@ -202,7 +199,8 @@ void Learner::processStats()
 void Learner::getMetrics(std::ostringstream& buf) const
 {
   if(not computeQretrace) return;
-  real2SS(buf, alpha, 6, 1); real2SS(buf, beta, 6, 1);
+  Utilities::real2SS(buf, alpha, 6, 1);
+  Utilities::real2SS(buf, beta, 6, 1);
 }
 void Learner::getHeaders(std::ostringstream& buf) const
 {
@@ -262,7 +260,7 @@ void Learner::restart()
   for(Uint i = 0; i < nSeqs; i++) {
     assert(data->get(i) == nullptr);
     Sequence* const S = new Sequence();
-    if( S->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
+    if( S->restart(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
       _die("Unable to find sequence %u\n", i);
     data->set(S, i);
   }
@@ -294,7 +292,7 @@ void Learner::save()
   fwrite(&CmaxRet, sizeof(Real), 1, f);
 
   for(Uint i = 0; i <nSeqs; i++)
-    data->get(i)->save(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim);
+    data->get(i)->save(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol() );
 }
 
 }

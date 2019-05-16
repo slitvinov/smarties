@@ -14,7 +14,7 @@
 class Worker;
 #endif
 
-#include "../Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
+#include "Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
 
 #include <random>
 
@@ -144,9 +144,9 @@ protected:
     const std::vector<double>& state, const double reward);
 
   #ifndef SMARTIES_LIB
-  #ifndef MPI_VERSION
-    #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
-  #endif
+  //#ifndef MPI_VERSION
+  //  #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+  //#endif
 
   public:
     MPI_Comm getMPIcomm() const { return workers_application_comm; }
@@ -159,7 +159,7 @@ protected:
     friend class Worker;
     // ref to worker ensures that if SMARTIES_LIB is not defined we can only
     // construct a communicator with the protected constructor defined below
-    Worker& worker;
+    Worker * const worker = nullptr;
 
     Communicator(Worker* const, std::mt19937&, bool);
   #endif

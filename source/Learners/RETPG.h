@@ -17,7 +17,7 @@ class RETPG : public Learner_offPolicy
   const Uint nA = env->aI.dim;
   const Real OrUhDecay = CmaxPol<=0? .85 : 0; // as in original
   //const Real OrUhDecay = 0; // no correlated noise
-  vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
+  vector<Rvec> OrUhState = std::vector<Rvec>(nAgents,Rvec(nA,0));
 
   void TrainBySequences(const Uint seq,
     const Uint wID, const Uint bID, const Uint thrID) const override;

@@ -20,7 +20,8 @@
 namespace smarties
 {
 
-Builder::Builder(const Settings& _sett) : settings(_sett) { }
+Builder::Builder(const Settings& S, const DistributionInfo& D)
+  : distrib(D), settings(S) { }
 
 void Builder::addInput(const Uint size)
 {
@@ -195,16 +196,16 @@ std::shared_ptr<Network> Builder::build(const bool isInputNet)
     nOutputs = test->nOutputs;
   }
 
-  thread_gradients = allocManyParams(weights, settings.nThreads);
+  threadGrads = allocManyParams(weights, settings.nThreads);
 
   net = std::make_shared<Network>(nInputs, nOutputs, layers, weights);
   // ownership of layers passed onto network, builder should have an empty vec:
   assert(layers.size() == 0);
 
   if(settings.CMApopSize>1)
-    opt = std::make_shared<CMA_Optimizer>(settings, weights);
+    opt = std::make_shared<CMA_Optimizer>(settings,distrib,weights);
   else
-    opt = std::make_shared<AdamOptimizer>(settings, weights, thread_gradients);
+    opt = std::make_shared<AdamOptimizer>(settings,distrib,weights,threadGrads);
 
   return net;
 }

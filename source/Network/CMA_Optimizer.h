@@ -97,7 +97,7 @@ public:
     return sum;
   }
   void getMetrics(std::ostringstream& buff) override;
-  void getHeaders(std::ostringstream& buff) override;
+  void getHeaders(std::ostringstream& buff, const std::string nnName) override;
 
   std::vector<Uint> computePstarts() const
   {

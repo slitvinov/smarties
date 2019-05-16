@@ -113,6 +113,7 @@ class MemoryBuffer
   MiniBatch sampleMinibatch(const std::vector<Sequence*>& sampleE,
                             const std::vector<Sint     >& sampleT);
   const std::vector<Uint>& lastSampledEpisodes() { return lastSampledEps; }
+  bool bRequireImportanceSampling() const;
 
   long readNSeen_loc()    const { return nSeenTransitions_loc.load();  }
   long readNSeenSeq_loc() const { return nSeenSequences_loc.load();  }
@@ -135,7 +136,7 @@ class MemoryBuffer
     Set[ID] = S;
   }
 
-  static Sampling* prepareSampler(const Settings&S, MemoryBuffer* const R);
+  static std::unique_ptr<Sampling> prepareSampler(const Settings&S, MemoryBuffer* const R);
 };
 
 }

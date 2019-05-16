@@ -9,7 +9,7 @@
 #ifndef smarties_Gaussian_policy_h
 #define smarties_Gaussian_policy_h
 
-#include "Utils/FunctionUtilties.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -34,12 +34,12 @@ struct Gaussian_policy
     return aInfo->getInvScaled(sent);
   }
   static Uint compute_nA(const ActionInfo* const aI) {
-    assert(aI->dim); return aI->dim;
+    assert(aI->dim()); return aI->dim();
   }
 
   Gaussian_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
     const Rvec&out) : aInfo(aI), start_mean(start[0]),
-    start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim), netOutputs(out),
+    start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim()), netOutputs(out),
     mean(extract_mean()), stdev(extract_stdev()),
     variance(extract_variance()), precision(extract_precision()) {}
 
@@ -86,14 +86,14 @@ struct Gaussian_policy
  public:
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
-    for(Uint e=0; e<aI->dim; e++) initBias.push_back(0);
+    for(Uint e=0; e<aI->dim(); e++) initBias.push_back(0);
   }
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
     #ifdef EXTRACT_COVAR
-      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S*S));
+      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S*S));
     #else
-      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S));
+      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S));
     #endif
   }
 

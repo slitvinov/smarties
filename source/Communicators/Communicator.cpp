@@ -7,10 +7,10 @@
 //
 
 #include "Communicator.h"
-#include "../Utils/SocketsLib.h"
+#include "Utils/SocketsLib.h"
 
 #ifndef SMARTIES_LIB
-#include "../Core/Worker.h"
+#include "Core/Worker.h"
 #endif
 
 namespace smarties
@@ -59,7 +59,7 @@ void Communicator::set_action_scales(const std::vector<double> upper,
 {
   if(ENV.bFinalized)
     die("Cannot edit env description after having sent first state.");
-  if(agentID >= ENV.descriptors.size())
+  if(agentID >= (int) ENV.descriptors.size())
     die("Attempted to write to uninitialized MDPdescriptor");
   if(upper.size() not_eq ENV.descriptors[agentID]->dimAction or
      lower.size() not_eq ENV.descriptors[agentID]->dimAction or
@@ -86,7 +86,7 @@ void Communicator::set_action_options(const std::vector<int> options,
 {
   if(ENV.bFinalized)
     die("Cannot edit env description after having sent first state.");
-  if(agentID >= ENV.descriptors.size())
+  if(agentID >= (int) ENV.descriptors.size())
     die("Attempted to write to uninitialized MDPdescriptor");
   if(options.size() not_eq ENV.descriptors[agentID]->dimAction)
     die("size mismatch");
@@ -102,7 +102,7 @@ void Communicator::set_state_observable(const std::vector<bool> observable,
   if(ENV.bFinalized) {
     printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
   }
-  if(agentID >= ENV.descriptors.size()) {
+  if(agentID >= (int) ENV.descriptors.size()) {
     printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
   }
   if(observable.size() not_eq ENV.descriptors[agentID]->dimState) {
@@ -120,7 +120,7 @@ void Communicator::set_state_scales(const std::vector<double> upper,
   if(ENV.bFinalized) {
     printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
   }
-  if(agentID >= ENV.descriptors.size()) {
+  if(agentID >= (int) ENV.descriptors.size()) {
     printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
   }
   if(upper.size() not_eq ENV.descriptors[agentID]->dimState or
@@ -189,7 +189,7 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
   agents[agentID]->update(status, state, reward);
   agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
 
-#ifdef MPI_VERSION
+#ifndef SMARTIES_LIB
   if(worker not_eq nullptr)
   {
     worker->stepSocketToMaster();
@@ -220,7 +220,7 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-#ifdef SMARTIES_INTERNAL
+#ifndef SMARTIES_LIB
   if(worker not_eq nullptr)
   {
     worker->synchronizeEnvironments();
@@ -268,6 +268,7 @@ int Communicator::desiredNepisodes() {
 
 
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
-worker(*W), gen(G()), bTrain(isTraining) {}
+worker(W), gen(G()), bTrain(isTraining) {}
 
 }
+#endif

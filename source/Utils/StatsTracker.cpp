@@ -18,12 +18,10 @@ namespace smarties
 {
 
 template<typename T>
-DelayedReductor<T>::DelayedReductor(const DistributionInfo& distrib,
-                                    const std::vector<T>init) :
-mpicomm(MPICommDup(distrib.learners_train_comm)),
-bAsync(distrib.bAsync), arysize(init.size()),
-mpisize(MPICommSize(distrib.learners_train_comm)),
-mpi_mutex(distrib.mpi_mutex), return_ret(init) {  }
+DelayedReductor<T>::DelayedReductor(const DistributionInfo& D,
+                                    const std::vector<T> I) :
+mpicomm(MPICommDup(distrib.learners_train_comm)), arysize(I.size()),
+mpisize(MPICommSize(distrib.learners_train_comm)), distrib(D), return_ret(I) {}
 
 template<typename T>
 std::vector<T> DelayedReductor<T>::get(const bool accurate)

@@ -20,7 +20,14 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
   if(distrib.workerless_masters_comm != MPI_COMM_NULL &&
      distrib.learnersOnWorkers) die("TODO: workerlessmasters & workerlearner");
 
-  if(distrib.learnersOnWorkers) {
+  if(distrib.workerless_masters_comm != MPI_COMM_NULL) {
+    sharingComm = MPICommDup( distrib.workerless_masters_comm);
+    sharingSize = MPICommSize(workerComm);
+    sharingRank = MPICommRank(workerComm);
+  }
+
+  if(distrib.learnersOnWorkers)
+  {
     if(distrib.master_workers_comm == MPI_COMM_NULL) {
       warn("learning algorithm entirely hosted on workers"); return;
     }
@@ -28,7 +35,7 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
     workerComm = MPICommDup( distrib.master_workers_comm);
     workerSize = MPICommSize(workerComm);
     workerRank = MPICommRank(workerComm);
-    if(sizeWorkers < 2) {
+    if(workerSize < 2) {
       warn("detected no workers in the wrong spot..."); return;
     }
     if(sharingRank == 0) {
@@ -44,10 +51,8 @@ MemorySharing::MemorySharing(MemoryBuffer*const RM) : replay(RM)
     workerSize = 0; workerRank = 0; workerComm = MPI_COMM_NULL;
   }
 
-  if(distrib.workerless_masters_comm != MPI_COMM_NULL) {
-    sharingComm = MPICommDup( distrib.workerless_masters_comm);
-    sharingSize = MPICommSize(workerComm);
-    sharingRank = MPICommRank(workerComm);
+  if(distrib.workerless_masters_comm != MPI_COMM_NULL)
+  {
     sharingTurn = sharingRank; // says that first full episode stays on rank
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);

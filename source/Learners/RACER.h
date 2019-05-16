@@ -10,6 +10,7 @@
 #define smarties_RACER_h
 
 #include "Learner_approximator.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -69,7 +70,7 @@ class RACER : public Learner_approximator
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
   const std::vector<Uint> net_outputs;
-  const std::vector<Uint> net_indices = count_indices(net_outputs);
+  const std::vector<Uint> net_indices = Utilities::count_indices(net_outputs);
   const std::vector<Uint> pol_start, adv_start;
   const Uint VsID = net_indices[0];
 

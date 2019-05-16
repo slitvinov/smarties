@@ -107,7 +107,7 @@ void Network::backProp(const std::vector<std::unique_ptr<Activation>>& series,
 
 std::vector<Real> Network::backPropToLayer(const std::vector<Real>& gradient,
                                            const Uint toLayerID,
-                                                 Activation*const activation,
+                                           const Activation*const activation,
                                            const Parameters*const _weight) const
 {
   const Parameters*const W = _weight==nullptr? weights.get() : _weight;

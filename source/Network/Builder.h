@@ -50,7 +50,7 @@ public:
 
   // Function that initializes and constructs net and optimizer.
   // Once this is called number of layers or weights CANNOT be modified.
-  Network* build(const bool isInputNet = false);
+  std::shared_ptr<Network> build(const bool isInputNet = false);
 
   // stackSimple reads from the settings file the amount of fully connected
   // layers (nnl1, nnl2, ...) and builds a network with given number of nInputs
@@ -61,16 +61,17 @@ public:
 private:
   bool bBuilt = false;
 public:
+  const DistributionInfo& distrib;
   const Settings & settings;
   Uint nInputs=0, nOutputs=0, nLayers=0;
 
-  std::vector<std::shared_ptr<Parameters>> thread_gradients;
+  std::vector<std::shared_ptr<Parameters>> threadGrads;
   std::vector<std::unique_ptr<Layer>> layers;
 
   std::shared_ptr<Network> net;
   std::shared_ptr<Optimizer> opt;
 
-  Builder(const Settings& _sett);
+  Builder(const Settings& S, const DistributionInfo& D);
 };
 
 } // end namespace smarties

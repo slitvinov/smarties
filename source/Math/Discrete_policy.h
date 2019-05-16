@@ -9,7 +9,7 @@
 #ifndef smarties_Discrete_policy_h
 #define smarties_Discrete_policy_h
 
-#include "Utils/FunctionUtilties.h"
+#include "Utils/FunctionUtilities.h"
 //#include <algorithm>
 
 namespace smarties
@@ -37,15 +37,15 @@ struct Discrete_policy
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
     #ifdef EXTRACT_COVAR
-      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S*S));
+      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S*S));
     #else
-      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S));
+      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S));
     #endif
   }
 
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
 
-  Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
+  Discrete_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
     const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), probs(extract_probabilities())
     {

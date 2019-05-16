@@ -64,29 +64,29 @@ CPPFLAGS+= -I../extern/CLI11/include/
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
-	Profiler.o \
-	main.o \
-	Settings.o \
-	StatsTracker.o \
-	Communicator.o \
-	Launcher.o \
-	Master.o \
-	Worker.o \
+	VRACER.o \
+	RACER.o \
+	Learner_pytorch.o \
+	Learner_approximator.o \
 	Sequences.o \
+	Learner.o \
 	Sampling.o \
 	Collector.o \
 	Math_tests.o \
 	MemoryBuffer.o \
 	MemorySharing.o \
 	MemoryProcessing.o \
-	Learner_approximator.o \
-	Learner_pytorch.o \
-	Learner.o \
-	RACER.o \
-	VRACER.o \
 	Network.o \
 	Optimizer.o \
-	CMA_Optimizer.o
+	CMA_Optimizer.o \
+	StatsTracker.o \
+	Communicator.o \
+	Launcher.o \
+	Settings.o \
+	Profiler.o \
+	Master.o \
+	Worker.o \
+	main.o
 	#PPO.o \
 	#RETPG.o \
 	#DPG.o \

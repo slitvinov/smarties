@@ -9,19 +9,17 @@
 #ifndef smarties_Learner_h
 #define smarties_Learner_h
 
+#include "Core/StateAction.h"
 #include "Utils/Profiler.h"
-#include "Core/StateAction.h"
-#include "Core/StateAction.h"
 #include "ReplayMemory/MemoryBuffer.h"
+#include "ReplayMemory/MemoryProcessing.h"
+#include "ReplayMemory/Collector.h"
 #include "Utils/StatsTracker.h"
 #include "Utils/TaskQueue.h"
 #include "Settings.h"
 
 namespace smarties
 {
-
-class MemoryProcessing;
-class Collector;
 
 class Learner
 {
@@ -39,13 +37,13 @@ public:
   const Uint nAgents = distrib.nAgents;
 
   const Uint policyVecDim = MDP.policyVecDim;
-  const ActionInfo& aInfo = ActionInfo(MDP);
-  const StateInfo&  sInfo = StateInfo(MDP);
+  const ActionInfo aInfo = ActionInfo(MDP);
+  const StateInfo  sInfo = StateInfo(MDP);
 
   // training loop scheduling:
   const Uint totNumSteps = settings.totNumSteps;
   const Real obsPerStep_loc = settings.obsPerStep_local;
-  const Uint nObsB4StartTraining = settings.minTotObsNum_local;
+  const long nObsB4StartTraining = settings.minTotObsNum_local;
   const bool bTrain = settings.bTrain;
 
   // some algorithm hyper-parameters:
@@ -55,7 +53,8 @@ public:
   const Real epsAnneal = settings.epsAnneal;
 
   const FORGET ERFILTER;
-  DelayedReductor<long double> ReFER_reduce = DelayedReductor<long double>(settings, LDvec{ 0.0, 1.0 } );
+  DelayedReductor<long double> ReFER_reduce =
+                      DelayedReductor<long double>(distrib, LDvec{ 0.0, 1.0 } );
 
 
 protected:
@@ -72,7 +71,8 @@ protected:
 
   std::vector<std::mt19937>& generators = distrib.generators;
 
-  const std::unique_ptr<MemoryBuffer>     data;
+  const std::unique_ptr<MemoryBuffer> data =
+                         std::make_unique<MemoryBuffer>(MDP, settings, distrib);
   const std::unique_ptr<MemoryProcessing> data_proc;
   const std::unique_ptr<Collector>        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
@@ -82,7 +82,7 @@ protected:
 
   virtual void processStats();
 
- public:
+public:
   std::string learner_name;
   Uint learnID;
 
@@ -103,7 +103,7 @@ protected:
   inline unsigned nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
-  inline long int nGradSteps() const {
+  inline long nGradSteps() const {
     return _nGradSteps.load();
   }
   inline Real annealingFactor() const {
@@ -135,7 +135,7 @@ protected:
   virtual void save();
   virtual void restart();
 
- protected:
+protected:
   inline void backPropRetrace(Sequence*const S, const Uint t) {
     if(t == 0) return;
     const Fval W = S->offPolicImpW[t], R=data->scaledReward(S, t), G = gamma;

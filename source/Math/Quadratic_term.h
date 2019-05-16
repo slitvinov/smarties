@@ -9,7 +9,7 @@
 #ifndef smarties_Quadratic_term_h
 #define smarties_Quadratic_term_h
 
-#include "Utils/FunctionUtilties.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -21,7 +21,7 @@ struct Quadratic_term
   const Rvec L, mean, matrix;
   static Uint compute_nL(const ActionInfo* const aI)
   {
-    return (aI->dim*aI->dim + aI->dim)/2;
+    return (aI->dim()*aI->dim() + aI->dim())/2;
   }
 
   Rvec getParam() const

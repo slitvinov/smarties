@@ -19,7 +19,7 @@ class Learner_pytorch: public Learner
  public:
   const bool bSampleSequences = settings.bSampleSequences;
   // hyper-parameters:
-  const Uint batchSize = settings.batchSize_loc;
+  const Uint batchSize = settings.batchSize_local;
   const Uint ESpopSize = settings.ESpopSize;
   const Real learnR = settings.learnrate;
   const Real explNoise = settings.explNoise;

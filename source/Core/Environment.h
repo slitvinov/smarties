@@ -26,8 +26,10 @@ struct Environment
   std::vector<std::unique_ptr<Agent>> agents;
   std::vector<int> bTrainFromAgentData;
 
-  const MDPdescriptor& getDescriptor(int agentID = 0) const {
+  MDPdescriptor& getDescriptor(int agentID = 0)
+  {
     if(not bAgentsHaveSeparateMDPdescriptors) agentID = 0;
+    assert(descriptors.size() > (Uint) agentID);
     return * descriptors[agentID].get();
   }
 
@@ -64,7 +66,8 @@ struct Environment
     assert(agents.size() == 0);
     agents.clear();
     agents.reserve(nAgents);
-    for(Uint i=0; i<nAgents; i++) {
+    for(Uint i=0; i<nAgents; i++)
+    {
       // contiguous agents belong to same environment
       const Uint workerID = i / nAgentsPerEnvironment;
       const Uint localID  = i % nAgentsPerEnvironment;

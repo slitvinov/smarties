@@ -11,6 +11,7 @@
 
 #include "StateAction.h"
 #include <cstring> // memcpy
+
 #ifndef SMARTIES_LIB
 #include <atomic>
 #define OUTBUFFSIZE 65536

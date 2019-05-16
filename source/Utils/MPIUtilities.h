@@ -52,7 +52,7 @@ do {                                                     \
   if(distrib.bAsyncMPI) {                                \
     MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
   } else {                                               \
-    std::lock_guard<std::mutex> lock(distrib.mpi_mutex); \
+    std::lock_guard<std::mutex> lock(distrib.mpiMutex);  \
     MPIERR = MPI_ ## NAME ( __VA_ARGS__ );               \
   }                                                      \
   if(MPIERR not_eq MPI_SUCCESS) {                        \

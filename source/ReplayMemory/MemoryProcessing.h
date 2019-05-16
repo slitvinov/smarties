@@ -10,6 +10,7 @@
 #define smarties_MemoryProcessing_h
 
 #include "MemoryBuffer.h"
+#include "Utils/StatsTracker.h"
 
 namespace smarties
 {
@@ -28,15 +29,18 @@ private:
   Real& stddev_reward = RM->stddev_reward;
   Real& invstd_reward = RM->invstd_reward;
 
-  const Uint dimS = RM->dimS;
   Uint nPruned = 0, minInd = 0, nOffPol = 0;
   Real avgDKL = 0;
   int delPtr = -1;
 
-  DelayedReductor<long double> Ssum1Rdx = DelayedReductor<long double>(settings, LDvec(dimS, 0) );
-  DelayedReductor<long double> Ssum2Rdx = DelayedReductor<long double>(settings, LDvec(dimS, 1) );
-  DelayedReductor<long double> Rsum2Rdx = DelayedReductor<long double>(settings, LDvec(   1, 1) );
-  DelayedReductor<long double> Csum1Rdx = DelayedReductor<long double>(settings, LDvec(   1, 1) );
+  DelayedReductor<long double> Ssum1Rdx =
+         DelayedReductor<long double>(distrib, LDvec(MDP.dimStateObserved, 0) );
+  DelayedReductor<long double> Ssum2Rdx =
+         DelayedReductor<long double>(distrib, LDvec(MDP.dimStateObserved, 1) );
+  DelayedReductor<long double> Rsum2Rdx =
+         DelayedReductor<long double>(distrib, LDvec(                   1, 1) );
+  DelayedReductor<long double> Csum1Rdx =
+         DelayedReductor<long double>(distrib, LDvec(                   1, 1) );
 
   const std::vector<Sequence*>& Set = RM->Set;
   std::atomic<long>& nSequences = RM->nSequences;

@@ -9,8 +9,11 @@
 #ifndef smarties_Worker_h
 #define smarties_Worker_h
 
-#include "Launcher.h"
-
+#include "Utils/TaskQueue.h"
+#include "Core/Environment.h"
+#include "Core/Launcher.h"
+#include "Learners/Learner.h"
+#include "Settings.h"
 #include <thread>
 
 namespace smarties
@@ -24,30 +27,35 @@ public:
   void synchronizeEnvironments();
 
   void runTraining();
-  void loopSocketToMaster() const;
+  void loopSocketsToMaster();
 
   // may be called from application:
   void answerStateAction(const int bufferID) const;
   void stepWorkerToMaster(const Uint bufferID) const;
 
+  virtual void run();
+
 protected:
-  const Settings& settings;
+  Settings& settings;
   DistributionInfo& distrib;
   TaskQueue tasks;
 
-  const Launcher COMM(this, distrib, settings.bTrain);
+  const std::unique_ptr<Launcher> COMM;
 
   const MPI_Comm& master_workers_comm = distrib.master_workers_comm;
   const MPI_Comm& workerless_masters_comm = distrib.workerless_masters_comm;
   const MPI_Comm& learners_train_comm = distrib.learners_train_comm;
 
-  const std::vector<std::unique_ptr<Learner>> learners;
+  std::vector<std::unique_ptr<Learner>> learners;
 
-  const Environment& ENV = COMM.ENV;
-  const std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
+  Environment& ENV;
+  const std::vector<std::unique_ptr<Agent>>& agents;
 
   const Uint nCallingEnvs = distrib.nOwnedEnvironments;
   const int bTrain = settings.bTrain;
+
+  // avoid race conditions in writing cumulative rewards file:
+  mutable std::mutex dump_mutex;
 
   // small utility functions:
   Uint getLearnerID(const Uint agentIDlocal) const;
@@ -56,14 +64,8 @@ protected:
 
   void answerStateActionCaller(const int bufferID);
 
-  int getSocketID(const Uint worker) const {
-    assert( worker>=0 && worker <= COMM.SOCK.clients.size() );
-    return worker>0? COMM.SOCK.clients[worker-1] : COMM.SOCK.server;
-  }
-  const COMM_buffer& buffer getCommBuffer(const Uint worker) const {
-    assert( worker>0 && worker <= COMM.BUFF.size() );
-    return * COMM.BUFF[worker-1].get();
-  }
+  int getSocketID(const Uint worker) const;
+  const COMM_buffer& getCommBuffer(const Uint worker) const;
 };
 
 } // end namespace smarties

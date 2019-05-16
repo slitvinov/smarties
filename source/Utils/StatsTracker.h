@@ -10,22 +10,19 @@
 #define smarties_StatsTracker_h
 
 #include "ThreadSafeVec.h"
-#include "MPIUtilities.h"
+#include "Settings.h"
 
 #include <mutex>
 
 namespace smarties
 {
 
-struct DistributionInfo;
-
 template<typename T>
 struct DelayedReductor
 {
   const MPI_Comm mpicomm;
-  const bool bAsync;
   const Uint arysize, mpisize;
-  std::mutex& mpi_mutex;
+  const DistributionInfo& distrib;
   MPI_Request buffRequest = MPI_REQUEST_NULL;
   std::vector<T> return_ret = std::vector<T>(arysize, 0);
   std::vector<T> reduce_ret = std::vector<T>(arysize, 0);
@@ -37,8 +34,7 @@ struct DelayedReductor
     return size;
   }
 
-  DelayedReductor(const DistributionInfo& distrib,
-                  const std::vector<T>init);
+  DelayedReductor(const DistributionInfo&, const std::vector<T> init);
 
   std::vector<T> get(const bool accurate = false);
 

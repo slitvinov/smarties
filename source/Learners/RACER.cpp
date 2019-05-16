@@ -9,6 +9,7 @@
 #include "RACER.h"
 #include "RACER_common.cpp"
 #include "RACER_train.cpp"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {

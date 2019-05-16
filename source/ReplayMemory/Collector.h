@@ -10,6 +10,7 @@
 #define smarties_Collector_h
 
 #include "MemorySharing.h"
+#include "Utils/StatsTracker.h"
 
 namespace smarties
 {
@@ -20,15 +21,15 @@ private:
   MemoryBuffer * const replay;
   const MDPdescriptor & MDP = replay->MDP;
   const Settings & settings = replay->settings;
-  const DistributionInfo & distrib = RM->distrib;
+  const DistributionInfo & distrib = replay->distrib;
   const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;
 
   std::vector<Sequence*> inProgress;
 
-  DelayedReductor<long> globalStep_reduce = DelayedReductor<long>(settings, std::vector<long>{0,0});
+  DelayedReductor<long> globalStep_reduce =
+                         DelayedReductor<long>(distrib, std::vector<long>{0,0});
 
-  const bool prepareImpWeights = replay->sampler->requireImportanceWeights();
   std::atomic<long>& nSeenSequences = replay->nSeenSequences;
   std::atomic<long>& nSeenTransitions = replay->nSeenTransitions;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
@@ -47,7 +48,7 @@ public:
     return inProgress.size();
   }
 
-  Collector(const Settings&S, MemoryBuffer*const RM);
+  Collector(MemoryBuffer*const RM);
 
   ~Collector();
 };

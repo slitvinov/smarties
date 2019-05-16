@@ -8,6 +8,9 @@
 
 #include "Collector.h"
 
+namespace smarties
+{
+
 Collector::Collector(MemoryBuffer*const RM) : replay(RM), sharing(new MemorySharing(RM))
 {
   globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
@@ -103,7 +106,7 @@ void Collector::push_back(const int & agentId)
   if( seq_len > 1 ) //at least s0 and sT
   {
     inProgress[agentId]->finalize( nSeenSequences_loc.load() );
-    if(prepareImpWeights)
+    if( replay->bRequireImportanceSampling() )
       inProgress[agentId]->priorityImpW = std::vector<float>(seq_len, 1);
 
     sharing->addComplete(inProgress[agentId]);
@@ -123,4 +126,6 @@ void Collector::push_back(const int & agentId)
 Collector::~Collector() {
   delete sharing;
   for (auto & S : inProgress) Utilities::dispose_object(S);
+}
+
 }

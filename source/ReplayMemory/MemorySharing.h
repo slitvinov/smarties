@@ -39,11 +39,7 @@ struct MemorySharing
   std::vector<MPI_Request> workerRecvSizeReq;
   std::vector<unsigned long> workerRecvSeqSize;
 
-  int EpOwnerID = ID; // first episode stays on rank
-
   std::mutex complete_mutex;
-  const bool bAsync = settings.bAsync;
-  std::mutex& mpi_mutex = settings.mpi_mutex;
 
   std::thread fetcher;
   std::atomic<Uint> bExit {0};
@@ -52,7 +48,7 @@ struct MemorySharing
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   long int globSeen[2] = {0, 0};
 
-  MemorySharing(const Settings&S, MemoryBuffer*const RM);
+  MemorySharing(MemoryBuffer*const RM);
   ~MemorySharing();
 
   inline int testBuffer(MPI_Request& req);
@@ -76,7 +72,7 @@ struct MemorySharing
 
   void RecvSeq(Fvec&V, const int rank, const MPI_Comm C) const
   {
-    MPI( Recv, V.data(), V.size(), MPI_Fval, rank, 98, C, NOSTS);
+    MPI( Recv, V.data(), V.size(), MPI_Fval, rank, 98, C, MPI_STATUS_IGNORE);
   }
   void IsendSeq(const Fvec&V, const int rank, const MPI_Comm C, MPI_Request&R) const
   {

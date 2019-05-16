@@ -6,10 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Launcher.h"
-#include "../Utils/Warnings.h"
-#include "../Utils/LauncherUtilities.h"
-#include "../Utils/SstreamUtilities.h"
+#include "Core/Launcher.h"
+#include "Core/Worker.h"
+#include "Utils/Warnings.h"
+#include "Utils/LauncherUtilities.h"
+#include "Utils/SstreamUtilities.h"
 
 #include <omp.h>
 #include <fstream>
@@ -68,6 +69,7 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
                               const Uint totalNumWorkers,
                               const Uint thisWorkerGroupID )
 {
+  if(thisWorkerGroupID<0) die("Error in setup of envApplication_comm");
   assert(envApplication_comm not_eq MPI_COMM_NULL);
   const Uint appRank = MPICommRank(envApplication_comm);
   const Uint appSize = MPICommSize(envApplication_comm);

@@ -110,7 +110,7 @@ public:
 
   std::vector<Real> backPropToLayer(const std::vector<Real>& gradient,
                                     const Uint toLayerID,
-                                          Activation*const activation,
+                                    const Activation*const activation,
                                     const Parameters*const _weights) const;
 
   void backProp(const std::vector<std::unique_ptr<Activation>>& timeSeries,

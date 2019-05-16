@@ -6,57 +6,45 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Learners/AllLearners.h"
 #include "Core/Master.h"
+#include "Settings.h"
+#include "CLI/CLI.hpp"
 
 int main (int argc, char** argv)
 {
-  Settings settings;
-  DistributionInfo distrib(argc, argv);
+  smarties::Settings settings;
+  smarties::DistributionInfo distrib(argc, argv);
 
-  CLI:App parser{"smarties : distributed reinforcement learning framework"};
+  CLI::App parser{"smarties : distributed reinforcement learning framework"};
   settings.initializeOpts(parser);
   distrib.initializeOpts(parser);
   try {
-    app.parse(argc, argv);
+    parser.parse(argc, argv);
   }
   catch (const CLI::ParseError &e) {
-    if(distrib.world_rank == 0) return app.exit(e);
+    if(distrib.world_rank == 0) return parser.exit(e);
     else return 1;
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
-  distrib.initRandomSeed();
+  distrib.initialzePRNG();
   distrib.figureOutWorkersPattern();
   settings.check();
   MPI_Barrier(MPI_COMM_WORLD);
 
-  std::unique_ptr<Worker> process;
+  std::shared_ptr<smarties::Worker> process;
 
   if(distrib.bIsMaster)
   {
     if(distrib.nForkedProcesses2spawn > 0)
-      process = std::make_unique<MasterSockets>(settings, distrib);
+      process = std::make_shared<smarties::MasterSockets>(settings, distrib);
     else
-      process = std::make_unique<MasterMPI>(settings, distrib);
-
-    process->synchronizeEnvironments();
-    process.setupCallers();
-    process.runTraining();
+      process = std::make_shared<smarties::MasterMPI>(settings, distrib);
   }
   else
   {
-    process = std::make_unique<Worker>(settings, distrib);
-    if(distrib.runInternalApp) // then worker lives inside the application
-    {
-      process->COMM.runApplication();
-    }
-    else
-    {
-      process->synchronizeEnvironments();
-      comm_ptr->launch();
-    }
+    process = std::make_shared<smarties::Worker>(settings, distrib);
   }
-
+  process->run();
   return 0;
 }

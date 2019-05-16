@@ -11,6 +11,8 @@
 
 #include "Learner.h"
 
+class Builder;
+
 namespace smarties
 {
 
@@ -22,7 +24,7 @@ class Learner_approximator: public Learner
  public:
   const bool bSampleSequences = settings.bSampleSequences;
   // hyper-parameters:
-  const Uint batchSize = settings.batchSize_loc;
+  const Uint batchSize = settings.batchSize_local;
   const Uint ESpopSize = settings.ESpopSize;
   const Real learnR = settings.learnrate;
   const Real explNoise = settings.explNoise;
@@ -43,7 +45,7 @@ class Learner_approximator: public Learner
   virtual void applyGradient();
 
  public:
-  Learner_approximator(Environment*const env, Settings & settings);
+  Learner_approximator(MDPdescriptor&, Settings&, DistributionInfo&);
 
   virtual ~Learner_approximator();
 

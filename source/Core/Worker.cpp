@@ -7,25 +7,42 @@
 //
 
 #include "Worker.h"
-#include "../Learners/Learner.h"
+#include "Learners/AllLearners.h"
+#include "Utils/SocketsLib.h"
 #include <fstream>
-//#include <algorithm>
-//#include <chrono>
 
 namespace smarties
 {
 
-Worker::Worker(Settings& settings, DistributionInfo& distribinfo)
-: settings(settings), distrib(distribinfo) { }
+Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
+  COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
+  ENV( COMM->ENV ), agents( ENV.agents ) { }
+
+void Worker::run()
+{
+  if(distrib.runInternalApp) // then worker lives inside the application
+  {
+    COMM->runApplication(distrib.environment_app_comm,
+                         distrib.nWorker_processes,
+                         distrib.thisWorkerGroupID);
+  }
+  else
+  {
+    COMM->forkApplication(distrib.nThreads, distrib.nOwnedEnvironments);
+    synchronizeEnvironments();
+    loopSocketsToMaster();
+  }
+}
 
 void Worker::runTraining()
 {
+  const int learn_rank = MPICommRank(learners_train_comm);
   //////////////////////////////////////////////////////////////////////////////
   ////// FIRST SETUP SIMPLE FUNCTIONS TO DETECT START AND END OF TRAINING //////
   //////////////////////////////////////////////////////////////////////////////
-  Uint minNdataB4Train = learners[0]->nObsB4StartTraining;
+  long minNdataB4Train = learners[0]->nObsB4StartTraining;
   int firstLearnerStart = 0, isStarted = 0, percentageReady = -5;
-  for(size_t i=1; i<learners.size(); i++)
+  for(Uint i=1; i<learners.size(); i++)
     if(learners[i]->nObsB4StartTraining < minNdataB4Train) {
       minNdataB4Train = learners[i]->nObsB4StartTraining;
       firstLearnerStart = i;
@@ -46,9 +63,9 @@ void Worker::runTraining()
   const auto isTrainingOver = [&](const Learner* const L) {
     // if agents share learning algo, return number of turns performed by env
     // instead of sum of timesteps performed by each agent
-    const Real factor = learners.size() == 1? 1.0/nPerRank : 1;
+    const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
     const long dataCounter = bTrain? L->nLocTimeStepsTrain() : L->nSeqsEval();
-    return dataCounter * factor >= totNumSteps;
+    return dataCounter * factor >= settings.totNumSteps;
   };
 
   //////////////////////////////////////////////////////////////////////////////
@@ -60,15 +77,15 @@ void Worker::runTraining()
     tasks.run();
 
     bool over = true;
-    for(const auto& L : learners) over = over && isTrainingOver(L);
+    for(const auto& L : learners) over = over && isTrainingOver(L.get());
     if (over) break;
   }
 }
 
 void Worker::answerStateAction(const int bufferID) const
 {
-  assert(bufferID < COMM.BUFF.size());
-  const COMM_buffer& buffer = * COMM.BUFF[bufferID].get();
+  assert(bufferID < COMM->BUFF.size());
+  const COMM_buffer& buffer = getCommBuffer(bufferID+1);
   const unsigned localAgentID = Agent::getMessageAgentID(buffer.dataStateBuf);
   // compute agent's ID within worker from the agentid within environment:
   const int agentID = bufferID * ENV.nAgentsPerEnvironment + localAgentID;
@@ -90,8 +107,8 @@ void Worker::answerStateAction(const int bufferID) const
   const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
   const Uint nSteps = algo.nLocTimeStepsTrain();
   agent.learnerStepID = factor * nSteps;
-  if(agent.agentStatus >= TERM)
-    dumpCumulativeReward(localAgentID, bufferID, algo.nGradSteps(), nSteps);
+  if(agent.agentStatus >= TERM) // localAgentID, bufferID
+    dumpCumulativeReward(agent, algo.nGradSteps(), nSteps);
   //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
 }
 
@@ -128,15 +145,15 @@ bool Worker::learnersBlockingDataAcquisition() const
 void Worker::dumpCumulativeReward(const Agent& agent,
   const Uint learnAlgoIter, const Uint totalAgentTstep) const
 {
-  if (giter == 0 && bTrain) return;
+  if (learnAlgoIter == 0 && bTrain) return;
   const int wrank = MPICommSize(MPI_COMM_WORLD);
   char path[256];
-  sprintf(path, "agent_%02d_rank%02d_cumulative_rewards.dat", agent.localID, wrank);
+  sprintf(path, "agent_%02u_rank%02d_cumulative_rewards.dat", agent.localID, wrank);
 
   std::lock_guard<std::mutex> lock(dump_mutex);
   FILE * pFile = fopen (path, "a");
-  fprintf (pFile, "%u %u %d %d %f\n", learnAlgoIter, totalAgentTstep,
-    agent.workerID, agent.transitionID, agent.cumulative_rewards);
+  fprintf (pFile, "%lu %lu %u %u %f\n", learnAlgoIter, totalAgentTstep,
+    agent.workerID, agent.timeStepInEpisode, agent.cumulativeRewards);
   fflush (pFile);
   fclose (pFile);
 }
@@ -147,12 +164,12 @@ void Worker::synchronizeEnvironments()
   const std::function<void(void*, size_t)> recvBuffer = [&](void* buffer, size_t size)
   {
     bool received = false;
-    if( COMM.SOCK.clients.size() > 0 ) { // master with apps connected through sockets (on the same compute node)
-      SOCKET_Recv(buffer, size, COMM.SOCK.clients[0]);
+    if( COMM->SOCK.clients.size() > 0 ) { // master with apps connected through sockets (on the same compute node)
+      SOCKET_Brecv(buffer, size, COMM->SOCK.clients[0]);
       received = true;
-      for(size_t i=1; i < COMM.SOCK.clients.size(); ++i) {
+      for(size_t i=1; i < COMM->SOCK.clients.size(); ++i) {
         void * const testbuf = malloc(size);
-        SOCKET_Recv(testbuf, size, COMM.SOCK.clients[i]);
+        SOCKET_Brecv(testbuf, size, COMM->SOCK.clients[i]);
         const int err = memcmp(testbuf, buffer, size); free(buffer);
         if(err) die(" error: comm mismatch");
       }
@@ -191,10 +208,10 @@ void Worker::synchronizeEnvironments()
     }
   };
 
-  synchronizeEnvironments(recvBuffer, distrib.nOwnedEnvironments);
+  ENV.synchronizeEnvironments(recvBuffer, distrib.nOwnedEnvironments);
 
   for(Uint i=0; i<distrib.nOwnedEnvironments; ++i)
-    COMM.initOneCommunicationBuffer();
+    COMM->initOneCommunicationBuffer();
 
   // now i know nAgents, might need more generators:
   distrib.finalizePRNG(ENV.nAgents);
@@ -207,18 +224,18 @@ void Worker::synchronizeEnvironments()
   learners.reserve(nLearners);
   for(Uint i = 0; i<nLearners; i++)
   {
-    std::stringstream ss; ss<<"agent_"<<std::setw(2)<<std::setfill('0')<<i;
-    if(distrib.world_rank == 0) printf("Learner: %s\n", ss.str().c_str());
-    learners[i] = createLearner(ENV, settings);
-    learners[i]->setLearnerName(ss.str() +"_", i);
+    char lName[256]; sprintf(lName, "agent_%02lu", i);
+    if(distrib.world_rank == 0) printf("Learner: %s\n", lName);
+    learners[i] = createLearner(ENV.getDescriptor(i), settings, distrib);
+    learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
   }
 }
 
-void Worker::loopSocketToMaster() const
+void Worker::loopSocketsToMaster()
 {
   bool bTerminate = false;
-  const size_t nClients = COMM.SOCK.clients.size();
+  const size_t nClients = COMM->SOCK.clients.size();
   std::vector<SOCKET_REQ> reqs = std::vector<SOCKET_REQ>(nClients);
   // worker's communication functions behave following mpi indexing
   // sockets's rank (bufferID) is its index plus 1 (master)
@@ -236,9 +253,9 @@ void Worker::loopSocketToMaster() const
 
     if(reqs[workID].completed) {
       stepWorkerToMaster(workID);
-      learnerStatus& lstatus = messageLearnerStatus(B.dataActionBuf);
+      learnerStatus& S = Agent::messageLearnerStatus((char*) B.dataActionBuf);
       // check if abort was called. don't tell the app yet, cleaner loop later
-      if(lstatus == KILL) { bTerminate = true; lstatus = WORK; }
+      if(S == KILL) { bTerminate = true; S = WORK; }
       SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, SID);
     }
     else usleep(1); // wait for app to send a state without burning a cpu
@@ -249,6 +266,7 @@ void Worker::loopSocketToMaster() const
   for(const auto& A : agents) A->learnStatus = KILL;
   for(size_t i=0; i<nClients; ++i) {
     SOCKET_Wait(reqs[i]);
+    const auto& B = getCommBuffer(i+1);
     SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, getSocketID(i+1));
   }
 }
@@ -258,13 +276,13 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
   assert(master_workers_comm not_eq MPI_COMM_NULL);
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
   const COMM_buffer& BUF = getCommBuffer(bufferID+1);
-  const auto& appCom = COMM.workers_application_comm;
+  const auto& appCom = COMM->workers_application_comm;
   const int appRank = MPICommRank(appCom), appSize = MPICommSize(appCom);
-  if(appSize) assert( COMM.SOCK.clients.size() == 0 );
+  if(appSize) assert( COMM->SOCK.clients.size() == 0 );
 
-  if(learners.size()) return answerStateAction();
+  if(learners.size()) return answerStateAction(bufferID);
 
-  if (appRank<=0 || COMM.bEnvDistributedAgents)
+  if (appRank<=0 || COMM->bEnvDistributedAgents)
   {
     // MPI MSG to master of a single state:
     MPI_Request send_request, recv_request;
@@ -281,7 +299,7 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
       usleep(1); // wait action from master without burning cpu resources
     }
 
-    if (not COMM.bEnvDistributedAgents && appSize>1) {
+    if (not COMM->bEnvDistributedAgents && appSize>1) {
       //Then this is rank 0 of an environment with centralized agents.
       //Broadcast same action to members of the gang:
       MPI_Bcast(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE, 0, appCom);
@@ -295,6 +313,18 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
   }
 
   //learner_step_id = (unsigned) BUF.dataActionBuf[0];
+}
+
+int Worker::getSocketID(const Uint worker) const
+{
+  assert( worker>=0 && worker <= COMM->SOCK.clients.size() );
+  return worker>0? COMM->SOCK.clients[worker-1] : COMM->SOCK.server;
+}
+
+const COMM_buffer& Worker::getCommBuffer(const Uint worker) const
+{
+  assert( worker>0 && worker <= COMM->BUFF.size() );
+  return * COMM->BUFF[worker-1].get();
 }
 
 }

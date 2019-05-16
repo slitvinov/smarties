@@ -205,6 +205,19 @@ int AdamOptimizer::restart(const std::string fname)
   return ret;
 }
 
+
+void AdamOptimizer::getMetrics(std::ostringstream& buff)
+{
+  Utilities::real2SS(buff, weights->compute_weight_norm(), 7, 1);
+  if(tgtUpdateAlpha > 0)
+   Utilities::real2SS(buff, weights->compute_weight_dist(target_weights), 6, 1);
+}
+void AdamOptimizer::getHeaders(std::ostringstream&buff,const std::string nnName)
+{
+  buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << nnName;
+  if(tgtUpdateAlpha > 0) buff << "| dTgt ";
+}
+
 Optimizer::Optimizer(const Settings& S, const DistributionInfo& D,
                      const std::shared_ptr<Parameters>& W) :
 distrib(D), settings(S), weights(W) {

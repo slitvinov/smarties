@@ -10,31 +10,49 @@
 #define smarties_Master_h
 
 #include "Worker.h"
+#include "../Utils/SocketsLib.h"
 #include <thread>
 
 namespace smarties
 {
 
-class MasterSockets : Master<MasterSockets>
+template <typename CommType, typename Request_t>
+class Master : public Worker
 {
-  using Request_t = SOCKET_REQ;
+  std::atomic<Uint> bExit {0};
 
 protected:
+  std::vector<std::thread> worker_replies;
+  CommType * interface() { return static_cast<CommType*> (this); }
+
+  void waitForStateActionCallers(const std::vector<Uint> givenWorkers);
+
+public:
+  Master(Settings& settings, DistributionInfo& distribinfo);
+
+  void run() override;
+  void spawnCallsHandlers();
+};
+
+class MasterSockets : public Master<MasterSockets, SOCKET_REQ>
+{
+public:
+
   void Irecv(void*const buffer, const Uint size, const int rank,
-    const int tag, Request_t& request) const {
-    SOCKET_Irecv(buffer, size, getSocketID(workerID), request);
+    const int tag, SOCKET_REQ& request) const {
+    SOCKET_Irecv(buffer, size, getSocketID(rank), request);
   }
 
   void  Send(void*const buffer, const Uint size, const int rank,
     const int tag) const {
-    SOCKET_Bsend(buffer, size, getSocketID(worker));
+    SOCKET_Bsend(buffer, size, getSocketID(rank));
   }
 
-  int TestComm(Request_t& request) const {
+  int TestComm(SOCKET_REQ& request) const {
     SOCKET_Test(request.completed, request);
     return request.completed;
   }
-  void WaitComm(Request_t& request) const {
+  void WaitComm(SOCKET_REQ& request) const {
     SOCKET_Wait(request);
   }
 
@@ -42,14 +60,12 @@ public:
   MasterSockets(Settings& settings, DistributionInfo& distribinfo);
 };
 
-class MasterMPI : Master<MasterMPI>
+class MasterMPI : public Master<MasterMPI, MPI_Request>
 {
-  using Request_t = MPI_Request;
-
-protected:
+public:
 
   void Irecv(void*const buffer, const Uint size, const int rank,
-    const int tag, Request_t& req) const {
+    const int tag, MPI_Request& req) const {
     MPI(Irecv, buffer, size, MPI_BYTE, rank, tag, master_workers_comm, & req);
   }
 
@@ -58,29 +74,18 @@ protected:
     MPI(Send, buffer, size, MPI_BYTE, rank, tag, master_workers_comm);
   }
 
-  int TestComm(Request_t& request) const {
-    int completed = 0; MPI_Status mpistatus;
+  int TestComm(MPI_Request& request) const {
+    int completed = 0; //MPI_Status mpistatus;
     MPI(Test, &request, &completed, MPI_STATUS_IGNORE);
     return completed;
   }
-  void WaitComm(Request_t& request) const {
-    MPI_Status mpistatus;
+  void WaitComm(MPI_Request& request) const {
+    //MPI_Status mpistatus;
     MPI(Wait, &request, MPI_STATUS_IGNORE);
   }
 
 public:
   MasterMPI(Settings& settings, DistributionInfo& distribinfo);
-};
-
-template <typename CommType>
-class Master : public Worker
-{
-protected:
-  std::vector<std::thread> worker_replies;
-  CommType * interface() { return static_cast<CommType*> (this); }
-
-public:
-  Master(Settings& settings, DistributionInfo& distribinfo);
 };
 
 }

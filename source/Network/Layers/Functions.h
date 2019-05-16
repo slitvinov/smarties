@@ -9,7 +9,7 @@
 #ifndef smarties_Function_h
 #define smarties_Function_h
 
-#include "Utils/FunctionUtilties.h"
+#include "Utils/FunctionUtilities.h"
 #include "Utils/Warnings.h"
 
 #ifndef PRELU_FAC

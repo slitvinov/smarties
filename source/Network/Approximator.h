@@ -10,6 +10,7 @@
 #define smarties_Approximator_h
 
 #include "Builder.h"
+#include "ThreadContext.h"
 
 namespace smarties
 {
@@ -42,14 +43,14 @@ public:
       if(size<0) m_auxInputSize = auxInputNet->nOutputs();
       else {
         m_auxInputSize = size;
-        if(auxInputNet->nOutputs() < size)
+        if(auxInputNet->nOutputs() < (Uint) size)
           die("Approximator allows inserting the first 'size' outputs of "
               "another 'auxInputNet' Approximator as additional input (along "
               "with the state or the output of 'preprocessing' Approximator). "
               "But auxInputNet's output must be at least of size 'size'.");
       }
     }
-    else if (type == ACTION || VECTOR)
+    else if (type == ACTION || type == VECTOR)
     {
       if(size<=0) die("Did not specify size of the action/vector");
       m_auxInputSize = size;
@@ -57,7 +58,7 @@ public:
     if(m_auxInputSize<0) die("m_auxInputSize cannot be negative at this point");
   }
   // specify whether we are using target networks
-  void setUseTargetNetworks(const Sint targetNetworkSampleID = -1
+  void setUseTargetNetworks(const Sint targetNetworkSampleID = -1,
                             const bool bTargetNetUsesTargetWeights = true)
   {
     if(bCreatedNetwork) die("cannot modify network setup after it was built");
@@ -71,7 +72,7 @@ public:
   }
   Builder buildFromSettings(const std::vector<Uint> outputSizes)
   {
-    Builder build(distrib, settings);
+    Builder build(settings, distrib);
     const MDPdescriptor & MDP = replay->MDP;
     Uint inputSize = preprocessing? preprocessing->nOutputs()
                                   : (1+MDP.nAppendedObs) * MDP.dimStateObserved;
@@ -89,16 +90,17 @@ public:
     const MDPdescriptor & MDP = replay->MDP;
     net = build.build();
     opt = build.opt;
-    std::vector<std::shared_ptr<Parameters>>& grads = build.thread_gradients;
+    std::vector<std::shared_ptr<Parameters>>& grads = build.threadGrads;
     assert(opt && net && grads.size() == nThreads);
 
     contexts.reserve(nThreads);
-    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-    for (Uint i=0; i<nThreads; i++) {
-      const Uint thrI = omp_get_thread_num(); assert(i == thrI);
-      #pragma omp critical
-      contexts.emplace_back(i, grads[i], m_numberOfAddedSamples,
-        m_UseTargetNetwork, m_bTargetNetUsesTargetWeights ? -1 : 0);
+    #pragma omp parallel num_threads(nThreads)
+    for (Uint i=0; i<nThreads; i++)
+    {
+      if(i == (Uint) omp_get_thread_num())
+        contexts.emplace_back(i, grads[i], m_numberOfAddedSamples,
+          m_UseTargetNetwork, m_bTargetNetUsesTargetWeights ? -1 : 0);
+      #pragma omp barrier
     }
 
     agentsContexts.reserve(nAgents);
@@ -156,7 +158,7 @@ public:
     #ifdef __CHECK_DIFF //check gradients with finite differences
       net->checkGrads();
     #endif
-    gradStats = new StatsTracker(net->getnOutputs(), settings);
+    gradStats = new StatsTracker(net->getnOutputs(), distrib);
   }
 
   Uint nOutputs() const
@@ -181,21 +183,21 @@ public:
     const Uint thrID = omp_get_thread_num();
     // ensure we allocated enough workspaces:
     assert(contexts.size()>thrID && threadsPerBatch.size()>batchID);
-    ThreadContext&C = contexts[thrID];
+    ThreadContext&C = * contexts[thrID].get();
     threadsPerBatch[batchID] = thrID;
     assert(C.endBackPropStep(0)<0 && "Previous backprop did not finish?");
     C.load(net, B, batchID, wghtID);
-    if(preprocessing) preprocessing->prepare(B, batchID, wghtID);
-    if(auxInputNet) auxInputNet->prepare(B, batchID, wghtID);
+    if(preprocessing) preprocessing->load(B, batchID, wghtID);
+    if(auxInputNet) auxInputNet->load(B, batchID, wghtID);
   }
 
   void load(const MiniBatch& B, const Agent& agent, const Sint wghtID) const
   {
     assert(agentsContexts.size() > agent.ID);
-    AgentContext & C = agentsContexts[agent.ID];
+    AgentContext & C = * agentsContexts[agent.ID].get();
     C.load(net, B, agent, wghtID);
-    if(preprocessing) preprocessing->prepare(B, agent, wghtID);
-    if(auxInputNet) auxInputNet->prepare(B, agent, wghtID);
+    if(preprocessing) preprocessing->load(B, agent, wghtID);
+    if(auxInputNet) auxInputNet->load(B, agent, wghtID);
   }
 
   template< typename contextid_t, typename val_t>
@@ -234,39 +236,37 @@ public:
     if(ind>0 && not C.net(t-1, 0)->written) forward(contextID, t-1, 0);
     //if(ind>0 && not C.net(t, samp)->written) forward(C, t-1, samp);
     const Activation* const recur = ind>0? C.activation(t-1, 0) : nullptr;
-    const Activation* const activation = C.activation(t, samp);
-    const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
+    const Activation* const activation = C.activation(t, sampID);
+    const Parameters* const W = opt->getWeights(C.usedWeightID(sampID));
     //////////////////////////////////////////////////////////////////////////////
     NNvec INP;
     if(preprocessing)
     {
-      INP = preprocessing->forward(contextID, t, samp);
+      INP = preprocessing->forward(contextID, t, sampID);
     } else INP = C.getState(t);
 
-    if(C.addedInput(sample) == NETWORK)
+    if(C.addedInput(sampID) == NETWORK)
     {
       assert(auxInputNet not_eq nullptr);
-      const NNvec addedinp = auxInputNet->forward(contextID, t, samp);
+      const NNvec addedinp = auxInputNet->forward(contextID, t, sampID);
       assert(addedinp.size());
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
       //if(!thrID) cout << "relay "<<print(addedinp) << endl;
     }
-    else if(C.addedInput(sample) == ACTION)
+    else if(C.addedInput(sampID) == ACTION)
     {
       const ActionInfo & aI = replay->aI;
       const NNvec addedinp = aI.scaledAction2action<nnReal>( C.getAction(t) );
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
     }
-    else if(C.addedInput(sample) == VECTOR)
+    else if(C.addedInput(sampID) == VECTOR)
     {
-      const auto& addedinp = C.addedInputVec(t, sample);
+      const auto& addedinp = C.addedInputVec(t, sampID);
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
     }
     assert(INP.size() == net->getnInputs());
-    //////////////////////////////////////////////////////////////////////////////
-    const Rvec OUT = net->predict(INP, recur.get(), act.get(), W.get());
-    act->written = true;
-    return OUT;
+    ////////////////////////////////////////////////////////////////////////////
+    return net->predict(INP, recur, activation, W);
   }
 
   Rvec forward(const Agent& agent) const // run network for agent's recent step
@@ -275,29 +275,12 @@ public:
     return forward(agent, C.episode->nsteps() - 1, 0);
   }
 
-  Rvec forward(const Uint samp, const Uint thrID,
-    const int USE_WGT, const int USE_ACT, const int overwrite=0) const;
-  inline Rvec forward(const Uint samp, const Uint thrID, int USE_ACT=0) const {
-    assert(USE_ACT>=0);
-    return forward(samp, thrID, thread_Wind[thrID], USE_ACT);
-  }
-  template<NET USE_A = CUR>
-  inline Rvec forward_cur(const Uint samp, const Uint thrID) const {
-    const int indA = USE_A==CUR? 0 : -1;
-    return forward(samp, thrID, thread_Wind[thrID], indA);
-  }
-  template<NET USE_A = TGT>
-  inline Rvec forward_tgt(const Uint samp, const Uint thrID) const {
-    const int indA = USE_A==CUR? 0 : -1;
-    return forward(samp, thrID, -1, indA);
-  }
-
   void setGradient(      Rvec gradient,
                    const Uint batchID,
                    const Uint t, Sint sampID = 0) const
   {
+    ThreadContext& C = getContext(batchID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
-    ThreadContext& C = contexts[ threadsPerBatch[batchID] ];
     //for(Uint i=0; i<grad.size(); i++) grad[i] *= PERW;
     gradStats->track_vector(gradient, C.threadID);
     const Sint ind = C.mapTime2Ind(t);
@@ -312,16 +295,16 @@ public:
                        const Uint batchID,
                        const Uint t, Sint sampID) const
   {
-    if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
     assert(auxInputNet && "improperly set up the aux input net");
     assert(auxInputAttachLayer >= 0 && "improperly set up the aux input net");
     if(ESpopSize > 1) {
       debugL("Skipping relay_backprop because we use ES optimizers.");
-      return Rvec(relay->nOutputs(), 0);
+      return Rvec(m_auxInputSize, 0);
     }
-    ThreadContext& C = contexts[ threadsPerBatch[batchID] ];
-    const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
-    const Activation* const A = C.net->activation(t, samp);
+    ThreadContext& C = getContext(batchID);
+    if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
+    const Parameters* const W = opt->getWeights(C.usedWeightID(sampID));
+    Activation* const A = C.activation(t, sampID);
     //const std::vector<Activation*>& act = series_tgt[thrID];
     //const int ind = mapTime2Ind(samp, thrID);
     //assert(act[ind]->written == true && relay not_eq nullptr);
@@ -335,12 +318,12 @@ public:
     //}
     if(auxInputAttachLayer>0) return ret;
     else return Rvec(& ret[preprocessing->nOutputs()],
-                     & ret[preprocessing->nOutputs()+auxInputNet->nOutputs()]);
+                     & ret[preprocessing->nOutputs() + m_auxInputSize]);
   }
 
   void backProp(const Uint batchID) const
   {
-    ThreadContext& C = contexts[ threadsPerBatch[batchID] ];
+    ThreadContext& C = getContext(batchID);
     assert( C.endBackPropStep(samp) > 0 );
 
     if(ESpopSize > 1)
@@ -350,44 +333,48 @@ public:
     else
     {
       const auto& activations = C.activations;
-      const std::shared_ptr<Parameters>>& grad = C.partialGradient;
-      // loop over all the network samples, each mau require different BPTT window
+      //loop over all the network samples, each may need different BPTT window
       for(Uint samp = 0; samp < activations.size(); ++samp)
       {
         const Sint last_error = C.endBackPropStep(samp);
         const auto& timeSeries = activations[samp];
-        for (Sint i=0; i<last_error; ++i) assert(timeSeries[i]->written == true);
+        for (Sint i=0; i<last_error; ++i)
+          assert(timeSeries[i]->written == true);
+
         const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
-        net->backProp(act, last_error, C.partialGradient.get(), W);
+        net->backProp(timeSeries, last_error, C.partialGradient.get(), W);
 
         //for(int i=0;i<last_error&&!thrID;i++)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
-        if(not preprocessing || blockInpGrad) continue;
-
-        for(Uint k=0; k<last_error; ++k)
+        if(preprocessing and not m_blockInpGrad)
         {
-          const Uint t = C.mapInd2Time(k);
-          // assume that preprocessing is layer 0:
-          Rvec inputGrad = C.activation(k, samp)->getInputGradient(0);
-          // we might have added inputs, therefore trim those:
-          inputGrad.resize(preprocessing->nOutputs());
-          preprocessing->setGradient(inputGrad, batchID, t, samp);
+          for(Sint k=0; k<last_error; ++k)
+          {
+            const Uint t = C.mapInd2Time(k);
+            // assume that preprocessing is layer 0:
+            Rvec inputGrad = C.activation(k, samp)->getInputGradient(0);
+            // we might have added inputs, therefore trim those:
+            inputGrad.resize(preprocessing->nOutputs());
+            preprocessing->setGradient(inputGrad, batchID, t, samp);
+          }
         }
+        C.endBackPropStep(samp) = -1; //to stop additional backprops
       }
     }
 
     nAddedGradients++;
-    C.endBackPropStep(samp) = -1; //to stop additional backprops
   }
 
   void prepareUpdate()
   {
+    #ifndef NDEBUG
     for(const auto& C : contexts)
-      for(const auto& todoBackProp : C.lastGradTstep)
+      for(const Sint todoBackProp : C->lastGradTstep)
         assert(todoBackProp<0 && "arrived into prepareUpdate() before doing backprop on all workspaces");
+    #endif
 
     if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
 
-    if(preprocessing and not blockInpGrad)
+    if(preprocessing and not m_blockInpGrad)
       for(Uint i=0; i<ESpopSize; i++) preprocessing->losses[i] += losses[i];
 
     opt->prepare_update(losses);
@@ -412,16 +399,11 @@ public:
 
   void getHeaders(std::ostringstream& buff) const
   {
-    buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << name;
-    if(opt->tgtUpdateAlpha > 0) buff << "| dTgt ";
-    opt->getHeaders(buff);
+    return opt->getHeaders(buff, name);
   }
   void getMetrics(std::ostringstream& buff) const
   {
-    real2SS(buff, net->weights->compute_weight_norm(), 7, 1);
-    if(opt->tgtUpdateAlpha > 0)
-      real2SS(buff, net->weights->compute_weight_dist(net->tgt_weights), 6, 1);
-    opt->getMetrics(buff);
+    return opt->getMetrics(buff);
   }
 
   void save(const std::string base, const bool bBackup)
@@ -437,8 +419,9 @@ public:
 
 private:
   const Settings& settings;
+  const DistributionInfo & distrib;
   const std::string name;
-  const Uint   nAgents = settings.nAgents,    nThreads = settings.nThreads;
+  const Uint   nAgents =  distrib.nAgents,    nThreads =  distrib.nThreads;
   const Uint ESpopSize = settings.ESpopSize, batchSize = settings.batchSize;
   const std::shared_ptr<MemoryBuffer> replay;
   const std::shared_ptr<Approximator> preprocessing;
@@ -458,45 +441,57 @@ private:
   std::shared_ptr<Optimizer> opt = nullptr;
   std::shared_ptr<Network>   net = nullptr;
 
-  std::vector<Uint> threadsPerBatch = std::vector<Uint>(batchSize, -1);
+  mutable std::vector<Uint> threadsPerBatch = std::vector<Uint>(batchSize, -1);
   std::vector<std::unique_ptr<ThreadContext>> contexts;
-  std::vector<std::unique_ptr<AgentContext>> agentsContexts;
+  std::vector<std::unique_ptr< AgentContext>> agentsContexts;
   StatsTracker* gradStats = nullptr;
 
   mutable std::atomic<Uint> nAddedGradients{0};
   Uint reducedGradients=0;
 
-
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
   mutable Rvec losses = Rvec(ESpopSize, 0);
 
-  // relay backprop requires gradients: no wID, no sorting based opt algos
-  Rvec relay_backprop(const Rvec grad, const Uint samp, const Uint thrID,
-    const bool bUseTargetWeights = false) const;
-
-  void backward(Rvec grad, const Uint samp, const Uint thrID, const int USE_ACT=0) const;
-
-  void gradient(const Uint thrID, const int wID = 0) const;
-
-  void prepareUpdate();
-
-  void applyUpdate();
-
-  bool ready2ApplyUpdate();
-
- private:
-  ThreadContext& getContext(const Uint batchID)
+  ThreadContext& getContext(const Uint batchID) const
   {
     assert(threadsPerBatch.size() > batchID);
-    return contexts[ threadsPerBatch[batchID] ];
+    return * contexts[ threadsPerBatch[batchID] ].get();
   }
-  AgentContext&  getContext(const Agent& agent)
+  AgentContext&  getContext(const Agent& agent) const
   {
     assert(agentsContexts.size() > agent.ID);
-    return agentsContexts[agent.ID];
+    return * agentsContexts[agent.ID].get();
   }
 };
 
 } // end namespace smarties
 #endif // smarties_Quadratic_term_h
+
+
+/*
+Rvec forward(const Uint samp, const Uint thrID,
+  const int USE_WGT, const int USE_ACT, const int overwrite=0) const;
+inline Rvec forward(const Uint samp, const Uint thrID, int USE_ACT=0) const {
+  assert(USE_ACT>=0);
+  return forward(samp, thrID, thread_Wind[thrID], USE_ACT);
+}
+template<NET USE_A = CUR>
+inline Rvec forward_cur(const Uint samp, const Uint thrID) const {
+  const int indA = USE_A==CUR? 0 : -1;
+  return forward(samp, thrID, thread_Wind[thrID], indA);
+}
+template<NET USE_A = TGT>
+inline Rvec forward_tgt(const Uint samp, const Uint thrID) const {
+  const int indA = USE_A==CUR? 0 : -1;
+  return forward(samp, thrID, -1, indA);
+}
+// relay backprop requires gradients: no wID, no sorting based opt algos
+Rvec relay_backprop(const Rvec grad, const Uint samp, const Uint thrID,
+  const bool bUseTargetWeights = false) const;
+void backward(Rvec grad, const Uint samp, const Uint thrID, const int USE_ACT=0) const;
+void gradient(const Uint thrID, const int wID = 0) const;
+void prepareUpdate();
+void applyUpdate();
+bool ready2ApplyUpdate();
+*/

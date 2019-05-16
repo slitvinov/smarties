@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Scheduler.h"
+#include "Master.h"
 #include <fstream>
 //#include <algorithm>
 //#include <chrono>
@@ -14,15 +14,15 @@
 namespace smarties
 {
 
-MasterSockets::MasterSockets(Settings& settings, DistributionInfo& distribinfo)
-Master<MasterSockets>(settings, distribinfo) { }
-MasterMPI::MasterMPI(Settings& settings, DistributionInfo& distribinfo)
-Master<MasterMPI>(settings, distribinfo) { }
+MasterSockets::MasterSockets(Settings& S, DistributionInfo& D) :
+Master<MasterSockets, SOCKET_REQ>(S, D) { }
+MasterMPI::MasterMPI(Settings& S, DistributionInfo& D) :
+Master<MasterMPI, MPI_Request>(S, D) { }
 
-template<typename CommType>
-void Master<CommType>::(Settings& settings, DistributionInfo& distribinfo) :
-Worker(settings, distribinfo) { }
+template<typename CommType, typename Request_t>
+Master<CommType, Request_t>::Master(Settings&S, DistributionInfo&D) : Worker(S,D) {}
 
+/*
 Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
   Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
 {
@@ -35,20 +35,29 @@ Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
 
   for(const auto& L : learners) L->setupTasks(tasks);
 }
+*/
 
-template<typename CommType>
-void Master<CommType>::processCallers()
+template<typename CommType, typename Request_t>
+void Master<CommType, Request_t>::run()
+{
+  synchronizeEnvironments();
+  spawnCallsHandlers();
+  runTraining();
+}
+
+template<typename CommType, typename Request_t>
+void Master<CommType, Request_t>::spawnCallsHandlers()
 {
   // are we communicating with environments through sockets or mpi?
-  assert(COMM.SOCK.clients.size()>0 not_eq MPICommSize(master_workers_comm)>1);
-    die("impossible: environments through mpi XOR sockets");
-  if(mpiProcessing)
+  //if(COMM->SOCK.clients.size()>0 == MPICommSize(master_workers_comm)>1);
+  //  die("impossible: environments through mpi XOR sockets");
+  if(distrib.nForkedProcesses2spawn > 0)
+    assert(COMM->SOCK.clients.size() == (size_t) nCallingEnvs);
+  else
     assert(MPICommSize(master_workers_comm) == (size_t) nCallingEnvs+1);
-  if(socketsProcessing)
-    assert(COMM.SOCK.clients.size() == (size_t) nCallingEnvs);
-  assert(COMM.BUFF.size() == (size_t) nCallingEnvs);
+  assert(COMM->BUFF.size() == (size_t) nCallingEnvs);
 
-  #pragma omp parallel num_threads(nThreads)
+  #pragma omp parallel num_threads(distrib.nThreads)
   {
     std::vector<Uint> shareWorkers;
     const Uint thrN = omp_get_num_threads();
@@ -66,11 +75,11 @@ void Master<CommType>::processCallers()
   }
 }
 
-template<typename CommType>
-void Master<CommType>::waitForStateActionCallers(const std::vector<Uint> givenWorkers)
+template<typename CommType, typename Request_t>
+void Master<CommType,Request_t>::waitForStateActionCallers(const std::vector<Uint> givenWorkers)
 {
   const size_t nClients = givenWorkers.size();
-  std::vector<CommType::Request_t> reqs(nClients);
+  std::vector<Request_t> reqs(nClients);
   // worker's rank is its index (givenWorkers[i]) plus 1 (master)
   for(size_t i=0; i<nClients; ++i) {
     const Uint callerID = givenWorkers[i]+1;

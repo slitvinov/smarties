@@ -57,7 +57,7 @@ public:
   virtual void apply_update() = 0;
 
   virtual void getMetrics(std::ostringstream& buff) = 0;
-  virtual void getHeaders(std::ostringstream& buff) = 0;
+  virtual void getHeaders(std::ostringstream&buff,const std::string nnName) = 0;
   virtual bool ready2UpdateWeights() = 0;
 
   const Parameters * getWeights(const Sint weightsIndex);
@@ -94,8 +94,8 @@ public:
 
   void save(const std::string fname, const bool bBackup) override;
   int restart(const std::string fname) override;
-  void getMetrics(std::ostringstream& buff) override {}
-  void getHeaders(std::ostringstream& buff) override {}
+  void getMetrics(std::ostringstream& buff) override;
+  void getHeaders(std::ostringstream& buff, const std::string nnName) override;
 };
 
 } // end namespace smarties

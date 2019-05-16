@@ -10,6 +10,8 @@
 #define smarties_TaskQueue_h
 
 #include <functional>
+#include <utility>
+#include <vector>
 
 namespace smarties
 {
@@ -28,7 +30,7 @@ public:
   inline void run()
   {
     // go through task list once and execute all that are ready:
-    for(Uint i=0; i<tasks.size(); ++i) if( tasks[i].first() ) tasks[i].second();
+    for(size_t i=0; i<tasks.size(); ++i) if(tasks[i].first()) tasks[i].second();
   }
 };
 

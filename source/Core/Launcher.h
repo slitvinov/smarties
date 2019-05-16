@@ -9,15 +9,15 @@
 #ifndef smarties_Launcher_h
 #define smarties_Launcher_h
 
-#include "../Communicators/Communicator.h"
-#include "../Settings.h"
+#include "Communicators/Communicator.h"
+#include "Settings.h"
 
 namespace smarties
 {
 
 class Launcher: public Communicator
 {
- protected:
+protected:
   DistributionInfo& distrib;
 
   std::string execPath    = distrib.launchFile;
@@ -33,7 +33,6 @@ class Launcher: public Communicator
 */
 
 public:
-
   void initArgumentFileNames();
   void createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom);
   std::vector<char*> readRunArgLst(const std::string paramfile);
@@ -43,7 +42,6 @@ public:
                       const Uint totalNumWorkers,
                       const Uint thisWorkerGroupID);
 
-  //called by smarties
   Launcher(Worker* const W, DistributionInfo& D, bool isTraining);
 };
 

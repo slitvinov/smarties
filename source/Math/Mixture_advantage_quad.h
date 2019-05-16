@@ -36,16 +36,16 @@ struct Mixture_advantage
   static void setInitial(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<nExperts; e++)
-      for (Uint j=0; j<aI->dim; j++)
+      for (Uint j=0; j<aI->dim(); j++)
         for (Uint i=0; i<=j; i++)
           if (i<j)       initBias.push_back( 0);
           else if (i==j) initBias.push_back(-1);
   }
 
   //Normalized quadratic advantage, with own mean
-  Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+  Mixture_advantage(const std::vector<Uint>& starts, const ActionInfo* const aI,
    const Rvec& out, const Gaussian_mixture<nExperts>*const pol) :
-   start_matrix(starts[0]), nA(aI->dim), nL(compute_nL(aI)), netOutputs(out),
+   start_matrix(starts[0]), nA(aI->dim()), nL(compute_nL(aI)), netOutputs(out),
    L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol) { }
 
 private:
@@ -174,7 +174,7 @@ public:
 
   static Uint compute_nL(const ActionInfo* const aI)
   {
-    return nExperts*(aI->dim*aI->dim + aI->dim)/2;
+    return nExperts*(aI->dim()*aI->dim() + aI->dim())/2;
   }
 
   void test(const Rvec& act, mt19937*const gen) const

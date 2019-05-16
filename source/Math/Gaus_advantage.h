@@ -17,7 +17,7 @@ namespace smarties
 struct Gaussian_advantage
 {
   static Uint compute_nL(const ActionInfo* const aI) {
-    return 1 + 2*aI->dim;
+    return 1 + 2*aI->dim();
   }
 
   Rvec getParam() const {
@@ -39,11 +39,11 @@ struct Gaussian_advantage
   const Gaussian_policy * const policy;
 
   //Normalized quadratic advantage, with own mean
-  Gaussian_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+  Gaussian_advantage(const std::vector<Uint>& starts, const ActionInfo*const aI,
    const Rvec& out, const Gaussian_policy*const pol) :
-   start_coefs(starts[0]), nA(aI->dim), nL(compute_nL(aI)), netOutputs(out),
+   start_coefs(starts[0]), nA(aI->dim()), nL(compute_nL(aI)), netOutputs(out),
    coef(extract_coefs(netOutputs,starts[0])),
-   matrix(extract_matrix(netOutputs,starts[0], aI->dim)),
+   matrix(extract_matrix(netOutputs,starts[0], aI->dim())),
    aInfo(aI), policy(pol) {}
 
 private:

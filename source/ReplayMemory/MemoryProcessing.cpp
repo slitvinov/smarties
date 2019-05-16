@@ -7,6 +7,8 @@
 //
 
 #include "MemoryProcessing.h"
+#include "Utils/SstreamUtilities.h"
+#include "Sampling.h"
 #include <algorithm>
 
 namespace smarties
@@ -18,7 +20,7 @@ MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM) { }
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
 {
   if(not settings.bTrain) return; //if not training, keep the stored values
-  const Uint setSize = RM->readNSeq();
+  const Uint setSize = RM->readNSeq(), dimS = MDP.dimStateObserved;
 
   if(WR>0 or WS>0)
   {
@@ -205,7 +207,7 @@ void MemoryProcessing::finalize()
   const int nB4 = RM->readNSeq();
 
   // reset flags that signal request to update estimators:
-  const std::vector<Uint>& sampled = RM->listSampled();
+  const std::vector<Uint>& sampled = RM->lastSampledEpisodes();
   const Uint sampledSize = sampled.size();
   for(Uint i = 0; i < sampledSize; i++) {
     Sequence * const S = RM->get(sampled[i]);
@@ -219,7 +221,7 @@ void MemoryProcessing::finalize()
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
   if(delPtr<0) die("undefined behavior");
-  const Uint maxTotObsNum_loc = settings.maxTotObsNum_loc;
+  const Uint maxTotObsNum_loc = settings.maxTotObsNum_local;
   if(nTransitions.load()-Set[delPtr]->ndata() > maxTotObsNum_loc)
     RM->removeSequence(delPtr);
   delPtr = -1;

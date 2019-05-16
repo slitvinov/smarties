@@ -10,6 +10,8 @@
 #define smarties_Settings_h
 
 #include "Utils/Definitions.h"
+#include "Utils/MPIUtilities.h"
+
 #include <random>
 #include <mutex>
 
@@ -33,9 +35,10 @@ struct DistributionInfo
 
   int threadSafety = -1;
   bool bAsyncMPI;
-  mutable std::mutex mpi_mutex;
+  mutable std::mutex mpiMutex;
 
   Uint nWorker_processes;
+  Sint thisWorkerGroupID = -1;
   Uint nAgents;
 
   MPI_Comm master_workers_comm = MPI_COMM_NULL;

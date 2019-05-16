@@ -152,7 +152,7 @@ void DistributionInfo::figureOutWorkersPattern()
 
       MPI_Comm_split(MPI_COMM_WORLD, bIsMaster,          world_rank, & learners_train_comm);
       MPI_Comm_split(MPI_COMM_WORLD, masterWorkerCommID, world_rank, & master_workers_comm);
-      printf("Process %d is a %s part of comm %d.\n",
+      printf("Process %lu is a %s part of comm %lu.\n",
           world_rank, bIsMaster? "master" : "worker", masterWorkerCommID);
 
       if(bIsMaster)
@@ -171,7 +171,7 @@ void DistributionInfo::figureOutWorkersPattern()
       else
       {
         const Uint totalWorkRank = MPICommRank(learners_train_comm);
-        const Uint totalWorkSize = MPICommRank(learners_train_comm);
+        //const Uint totalWorkSize = MPICommRank(learners_train_comm);
         assert(totalWorkSize == nWorker_processes && "Code logic error");
         nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, totalWorkRank);
 
@@ -233,8 +233,8 @@ void DistributionInfo::figureOutWorkersPattern()
       "the nr. of ranks that the environment app requires to run (%u).\n",
       totalWorkSize-1, workerProcessesPerEnv);
     }
-    const Uint workerGroup = (totalWorkRank-1) / workerProcessesPerEnv;
-    MPI_Comm_split(learners_train_comm, workerGroup, totalWorkRank, &environment_app_comm);
+    thisWorkerGroupID = (totalWorkRank-1) / workerProcessesPerEnv;
+    MPI_Comm_split(learners_train_comm, thisWorkerGroupID, totalWorkRank, &environment_app_comm);
   }
 }
 
@@ -328,7 +328,7 @@ void Settings::check()
   if(learnrate<0)    die("learnrate<0");
   if(explNoise<0)    die("explNoise<0");
   if(epsAnneal<0)    die("epsAnneal<0");
-  if(batchSize<0)    die("batchSize<0");
+  if(batchSize<=0)   die("batchSize<0");
   if(nnLambda<0)     die("nnLambda<0");
   if(gamma<0)        die("gamma<0");
   if(gamma>1)        die("gamma>1");

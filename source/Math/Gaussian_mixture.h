@@ -9,7 +9,7 @@
 #ifndef smarties_Gaussian_mixture_h
 #define smarties_Gaussian_mixture_h
 
-#include "Utils/FunctionUtilties.h"
+#include "Utils/FunctionUtilities.h"
 //#include <algorithm>
 
 namespace smarties
@@ -38,19 +38,19 @@ public:
   std::array<long double, nExperts> PactEachExp;
 
   static Uint compute_nP(const ActionInfo* const aI) {
-    return nExperts*(1 + 2*aI->dim);
+    return nExperts*(1 + 2*aI->dim());
   }
   static Uint compute_nA(const ActionInfo* const aI) {
-    assert(aI->dim);
-    return aI->dim;
+    assert(aI->dim());
+    return aI->dim();
   }
   Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
   }
 
-  Gaussian_mixture(const vector <Uint> starts, const ActionInfo*const aI,
+  Gaussian_mixture(const std::vector <Uint> starts, const ActionInfo*const aI,
     const Rvec&out) : aInfo(aI),
-    iExperts(starts[0]), iMeans(starts[1]), iPrecs(starts[2]), nA(aI->dim),
+    iExperts(starts[0]), iMeans(starts[1]), iPrecs(starts[2]), nA(aI->dim()),
     nP(compute_nP(aI)), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), experts(extract_experts()),
     means(extract_mean()), stdevs(extract_stdev()),
@@ -173,12 +173,12 @@ private:
 public:
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
-    for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
+    for(Uint e=0; e<nExperts*(1 + aI->dim()); e++)
       initBias.push_back(0);
   }
   static void setInitial_Stdev(const ActionInfo* const aI, Rvec&B, const Real S)
   {
-    for(Uint e=0; e<nExperts*aI->dim; e++)
+    for(Uint e=0; e<nExperts*aI->dim(); e++)
     #ifdef EXTRACT_COVAR
       B.push_back(noiseMap_inverse(S*S));
     #else
@@ -238,7 +238,7 @@ public:
   // ensure that on-policy returns have finite probability of occurring.
   // Truncated normal is approximated by resampling from uniform  samples that
   // exceed the boundaries: the resulting PDF almost exactly truncared normal.
-  Rvec sample(mt19937*const gen, const Rvec& beta) const
+  Rvec sample(std::mt19937*const gen, const Rvec& beta) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -257,7 +257,7 @@ public:
     }
     return ret;
   }
-  Rvec sample(mt19937*const gen) const
+  Rvec sample(std::mt19937*const gen) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
@@ -384,7 +384,7 @@ public:
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  Rvec finalize(const bool bSample, mt19937*const gen, Rvec& MU)
+  Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint j=0; j<nExperts; j++)
       for (Uint i=0; i<nA; i++)
@@ -421,7 +421,7 @@ public:
     const Rvec div_klgrad = div_kl_grad(beta);
     const Rvec policygrad = policy_grad(act, 1);
     const Uint NEA = nExperts*(1+nA);
-    ofstream fout("mathtest.log", ios::app);
+    std::ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nP; i++)
     {
       Rvec out_1 = netOutputs, out_2 = netOutputs;
@@ -458,7 +458,7 @@ public:
 private:
 
   template <typename T>
-  string print(const std::array<T,nExperts> vals) const
+  std::string print(const std::array<T,nExperts> vals) const
   {
     std::ostringstream o;
     for (Uint i=0; i<nExperts-1; i++) o << vals[i] << " ";
@@ -466,7 +466,7 @@ private:
     return o.str();
   }
   template <typename T>
-  string vprint(const vector<T> vals) const
+  std::string vprint(const std::vector<T> vals) const
   {
     std::ostringstream o;
     if(!vals.size()) return o.str();

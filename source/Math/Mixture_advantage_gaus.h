@@ -46,9 +46,9 @@ struct Mixture_advantage
   const Gaussian_mixture<nExperts>* const policy;
 
   //Normalized quadratic advantage, with own mean
-  Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+  Mixture_advantage(const std::vector<Uint>& starts, const ActionInfo* const aI,
    const Rvec& out, const Gaussian_mixture<nExperts>*const pol) :
-   start_matrix(starts[0]+nExperts), start_coefs(starts[0]), nA(aI->dim),
+   start_matrix(starts[0]+nExperts), start_coefs(starts[0]), nA(aI->dim()),
    nL(compute_nL(aI)), netOutputs(out), coef(extract_coefs()),
    matrix(extract_matrix()), aInfo(aI), policy(pol) {}
 
@@ -96,8 +96,8 @@ public:
     return ret;
   }
 
-  array<Real,nExperts> expectation(const Uint expert) const {
-    array<Real, nExperts> ret;
+  std::array<Real,nExperts> expectation(const Uint expert) const {
+    std::array<Real, nExperts> ret;
     for (Uint E=0; E<nExperts; E++) {
       const Real W = policy->experts[expert] * policy->experts[E];
       const Real ratio = coefMixRatio(matrix[expert], policy->variances[E]);
@@ -148,7 +148,7 @@ public:
   }
 
   static Uint compute_nL(const ActionInfo* const aI) {
-    return nExperts*(1 + 2*aI->dim);
+    return nExperts*(1 + 2*aI->dim());
   }
 
   void test(const Rvec& act, mt19937*const gen) const

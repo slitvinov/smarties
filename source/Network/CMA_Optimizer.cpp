@@ -191,11 +191,17 @@ int CMA_Optimizer::restart(const std::string fname)
 
 void CMA_Optimizer::getMetrics(std::ostringstream& buff)
 {
+  Utilities::real2SS(buff, weights->compute_weight_norm(), 7, 1);
+  if(tgtUpdateAlpha > 0)
+    Utilities::real2SS(buff, weights->compute_weight_dist(target_weights),6,1);
   //buff<<" "<<std::setw(5)<<Nswap/2; Nswap = 0; //each swap counted twice
   const Real norm = std::pow(diagCov->compute_weight_norm(),2)/weights->nParams;
   Utilities::real2SS(buff, norm, 6, 1);
 }
-void CMA_Optimizer::getHeaders(std::ostringstream& buff) {
+void CMA_Optimizer::getHeaders(std::ostringstream&buff,const std::string nnName)
+{
+  buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << nnName;
+  if(tgtUpdateAlpha > 0) buff << "| dTgt ";
   buff << "| avgC "; //Nswp |
 }
 

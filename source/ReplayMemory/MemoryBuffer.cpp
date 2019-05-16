@@ -125,8 +125,6 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     ret.resizeStep(b, nSteps);
   }
   const std::vector<Sequence*>& sampleE = ret.episodes;
-
-  const bool bRequireImportanceSampling = sampler->requireImportanceWeights();
   const nnReal importanceSampAnneal = std::min( (Real)1, stepID*epsAnneal);
   const nnReal beta = 0.5 + 0.5 * anneal;
 
@@ -138,7 +136,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     ret.set_action(b, t, sampleE[b]->actions[t] );
     ret.set_mu(b, t, sampleE[b]->policies[t] );
     ret.reward(b, t) = scaledReward(sampleE[b], t);
-    if(bRequireImportanceSampling) {
+    if( bRequireImportanceSampling() ) {
       const nnReal impW_undef = sampleE[b]->priorityImpW[t];
       // if imp weight is 0 or less assume it was not computed and therefore
       // ep is probably a new experience that should be given high priority
@@ -148,6 +146,11 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   }
 
   return ret;
+}
+
+bool MemoryBuffer::bRequireImportanceSampling() const
+{
+  return sampler->requireImportanceWeights();
 }
 
 MiniBatch MemoryBuffer::agentToMinibatch(const Sequence* const inProgress) const

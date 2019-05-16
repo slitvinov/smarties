@@ -23,37 +23,37 @@ struct ThreadContext
 
   //vector over evaluations (eg. target/current or many samples) and over time:
   std::vector<std::vector<std::unique_ptr<Activation>>> activations;
-  std::vector<ADDED_INPUT> addedInputType;
-  std::vector<std::vector<NNvec>> addedInputVec;
+  std::vector<ADDED_INPUT> _addedInputType;
+  std::vector<std::vector<NNvec>> _addedInputVec;
 
-  std::shared_ptr<Parameters>> partialGradient;
+  std::shared_ptr<Parameters> partialGradient;
 
   std::vector<Sint> lastGradTstep;
   std::vector<Sint> weightIndex;
   const MiniBatch * batch;
   Uint batchIndex;
 
-  MiniBatchContext(const Uint thrID,
-                   const std::shared_ptr<Parameters>> grad,
-                   const Uint nAdded,
-                   const bool bHasTargetWeights,
-                   const Sint tgtWeightsID) :
+  ThreadContext(const Uint thrID,
+                const std::shared_ptr<Parameters> grad,
+                const Uint nAdded,
+                const bool bHasTargetWeights,
+                const Sint tgtWeightsID) :
     threadID(thrID), nAddedSamples(nAdded), bHaveTargetW(bHasTargetWeights),
     targetWeightIndex(tgtWeightsID), partialGradient(grad)
   {
     activations.resize(allSamplCnt);
-    addedInputVec.resize(allSamplCnt);
+    _addedInputVec.resize(allSamplCnt);
     for(Uint i=0; i < allSamplCnt; ++i) {
       activations[i].reserve(MAX_SEQ_LEN);
-      addedInputVec[i].reserve(MAX_SEQ_LEN);
+      _addedInputVec[i].reserve(MAX_SEQ_LEN);
     }
-    addedInputType.resize(allSamplCnt, NONE);
+    _addedInputType.resize(allSamplCnt, NONE);
   }
 
   void setSampleAddedInputType(const Sint sample, ADDED_INPUT type)
   {
-    if(sample < 0) addedInputType.back() = type;
-    else addedInputType[sample] = type;
+    if(sample < 0) _addedInputType.back() = type;
+    else _addedInputType[sample] = type;
   }
 
   void load(const std::shared_ptr<Network> NET,
@@ -75,7 +75,7 @@ struct ThreadContext
   void overwrite(const Uint t, const Sint sample) const
   {
     if(sample<0) target(t)->written = false;
-    else net(t, sample)->written = false; // what about backprop?
+    else activation(t, sample)->written = false; // what about backprop?
   }
 
   Sint& endBackPropStep(const Sint sample = 0)
@@ -90,24 +90,24 @@ struct ThreadContext
     if(sample<0) return weightIndex.back();
     else return weightIndex[sample];
   }
-  ADDED_INPUT& addedInput(const Sint sample = 0)
+  ADDED_INPUT& addedInputType(const Sint sample = 0)
   {
-    assert(sample<0 || addedInputType.size() > (Uint) sample);
-    if(sample<0) return addedInputType.back();
-    else return addedInputType[sample];
+    assert(sample<0 || _addedInputType.size() > (Uint) sample);
+    if(sample<0) return _addedInputType.back();
+    else return _addedInputType[sample];
   }
   NNvec& addedInputVec(const Uint t, const Sint sample = 0)
   {
-    assert(sample<0 || addedInputVec.size() > (Uint) sample);
-    if(sample<0) return addedInputVec.back()[ mapTime2Ind(t) ];
-    else return addedInputVec[sample][ mapTime2Ind(t) ];
+    assert(sample<0 || _addedInputVec.size() > (Uint) sample);
+    if(sample<0) return _addedInputVec.back()[ mapTime2Ind(t) ];
+    else return _addedInputVec[sample][ mapTime2Ind(t) ];
   }
   Activation* activation(const Uint t, const Sint sample) const
   {
     assert(sample<0 || activations.size() > (Uint) sample);
     const auto& timeSeries = sample<0? activations.back() : activations[sample];
     assert( timeSeries.size() > mapTime2Ind(t) );
-    return timeSeries[ mapTime2Ind(t) ].get()
+    return timeSeries[ mapTime2Ind(t) ].get();
   }
   Activation* target(const Uint t) const
   {
@@ -144,20 +144,20 @@ struct AgentContext
   //vector over time:
   std::vector<std::unique_ptr<Activation>> activations;
   //std::shared_ptr<Parameters>> partialGradient;
-  ADDED_INPUT addedInputType;
-  std::vector<NNvec> addedInputVec;
+  ADDED_INPUT _addedInputType;
+  std::vector<NNvec> _addedInputVec;
   Sint lastGradTstep;
   Sint weightIndex;
 
   AgentContext(const Uint aID) : agentID(aID)
   {
     activations.reserve(MAX_SEQ_LEN);
-    addedInputVec.reserve(MAX_SEQ_LEN);
+    _addedInputVec.reserve(MAX_SEQ_LEN);
   }
 
   void setAddedInputType(const ADDED_INPUT type)
   {
-    addedInputType = type;
+    _addedInputType = type;
   }
 
   void load(const std::shared_ptr<Network> NET,
@@ -166,44 +166,26 @@ struct AgentContext
             const Uint weightID)
   {
     assert(agent.ID == agentID);
-    lastGradTstep -1;
+    lastGradTstep = -1;
     weightIndex = weightID;
     NET->allocTimeSeries(activations, batch->getNumSteps(0));
   }
 
-  void overwrite(const Uint t, const Sint sample) const
+  void overwrite(const Uint t) const
   {
-    if(sample<0) target(t)->written = false;
-    else net(t, sample)->written = false; // what about backprop?
+    activation(t)->written = false; // what about backprop?
   }
 
-  Sint& endBackPropStep(const Sint sample = 0)
+  Sint& endBackPropStep() { return lastGradTstep; }
+  Sint& usedWeightID() { return weightIndex; }
+  ADDED_INPUT& addedInputType() { return _addedInputType; }
+  NNvec& addedInputVec(const Uint t)
   {
-    assert(sample<0 || lastGradTstep.size() > (Uint) sample);
-    if(sample<0) return lastGradTstep.back();
-    else return lastGradTstep[sample];
-  }
-  Sint& usedWeightID(const Sint sample = 0)
-  {
-    assert(sample<0 || weightIndex.size() > (Uint) sample);
-    if(sample<0) return weightIndex.back();
-    else return weightIndex[sample];
-  }
-  ADDED_INPUT& addedInput(const Sint sample = 0)
-  {
-    assert(sample<0 || addedInputType.size() > (Uint) sample);
-    if(sample<0) return addedInputType.back();
-    else return addedInputType[sample];
-  }
-  NNvec& addedInputVec(const Uint t, const Sint sample = 0)
-  {
-    assert(sample<0 || addedInputVec.size() > (Uint) sample);
-    if(sample<0) return addedInputVec.back()[ mapTime2Ind(t) ];
-    else return addedInputVec[sample][ mapTime2Ind(t) ];
+    return _addedInputVec[ mapTime2Ind(t) ];
   }
   Activation* activation(const Uint t) const
   {
-    return activations[mapTime2Ind(t)].get();
+    return activations[ mapTime2Ind(t) ].get();
   }
   Uint mapTime2Ind(const Uint t) const
   {

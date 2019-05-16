@@ -23,19 +23,6 @@ Learner_pytorch::~Learner_pytorch() {
 
 void Learner_pytorch::spawnTrainTasks()
 {
-  if(bSampleSequences && data->readNSeq() < batchSize)
-    die("Parameter minTotObsNum is too low for given problem");
-
-  profiler->stop_start("SAMP");
-
-  std::vector<Uint> samp_seq = std::vector<Uint>(batchSize, -1);
-  std::vector<Uint> samp_obs = std::vector<Uint>(batchSize, -1);
-  data->sample(samp_seq, samp_obs);
-
-  for(Uint i=0; i<batchSize && bSampleSequences; i++)
-    assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
-
-
 }
 
 void Learner_pytorch::getMetrics(std::ostringstream& buf) const

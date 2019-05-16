@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef smarties_FunctionUtilties_h
-#define smarties_FunctionUtilties_h
+#ifndef smarties_FunctionUtilities_h
+#define smarties_FunctionUtilities_h
 
 #include "Bund.h"
 
@@ -158,7 +158,7 @@ inline T noiseMap_func(const T val)
   #ifdef UNBND_VAR
     return unbPosMap_func(val);
   #else
-    return Sigm::_eval(val);
+    return 1/(1 + safeExp(-val));
   #endif
 }
 
@@ -168,7 +168,8 @@ inline T noiseMap_diff(const T val)
   #ifdef UNBND_VAR
     return unbPosMap_diff(val);
   #else
-    return Sigm::_evalDiff(val);
+    const T expx = safeExp(val);
+    return expx / std::pow(expx+1, 2);
   #endif
 }
 
@@ -183,7 +184,7 @@ inline T noiseMap_inverse(T val)
       if(val<=0) val =   std::numeric_limits<float>::epsilon();
       if(val>=1) val = 1-std::numeric_limits<float>::epsilon();
     }
-    return Sigm::_inv(val);
+    return - std::log(1/val - 1);
   #endif
 }
 
