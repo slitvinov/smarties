@@ -535,30 +535,31 @@ struct DualLRelu
   }
 };
 
-inline Function* makeFunction(const std::string name, const bool bOutput=false)
+inline std::unique_ptr<Function> makeFunction(const std::string name,
+                                              const bool bOutput=false)
 {
-  if (bOutput || name == "Linear") return new Linear();
+  if (bOutput || name == "Linear") return std::make_unique<Linear>();
   else
-  if (name == "Tanh")   return new Tanh();
+  if (name == "Tanh")   return std::make_unique<Tanh>();
   else
-  if (name == "Sigm") return new Sigm();
+  if (name == "Sigm") return std::make_unique<Sigm>();
   else
-  if (name == "HardSign") return new HardSign();
+  if (name == "HardSign") return std::make_unique<HardSign>();
   else
-  if (name == "SoftSign") return new SoftSign();
+  if (name == "SoftSign") return std::make_unique<SoftSign>();
   else
-  if (name == "Relu") return new Relu();
+  if (name == "Relu") return std::make_unique<Relu>();
   else
-  if (name == "LRelu") return new LRelu();
+  if (name == "LRelu") return std::make_unique<LRelu>();
   else
-  if (name == "ExpPlus") return new ExpPlus();
+  if (name == "ExpPlus") return std::make_unique<ExpPlus>();
   else
-  if (name == "SoftPlus") return new SoftPlus();
+  if (name == "SoftPlus") return std::make_unique<SoftPlus>();
   else
-  if (name == "Exp") return new Exp();
+  if (name == "Exp") return std::make_unique<Exp>();
   else
   die("Activation function not recognized");
-  return (Function*)nullptr;
+  return std::make_unique<Linear>();
 }
 
 } // end namespace smarties

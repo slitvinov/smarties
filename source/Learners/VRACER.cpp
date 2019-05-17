@@ -21,23 +21,12 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
   data_get->add_state(agent);
   F[0]->prepare_agent(S, agent);
 
-  #ifdef DACER_singleNet
-    static constexpr int valNetID = 0;
-  #else
-    static constexpr int valNetID = 1;
-    F[1]->prepare_agent(S, agent);
-  #endif
-
   if( agent.Status < TERM_COMM ) // not last of a sequence
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     Rvec output = F[0]->forward_agent(agent);
-    #ifdef DACER_singleNet
-      const Rvec& value = output;
-    #else
-      Rvec value = F[1]->forward_agent(agent);
-    #endif
+    const Rvec& value = output;
     Policy_t pol = prepare_policy<Policy_t>(output);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
@@ -53,7 +42,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
   else
   {
     if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[valNetID]->forward_agent(agent);
+      Rvec output = F[0]->forward_agent(agent);
       S->state_vals.push_back(output[0]);
     } else S->state_vals.push_back(0); //value of term state is 0
 

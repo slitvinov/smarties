@@ -10,7 +10,7 @@
 #define smarties_AllLearners_h
 
 #include "RACER.h"
-#include "VRACER.h"
+//#include "VRACER.h"
 #include "Learner_pytorch.h"
 #include <fstream>
 #include <sstream>
@@ -72,14 +72,14 @@ inline std::unique_ptr<Learner> createLearner(
   if (settings.learner == "VRACER")
   {
     if(MDP.bDiscreteActions) {
-      using RACER_discrete = VRACER<Discrete_policy, Uint>;
+      using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
       MDP.policyVecDim = RACER_discrete::getnDimPolicy(&aInfo);
       o << MDP.maxActionLabel << " " << MDP.policyVecDim;
       printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = std::make_unique<RACER_discrete>(MDP, settings, distrib);
     } else {
       //using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
-      using RACER_continuous = VRACER<Gaussian_policy, Rvec>;
+      using RACER_continuous = RACER<Zero_advantage, Gaussian_policy, Rvec>;
       MDP.policyVecDim = RACER_continuous::getnDimPolicy(&aInfo);
       o << MDP.dimAction << " " << MDP.policyVecDim;
       printLogfile(o, "problem_size.log", distrib.world_rank);

@@ -162,7 +162,6 @@ class Layer
   }
 
   // Initialize the weights and biases. Probably by sampling.
-  virtual void transpose(const Parameters*const para) const {}
   virtual void initialize(std::mt19937& G, const Parameters*const W,
                           Real initializationFac) const = 0;
 };
@@ -322,10 +321,10 @@ class ResidualLayer: public Layer
 
 class ParamLayer: public Layer
 {
-  const Function * const func;
+  const std::unique_ptr<Function> func;
   std::vector<nnReal> initVals;
  public:
-  ~ParamLayer() { delete func; }
+
   ParamLayer(Uint _ID, Uint _size, std::string funcType, std::vector<Real>init)
     : Layer(_ID, _size, true), func(makeFunction(funcType)) {
     biasInitialValues(init);

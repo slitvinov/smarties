@@ -83,16 +83,9 @@ void Builder::addLayer(const Uint layerSize,
                               && not isOutputLayer;
   //const bool bResLayer = not bOutput;
   if(bResidualLayer)
-    layers.push_back(new ResidualLayer(ID+1, nNeurons));
+    layers.emplace_back(std::make_unique<ResidualLayer>(ID+1, layerSize));
 
   if(isOutputLayer) nOutputs += layers.back()->nOutputs();
-}
-
-template<typename T>
-void Builder::setLastLayersBias(const std::vector<T> init_vals)
-{
-  NNvec init = NNvec(init_vals.begin(), init_vals.end());
-  layers.back()->biasInitialValues(init);
 }
 
 void Builder::addParamLayer(Uint size, std::string funcType, Real init_vals)
@@ -110,7 +103,7 @@ void Builder::addParamLayer(Uint size,
   layers.emplace_back(
     std::make_unique<ParamLayer>(ID, size, funcType, init_vals)
   );
-  nOutputs += l->nOutputs();
+  nOutputs += layers.back()->nOutputs();
 }
 
 void Builder::build(const bool isInputNet)
@@ -119,20 +112,22 @@ void Builder::build(const bool isInputNet)
   bBuilt = true;
 
   nLayers = layers.size();
-  std::shared_ptr<Parameters> weights = Network::allocParameters(layers, mpisize);
+  const Uint lsize = MPICommSize(distrib.learners_train_comm);
+  const Uint lrank = MPICommRank(distrib.learners_train_comm);
+  std::shared_ptr<Parameters> weights = Network::allocParameters(layers, lsize);
 
-  std::mt19937 * gen = & generators[0];
+  std::mt19937& gen = distrib.generators[0];
   // Initialize weights
   for(const auto & l : layers)
-    l->initialize(gen, weights,
+    l->initialize(gen, weights.get(),
       l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
-  if(settings.learner_rank == 0) {
-    for(const auto & l : layers) cout << l->printSpecs();
+  if(lrank == 0) {
+    for(const auto & l : layers) printf( "%s", l->printSpecs().c_str() );
   }
 
   // Make sure that all ranks have the same weights (copy from rank 0)
-  weights->broadcast(settings.mastersComm);
+  weights->broadcast(distrib.learners_train_comm);
   // Initialize network workspace to check that all is ok
   const std::unique_ptr<Activation> test = Network::allocActivation(layers);
   if(test->nInputs not_eq (int) nInputs)
@@ -147,38 +142,43 @@ void Builder::build(const bool isInputNet)
     nOutputs = test->nOutputs;
   }
 
-  threadGrads = allocManyParams(weights, settings.nThreads);
+  threadGrads = allocManyParams(weights, distrib.nThreads);
 
   net = std::make_shared<Network>(nInputs, nOutputs, layers, weights);
   // ownership of layers passed onto network, builder should have an empty vec:
   assert(layers.size() == 0);
 
-  if(settings.CMApopSize>1)
+  if(settings.ESpopSize>1)
     opt = std::make_shared<CMA_Optimizer>(settings,distrib,weights);
   else
     opt = std::make_shared<AdamOptimizer>(settings,distrib,weights,threadGrads);
 }
 
-inline bool matchConv2D(Conv2D_Descriptor DESCR, int InX, int InY, int InC, int KnX, int KnY, int KnC, int Sx, int Sy, int Px, int Py, int OpX, int OpY)
+inline bool matchConv2D(Conv2D_Descriptor DESCR, Uint InX, Uint InY, Uint InC,
+                                                 Uint KnX, Uint KnY, Uint KnC,
+                                                 Uint Sx, Uint Sy, Uint Px,
+                                                 Uint Py, Uint OpX, Uint OpY)
 {
   bool sameInp = DESCR.inpFeatures==InC && DESCR.inpY==InX && DESCR.inpX==InY;
   bool sameOut = DESCR.outFeatures==KnC && DESCR.outY==OpY && DESCR.outX==OpX;
   bool sameFilter  = DESCR.filterx==KnX && DESCR.filtery==KnY;
   bool sameStride  = DESCR.stridex== Sx && DESCR.stridey== Sy;
   bool samePadding = DESCR.paddinx== Px && DESCR.paddiny== Py;
+  if( KnC*OpX*OpY == 0 ) die("Requested empty layer.");
   return sameInp && sameOut && sameFilter && sameStride && samePadding;
 }
 
-void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, int iLink)
+void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
 {
   if(bBuilt) die("Cannot build the network multiple times");
-  const int ID = layers.size();
+  const Uint ID = layers.size();
   if(iLink<1 || ID<iLink || layers[ID-iLink]==nullptr || nInputs==0)
     die("Missing input layer.");
-  if( Kn_C*OutX*OutY <= 0 ) die("Requested empty layer.");
-  if( layers[ID-iLink]->nOutputs() not_eq In_X * In_Y * In_C )
+
+  const Uint inpSize = descr.inpFeatures * descr.inpY * descr.inpX;
+  if( layers[ID-iLink]->nOutputs() not_eq inpSize )
     _die("Mismatch between input size (%d) and previous layer size (%d).",
-      In_X * In_Y * In_C, layers.back()->nOutputs() );
+      inpSize, layers.back()->nOutputs() );
 
   Layer* l = nullptr;
   // I defined here the conv layers used in the Atari paper. To add new ones add
@@ -186,22 +186,27 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, int iLink)
   // function above to interpret the arguments. Useful rule of thumb to remember
   // is: outSize should be : (InSize - FilterSize + 2*Padding)/Stride + 1
   if (      matchConv2D(descr, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20) )
-    l = new Conv2DLayer<LRelu, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20>(ID,bOut,iL);
+    layers.emplace_back(
+      std::make_unique<Conv2DLayer<LRelu, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20> >
+        (ID, bOut, iLink) );
   else
   if (      matchConv2D(descr, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9) )
-    l = new Conv2DLayer<LRelu, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9>(ID,bOut,iL);
+    layers.emplace_back(
+      std::make_unique<Conv2DLayer<LRelu, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9> >
+        (ID, bOut, iLink) );
   else
   if (      matchConv2D(descr,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7) )
-    l = new Conv2DLayer<LRelu,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7>(ID,bOut,iL);
+    layers.emplace_back(
+      std::make_unique<Conv2DLayer<LRelu,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7> >
+        (ID, bOut, iLink) );
   else
     die("Detected undeclared conv2d description. This will be frustrating... "
         "In order to remove dependencies, keep the code low latency, and high "
         "performance, conv2d are templated. Whatever conv2d op you want must "
         "be specified in the Builder.cpp file. You'll see, it's easy.");
 
-  layers.push_back(l);
-  assert(l not_eq nullptr);
-  if(bOutput) nOutputs += l->nOutputs();
+  assert(layers.size()>ID && layers.back());
+  if(bOut) nOutputs += l->nOutputs();
 }
 
 } // end namespace smarties

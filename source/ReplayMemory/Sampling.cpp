@@ -69,7 +69,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       return Set[a]->ndata() > Set[b]->ndata();
     };
     std::sort(seq.begin(), seq.end(), compare);
-    for (Uint i=0; i<nBatch; i++) obs[i] = Set[seq[i]]->ndata() - 1;
+    for (long i=0; i<nBatch; i++) obs[i] = Set[seq[i]]->ndata() - 1;
   }
   else
   {
@@ -161,7 +161,7 @@ void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
     locPrefix += Set[i]->ndata();
   }
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < nSeqs; i++)
+  for(long i = 0; i < nSeqs; i++)
     for(Uint j=0, k=Set[i]->prefix; j<Set[i]->ndata(); ++j, ++k)
       samples[k] = std::pair<unsigned, unsigned>{i, j};
 
@@ -307,7 +307,7 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
   //cout <<minP <<" " <<maxP<<endl;
   // if samples never seen by optimizer the samples have high priority
   #pragma omp parallel for schedule(static)
-  for(Uint i=0; i<nData; i++) if(probs[i]<=0) probs[i] = maxP;
+  for(long i=0; i<nData; i++) if(probs[i]<=0) probs[i] = maxP;
 
   setMinMaxProb(maxP, minP);
   // std::discrete_distribution handles normalizing by sum P

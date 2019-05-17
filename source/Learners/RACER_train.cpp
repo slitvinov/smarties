@@ -10,6 +10,14 @@ namespace smarties
 {
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
+void RACER<Advantage_t, Policy_t, Action_t>::
+Train(const MiniBatch&MB, const Uint wID,const Uint bID) const
+{
+
+}
+
+/*
+template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Uint wID, const Uint bID, const Uint thrID) const
 {
@@ -40,6 +48,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   F[0]->backward(grad, t, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
+*/
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 Rvec RACER<Advantage_t, Policy_t, Action_t>::
@@ -63,9 +72,9 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   //prepare Q with off policy corrections for next step:
   const Real dAdv = updateRetrace(traj, samp, A_cur, V_cur, rho);
   // compute the gradient:
-  Rvec gradient = Rvec(F[0]->nOutputs(), 0);
+  Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
   gradient[VsID] = beta * Ver;
-  POL.finalize_grad(weightSum2Grads(polG, penalG, beta), gradient);
+  POL.finalize_grad(Utilities::weightSum2Grads(polG, penalG, beta), gradient);
   ADV.grad(POL.sampAct, beta * Aer, gradient);
   traj->setMseDklImpw(samp, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
   // logging for diagnostics:
@@ -87,7 +96,7 @@ offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
   S->setMseDklImpw(t, Ver*Ver,pol.sampKLdiv,pol.sampImpWeight, CmaxRet,CinvRet);
   const Rvec pg = pol.div_kl_grad(S->policies[t], beta-1);
   // only non zero gradient is policy penalization
-  Rvec gradient = Rvec(F[0]->nOutputs(), 0);
+  Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
   pol.finalize_grad(pg, gradient);
   return gradient;
 }
@@ -117,6 +126,7 @@ policyGradient(const Rvec& MU, const Policy_t& POL,
   #endif
 }
 
+/*
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
   const Uint seq, const Uint wID, const Uint bID, const Uint thrID) const
@@ -155,5 +165,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
 }
+*/
 
 }

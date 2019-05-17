@@ -15,19 +15,20 @@
 namespace smarties
 {
 
-class Discrete_policy;
-class Gaussian_policy;
+struct Discrete_policy;
+struct Gaussian_policy;
 
 //template<Uint nExperts>
 //class Gaussian_mixture;
 
-class Discrete_advantage;
+struct Discrete_advantage;
 #ifdef ADV_GAUS
 #define Param_advantage Gaussian_advantage
 #else
 #define Param_advantage Quadratic_advantage
 #endif
-class Param_advantage;
+struct Param_advantage;
+struct Zero_advantage;
 
 //template<Uint nExperts>
 //class Mixture_advantage;
@@ -39,9 +40,7 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_approximator
 {
   template<typename _pol_t>
-  inline _pol_t prepare_policy( const Rvec& O,
-                                const Rvec ACT=Rvec(),
-                                const Rvec MU=Rvec()) const
+  _pol_t prepare_policy(const Rvec& O, const Rvec ACT=Rvec(), const Rvec MU=Rvec()) const
   {
     _pol_t pol(pol_start, &aInfo, O);
     if(ACT.size()) {
@@ -52,8 +51,7 @@ class RACER : public Learner_approximator
   }
 
   template<typename _adv_t, typename _pol_t>
-  inline _adv_t prepare_advantage( const Rvec& out,
-                                   const _pol_t*const pol) const
+  _adv_t prepare_advantage(const Rvec& out, const _pol_t*const pol) const
   {
     return _adv_t(adv_start, &aInfo, out, pol);
   }
@@ -75,13 +73,18 @@ class RACER : public Learner_approximator
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
+  const Uint batchSize = settings.batchSize, ESpopSize = settings.ESpopSize;
   std::vector<Rvec> OrUhState = std::vector<Rvec>( nAgents, Rvec(nA, 0) );
+  mutable std::vector<Rvec> rhos=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> dkls=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> advs=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
 
-  void TrainBySequences(const Uint seq, const Uint wID,
-    const Uint bID, const Uint tID) const override;
+  void prepareCMALoss();
 
-  void Train(const Uint seq, const Uint samp, const Uint wID,
-    const Uint bID, const Uint tID) const override;
+  //void TrainBySequences(const Uint seq, const Uint wID,
+  //  const Uint bID, const Uint tID) const override;
+
+  void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const override;
 
   Rvec compute(Sequence*const traj, const Uint samp,
     const Rvec& outVec, const Policy_t& POL, const Uint thrID) const;
@@ -107,7 +110,6 @@ class RACER : public Learner_approximator
   void setupNet();
  public:
   RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
-  ~RACER() { }
 
   void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;

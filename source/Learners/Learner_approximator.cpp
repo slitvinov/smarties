@@ -146,7 +146,7 @@ bool Learner_approximator::createEncoder(Sint privateLayersNum)
     return false; // no preprocessing
 
   if(networks.size()>0) warn("some network was created before preprocessing");
-  networks.push_back( new Approximator( "encoder", settings, distrib, data ) );
+  networks.push_back(new Approximator("encoder", settings,distrib, data.get()));
   networks.back()->buildPreprocessing(preprocessingLayers);
 
   return true;

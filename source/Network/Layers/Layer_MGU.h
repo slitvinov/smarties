@@ -17,29 +17,27 @@ namespace smarties
 class MGULayer: public Layer
 {
   const Uint nInputs, nCells;
-  const Function* const cell;
+  const std::unique_ptr<Function> cell;
 
  public:
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override
   {
     //cell, input, forget, output gates all linked to inp and prev LSTM output
     nWeight.push_back(2*nCells * (nInputs + nCells) );
     nBiases.push_back(2*nCells);
   }
 
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override {
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override {
     sizes.push_back(2*nCells);
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  virtual void biasInitialValues(const vector<Real> init) {}
+  virtual void biasInitialValues(const std::vector<Real> init) {}
 
-  ~MGULayer() { _dispose_object(cell); }
-
-  MGULayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
+  MGULayer(Uint _ID, Uint _nInputs, Uint _nCells, std::string funcType,
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),
     nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType)) {
     spanCompInpGrads = _nInputs;
@@ -47,10 +45,11 @@ class MGULayer: public Layer
       die("hardcoded simd: pick size multiple of 8 for float and 4 for double");
   }
 
-  string printSpecs() const override {
+  std::string printSpecs() const override
+  {
     std::ostringstream o;
     o<<"("<<ID<<") "<<cell->name()
-     <<string(bOutput? " output ":" ")
+     <<std::string(bOutput? " output ":" ")
      <<"MGU Layer of size:"<<nCells
      <<" linked to Layer:"<<ID-link
      <<" of size:"<<nInputs<<"\n";
@@ -122,9 +121,9 @@ class MGULayer: public Layer
     nnReal* const deltas = curr->E(ID);
     nnReal* const deltaF = curr->E(ID) + nCells;
     nnReal* const deltaC = curr->Y(ID) + nCells;
-    nnReal* const prvOut = prev==nullptr? allocate_ptr(nCells) : prev->Y(ID);
+    nnReal* const prvOut = prev==nullptr? Utilities::allocate_ptr(nCells) : prev->Y(ID);
     nnReal* const prvErr = prev==nullptr? nullptr : prev->E(ID);
-    nnReal* const tmp = allocate_dirty(nCells);
+    nnReal* const tmp = Utilities::allocate_dirty(nCells);
 
     #pragma omp simd aligned(deltaC, deltas, forget, cellst : VEC_WIDTH)
     for (Uint o=0; o<nCells; ++o)

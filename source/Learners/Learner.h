@@ -12,14 +12,15 @@
 #include "Core/StateAction.h"
 #include "Utils/Profiler.h"
 #include "ReplayMemory/MemoryBuffer.h"
-#include "ReplayMemory/MemoryProcessing.h"
-#include "ReplayMemory/Collector.h"
 #include "Utils/StatsTracker.h"
 #include "Utils/TaskQueue.h"
 #include "Settings.h"
 
 namespace smarties
 {
+
+class MemoryProcessing;
+class Collector;
 
 class Learner
 {
@@ -71,10 +72,10 @@ protected:
 
   std::vector<std::mt19937>& generators = distrib.generators;
 
-  const std::shared_ptr<MemoryBuffer> data =
-                         std::make_shared<MemoryBuffer>(MDP, settings, distrib);
-  const std::unique_ptr<MemoryProcessing> data_proc;
-  const std::unique_ptr<Collector>        data_get;
+  const std::unique_ptr<MemoryBuffer> data =
+                         std::make_unique<MemoryBuffer>(MDP, settings, distrib);
+  MemoryProcessing* const data_proc;
+  Collector* const        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
 
   TrainData* trainInfo = nullptr;
@@ -87,6 +88,7 @@ public:
   Uint learnID;
 
   Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  virtual ~Learner();
 
   inline void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
@@ -139,7 +141,8 @@ protected:
   inline void backPropRetrace(Sequence*const S, const Uint t)
   {
     if(t == 0) return;
-    const Fval W = S->offPolicImpW[t], R=data->scaledReward(S, t), G = gamma;
+    const Fval W = S->offPolicImpW[t];
+    const Fval R = data->scaledReward(S, t), G = gamma;
     const Fval C = W<1 ? W:1, V = S->state_vals[t], A = S->action_adv[t];
     S->setRetrace(t-1, R + G*V + G*C*(S->Q_RET[t] -A-V) );
   }

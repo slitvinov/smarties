@@ -9,6 +9,8 @@
 #include "Learner.h"
 #include "Utils/FunctionUtilities.h"
 #include "Utils/SstreamUtilities.h"
+#include "ReplayMemory/MemoryProcessing.h"
+#include "ReplayMemory/Collector.h"
 
 namespace smarties
 {
@@ -16,8 +18,14 @@ namespace smarties
 Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   distrib(D_), settings(S_), MDP(MDP_),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
-  data_proc( std::make_unique<MemoryProcessing>( data.get() ) ),
-  data_get ( std::make_unique<Collector       >( data.get() ) ) {}
+  data_proc( new MemoryProcessing( data.get() ) ),
+  data_get ( new Collector       ( data.get() ) ) {}
+
+Learner::~Learner()
+{
+  delete data_proc;
+  delete data_get;
+}
 
 void Learner::initializeLearner()
 {

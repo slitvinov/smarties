@@ -285,7 +285,7 @@ void dispose_object(T *const& ptr)
 
 template<typename It> class Range
 {
-    It b, e;
+    const It b, e;
 public:
     Range(It _b, It _e) : b(_b), e(_e) {}
     It begin() const { return b; }

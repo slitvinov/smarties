@@ -41,17 +41,9 @@ void VRACER<Policy_t, Action_t>::prepareCMALoss()
     const Real costAdv = - beta * clipR * aA[b]; //minus: to maximize pol adv
     const Real costVal = beta * std::pow(std::min((Real)1, aR[b]) * clipA, 2);
     const Real costDkl = (1-beta) * dkls[b][w];
-    #ifdef DACER_singleNet
-      F[0]->losses[w] += alpha * (costAdv + costDkl) + (1-alpha) * costVal;
-    #else
-      F[0]->losses[w] += costAdv + costDkl;
-      F[1]->losses[w] += costVal;
-    #endif
+    networks[0]->ESloss(w) += alpha * (costAdv + costDkl) + (1-alpha) * costVal;
   }
-  F[0]->nAddedGradients = ESpopSize * batchSize;
-  #ifndef DACER_singleNet
-    F[1]->nAddedGradients = ESpopSize * batchSize;
-  #endif
+  networks[0]->nAddedGradients = ESpopSize * batchSize;
 }
 
 template<typename Policy_t, typename Action_t>
@@ -63,17 +55,7 @@ void VRACER<Policy_t, Action_t>::setupNet()
 
   std::vector<Uint> nouts = count_outputs(&aInfo);
 
-  #ifdef DACER_singleNet // state value is approximated by an other net
-    F.push_back(new Approximator("net", settings, input, data));
-  #else
-    nouts.erase( nouts.begin() );
-    F.push_back(new Approximator("policy", settings, input, data));
-    F[0]->blockInpGrad = true; // this line must happen b4 initialize
-    F.push_back(new Approximator("critic", settings, input, data));
-    // make value network:
-    Builder build_val = F[1]->buildFromSettings(settings, 1);
-    F[1]->initializeNetwork(build_val);
-  #endif
+  F.push_back(new Approximator("net", settings, input, data));
 
   #ifdef DACER_simpleSigma // variance not dependent on state
     const Uint varianceSize = nouts.back();
@@ -84,11 +66,7 @@ void VRACER<Policy_t, Action_t>::setupNet()
 
   if(isContinuous)
   {
-    #ifdef DACER_singleNet
-      Rvec initBias = Rvec(1, 0);
-    #else
-      Rvec initBias = Rvec(0, 0); // no state val here
-    #endif
+    Rvec initBias = Rvec(1, 0);
     Policy_t::setInitial_noStdev(&aInfo, initBias);
 
     #ifdef DACER_simpleSigma // sigma not linked to state: param output

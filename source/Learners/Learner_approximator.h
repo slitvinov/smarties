@@ -31,8 +31,7 @@ class Learner_approximator: public Learner
 
  public:
   Learner_approximator(MDPdescriptor&, Settings&, DistributionInfo&);
-
-  virtual ~Learner_approximator();
+  virtual ~Learner_approximator() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;

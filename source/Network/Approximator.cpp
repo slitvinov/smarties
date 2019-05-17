@@ -16,9 +16,9 @@ namespace smarties
 Approximator::Approximator(std::string name_,
                            const Settings&S,
                            const DistributionInfo&D,
-                           const std::shared_ptr<MemoryBuffer> replay_,
-                           const std::shared_ptr<Approximator> preprocessing_,
-                           const std::shared_ptr<Approximator> auxInputNet_) :
+                           const MemoryBuffer* const replay_,
+                           const Approximator* const preprocessing_,
+                           const Approximator* const auxInputNet_) :
   settings(S), distrib(D), name(name_), replay(replay_),
   preprocessing(preprocessing_), auxInputNet(auxInputNet_)
 { }
@@ -184,7 +184,8 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
     if(preprocessing)
       die("Preprocessing layers were created for a network type that does not "
           "support being together with preprocessing layers");
-    build->addInput(m_auxInputSize); // add slot to insert aux input layer
+    if(m_auxInputSize>0)
+      build->addInput(m_auxInputSize); // add slot to insert aux input layer
   }
   else
   {

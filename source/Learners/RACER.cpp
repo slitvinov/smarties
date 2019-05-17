@@ -7,9 +7,13 @@
 //
 
 #include "RACER.h"
+
+#include "Utils/StatsTracker.h"
+#include "Network/Approximator.h"
+#include "ReplayMemory/Collector.h"
+
 #include "RACER_common.cpp"
 #include "RACER_train.cpp"
-#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -18,31 +22,34 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
 select(Agent& agent)
 {
-  Sequence* const traj = data_get->get(agent.ID);
   data_get->add_state(agent);
-  F[0]->prepare_agent(traj, agent);
+  const Approximator* const NET = networks[0];
+  Sequence* const EP = data_get->get(agent.ID);
+  const MiniBatch MB = data->agentToMinibatch(EP);
+  NET->load(MB, agent, 0);
 
-  if( agent.Status < TERM_COMM ) // not end of sequence
+  if( agent.agentStatus < TERM ) // not end of sequence
   {
     //Compute policy and value on most recent element of the sequence.
-    Rvec output = F[0]->forward_agent(agent);
+    const Rvec output = NET->forward(agent);
     auto pol = prepare_policy<Policy_t>(output);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    Action_t act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID],mu);
+    const bool bSamplePolicy = settings.explNoise > 0;
+    auto act = pol.finalize(bSamplePolicy, &generators[nThreads+agent.ID], mu);
     const auto adv = prepare_advantage<Advantage_t>(output, &pol);
     const Real advantage = adv.computeAdvantage(pol.sampAct);
-    traj->action_adv.push_back(advantage);
-    traj->state_vals.push_back(output[VsID]);
+    EP->action_adv.push_back(advantage);
+    EP->state_vals.push_back(output[VsID]);
     agent.act(act);
     data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
       auto dbg = prepare_policy<Policy_t>(output);
-      const Rvec & ACT = traj->actions.back(), & MU = traj->policies.back();
+      const Rvec & ACT = EP->actions.back(), & MU = EP->policies.back();
       dbg.prepare(ACT, MU);
       const double err = fabs(dbg.sampImpWeight-1);
       if(err>1e-10) _die("Imp W err %20.20e", err);
@@ -50,22 +57,23 @@ select(Agent& agent)
   }
   else // either terminal or truncation state
   {
-    if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[0]->forward_agent(agent);
-      traj->state_vals.push_back(output[VsID]); // not a terminal state
+    if( agent.agentStatus == TRNC ) {
+      Rvec output = NET->forward(agent);
+      EP->state_vals.push_back(output[VsID]); // not a terminal state
     } else {
-      traj->state_vals.push_back(0); //value of terminal state is 0
+      EP->state_vals.push_back(0); //value of terminal state is 0
     }
     //whether seq is truncated or terminated, act adv is undefined:
-    traj->action_adv.push_back(0);
-    const Uint N = traj->nsteps();
+    EP->action_adv.push_back(0);
+    const Uint N = EP->nsteps();
     // compute initial Qret for whole trajectory:
-    assert(N == traj->action_adv.size());
-    assert(N == traj->state_vals.size());
-    assert(0 == traj->Q_RET.size());
+    assert(N == EP->action_adv.size());
+    assert(N == EP->state_vals.size());
+    assert(0 == EP->Q_RET.size());
     //within Retrace, we use the Q_RET vector to write the Adv retrace values
-    traj->Q_RET.resize(N, 0); traj->offPolicImpW.resize(N, 1);
-    for(Uint i=traj->ndata(); i>0; i--) backPropRetrace(traj, i);
+    EP->Q_RET.resize(N, 0);
+    EP->offPolicImpW.resize(N, 1);
+    for(Uint i=EP->ndata(); i>0; i--) backPropRetrace(EP, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);
@@ -119,7 +127,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
       if(algoSubStepID != 1) return false;
       // assumption here is that I have at least one approximator
       // and it that one is ready to apply update they are all/will be soon
-      return F[0]->ready2ApplyUpdate();
+      return networks[0]->ready2ApplyUpdate();
     };
     auto stepComplete = [&]() {
       debugL("Apply SGD update after reduction of gradients");
@@ -135,7 +143,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 
 template class RACER<Discrete_advantage, Discrete_policy, Uint>;
 template class RACER<Param_advantage, Gaussian_policy, Rvec>;
-
 //template class RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
 
 }

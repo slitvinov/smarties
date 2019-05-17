@@ -17,7 +17,7 @@ namespace smarties
 class BaseLayer: public Layer
 {
   const Uint nInputs, nNeurons, bRecurrent, nOut_simd;
-  const Function* const func;
+  const std::unique_ptr<Function> func;
   std::vector<nnReal> initVals;
 
  public:
@@ -38,18 +38,19 @@ class BaseLayer: public Layer
     initVals.resize(size, 0);
     std::copy(init.begin(), init.end(), initVals.begin());
   }
-  ~BaseLayer() {
-    _dispose_object(func);
+
+  BaseLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, std::string funcType,
+            bool bRnn, bool bOut, Uint iLink) :
+            Layer(_ID, _nNeurons, bOut, false, iLink),
+            nInputs(_nInputs), nNeurons(_nNeurons), bRecurrent(bRnn),
+            nOut_simd(Utilities::roundUpSimd(_nNeurons)),
+            func(makeFunction(funcType))
+  {
+      spanCompInpGrads = _nInputs;
   }
 
-  BaseLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, string funcType, bool bRnn,
-    bool bOut, Uint iLink) : Layer(_ID, _nNeurons, bOut, false, iLink),
-    nInputs(_nInputs), nNeurons(_nNeurons), bRecurrent(bRnn),
-    nOut_simd(roundUpSimd(_nNeurons)), func(makeFunction(funcType)) {
-      spanCompInpGrads = _nInputs;
-    }
-
-  string printSpecs() const override {
+  std::string printSpecs() const override
+  {
     std::ostringstream o;
     o<<"("<<ID<<") "<<func->name()
      <<std::string(bOutput? " output ":" ")
@@ -136,48 +137,6 @@ class BaseLayer: public Layer
       for(Uint i=0; i<nNeurons;  ++i)
         for(Uint o=0; o<nNeurons; ++o)
           weight[o +nOut_simd*i] = dis(G);
-    }
-  }
-
-  //void transpose(const Parameters*const para) const override
-  //{
-    //const nnReal* const W   = para->W(ID);
-    //      nnReal* const W_T = para->W_T(ID);
-    //for(Uint i=0; i<nInputs;  ++i)
-    //  for(Uint o=0; o<nNeurons; ++o) W_T[nInp_simd*o + i] = W[nOut_simd*i + o];
-  //}
-
-  void orthogonalize(const Parameters*const para, mt19937*const gen, const Real initFac) const
-  {
-    nnReal* const weight = para->W(ID);
-    for(Uint i=1; i<nNeurons; ++i)
-    {
-      nnReal v_d_v_pre = 0, v_d_v_post = 0;
-      for(Uint k=0; k<nInputs; k++)
-        v_d_v_pre += weight[i +nOut_simd*k] * weight[i +nOut_simd*k];
-      if(v_d_v_pre<nnEPS) {die("init error");}
-
-      for(Uint j=0; j<i; j++) {
-        nnReal u_d_u = 0.0, v_d_u = 0.0;
-        for(Uint k=0; k<nInputs; k++) {
-          u_d_u += weight[j +nOut_simd*k] * weight[j +nOut_simd*k];
-          v_d_u += weight[j +nOut_simd*k] * weight[i +nOut_simd*k];
-        }
-        if(u_d_u<nnEPS) {die("init error");}
-        for(Uint k=0; k<nInputs; k++)
-          weight[i +nOut_simd*k] -= v_d_u/u_d_u* weight[j +nOut_simd*k];
-      }
-
-      for(Uint k=0; k<nInputs; k++)
-        v_d_v_post += weight[i +nOut_simd*k] * weight[i +nOut_simd*k];
-
-      if(std::sqrt(v_d_v_post)<nnEPS) {
-        uniform_real_distribution<nnReal> dis(-initFac, initFac);
-        for(Uint k=0; k<nInputs; k++) weight[i +nOut_simd*k] = dis(*gen);
-      } else {
-        const nnReal fac = std::sqrt(v_d_v_pre)/std::sqrt(v_d_v_post);
-        for(Uint k=0; k<nInputs; k++) weight[i +nOut_simd*k] *= fac;
-      }
     }
   }
 };

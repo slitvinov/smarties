@@ -55,8 +55,8 @@ struct Conv2DLayer: public Layer
     static_assert(InC>0 && InY>0 && InX>0, "Invalid input image size");
     static_assert(KnC>0 && KnY>0 && KnX>0, "Invalid kernel size");
     static_assert(OpY>0 && OpX>0, "Invalid output image size");
-    static_assert(Px>=0 && Py>=0 && "Invalid padding");
-    static_assert(Sx>0 && Sy>0 && "Invalid stride");
+    static_assert(Px>=0 && Py>=0, "Invalid padding");
+    static_assert(Sx>0 && Sy>0, "Invalid stride");
   }
 
   std::string printSpecs() const override {
@@ -90,16 +90,16 @@ struct Conv2DLayer: public Layer
       const int iy = oy*Sy - Py + fy; //the convolution op
       //padding: skip addition if outside input boundaries
       if (ix < 0 || ix >= InX || iy < 0 || iy >= InY) continue;
-      OUT[oc][oy][ox] += K[ic][oc][fy][fx] * INP[ic][iy][ix];
+      LINOUT[oc][oy][ox] += K[ic][oc][fy][fx] * INP[ic][iy][ix];
     }
     func::_eval(curr->X(ID), curr->Y(ID), KnC * OpY * OpX);
   }
 
-  void bckward(const Activation*const prev,
-               const Activation*const curr,
-               const Activation*const next,
-               const Parameters*const grad,
-               const Parameters*const para) const override
+  void backward(const Activation*const prev,
+                const Activation*const curr,
+                const Activation*const next,
+                const Parameters*const grad,
+                const Parameters*const para) const override
   {
     { // premultiply with derivative of non-linearity & grad of bias
             nnReal* const deltas = curr->E(ID);
@@ -144,11 +144,9 @@ struct Conv2DLayer: public Layer
     nnReal* const weight = W->W(ID);
     assert(W->NB(ID) == out_size);
     assert(W->NW(ID) == Kn_X * Kn_Y * Kn_C * In_C);
-    for(Uint o=0; o<para->NB(ID); ++o) biases[o] = dis(G);
-    for(Uint o=0; o<para->NW(ID); ++o) weight[o] = dis(G);
+    for(Uint o=0; o < W->NB(ID); ++o) biases[o] = dis(G);
+    for(Uint o=0; o < W->NW(ID); ++o) weight[o] = dis(G);
   }
-
-  void orthogonalize(const Parameters*const para) const {}
 };
 
 #undef ALIGNSPEC

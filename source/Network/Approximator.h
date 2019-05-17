@@ -10,8 +10,6 @@
 #define smarties_Approximator_h
 
 #include "Builder.h"
-#include "Optimizer.h"
-#include "Network.h"
 #include "ThreadContext.h"
 #include "Utils/StatsTracker.h"
 #include "ReplayMemory/MemoryBuffer.h"
@@ -36,6 +34,14 @@ struct Approximator
   }
   void buildFromSettings(const std::vector<Uint> outputSizes);
   void buildPreprocessing(const std::vector<Uint> outputSizes);
+  Builder& getBuilder()
+  {
+    if(build) return * build.get();
+    else {
+      die("Requested unallocated network building entity");
+      return * build.get();
+    }
+  }
 
   void initializeNetwork();
 
@@ -47,10 +53,9 @@ struct Approximator
   }
 
   Approximator(std::string name_, const Settings&S, const DistributionInfo&D,
-               const std::shared_ptr<MemoryBuffer> replay_,
-               const std::shared_ptr<Approximator> preprocessing_ = nullptr,
-               const std::shared_ptr<Approximator> auxInputNet_ = nullptr);
-  ~Approximator();
+               const MemoryBuffer* const replay_,
+               const Approximator* const preprocessing_ = nullptr,
+               const Approximator* const auxInputNet_ = nullptr);
 
   void load(const MiniBatch& B, const Uint batchID, const Sint wghtID) const
   {
@@ -165,6 +170,7 @@ struct Approximator
     else C.activation(t, sampID)->addOutputDelta(gradient);
   }
 
+  Real& ESloss(const Uint ESweightID = 0) { return losses[ESweightID]; }
   Rvec oneStepBackProp(const Rvec gradient,
                        const Uint batchID,
                        const Uint t, Sint sampID) const
@@ -275,16 +281,16 @@ struct Approximator
   void getMetrics(std::ostringstream& buff) const;
   void save(const std::string base, const bool bBackup);
   void restart(const std::string base);
-
+  void rename(std::string newname) { name = newname; }
 private:
   const Settings& settings;
   const DistributionInfo & distrib;
-  const std::string name;
+  std::string name;
   const Uint   nAgents =  distrib.nAgents,    nThreads =  distrib.nThreads;
   const Uint ESpopSize = settings.ESpopSize, batchSize = settings.batchSize;
-  const std::shared_ptr<MemoryBuffer> replay;
-  const std::shared_ptr<Approximator> preprocessing;
-  const std::shared_ptr<Approximator> auxInputNet;
+  const MemoryBuffer* const replay;
+  const Approximator* const preprocessing;
+  const Approximator* const auxInputNet;
   Sint auxInputAttachLayer = -1;
   Sint m_auxInputSize = -1;
   Uint m_numberOfAddedSamples = 0;
@@ -306,9 +312,6 @@ private:
   std::vector<std::unique_ptr< AgentContext>> agentsContexts;
   StatsTracker* gradStats = nullptr;
 
-  mutable std::atomic<Uint> nAddedGradients{0};
-  Uint reducedGradients=0;
-
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
   mutable Rvec losses = Rvec(ESpopSize, 0);
@@ -323,6 +326,10 @@ private:
     assert(agentsContexts.size() > agent.ID);
     return * agentsContexts[agent.ID].get();
   }
+
+public:
+  mutable std::atomic<Uint> nAddedGradients{0};
+  Uint reducedGradients=0;
 };
 
 } // end namespace smarties

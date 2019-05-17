@@ -17,11 +17,11 @@ namespace smarties
 class LSTMLayer: public Layer
 {
   const Uint nInputs, nCells;
-  const Function* const cell;
+  const std::unique_ptr<Function> cell;
 
  public:
-  void requiredParameters(vector<Uint>& nWeight,
-                          vector<Uint>& nBiases ) const override
+  void requiredParameters(std::vector<Uint>& nWeight,
+                          std::vector<Uint>& nBiases ) const override
   {
     //cell, input, forget, output gates all linked to inp and prev LSTM output
     nWeight.push_back(4*nCells * (nInputs + nCells) );
@@ -46,30 +46,28 @@ class LSTMLayer: public Layer
     |================| |================| |================| |================|
         dE/dInput        dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
   */
-  void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs,
-                          vector<Uint>& bInputs) const override
+  void requiredActivation(std::vector<Uint>& sizes,
+                          std::vector<Uint>& bOutputs,
+                          std::vector<Uint>& bInputs) const override
   {
     sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  virtual void biasInitialValues(const vector<Real> init) {}
+  virtual void biasInitialValues(const std::vector<Real> init) {}
 
-  ~LSTMLayer() { _dispose_object(cell); }
-
-  LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
+  LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, std::string funcType,
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),
     nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType))
   {
     spanCompInpGrads = _nInputs;
   }
 
-  string printSpecs() const override
+  std::string printSpecs() const override
   {
     std::ostringstream o;
     o<<"("<<ID<<") "<<cell->name()
-     <<string(bOutput? " output ":" ")
+     <<std::string(bOutput? " output ":" ")
      <<"LSTM Layer of size:"<<nCells
      <<" linked to Layer:"<<ID-link
      <<" of size:"<<nInputs<<"\n";
@@ -167,25 +165,25 @@ class LSTMLayer: public Layer
     Layer::backward(nInputs, 4*nCells, 4*nCells, nCells, prev,curr,next, grad,para);
   }
 
-  void initialize(mt19937* const gen, const Parameters*const para,
-    Real initializationFac) const override
+  void initialize(std::mt19937& G, const Parameters*const W,
+                  Real initializationFac) const override
   {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
     const nnReal init = fac * cell->initFactor(nInputs, nCells);
-    uniform_real_distribution<nnReal> dis(-init, init);
+    std::uniform_real_distribution<nnReal> dis(-init, init);
     { // forget gate starts open, inp/out gates are closed
-     nnReal* const BB = para->B(ID);
-     for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(*gen);
+     nnReal* const BB = W->B(ID);
+     for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(G);
      //for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
      //for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
      //for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
-     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(G)-LSTM_PRIME_FAC;
+     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(G)+LSTM_PRIME_FAC;
+     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(G)-LSTM_PRIME_FAC;
     }
     {
-     nnReal* const weight = para->W(ID);
-     for(Uint w=0; w<4*nCells*(nInputs+nCells); w++) weight[w] = dis(*gen);
+     nnReal* const weight = W->W(ID);
+     for(Uint w=0; w<4*nCells*(nInputs+nCells); w++) weight[w] = dis(G);
     }
   }
 };

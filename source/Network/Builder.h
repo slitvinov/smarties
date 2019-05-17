@@ -9,7 +9,6 @@
 #ifndef smarties_Builder_h
 #define smarties_Builder_h
 
-#include "Settings.h"
 #include "Optimizer.h"
 #include "Network.h"
 
@@ -19,7 +18,7 @@ namespace smarties
 class Builder
 {
 public:
-  void addInput(const int size);
+  void addInput(const Uint size);
 
   /*
     addLayer adds fully conn. layer:
@@ -35,19 +34,25 @@ public:
                This allows networks with multiple heads, but always each
                layer has only one input layer (+ eventual recurrent connection).
   */
-  void addLayer(const int nNeurons,
+  void addLayer(const Uint nNeurons,
                 const std::string funcType,
                 const bool bOutput=false,
                 const std::string layerType="",
-                const int iLink = 1);
+                const Uint iLink = 1);
 
-  void setLastLayersBias(std::vector<Real> init_vals);
+  void addParamLayer(Uint size, std::string funcType="Linear", Real init=0);
 
-  void addParamLayer(int size, std::string funcType="Linear", Real init=0);
+  void addParamLayer(Uint size, std::string funcType, std::vector<Real> init);
 
-  void addParamLayer(int size, std::string funcType, std::vector<Real> init);
 
-  void addConv2d(const Conv2D_Descriptor&, bool bOutput=false, int iLink = 1);
+  template<typename T>
+  void setLastLayersBias(const std::vector<T> init_vals)
+  {
+    NNvec init = NNvec(init_vals.begin(), init_vals.end());
+    layers.back()->biasInitialValues(init);
+  }
+
+  void addConv2d(const Conv2D_Descriptor&, bool bOutput=false, Uint iLink = 1);
 
   // Function that initializes and constructs net and optimizer.
   // Once this is called number of layers or weights CANNOT be modified.
