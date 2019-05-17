@@ -9,6 +9,7 @@
 #ifndef smarties_Builder_h
 #define smarties_Builder_h
 
+#include "Settings.h"
 #include "Optimizer.h"
 #include "Network.h"
 
@@ -46,17 +47,11 @@ public:
 
   void addParamLayer(int size, std::string funcType, std::vector<Real> init);
 
-  void addConv2d(const bool bOutput=false, const int iLink = 1);
+  void addConv2d(const Conv2D_Descriptor&, bool bOutput=false, int iLink = 1);
 
   // Function that initializes and constructs net and optimizer.
   // Once this is called number of layers or weights CANNOT be modified.
-  std::shared_ptr<Network> build(const bool isInputNet = false);
-
-  // stackSimple reads from the settings file the amount of fully connected
-  // layers (nnl1, nnl2, ...) and builds a network with given number of nInputs
-  // and nOutputs. Supports LSTM, RNN and MLP (aka InnerProduct or Dense).
-  //void stackSimple(Uint ninps,Uint nouts) { return stackSimple(ninps,{nouts}); }
-  void stackSimple(const Uint ninps, const std::vector<Uint> nouts);
+  void build(const bool isInputNet = false);
 
 private:
   bool bBuilt = false;

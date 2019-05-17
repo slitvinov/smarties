@@ -169,8 +169,8 @@ struct COMM_buffer
     maxStateDim(maxSdim), maxActionDim(maxAdim),
     sizeStateMsg(Agent::computeStateMsgSize(maxSdim)),
     sizeActionMsg(Agent::computeActionMsgSize(maxAdim)),
-    dataStateBuf (aligned_alloc(1024, sizeStateMsg) ),
-    dataActionBuf(aligned_alloc(1024, sizeActionMsg)) { }
+    dataStateBuf (malloc(sizeStateMsg) ), // aligned_alloc(1024...)
+    dataActionBuf(malloc(sizeActionMsg)) { }
 
   ~COMM_buffer() {
     assert(dataStateBuf not_eq nullptr && dataActionBuf not_eq nullptr);

@@ -9,10 +9,10 @@
 #include "../Network/Approximator.h"
 
 #ifdef ADV_GAUS
-#include "../Math/Mixture_advantage_gaus.h"
+//#include "../Math/Mixture_advantage_gaus.h"
 #include "../Math/Gaus_advantage.h"
 #else
-#include "../Math/Mixture_advantage_quad.h"
+//#include "../Math/Mixture_advantage_quad.h"
 #include "../Math/Quadratic_advantage.h"
 #endif
 #include "../Math/Discrete_advantage.h"
@@ -27,7 +27,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   const std::type_info& vecT = typeid(Rvec);
   const bool isContinuous = actT.hash_code() == vecT.hash_code();
 
-  vector<Uint> nouts = count_outputs(&aInfo);
+  std::vector<Uint> nouts = count_outputs(&aInfo);
 
   #ifdef RACER_singleNet // state value is approximated by an other net
     F.push_back(new Approximator("net", settings, input, data));
@@ -83,24 +83,24 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
 
 // Template specializations. From now on, nothing relevant to algorithm itself.
 
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, aI->dimDiscrete(), aI->dimDiscrete()};
+  return std::vector<Uint>{1, aI->dimDiscrete(), aI->dimDiscrete()};
 }
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[2]};
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[2]};
 }
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_adv_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[1]};
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[1]};
 }
 template<> Uint
 RACER<Discrete_advantage, Discrete_policy, Uint>::
@@ -131,96 +131,25 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approxim
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template<> vector<Uint>
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-count_outputs(const ActionInfo*const aI) {
-  const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
-  return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
-}
-template<> vector<Uint>
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[2], indices[3], indices[4]};
-}
-template<> vector<Uint>
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-count_adv_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[1]};
-}
-template<> Uint
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-getnOutputs(const ActionInfo*const aI) {
-  const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
-  return 1 + nL + NEXPERTS*(1 +2*aI->dim);
-}
-template<> Uint
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-getnDimPolicy(const ActionInfo*const aI) {
-  return NEXPERTS*(1 +2*aI->dim);
-}
-
-template<>
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
-RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
-  net_outputs(count_outputs(&_env->aI)),
-  pol_start(count_pol_starts(&_env->aI)),
-  adv_start(count_adv_starts(&_env->aI))
-{
-  if(_set.learner_rank == 0) {
-    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
-  }
-  computeQretrace = true;
-  setupNet();
-
-  {  // TEST FINITE DIFFERENCES:
-    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
-    std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-    Real norm = 0;
-    for(Uint i=0; i<NEXPERTS; i++) {
-      mu[i] = std::exp(mu[i]);
-      norm += mu[i];
-    }
-    for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
-    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
-
-    auto pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output);
-    Rvec act = pol.finalize(1, &generators[0], mu);
-    auto adv = prepare_advantage<Mixture_advantage<NEXPERTS>>(output, &pol);
-    adv.test(act, &generators[0]);
-    pol.prepare(act, mu);
-    pol.test(act, mu);
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Param_advantage, Gaussian_policy, Rvec>::
 count_outputs(const ActionInfo*const aI) {
   const Uint nL = Param_advantage::compute_nL(aI);
-  return vector<Uint>{1, nL, aI->dim, aI->dim};
+  return std::vector<Uint>{1, nL, aI->dim, aI->dim};
 }
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Param_advantage, Gaussian_policy, Rvec>::
 count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[2], indices[3]};
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[2], indices[3]};
 }
-template<> vector<Uint>
+template<> std::vector<Uint>
 RACER<Param_advantage, Gaussian_policy, Rvec>::
 count_adv_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[1]};
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[1]};
 }
 template<> Uint
 RACER<Param_advantage, Gaussian_policy, Rvec>::
@@ -268,5 +197,77 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approxim
     pol.test(act, mu);
   }
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+#if 0
+template<> std::vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_outputs(const ActionInfo*const aI) {
+  const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
+  return std::vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
+}
+template<> std::vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_pol_starts(const ActionInfo*const aI) {
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[2], indices[3], indices[4]};
+}
+template<> std::vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_adv_starts(const ActionInfo*const aI) {
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  return std::vector<Uint>{indices[1]};
+}
+template<> Uint
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+getnOutputs(const ActionInfo*const aI) {
+  const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
+  return 1 + nL + NEXPERTS*(1 +2*aI->dim);
+}
+template<> Uint
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+getnDimPolicy(const ActionInfo*const aI) {
+  return NEXPERTS*(1 +2*aI->dim);
+}
+
+template<>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
+  net_outputs(count_outputs(&_env->aI)),
+  pol_start(count_pol_starts(&_env->aI)),
+  adv_start(count_adv_starts(&_env->aI))
+{
+  if(_set.learner_rank == 0) {
+    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
+  }
+  computeQretrace = true;
+  setupNet();
+
+  {  // TEST FINITE DIFFERENCES:
+    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+    std::normal_distribution<Real> dist(0, 1);
+    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
+    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    Real norm = 0;
+    for(Uint i=0; i<NEXPERTS; i++) {
+      mu[i] = std::exp(mu[i]);
+      norm += mu[i];
+    }
+    for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
+    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
+
+    auto pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output);
+    Rvec act = pol.finalize(1, &generators[0], mu);
+    auto adv = prepare_advantage<Mixture_advantage<NEXPERTS>>(output, &pol);
+    adv.test(act, &generators[0]);
+    pol.prepare(act, mu);
+    pol.test(act, mu);
+  }
+}
+#endif
+////////////////////////////////////////////////////////////////////////////////
 
 }

@@ -72,7 +72,7 @@ private:
     if(nExperts == 1) ret[0] = 1;
     else
       for(Uint i=0;i<nExperts;i++)
-        ret[i]=unbPosMap_func(netOutputs[iExperts+i]);
+        ret[i] = Utilities::unbPosMap_func(netOutputs[iExperts+i]);
     return ret;
   }
   Real compute_norm() const {
@@ -114,7 +114,7 @@ private:
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
       for (Uint j=0; j<nA; j++)
-        ret[i][j] = std::sqrt(noiseMap_func(netOutputs[start+j]));
+        ret[i][j] = std::sqrt(Utilities::noiseMap_func(netOutputs[start+j]));
     }
     return ret;
   }
@@ -126,7 +126,7 @@ private:
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
       for(Uint j=0; j<nA; j++)
-        ret[i][j] = noiseMap_func(netOutputs[start+j]);
+        ret[i][j] = Utilities::noiseMap_func(netOutputs[start+j]);
     }
     return ret;
   }
@@ -138,7 +138,8 @@ private:
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
-      for (Uint j=0; j<nA; j++) ret[i][j] = noiseMap_func(netOutputs[start+j]);
+      for (Uint j=0; j<nA; j++)
+        ret[i][j] = Utilities::noiseMap_func(netOutputs[start+j]);
     }
     return ret;
   }
@@ -180,9 +181,9 @@ public:
   {
     for(Uint e=0; e<nExperts*aI->dim(); e++)
     #ifdef EXTRACT_COVAR
-      B.push_back(noiseMap_inverse(S*S));
+      B.push_back(Utilities::noiseMap_inverse(S*S));
     #else
-      B.push_back(noiseMap_inverse(S));
+      B.push_back(Utilities::noiseMap_inverse(S));
     #endif
   }
 
@@ -206,15 +207,17 @@ private:
   long double evalBehavior(const Rvec& act, const Rvec& beta) const {
     long double p = 0;
     const Uint NA = act.size();
-    for(Uint j=0; j<nExperts; j++) {
+    for(Uint j=0; j<nExperts; ++j)
+    {
       long double pi = 1;
-      for(Uint i=0; i<NA; i++) {
+      for(Uint i=0; i<NA; ++i)
+      {
         const Real stdi = beta[i +j*NA +nExperts*(1+NA)]; //then stdevs
         const Real mean = beta[i +j*NA +nExperts];
-        if(std::fabs(mean-act[i]) > NORMDIST_MAX*stdi) {
-          cout << "guilty act: "<<vprint(act)<<" "<<vprint(beta)<<endl;
-          die("");
-        }
+        //if(std::fabs(mean-act[i]) > NORMDIST_MAX*stdi) {
+        //  cout << "guilty act: "<<vprint(act)<<" "<<vprint(beta)<<endl;
+        //  die("");
+        //}
         pi *= oneDnormal(act[i], mean, 1/(stdi*stdi));
       }
       p += pi * beta[j]; //beta[j] contains expert
@@ -358,14 +361,14 @@ public:
     assert(grad.size() == nP);
     for(Uint j=0; j<nExperts; j++) {
       {
-        const Real diff = unbPosMap_diff(netOutputs[iExperts+j]);
+        const Real diff = Utilities::unbPosMap_diff(netOutputs[iExperts+j]);
         netGradient[iExperts+j] = grad[j] * diff;
       }
       for (Uint i=0; i<nA; i++) {
         netGradient[iMeans +i+j*nA] = grad[i+j*nA +nExperts];
         //if bounded actions pass through tanh!
         //helps against NaNs in converting from bounded to unbounded action space:
-        if(aInfo->bounded[i]) {
+        if ( aInfo->isBounded(i) ) {
           if(means[j][i]> BOUNDACT_MAX && netGradient[iMeans +i+j*nA]>0)
             netGradient[iMeans +i+j*nA] = 0;
           else
@@ -373,7 +376,7 @@ public:
             netGradient[iMeans +i+j*nA] = 0;
         }
 
-        const Real diff = noiseMap_diff(netOutputs[iPrecs +i+j*nA]);
+        const Real diff = Utilities::noiseMap_diff(netOutputs[iPrecs +i+j*nA]);
         netGradient[iPrecs +i+j*nA] = grad[i+j*nA +(nA+1)*nExperts] * diff;
       }
     }
@@ -381,20 +384,19 @@ public:
 
   Rvec getBest() const
   {
-    const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
-    return means[bestExp];
+    return means[  Utilities::maxInd(experts) ];
   }
   Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint j=0; j<nExperts; j++)
       for (Uint i=0; i<nA; i++)
-        if (aInfo->bounded[i]) {
+        if ( aInfo->isBounded(i) ) {
           const size_t idx = i + j*nA + nExperts;
           MU[idx] = std::min( (Real)BOUNDACT_MAX, MU[idx]);
           MU[idx] = std::max(-(Real)BOUNDACT_MAX, MU[idx]);
         }
     sampAct = bSample ? sample(gen, MU) : getBest();
-    return aInfo->getScaled(sampAct);
+    return aInfo->action2scaledAction(sampAct);
   }
 
   Rvec getVector() const

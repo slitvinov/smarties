@@ -8,6 +8,7 @@
 
 #include "MemorySharing.h"
 #include "Utils/FunctionUtilities.h"
+#include <unistd.h> // usleep
 
 namespace smarties
 {
@@ -98,7 +99,7 @@ void MemorySharing::run()
   while(true)
   {
     {
-      std::lock_guard<std::mutex> lock(complete_mutex);
+      std::lock_guard<std::mutex> lockQueue(complete_mutex);
       while ( completed.size() )
       {
         if (sharingTurn == sharingRank)

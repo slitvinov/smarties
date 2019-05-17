@@ -8,7 +8,7 @@
 
 #include "../Network/Builder.h"
 #include "../Network/Approximator.h"
-#include "../Math/Gaussian_mixture.h"
+//#include "../Math/Gaussian_mixture.h"
 #include "../Math/Gaussian_policy.h"
 #include "../Math/Discrete_policy.h"
 
@@ -61,7 +61,7 @@ void VRACER<Policy_t, Action_t>::setupNet()
   const std::type_info& vecT = typeid(Rvec);
   const bool isContinuous = actT.hash_code() == vecT.hash_code();
 
-  vector<Uint> nouts = count_outputs(&aInfo);
+  std::vector<Uint> nouts = count_outputs(&aInfo);
 
   #ifdef DACER_singleNet // state value is approximated by an other net
     F.push_back(new Approximator("net", settings, input, data));
@@ -112,18 +112,18 @@ void VRACER<Policy_t, Action_t>::setupNet()
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<> vector<Uint> VRACER<Discrete_policy, Uint>::
+template<> std::vector<Uint> VRACER<Discrete_policy, Uint>::
 count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, aI->dimDiscrete()};
+  return std::vector<Uint>{1, aI->dimDiscrete()};
 }
-template<> vector<Uint> VRACER<Discrete_policy, Uint>::
+template<> std::vector<Uint> VRACER<Discrete_policy, Uint>::
 count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
   #ifdef DACER_singleNet
-    return vector<Uint>{indices[1]};
+    return std::vector<Uint>{indices[1]};
   #else
-    return vector<Uint>{indices[0]};
+    return std::vector<Uint>{indices[0]};
   #endif
 }
 template<> Uint VRACER<Discrete_policy, Uint>::
@@ -141,19 +141,63 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 /////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-
-template<> vector<Uint> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
+template<> std::vector<Uint> VRACER<Gaussian_policy, Rvec>::
 count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
+  return std::vector<Uint>{1, aI->dim, aI->dim};
 }
-template<> vector<Uint> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
+template<> std::vector<Uint> VRACER<Gaussian_policy, Rvec>::
 count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
   #ifdef DACER_singleNet
-    return vector<Uint>{indices[1], indices[2], indices[3]};
+    return std::vector<Uint>{indices[1], indices[2]};
   #else
-    return vector<Uint>{indices[0], indices[1], indices[2]};
+    return std::vector<Uint>{indices[0], indices[1]};
+  #endif
+}
+template<> Uint VRACER<Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI) { return 2*aI->dim; }
+
+template<> VRACER<Gaussian_policy, Rvec>::
+VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
+net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
+  printf("Gaussian continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  computeQretrace = true;
+  setupNet();
+
+  {  // TEST FINITE DIFFERENCES:
+    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+    std::normal_distribution<Real> dist(0, 1);
+
+    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<nA; i++) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
+    for(Uint i=0; i<nA; i++)
+      output[1+i+nA] = noiseMap_inverse(mu[i+nA]) + .1*dist(generators[0]);
+
+    Gaussian_policy pol = prepare_policy<Gaussian_policy>(output);
+    Rvec act = pol.finalize(1, &generators[0], mu);
+    pol.prepare(act, mu);
+    pol.test(act, mu);
+  }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+#if 0
+
+template<> std::vector<Uint> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
+count_outputs(const ActionInfo*const aI) {
+  return std::vector<Uint>{1, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
+}
+template<> std::vector<Uint> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
+count_pol_starts(const ActionInfo*const aI) {
+  const std::vector<Uint> sizes = count_outputs(aI);
+  const std::vector<Uint> indices = count_indices(sizes);
+  #ifdef DACER_singleNet
+    return std::vector<Uint>{indices[1], indices[2], indices[3]};
+  #else
+    return std::vector<Uint>{indices[0], indices[1], indices[2]};
   #endif
 }
 template<> Uint VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
@@ -186,49 +230,8 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
     pol.test(act, mu);
   }
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
-template<> vector<Uint> VRACER<Gaussian_policy, Rvec>::
-count_outputs(const ActionInfo*const aI) {
-  return vector<Uint>{1, aI->dim, aI->dim};
-}
-template<> vector<Uint> VRACER<Gaussian_policy, Rvec>::
-count_pol_starts(const ActionInfo*const aI) {
-  const vector<Uint> sizes = count_outputs(aI);
-  const vector<Uint> indices = count_indices(sizes);
-  #ifdef DACER_singleNet
-    return vector<Uint>{indices[1], indices[2]};
-  #else
-    return vector<Uint>{indices[0], indices[1]};
-  #endif
-}
-template<> Uint VRACER<Gaussian_policy, Rvec>::
-getnDimPolicy(const ActionInfo*const aI) { return 2*aI->dim; }
-
-template<> VRACER<Gaussian_policy, Rvec>::
-VRACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approximator(MDP_, S_, D_),
-net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
-  printf("Gaussian continuous-action V-RACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
-  computeQretrace = true;
-  setupNet();
-
-  {  // TEST FINITE DIFFERENCES:
-    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
-    std::normal_distribution<Real> dist(0, 1);
-
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
-    for(Uint i=0; i<nA; i++) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++)
-      output[1+i+nA] = noiseMap_inverse(mu[i+nA]) + .1*dist(generators[0]);
-
-    Gaussian_policy pol = prepare_policy<Gaussian_policy>(output);
-    Rvec act = pol.finalize(1, &generators[0], mu);
-    pol.prepare(act, mu);
-    pol.test(act, mu);
-  }
-}
 
 }

@@ -7,15 +7,17 @@
 //
 
 #include "Collector.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
 
-Collector::Collector(MemoryBuffer*const RM) : replay(RM), sharing(new MemorySharing(RM))
+Collector::Collector(MemoryBuffer*const RM) : replay(RM),
+  sharing( std::make_unique<MemorySharing>(RM) )
 {
   globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
   inProgress.resize(distrib.nAgents, nullptr);
-  for (int i=0; i<distrib.nAgents; i++) inProgress[i] = new Sequence();
+  for (Uint i=0; i<distrib.nAgents; i++) inProgress[i] = new Sequence();
 }
 
 // Once learner receives a new observation, first this function is called
@@ -25,7 +27,7 @@ void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
   Sequence* const S = inProgress[a.ID];
-  const std::vector<nnReal> storedState = a.s.copy_observed<memReal>();
+  const std::vector<nnReal> storedState = a.getObservedState<nnReal>();
   if(a.trackSequence == false)
   {
     // contain only one state and do not add more. to not store rewards either
@@ -45,7 +47,7 @@ void Collector::add_state(Agent&a)
   #ifndef NDEBUG // check that last new state and new old state are the same
     if( S->nsteps() ) {
       bool same = true;
-      const std::vector<nnReal> vecSold = a.sOld.copy_observed<nnReal>();
+      const std::vector<nnReal> vecSold = a.getObservedOldState<nnReal>();
       const auto memSold = S->states.back();
       for (Uint i=0; i<vecSold.size() && same; i++)
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
@@ -59,9 +61,9 @@ void Collector::add_state(Agent&a)
   //env->pickReward(a);
   S->ended = a.agentStatus == TERM;
   S->states.push_back(storedState);
-  S->rewards.push_back(a.r);
-  if( a.Status not_eq INIT ) S->totR += a.r;
-  else assert(std::fabs(a.r)<2.2e-16); //rew for init state must be 0
+  S->rewards.push_back(a.reward);
+  if( a.agentStatus not_eq INIT ) S->totR += a.reward;
+  else assert(std::fabs(a.reward)<2.2e-16); //rew for init state must be 0
 }
 
 // Once network picked next action, call this method
@@ -71,16 +73,16 @@ void Collector::add_action(const Agent& a, const Rvec pol)
   assert(a.agentStatus < TERM);
   if(a.trackSequence == false) {
     // do not store more stuff in sequence but also do not track data counter
-    inProgress[a.ID]->actions = std::vector<std::vector<Real>>{ a.a.vals };
+    inProgress[a.ID]->actions = std::vector<std::vector<Real>>{ a.action };
     inProgress[a.ID]->policies = std::vector<std::vector<Real>>{ pol };
     return;
   }
 
   if(a.agentStatus not_eq INIT) nSeenTransitions_loc ++;
-  inProgress[a.ID]->actions.push_back(a.a.vals);
+  inProgress[a.ID]->actions.push_back( a.action );
   inProgress[a.ID]->policies.push_back(pol);
-  if(distrib.logAllSamples)
-    a.writeData(learn_rank, pol, nSeenTransitions_loc.load());
+  if(distrib.logAllSamples) // TODO was learner rank
+    a.writeData(distrib.world_rank, pol, nSeenTransitions_loc.load());
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
@@ -89,12 +91,14 @@ void Collector::terminate_seq(Agent&a)
   assert(a.agentStatus >= TERM);
   if(a.trackSequence == false) return; // do not store seq
   // fill empty action and empty policy:
-  a.act(Rvec(aI.dim(), 0));
-  inProgress[a.ID]->actions.push_back(  Rvec(aI.dim(),  0) );
-  inProgress[a.ID]->policies.push_back( Rvec(aI.dimPol(), 0) );
+  const Rvec dummyAct = Rvec(aI.dim(), 0), dummyPol = Rvec(aI.dimPol(), 0);
 
-  if(distrib.logAllSamples)
-    a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions_loc.load());
+  a.act(dummyAct);
+  inProgress[a.ID]->actions.push_back( dummyAct );
+  inProgress[a.ID]->policies.push_back( dummyPol );
+
+  if(distrib.logAllSamples) // TODO was learner rank
+    a.writeData(distrib.world_rank, dummyPol, nSeenTransitions_loc.load());
   push_back(a.ID);
 }
 
@@ -124,7 +128,6 @@ void Collector::push_back(const int & agentId)
 }
 
 Collector::~Collector() {
-  delete sharing;
   for (auto & S : inProgress) Utilities::dispose_object(S);
 }
 

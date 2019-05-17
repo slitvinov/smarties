@@ -24,7 +24,8 @@ struct Mixture_advantage
   const Gaussian_mixture<nExperts>* const policy;
   //const array<array<Real,nExperts>, nExperts> overlap;
 
-  Rvec getParam() const {
+  Rvec getParam() const
+  {
     Rvec ret(nL, 0);
     for(Uint ind=0, e=0; e<nExperts; e++)
       for (Uint j=0; j<nA; j++)
@@ -79,14 +80,15 @@ private:
 
     std::array<Rvec,nExperts> extract_L() const
     {
-      array<Rvec,nExperts> ret;
+      std::array<Rvec,nExperts> ret;
       Uint kL = start_matrix;
       for (Uint e=0; e<nExperts; e++) {
         ret[e] = Rvec(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
         for (Uint i=0; i<=j; i++)
           if (i<j) ret[e][nA*j +i] = netOutputs[kL++];
-          else if (i==j) ret[e][nA*j +i] = unbPosMap_func(netOutputs[kL++]);
+          else if (i==j)
+            ret[e][nA*j +i] = Utilities::unbPosMap_func(netOutputs[kL++]);
       }
       assert(kL==start_matrix+nL);
       return ret;
@@ -94,7 +96,7 @@ private:
 
     std::array<Rvec,nExperts> extract_matrix() const
     {
-      array<Rvec,nExperts> ret;
+      std::array<Rvec,nExperts> ret;
       for (Uint e=0; e<nExperts; e++) {
         ret[e] = Rvec(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
@@ -140,7 +142,8 @@ public:
         for (Uint k=i; k<nA; k++)
           dErrdL += dErrdP[nA*j +k] * L[e][nA*k +i];
 
-        if(i==j) netGradient[kl] = dErrdL * unbPosMap_diff(netOutputs[kl]);
+        if(i==j)
+          netGradient[kl] = dErrdL * Utilities::unbPosMap_diff(netOutputs[kl]);
         else
         if(i<j)  netGradient[kl] = dErrdL;
         kl++;
@@ -177,20 +180,20 @@ public:
     return nExperts*(aI->dim()*aI->dim() + aI->dim())/2;
   }
 
-  void test(const Rvec& act, mt19937*const gen) const
+  void test(const Rvec& act, std::mt19937*const gen) const
   {
     const Uint numNetOutputs = netOutputs.size();
     Rvec _grad(numNetOutputs, 0);
     grad(act, 1, _grad);
-    ofstream fout("mathtest.log", ios::app);
+    std::ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nL; i++)
     {
       Rvec out_1 = netOutputs, out_2 = netOutputs;
       const Uint index = start_matrix+i;
       out_1[index] -= 0.0001; out_2[index] += 0.0001;
 
-      Mixture_advantage a1(vector<Uint>{start_matrix}, aInfo, out_1, policy);
-      Mixture_advantage a2(vector<Uint>{start_matrix}, aInfo, out_2, policy);
+      Mixture_advantage a1(std::vector<Uint>{start_matrix}, aInfo, out_1, policy);
+      Mixture_advantage a2(std::vector<Uint>{start_matrix}, aInfo, out_2, policy);
 
       const double A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
       const double fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);

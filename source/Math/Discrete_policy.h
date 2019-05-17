@@ -36,10 +36,11 @@ struct Discrete_policy
   }
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
+    for(Uint e=0; e<aI->dim(); e++)
     #ifdef EXTRACT_COVAR
-      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S*S));
+        O.push_back(Utilities::noiseMap_inverse(S*S));
     #else
-      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S));
+        O.push_back(Utilities::noiseMap_inverse(S));
     #endif
   }
 
@@ -59,7 +60,8 @@ struct Discrete_policy
   {
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
-    for (Uint j=0; j<nA; j++) ret[j] = unbPosMap_func(netOutputs[start_prob+j]);
+    for (Uint j=0; j<nA; j++)
+      ret[j] = Utilities::unbPosMap_func(netOutputs[start_prob+j]);
     return ret;
   }
 
@@ -158,7 +160,7 @@ struct Discrete_policy
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)
-    netGradient[start_prob+j]= grad[j]*unbPosMap_diff(netOutputs[start_prob+j]);
+    netGradient[start_prob+j]= grad[j]*Utilities::unbPosMap_diff(netOutputs[start_prob+j]);
   }
 
   Rvec getProbs() const {
@@ -170,9 +172,8 @@ struct Discrete_policy
 
   Uint finalize(const bool bSample, std::mt19937*const gen, const Rvec& beta)
   {
-    sampAct = bSample? sample(gen, beta) :
-      std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));
-    return sampAct; //the index of max Q
+    sampAct = bSample? sample(gen, beta) : Utilities::maxInd(probs);
+    return sampAct;
   }
 
   Uint updateOrUhState(Rvec& state, Rvec& beta,

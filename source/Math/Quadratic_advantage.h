@@ -54,9 +54,11 @@ struct Quadratic_advantage: public Quadratic_term
       Real dErrdL = 0;
       for (Uint k=i; k<nA; k++) dErrdL += dErrdP[nA*j +k] * L[nA*k +i];
 
-      if(i==j) netGradient[kl] = dErrdL * unbPosMap_diff(netOutputs[kl]);
+      if(i==j)
+        netGradient[kl] = dErrdL * Utilities::unbPosMap_diff(netOutputs[kl]);
       else
-      if(i<j)  netGradient[kl] = dErrdL;
+      if(i<j)
+        netGradient[kl] = dErrdL;
       kl++;
     }
 
@@ -68,7 +70,7 @@ struct Quadratic_advantage: public Quadratic_term
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
 
         netGradient[start_mean+a] = val;
-        if(aInfo->bounded[a])
+        if ( aInfo->isBounded(a) )
         {
           if(mean[a]> BOUNDACT_MAX && netGradient[start_mean+a]>0)
             netGradient[start_mean+a] = 0;

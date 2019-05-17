@@ -90,6 +90,7 @@ struct Agent
       ++timeStepInEpisode;
     }
   }
+
   void act(const Uint label)
   {
     action = aInfo.label2actionMessage<double>(label);
@@ -97,6 +98,17 @@ struct Agent
   void act(const Rvec& _act)
   {
     action = std::vector<double>(_act.begin(), _act.end());
+  }
+
+  template<typename T = nnReal>
+  std::vector<T> getObservedState()
+  {
+    return sInfo.state2observed<T>(state);
+  }
+  template<typename T = nnReal>
+  std::vector<T> getObservedOldState()
+  {
+    return sInfo.state2observed<T>(sOld);
   }
 
   void packStateMsg(void * const buffer) const // put agent's state into buffer
@@ -239,7 +251,8 @@ struct Agent
 
 #endif
 
-  void checkNanInf() const {
+  void checkNanInf() const
+  {
     #ifndef NDEBUG
       const auto assertValid = [] (const double val) {
         assert( not std::isnan(val) and not std::isinf(val) );

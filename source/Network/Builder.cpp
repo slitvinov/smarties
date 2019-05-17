@@ -113,56 +113,7 @@ void Builder::addParamLayer(Uint size,
   nOutputs += l->nOutputs();
 }
 
-void Builder::stackSimple(const Uint ninps, const std::vector<Uint> nouts)
-{
-  const Uint sumout = accumulate(nouts.begin(), nouts.end(), 0);
-  const std::string netType = settings.nnType, funcType = settings.nnFunc;
-  const std::vector<Uint>& layerSizes = settings.nnLayerSizes;
-
-  if(ninps == 0)
-  {
-    warn("network with no input space. will return a param layer");
-    addParamLayer(sumout, settings.nnOutputFunc, std::vector<Real>(sumout,0));
-    return;
-  }
-
-  addInput(ninps);
-
-  //User can specify how many layers exist independendlty for each output
-  // of the network. For example, if the settings file specifies 3 layer
-  // sizes and splitLayers=1, the network will have 2 shared bottom Layers
-  // (not counting input layer) and then for each of the outputs a separate
-  // third layer each connected back to the second layer.
-  const Uint nLayers = layerSizes.size();
-  const Uint nsplit = std::min((Uint) settings.splitLayers, nLayers);
-  const Uint firstSplit = nLayers - nsplit;
-
-  for(Uint i=0; i<firstSplit; i++)
-    addLayer(layerSizes[i], funcType, false, netType);
-
-  if(sumout > 0)
-  {
-    if(nsplit)
-    {
-      const Uint lastShared = layers.size() - 1;
-      for (Uint i=0; i<nouts.size(); i++)
-      {
-        //`link' specifies how many layers back should layer take input from
-        // use layers.size()-lastShared >=1 to link back to last shared layer
-        const Uint nConnectBack = layers.size() - lastShared;
-        addLayer(layerSizes[firstSplit], funcType,false,netType, nConnectBack);
-
-        for (Uint j=firstSplit+1; j<layerSizes.size(); j++)
-          addLayer(layerSizes[j], funcType,false,netType);
-
-        addLayer(nouts[i], settings.nnOutputFunc, true);
-      }
-    }
-    else addLayer(sumout, settings.nnOutputFunc, true);
-  }
-}
-
-std::shared_ptr<Network> Builder::build(const bool isInputNet)
+void Builder::build(const bool isInputNet)
 {
   if(bBuilt) die("Cannot build the network multiple times\n");
   bBuilt = true;
@@ -206,8 +157,6 @@ std::shared_ptr<Network> Builder::build(const bool isInputNet)
     opt = std::make_shared<CMA_Optimizer>(settings,distrib,weights);
   else
     opt = std::make_shared<AdamOptimizer>(settings,distrib,weights,threadGrads);
-
-  return net;
 }
 
 inline bool matchConv2D(Conv2D_Descriptor DESCR, int InX, int InY, int InC, int KnX, int KnY, int KnC, int Sx, int Sy, int Px, int Py, int OpX, int OpY)
@@ -220,7 +169,7 @@ inline bool matchConv2D(Conv2D_Descriptor DESCR, int InX, int InY, int InC, int 
   return sameInp && sameOut && sameFilter && sameStride && samePadding;
 }
 
-void Builder::addConv2d(Conv2D_Descriptor& descr, bool bOut, int iLink)
+void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, int iLink)
 {
   if(bBuilt) die("Cannot build the network multiple times");
   const int ID = layers.size();

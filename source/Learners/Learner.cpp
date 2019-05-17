@@ -16,8 +16,8 @@ namespace smarties
 Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   distrib(D_), settings(S_), MDP(MDP_),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
-  data_proc( std::make_unique<MemoryProcessing>(data) ),
-  data_get ( std::make_unique<Collector       >(data) ) {}
+  data_proc( std::make_unique<MemoryProcessing>( data.get() ) ),
+  data_get ( std::make_unique<Collector       >( data.get() ) ) {}
 
 void Learner::initializeLearner()
 {

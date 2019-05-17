@@ -50,18 +50,18 @@ private:
   static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA) {
     Rvec ret = Rvec(2*nA);
     for(Uint i=0; i<2*nA; i++)
-      ret[i] = unbPosMap_func(net[start +1 +i]);
+      ret[i] = Utilities::unbPosMap_func(net[start +1 +i]);
 
     return ret;
   }
   static Real extract_coefs(const Rvec net, const Uint start)  {
-    return unbPosMap_func(net[start]);
+    return Utilities::unbPosMap_func(net[start]);
   }
 
   void grad_matrix(Rvec& G, const Real err) const {
-    G[start_coefs] *= err * unbPosMap_diff(netOutputs[start_coefs]);
+    G[start_coefs] *= err * Utilities::unbPosMap_diff(netOutputs[start_coefs]);
     for (Uint i=0, ind=start_coefs+1; i<2*nA; i++, ind++)
-       G[ind] *= err * unbPosMap_diff(netOutputs[ind]);
+       G[ind] *= err * Utilities::unbPosMap_diff(netOutputs[ind]);
   }
 
 public:

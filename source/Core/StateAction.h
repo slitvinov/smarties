@@ -64,6 +64,8 @@ struct MDPdescriptor
   Uint nAppendedObs = 0;
   bool isPartiallyObservable = false;
 
+  std::vector<Conv2D_Descriptor> conv2dDescriptors;
+
   void synchronizeDescriptor( const std::function<void(void*, size_t)>& );
 };
 
@@ -112,6 +114,7 @@ struct ActionInfo
   ///////////////////////////// CONTINUOUS ACTIONS /////////////////////////////
   Real getActMaxVal(const Uint i) const { return MDP.upperActionValue[i]; }
   Real getActMinVal(const Uint i) const { return MDP.lowerActionValue[i]; }
+  bool isBounded(const Uint i) const { return MDP.bActionSpaceBounded[i]; }
   Uint dim()         const { return MDP.dimAction;      }
   Uint dimPol()      const { return MDP.policyVecDim;   }
   Uint dimDiscrete() const { return MDP.maxActionLabel; }

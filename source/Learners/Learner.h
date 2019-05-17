@@ -71,8 +71,8 @@ protected:
 
   std::vector<std::mt19937>& generators = distrib.generators;
 
-  const std::unique_ptr<MemoryBuffer> data =
-                         std::make_unique<MemoryBuffer>(MDP, settings, distrib);
+  const std::shared_ptr<MemoryBuffer> data =
+                         std::make_shared<MemoryBuffer>(MDP, settings, distrib);
   const std::unique_ptr<MemoryProcessing> data_proc;
   const std::unique_ptr<Collector>        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
@@ -136,14 +136,16 @@ public:
   virtual void restart();
 
 protected:
-  inline void backPropRetrace(Sequence*const S, const Uint t) {
+  inline void backPropRetrace(Sequence*const S, const Uint t)
+  {
     if(t == 0) return;
     const Fval W = S->offPolicImpW[t], R=data->scaledReward(S, t), G = gamma;
     const Fval C = W<1 ? W:1, V = S->state_vals[t], A = S->action_adv[t];
     S->setRetrace(t-1, R + G*V + G*C*(S->Q_RET[t] -A-V) );
   }
-  inline Fval updateRetrace(Sequence*const S, const Uint t, const Fval A,
-    const Fval V, const Fval W) const {
+  inline Fval updateRetrace(Sequence*const S, const Uint t,
+                            const Fval A, const Fval V, const Fval W) const
+  {
     assert(W >= 0);
     if(t == 0) return 0;
     S->setStateValue(t, V); S->setAdvantage(t, A);

@@ -9,6 +9,10 @@
 #ifndef smarties_ThreadContext_h
 #define smarties_ThreadContext_h
 
+#include "ReplayMemory/Sequences.h"
+#include "Network/Network.h"
+#include "Core/Agent.h"
+
 namespace smarties
 {
 
@@ -78,30 +82,48 @@ struct ThreadContext
     else activation(t, sample)->written = false; // what about backprop?
   }
 
-  Sint& endBackPropStep(const Sint sample = 0)
-  {
+  Sint& endBackPropStep(const Sint sample = 0) {
     assert(sample<0 || lastGradTstep.size() > (Uint) sample);
     if(sample<0) return lastGradTstep.back();
     else return lastGradTstep[sample];
   }
-  Sint& usedWeightID(const Sint sample = 0)
-  {
+  Sint& usedWeightID(const Sint sample = 0) {
     assert(sample<0 || weightIndex.size() > (Uint) sample);
     if(sample<0) return weightIndex.back();
     else return weightIndex[sample];
   }
-  ADDED_INPUT& addedInputType(const Sint sample = 0)
-  {
+  ADDED_INPUT& addedInputType(const Sint sample = 0) {
     assert(sample<0 || _addedInputType.size() > (Uint) sample);
     if(sample<0) return _addedInputType.back();
     else return _addedInputType[sample];
   }
-  NNvec& addedInputVec(const Uint t, const Sint sample = 0)
-  {
+  NNvec& addedInputVec(const Uint t, const Sint sample = 0) {
     assert(sample<0 || _addedInputVec.size() > (Uint) sample);
     if(sample<0) return _addedInputVec.back()[ mapTime2Ind(t) ];
     else return _addedInputVec[sample][ mapTime2Ind(t) ];
   }
+
+  const Sint& endBackPropStep(const Sint sample = 0) const {
+    assert(sample<0 || lastGradTstep.size() > (Uint) sample);
+    if(sample<0) return lastGradTstep.back();
+    else return lastGradTstep[sample];
+  }
+  const Sint& usedWeightID(const Sint sample = 0) const {
+    assert(sample<0 || weightIndex.size() > (Uint) sample);
+    if(sample<0) return weightIndex.back();
+    else return weightIndex[sample];
+  }
+  const ADDED_INPUT& addedInputType(const Sint sample = 0) const {
+    assert(sample<0 || _addedInputType.size() > (Uint) sample);
+    if(sample<0) return _addedInputType.back();
+    else return _addedInputType[sample];
+  }
+  const NNvec& addedInputVec(const Uint t, const Sint sample = 0) const {
+    assert(sample<0 || _addedInputVec.size() > (Uint) sample);
+    if(sample<0) return _addedInputVec.back()[ mapTime2Ind(t) ];
+    else return _addedInputVec[sample][ mapTime2Ind(t) ];
+  }
+
   Activation* activation(const Uint t, const Sint sample) const
   {
     assert(sample<0 || activations.size() > (Uint) sample);
@@ -138,6 +160,7 @@ struct ThreadContext
 
 struct AgentContext
 {
+  static constexpr Uint nAddedSamples = 0;
   const Uint agentID;
   const MiniBatch* batch;
   const Sequence * episode;
@@ -155,7 +178,7 @@ struct AgentContext
     _addedInputVec.reserve(MAX_SEQ_LEN);
   }
 
-  void setAddedInputType(const ADDED_INPUT type)
+  void setAddedInputType(const Sint sample, const ADDED_INPUT type)
   {
     _addedInputType = type;
   }
@@ -171,19 +194,38 @@ struct AgentContext
     NET->allocTimeSeries(activations, batch->getNumSteps(0));
   }
 
-  void overwrite(const Uint t) const
+  void overwrite(const Uint t, const Sint sample = -1) const
   {
     activation(t)->written = false; // what about backprop?
   }
 
-  Sint& endBackPropStep() { return lastGradTstep; }
-  Sint& usedWeightID() { return weightIndex; }
-  ADDED_INPUT& addedInputType() { return _addedInputType; }
-  NNvec& addedInputVec(const Uint t)
+  Sint& endBackPropStep(const Sint sample =-1) {
+    return lastGradTstep;
+  }
+  Sint& usedWeightID(const Sint sample =-1) {
+    return weightIndex;
+  }
+  ADDED_INPUT& addedInputType(const Sint sample =-1) {
+    return _addedInputType;
+  }
+  NNvec& addedInputVec(const Uint t, const Sint sample = -1)
   {
     return _addedInputVec[ mapTime2Ind(t) ];
   }
-  Activation* activation(const Uint t) const
+  const Sint& endBackPropStep(const Sint sample =-1) const {
+    return lastGradTstep;
+  }
+  const Sint& usedWeightID(const Sint sample =-1) const {
+    return weightIndex;
+  }
+  const ADDED_INPUT& addedInputType(const Sint sample =-1) const {
+    return _addedInputType;
+  }
+  const NNvec& addedInputVec(const Uint t, const Sint sample = -1) const {
+    return _addedInputVec[ mapTime2Ind(t) ];
+  }
+
+  Activation* activation(const Uint t, const Sint sample = -1) const
   {
     return activations[ mapTime2Ind(t) ].get();
   }

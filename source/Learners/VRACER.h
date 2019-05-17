@@ -18,8 +18,8 @@ namespace smarties
 class Discrete_policy;
 class Gaussian_policy;
 
-template<Uint nExperts>
-class Gaussian_mixture;
+//template<Uint nExperts>
+//class Gaussian_mixture;
 
 #define DACER_simpleSigma
 #define DACER_singleNet

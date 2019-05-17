@@ -241,13 +241,17 @@ inline Rvec trust_region_update(const Rvec& grad,
   return ret;
 }
 
-inline Uint maxInd(const Rvec& pol)
+template<typename T>
+inline Uint maxInd(const T& vec)
 {
-  Real Val = -1e9;
-  Uint Nbest = 0;
-  for (Uint i=0; i<pol.size(); ++i)
-      if (pol[i]>Val) { Val = pol[i]; Nbest = i; }
-  return Nbest;
+  auto maxVal = vec[0];
+  Uint indBest = 0;
+  for (Uint i=1; i<vec.size(); ++i)
+    if (vec[i]>maxVal) {
+      maxVal = vec[i];
+      indBest = i;
+    }
+  return indBest;
 }
 
 inline Uint maxInd(const Rvec& pol, const Uint start, const Uint N)
@@ -277,6 +281,22 @@ void dispose_object(T *const& ptr)
 {
   if(ptr == nullptr) return;
   delete ptr;
+}
+
+template<typename It> class Range
+{
+    It b, e;
+public:
+    Range(It _b, It _e) : b(_b), e(_e) {}
+    It begin() const { return b; }
+    It end() const { return e; }
+};
+
+template<typename ORange,
+         typename OIt = decltype(std::begin(std::declval<ORange>())),
+         typename It = std::reverse_iterator<OIt> >
+Range<It> reverse(ORange && originalRange) {
+  return Range<It>(It(std::end(originalRange)), It(std::begin(originalRange)));
 }
 
 

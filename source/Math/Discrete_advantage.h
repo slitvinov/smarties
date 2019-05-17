@@ -29,7 +29,7 @@ struct Discrete_advantage
   }
   static void setInitial(const ActionInfo* const aI, Rvec& initBias) { }
 
-  Discrete_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+  Discrete_advantage(const std::vector<Uint>& starts, const ActionInfo*const aI,
    const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->dimDiscrete()), netOutputs(out),
    advantages(extract(out)), policy(pol) {}
 
@@ -84,7 +84,7 @@ struct Discrete_advantage
    return ret;
   }
 
-  void test(const Uint& act, mt19937*const gen) const {}
+  void test(const Uint& act, std::mt19937*const gen) const {}
 };
 
 } // end namespace smarties

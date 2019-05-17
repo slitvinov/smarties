@@ -7,62 +7,62 @@
 //
 
 #include "Learner_approximator.h"
-#include "../Network/Approximator.h"
-#include "../Network/Builder.h"
+#include "Network/Approximator.h"
+#include "Network/Builder.h"
 #include <chrono>
 
 namespace smarties
 {
 
-Learner_approximator::Learner_approximator(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_), input(new Encapsulator("input", S, data))
+Learner_approximator::Learner_approximator(MDPdescriptor& MDP_,
+                                           Settings& S_,
+                                           DistributionInfo& D_) :
+                                           Learner(MDP_, S_, D_)
 {
-  if(input->nOutputs() == 0) return;
-  Builder input_build(S);
-  input_build.addInput( input->nOutputs() );
-  bool builder_used = env->predefinedNetwork(input_build);
-  if(builder_used) {
-    Network* net = input_build.build(true);
-    Optimizer* opt = input_build.opt;
-    input->initializeNetwork(net, opt);
-  }
-  if(not bSampleSequences && nObsB4StartTraining < batchSize)
+  if(!settings.bSampleSequences && nObsB4StartTraining<(long)settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 }
-Learner_approximator::~Learner_approximator() {
-  _dispose_object(input);
+
+Learner_approximator::~Learner_approximator()
+{
+  for(auto & net : networks) {
+    if(net not_eq nullptr) {
+      delete net;
+      net = nullptr;
+    }
+  }
 }
 
 void Learner_approximator::spawnTrainTasks()
 {
-  if(bSampleSequences && data->readNSeq() < batchSize)
+  if(settings.bSampleSequences && data->readNSeq() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
   profiler->stop_start("SAMP");
 
-  std::vector<Uint> samp_seq = std::vector<Uint>(batchSize, -1);
-  std::vector<Uint> samp_obs = std::vector<Uint>(batchSize, -1);
-  data->sample(samp_seq, samp_obs);
+  const Uint nThr = distrib.nThreads, CS =  settings.batchSize / nThr;
+  const Uint batchSize = settings.batchSize, ESpopSize = settings.ESpopSize;
+  const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
 
-  for(Uint i=0; i<batchSize && bSampleSequences; i++)
-    assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
-
-  if(bSampleSequences) {
-  #pragma omp parallel for collapse(2) schedule(static) num_threads(nThreads)
-    for (Uint wID=0; wID<ESpopSize; wID++)
-      for (Uint bID=0; bID<batchSize; bID++) {
-        const Uint thrID = omp_get_thread_num();
-        TrainBySequences(samp_seq[bID], wID, bID, thrID);
-        input->gradient(thrID);
-      }
-  } else {
-  static const Uint CS = batchSize / nThreads;
-  #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThreads)
-    for (Uint wID=0; wID<ESpopSize; wID++)
-      for (Uint bID=0; bID<batchSize; bID++) {
-        const Uint thrID = omp_get_thread_num();
-        Train(samp_seq[bID], samp_obs[bID], wID, bID, thrID);
-        input->gradient(thrID);
-      }
+  if(settings.bSampleSequences)
+  {
+    #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
+    for (Uint wID=0; wID<ESpopSize; ++wID)
+    for (Uint bID=0; bID<batchSize; ++bID) {
+      Train(MB, wID, bID);
+      // backprop, from last net to first for dependencies in gradients:
+      for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);
+    }
+  }
+  else
+  {
+    #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThr)
+    for (Uint wID=0; wID<ESpopSize; ++wID)
+    for (Uint bID=0; bID<batchSize; ++bID) {
+      Train(MB, wID, bID);
+      // backprop, from last net to first for dependencies in gradients:
+      for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);
+    }
   }
 }
 
@@ -71,30 +71,27 @@ void Learner_approximator::prepareGradient()
   const Uint currStep = nGradSteps()+1;
 
   profiler->stop_start("ADDW");
-  for(auto & net : F) net->prepareUpdate();
-  input->prepareUpdate();
-
-  for(auto & net : F) net->updateGradStats(learner_name, currStep-1);
+  for(const auto & net : networks) {
+    net->prepareUpdate();
+    net->updateGradStats(learner_name, currStep-1);
+  }
 }
 
 void Learner_approximator::applyGradient()
 {
   profiler->stop_start("GRAD");
-  for(auto & net : F) net->applyUpdate();
-  input->applyUpdate();
+  for(const auto & net : networks) net->applyUpdate();
 }
 
-void Learner_approximator::getMetrics(ostringstream& buf) const
+void Learner_approximator::getMetrics(std::ostringstream& buf) const
 {
   Learner::getMetrics(buf);
-  input->getMetrics(buf);
-  for(auto & net : F) net->getMetrics(buf);
+  for(const auto & net : networks) net->getMetrics(buf);
 }
-void Learner_approximator::getHeaders(ostringstream& buf) const
+void Learner_approximator::getHeaders(std::ostringstream& buf) const
 {
   Learner::getHeaders(buf);
-  input->getHeaders(buf);
-  for(auto & net : F) net->getHeaders(buf);
+  for(const auto & net : networks) net->getHeaders(buf);
 }
 
 void Learner_approximator::restart()
@@ -102,16 +99,12 @@ void Learner_approximator::restart()
   if(settings.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
-  input->restart(settings.restart+"/"+learner_name);
-
-  for(auto & net : F) net->save("restarted_"+learner_name, false);
-  input->save("restarted_"+learner_name, false);
+  for(const auto & net : networks) net->restart(settings.restart+"/"+learner_name);
+  for(const auto & net : networks) net->save("restarted_"+learner_name, false);
 
   Learner::restart();
 
-  if(input->opt not_eq nullptr) input->opt->nStep = _nGradSteps;
-  for(auto & net : F) net->opt->nStep = _nGradSteps;
+  for(const auto & net : networks) net->setNgradSteps(_nGradSteps);
 }
 
 void Learner_approximator::save()
@@ -120,38 +113,56 @@ void Learner_approximator::save()
   const Real freqSave = freqPrint * PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = currStep % freqBackup == 0;
-  for(auto & net : F) net->save(learner_name, bBackup);
-  input->save(learner_name, bBackup);
+  for(const auto & net : networks) net->save(learner_name, bBackup);
 
   Learner::save();
 }
 
-//TODO: generalize!!
-bool Learner_approximator::predefinedNetwork(Builder& input_net, Uint privateNum)
+// Create preprocessing network, which contains conv layers requested by env
+// and some shared fully connected layers, read from vector nnLayerSizes
+// from settings. The last privateLayersNum sizes of nnLayerSizes are not
+// added here because we assume those sizes will parameterize the approximators
+// that take the output of the preprocessor and produce policies,values, etc.
+bool Learner_approximator::createEncoder(Sint privateLayersNum)
 {
-  bool ret = false; // did i add layers to input net?
-  if(input_net.nOutputs > 0) {
-     input_net.nOutputs = 0;
-     input_net.layers.back()->bOutput = false;
-     warn("Overwritten ENV's specification of CNN to add shared layers");
-  }
-  vector<int> sizeOrig = settings.readNetSettingsSize();
-  while ( sizeOrig.size() != privateNum )
-  {
-    const int size = sizeOrig[0];
-    sizeOrig.erase(sizeOrig.begin(), sizeOrig.begin()+1);
-    const bool bOutput = sizeOrig.size() == privateNum;
-    input_net.addLayer(size, settings.nnFunc, bOutput);
-    ret = true;
-  }
-  settings.nnl1 = sizeOrig.size() > 0? sizeOrig[0] : 0;
-  settings.nnl2 = sizeOrig.size() > 1? sizeOrig[1] : 0;
-  settings.nnl3 = sizeOrig.size() > 2? sizeOrig[2] : 0;
-  settings.nnl4 = sizeOrig.size() > 3? sizeOrig[3] : 0;
-  settings.nnl5 = sizeOrig.size() > 4? sizeOrig[4] : 0;
-  settings.nnl6 = sizeOrig.size() > 5? sizeOrig[5] : 0;
-  return ret;
+  const Sint totLayersNum = settings.nnLayerSizes.size();
+  // If privateLayersNum defaults to -1, assumed that all are private. Meaning
+  // that each approximator will consists of all nnLayerSizes.
+  if(privateLayersNum<0) privateLayersNum = totLayersNum;
+  if(privateLayersNum>totLayersNum) privateLayersNum = totLayersNum;
+
+  const Uint nPreProcLayers = totLayersNum - privateLayersNum;
+  const std::vector<Uint> origLayers = settings.nnLayerSizes;
+  std::vector<Uint> preprocessingLayers = settings.nnLayerSizes;
+  preprocessingLayers.resize(nPreProcLayers); // take first nPreProcLayers
+
+  // remaining layer sizes in nnLayerSizes will be used by other approximators:
+  settings.nnLayerSizes.clear();
+  for(Sint i=nPreProcLayers; i<totLayersNum; ++i)
+    settings.nnLayerSizes.push_back( origLayers[i] );
+  assert( (Uint) privateLayersNum == settings.nnLayerSizes.size() );
+
+  if ( MDP.conv2dDescriptors.size() == 0 and nPreProcLayers == 0 )
+    return false; // no preprocessing
+
+  if(networks.size()>0) warn("some network was created before preprocessing");
+  networks.push_back( new Approximator( "encoder", settings, distrib, data ) );
+  networks.back()->buildPreprocessing(preprocessingLayers);
+
+  return true;
 }
+
+void Learner_approximator::initializeApproximators()
+{
+  for(const auto& net : networks)
+  {
+    net->initializeNetwork();
+  }
+}
+
+}
+
+/*
 
 void Learner_approximator::createSharedEncoder(const Uint privateNum)
 {
@@ -170,9 +181,18 @@ void Learner_approximator::createSharedEncoder(const Uint privateNum)
     input->initializeNetwork(net, input_build.opt);
   }
 }
-
 //bool Learner::predefinedNetwork(Builder & input_net)
 //{
 //  return false;
 //}
+, input(new Encapsulator("input", S_, data))
+if(input->nOutputs() == 0) return;
+Builder input_build(S);
+input_build.addInput( input->nOutputs() );
+bool builder_used = env->predefinedNetwork(input_build);
+if(builder_used) {
+  Network* net = input_build.build(true);
+  Optimizer* opt = input_build.opt;
+  input->initializeNetwork(net, opt);
 }
+*/

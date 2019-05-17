@@ -59,14 +59,15 @@ struct Gaussian_policy
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
       for(Uint i=0; i<nA; i++)
-        ret[i] = std::sqrt( noiseMap_func(netOutputs[start_prec+i]) );
+        ret[i] = std::sqrt( Utilities::noiseMap_func(netOutputs[start_prec+i]) );
       return ret;
     }
   #else
     Rvec extract_stdev() const {
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
-      for(Uint i=0; i<nA; i++) ret[i] = noiseMap_func(netOutputs[start_prec+i]);
+      for(Uint i=0; i<nA; i++)
+        ret[i] = Utilities::noiseMap_func(netOutputs[start_prec+i]);
       return ret;
     }
   #endif
@@ -90,10 +91,11 @@ struct Gaussian_policy
   }
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
+    for(Uint e=0; e<aI->dim(); e++)
     #ifdef EXTRACT_COVAR
-      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S*S));
+      O.push_back(Utilities::noiseMap_inverse(S*S));
     #else
-      for(Uint e=0; e<aI->dim(); e++) O.push_back(noiseMap_inverse(S));
+      O.push_back(Utilities::noiseMap_inverse(S));
     #endif
   }
 
@@ -219,14 +221,15 @@ struct Gaussian_policy
     return 0.5*ret;
   }
 
-  Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac) {
+  Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)
+  {
     for (Uint i=0; i<nA; i++) {
       const Real noise = sampAct[i] - mean[i];
       state[i] *= fac;
       sampAct[i] += state[i];
       state[i] += noise;
     }
-    return aInfo->getScaled(sampAct);
+    return aInfo->action2scaledAction(sampAct);
   }
 
   void finalize_grad(const Rvec grad, Rvec&netGradient) const
@@ -236,7 +239,7 @@ struct Gaussian_policy
       netGradient[start_mean+j] = grad[j];
       //if bounded actions pass through tanh!
       //helps against NaNs in converting from bounded to unbounded action space:
-      if(aInfo->bounded[j])  {
+      if( aInfo->isBounded(j) )  {
         if(mean[j]> BOUNDACT_MAX && grad[j]>0) netGradient[start_mean+j] = 0;
         else
         if(mean[j]<-BOUNDACT_MAX && grad[j]<0) netGradient[start_mean+j] = 0;
@@ -245,13 +248,14 @@ struct Gaussian_policy
 
     for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; j++, iS++) {
       assert(netGradient.size()>=start_prec+nA);
-      netGradient[iS] = grad[j+nA] * noiseMap_diff(netOutputs[iS]);
+      netGradient[iS] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
     }
   }
 
-  Rvec finalize_grad(const Rvec grad) const {
+  Rvec finalize_grad(const Rvec grad) const
+  {
     Rvec ret = grad;
-    for (Uint j=0; j<nA; j++) if(aInfo->bounded[j]) {
+    for (Uint j=0; j<nA; j++) if( aInfo->isBounded(j) ) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
       else
       if(mean[j]<-BOUNDACT_MAX && grad[j]<0) ret[j]=0;
@@ -259,7 +263,7 @@ struct Gaussian_policy
 
     if(start_prec != 0)
     for (Uint j=0, iS=start_prec; j<nA; j++, iS++)
-      ret[j+nA] = grad[j+nA] * noiseMap_diff(netOutputs[iS]);
+      ret[j+nA] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
     return ret;
   }
 
@@ -281,12 +285,12 @@ struct Gaussian_policy
   Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint i=0; i<nA; i++)
-      if (aInfo->bounded[i]) {
+      if ( aInfo->isBounded(i) ) {
         MU[i] = std::max(-(Real)BOUNDACT_MAX, MU[i]);
         MU[i] = std::min( (Real)BOUNDACT_MAX, MU[i]);
       }
     sampAct = bSample ? sample(gen, MU) : mean;
-    return aInfo->getScaled(sampAct);
+    return aInfo->action2scaledAction(sampAct);
   }
 
   Rvec getVector() const {

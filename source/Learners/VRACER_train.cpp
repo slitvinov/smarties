@@ -69,8 +69,7 @@ void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
 }
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
-  const Uint wID, const Uint bID, const Uint thrID) const
+void VRACER<Policy_t, Action_t>::Train(const MiniBatch&MB, const Uint wID,const Uint bID) const
 {
   Sequence* const S = data->get(seq);
   assert(t+1 < S->ndata());

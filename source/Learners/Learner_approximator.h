@@ -11,35 +11,20 @@
 
 #include "Learner.h"
 
-class Builder;
-
 namespace smarties
 {
 
 class Approximator;
-class Encapsulator;
 
 class Learner_approximator: public Learner
 {
- public:
-  const bool bSampleSequences = settings.bSampleSequences;
-  // hyper-parameters:
-  const Uint batchSize = settings.batchSize_local;
-  const Uint ESpopSize = settings.ESpopSize;
-  const Real learnR = settings.learnrate;
-  const Real explNoise = settings.explNoise;
-
  protected:
-  Encapsulator * const input;
-  std::vector<Approximator*> F;
+  std::vector<Approximator*> networks;
 
-  void createSharedEncoder(const Uint privateNum = 1);
-  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
+  void initializeApproximators();
+  bool createEncoder(Sint privateLayersNum = -1);
 
-  virtual void TrainBySequences(const Uint seq, const Uint wID,
-    const Uint bID, const Uint tID) const = 0;
-  virtual void Train(const Uint seq, const Uint samp, const Uint wID,
-    const Uint bID, const Uint tID) const = 0;
+  virtual void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const=0;
   void spawnTrainTasks();
   virtual void prepareGradient();
   virtual void applyGradient();

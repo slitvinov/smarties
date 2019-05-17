@@ -8,6 +8,7 @@
 
 #include "MemoryBuffer.h"
 #include "Sampling.h"
+#include "Utils/FunctionUtilities.h"
 #include <iterator>
 #include <algorithm>
 
@@ -39,7 +40,7 @@ void MemoryBuffer::save(const std::string base, const Uint nStep, const bool bBa
 
   if(bBackup) {
     char fName[256]; sprintf(fName, "%sscaling_%09lu.raw", base.c_str(), nStep);
-    wFile = fopen(lName, "wb"); write2file(wFile); fflush(wFile); fclose(wFile);
+    wFile = fopen(fName, "wb"); write2file(wFile); fflush(wFile); fclose(wFile);
   }
 }
 
@@ -85,7 +86,7 @@ void MemoryBuffer::clearAll()
 }
 
 MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
-                                        const Uint stepID) const
+                                        const Uint stepID)
 {
   std::vector<Uint> sampleEID(batchSize), sampleT(batchSize);
   sampler->sample(sampleEID, sampleT);
@@ -101,9 +102,9 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   for(Uint b=0; b<batchSize; ++b)
   {
     ret.episodes[b] = Set[ sampleEID[b] ];
-    ret.episodes[b]->setSampled(sampleT[i]);
+    ret.episodes[b]->setSampled(sampleT[b]);
     const Uint nEpSteps = ret.episodes[b]->nsteps();
-    if(bSampledSeqs)
+    if (settings.bSampleSequences)
     {
       // check that we may have to update estimators from S_{0} to S_{T_1}
       assert( sampleT[b] == ret.episodes[b]->ndata() - 1 );
@@ -113,11 +114,12 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     else
     {
       // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
-      const Uint nRecurr = bRecurrent? std::min(nMaxBPTT, sampleT[b]) : 0;
+      const Uint nnBPTT = settings.nnBPTTseq;
+      const Uint nRecur = settings.bRecurrent? std::min(nnBPTT, sampleT[b]) : 0;
       // prepare to compute from step t-reccurrentwindow up to t+1
       // because some methods may require tnext.
       // todo: add option for n-steps ahead
-      ret.begTimeStep[b] = sampleT[b] - nRecurr;
+      ret.begTimeStep[b] = sampleT[b] - nRecur;
       ret.endTimeStep[b] = sampleT[b] + 2;
     }
     // number of states to process ( also, see why we used sampleT[b]+2 )
@@ -125,10 +127,10 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     ret.resizeStep(b, nSteps);
   }
   const std::vector<Sequence*>& sampleE = ret.episodes;
-  const nnReal importanceSampAnneal = std::min( (Real)1, stepID*epsAnneal);
-  const nnReal beta = 0.5 + 0.5 * anneal;
+  const nnReal impSampAnneal = std::min( (Real)1, stepID*settings.epsAnneal);
+  const nnReal beta = 0.5 + 0.5 * impSampAnneal;
 
-  #pragma omp parallel for schedule(static) collapse(2)
+  #pragma omp parallel for schedule(static) // collapse(2)
   for(Uint b=0; b<batchSize; ++b)
   for(Uint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
   {
@@ -153,18 +155,19 @@ bool MemoryBuffer::bRequireImportanceSampling() const
   return sampler->requireImportanceWeights();
 }
 
-MiniBatch MemoryBuffer::agentToMinibatch(const Sequence* const inProgress) const
+MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
 {
   MiniBatch ret(1);
   ret.episodes[0] = inProgress;
-  if(bSampledSeqs) {
+  if (settings.bSampleSequences) {
     // we may have to update estimators from S_{0} to S_{T_1}
     ret.begTimeStep[0] = 0;        // prepare to compute for steps from init
     ret.endTimeStep[0] = inProgress->nsteps(); // to current step
   } else {
     const Uint currStep = inProgress->nsteps() - 1;
     // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
-    const Uint nRecurr = bRecurrent? std::min(nMaxBPTT, currStep) : 0;
+    const Uint nnBPTT = settings.nnBPTTseq;
+    const Uint nRecurr = settings.bRecurrent? std::min(nnBPTT, currStep) : 0;
     // prepare to compute from step t-reccurrentwindow up to t
     ret.begTimeStep[0] = currStep - nRecurr;
     ret.endTimeStep[0] = currStep + 1;
@@ -240,31 +243,31 @@ std::unique_ptr<Sampling> MemoryBuffer::prepareSampler(MemoryBuffer* const R, Se
 {
   std::unique_ptr<Sampling> ret = nullptr;
 
-  if(S.dataSamplingAlgo == "uniform") ret = std::make_unique<Sample_uniform>(
+  if(S_.dataSamplingAlgo == "uniform") ret = std::make_unique<Sample_uniform>(
     D_.generators, R, S_.bSampleSequences);
 
-  if(S.dataSamplingAlgo == "impLen")  ret = std::make_unique<Sample_impLen>(
+  if(S_.dataSamplingAlgo == "impLen")  ret = std::make_unique<Sample_impLen>(
     D_.generators, R, S_.bSampleSequences);
 
-  if(S.dataSamplingAlgo == "shuffle") {
+  if(S_.dataSamplingAlgo == "shuffle") {
     ret = std::make_unique<TSample_shuffle>(
       D_.generators, R, S_.bSampleSequences);
-    if(S.bSampleSequences) die("Change importance sampling algorithm");
+    if(S_.bSampleSequences) die("Change importance sampling algorithm");
   }
 
-  if(S.dataSamplingAlgo == "PERrank") {
+  if(S_.dataSamplingAlgo == "PERrank") {
     ret = std::make_unique<TSample_impRank>(
       D_.generators, R, S_.bSampleSequences);
-    if(S.bSampleSequences) die("Change importance sampling algorithm");
+    if(S_.bSampleSequences) die("Change importance sampling algorithm");
   }
 
-  if(S.dataSamplingAlgo == "PERerr") {
+  if(S_.dataSamplingAlgo == "PERerr") {
     ret = std::make_unique<TSample_impErr>(
       D_.generators, R, S_.bSampleSequences);
-    if(S.bSampleSequences) die("Change importance sampling algorithm");
+    if(S_.bSampleSequences) die("Change importance sampling algorithm");
   }
 
-  if(S.dataSamplingAlgo == "PERseq") ret = std::make_unique<Sample_impSeq>(
+  if(S_.dataSamplingAlgo == "PERseq") ret = std::make_unique<Sample_impSeq>(
     D_.generators, R, S_.bSampleSequences);
 
   assert(ret not_eq nullptr);

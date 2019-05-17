@@ -19,6 +19,7 @@ class Collector
 {
 private:
   MemoryBuffer * const replay;
+  const std::unique_ptr<MemorySharing> sharing;
   const MDPdescriptor & MDP = replay->MDP;
   const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;

@@ -87,9 +87,9 @@ class MemoryBuffer
   {
     const Uint dimS = sI.dimObs();
     std::vector<V> ret( dimS * (1+nAppended) );
-    for (Sint j=0, k=0; j <= nAppended; ++j)
+    for (Uint j=0, k=0; j <= nAppended; ++j)
     {
-      const Sint t = std::max((Sint)samp - j, (Sint)0);
+      const Sint t = std::max((Sint)samp - (Sint)j, (Sint)0);
       const auto& state = seq->states[t];
       assert(state.size() == dimS);
       for (Uint i=0; i<dimS; ++i, ++k) ret[k] = (state[i]-mean[i]) * invstd[i];
@@ -111,9 +111,11 @@ class MemoryBuffer
   void restart(const std::string base);
   void save(const std::string base, const Uint nStep, const bool bBackup);
 
-  MiniBatch sampleMinibatch(const std::vector<Sequence*>& sampleE,
-                            const std::vector<Sint     >& sampleT);
+  MiniBatch sampleMinibatch(const Uint batchSize, const Uint stepID);
   const std::vector<Uint>& lastSampledEpisodes() { return lastSampledEps; }
+
+  MiniBatch agentToMinibatch(Sequence* const inProgress) const;
+
   bool bRequireImportanceSampling() const;
 
   long readNSeen_loc()    const { return nSeenTransitions_loc.load();  }

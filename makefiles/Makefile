@@ -99,6 +99,7 @@ OBJ_FILES = \
 	CMA_Optimizer.o \
 	StatsTracker.o \
 	Communicator.o \
+	Approximator.o \
 	Launcher.o \
 	Settings.o \
 	Profiler.o \

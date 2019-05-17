@@ -138,7 +138,7 @@ void VRACER<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 ///////////////////////////////////////////////////////////////////////////////
 
 template class VRACER<Discrete_policy, Uint>;
-template class VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+//template class VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
 template class VRACER<Gaussian_policy, Rvec>;
 
 template<typename Policy_t, typename Action_t>
