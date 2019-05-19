@@ -187,7 +187,7 @@ inline std::unique_ptr<Learner> createLearner(
   */
   else die("Learning algorithm not recognized");
 
-  return std::move(ret);
+  return ret;
 }
 
 }

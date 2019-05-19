@@ -50,7 +50,7 @@ struct THRvec
     m_v.resize(N, nullptr);
   }
 
-  Uint size() const { return nThreads; };
+  Uint size() const { return nThreads; }
 
   T& operator[] (const Uint i) const
   {

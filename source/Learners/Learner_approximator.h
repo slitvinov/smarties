@@ -14,7 +14,7 @@
 namespace smarties
 {
 
-class Approximator;
+struct Approximator;
 
 class Learner_approximator: public Learner
 {

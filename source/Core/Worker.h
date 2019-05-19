@@ -23,6 +23,7 @@ class Worker
 {
 public:
   Worker(Settings& settings, DistributionInfo& distribinfo);
+  virtual ~Worker() {}
 
   void synchronizeEnvironments();
 

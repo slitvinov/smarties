@@ -33,7 +33,7 @@ class Learner_pytorch: public Learner
 
   void select(Agent& ) override {}
   void setupTasks(TaskQueue&) override {}
-  virtual ~Learner_pytorch();
+  virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;

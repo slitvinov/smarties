@@ -201,7 +201,7 @@ inline std::vector<ParametersPtr_t> allocManyParams(const ParametersPtr_t& W,
   // numa-aware allocation if OMP_PROC_BIND is TRUE:
   #pragma omp parallel for schedule(static, 1)
   for(Uint i=0; i<populationSize; ++i) ret[i] = W->allocateEmptyAlike();
-  return std::move(ret);
+  return ret;
 }
 
 } // end namespace smarties
