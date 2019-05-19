@@ -1,9 +1,9 @@
 
-CPPFLAGS+= -std=c++14 -fopenmp
-LIBS+= -fopenmp
+CPPFLAGS+= -std=c++14 -fopenmp=libomp
+LIBS+= -fopenmp=libomp
 
-CPPFLAGS+= -Wall -Weverything
-
+CPPFLAGS+= -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wno-extra-semi-stmt -Wno-padded -Wno-cast-qual -Wno-zero-as-null-pointer-constant -Wno-shorten-64-to-32 -Wno-double-promotion -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-undef -Wno-exit-time-destructors -Wno-documentation -Wno-covered-switch-default -Wno-weak-vtables -Wno-cast-align -Wno-implicit-float-conversion -Wno-extra-semi -Wno-global-constructors -Wno-unused-template -Wno-float-conversion -Wno-switch-enum -Wno-format-nonliteral
+ 
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O0
 endif

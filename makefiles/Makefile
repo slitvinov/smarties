@@ -74,8 +74,9 @@ include make.icc.flags
 else
 ifeq "$(compiler)" "llvm"
 include make.llvm.flags
-endif
+else
 include make.gcc.flags
+endif
 endif
 
 CPPFLAGS+= -I../extern/CLI11/include/
