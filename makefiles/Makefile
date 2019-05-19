@@ -12,8 +12,8 @@ CXX=mpic++
 LD=mpic++
 endif
 
-isICPC=$(shell $(CXX) -v | grep -c "icpc" )
-isLLVM=$(shell $(CXX) -v | grep -c "llvm" )
+isICPC=$(shell $(CXX) --version | grep -ci "icpc" )
+isLLVM=$(shell $(CXX) --version | grep -ci "llvm" )
 ifeq "$(isICPC)" "0"
 ifeq "$(isLLVM)" "0"
 compiler=gnu
@@ -82,7 +82,6 @@ CPPFLAGS+= -I../extern/CLI11/include/
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
-	VRACER.o \
 	RACER.o \
 	Learner_pytorch.o \
 	Learner_approximator.o \
@@ -94,6 +93,7 @@ OBJ_FILES = \
 	MemoryBuffer.o \
 	MemorySharing.o \
 	MemoryProcessing.o \
+	Builder.o \
 	Network.o \
 	Optimizer.o \
 	CMA_Optimizer.o \

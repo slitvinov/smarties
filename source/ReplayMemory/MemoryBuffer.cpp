@@ -110,6 +110,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
       assert( sampleT[b] == ret.episodes[b]->ndata() - 1 );
       ret.begTimeStep[b] = 0;        // prepare to compute for steps from init
       ret.endTimeStep[b] = nEpSteps; // to terminal state
+      ret.sampledTimeStep[b] = 0;
     }
     else
     {
@@ -121,6 +122,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
       // todo: add option for n-steps ahead
       ret.begTimeStep[b] = sampleT[b] - nRecur;
       ret.endTimeStep[b] = sampleT[b] + 2;
+      ret.sampledTimeStep[b] = sampleT[b];
     }
     // number of states to process ( also, see why we used sampleT[b]+2 )
     const Uint nSteps = ret.endTimeStep[b] - ret.begTimeStep[b];

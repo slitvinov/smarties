@@ -106,6 +106,11 @@ class MemoryBuffer
     assert(samp < (T) seq->rewards.size());
     return scaledReward(seq->rewards[samp]);
   }
+  template<typename T>
+  Real scaledReward(const Sequence& seq, const T samp) const {
+    assert(samp < (T) seq.rewards.size());
+    return scaledReward(seq.rewards[samp]);
+  }
   Real scaledReward(const Real r) const { return r * invstd_reward; }
 
   void restart(const std::string base);

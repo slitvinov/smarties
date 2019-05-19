@@ -49,6 +49,7 @@ void Learner_approximator::spawnTrainTasks()
     #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
     for (Uint wID=0; wID<ESpopSize; ++wID)
     for (Uint bID=0; bID<batchSize; ++bID) {
+      for (const auto & net : networks ) net->load(MB, bID, wID);
       Train(MB, wID, bID);
       // backprop, from last net to first for dependencies in gradients:
       for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);
@@ -59,6 +60,7 @@ void Learner_approximator::spawnTrainTasks()
     #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThr)
     for (Uint wID=0; wID<ESpopSize; ++wID)
     for (Uint bID=0; bID<batchSize; ++bID) {
+      for (const auto & net : networks ) net->load(MB, bID, wID);
       Train(MB, wID, bID);
       // backprop, from last net to first for dependencies in gradients:
       for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);

@@ -57,9 +57,10 @@ void Learner::initializeLearner()
   // placed here because on 1st step we just computed first rewards statistics
   const Uint setSize = data->readNSeq();
   #pragma omp parallel for schedule(dynamic, 1)
-  for(Uint i=0; i<setSize; i++)
-    for(Uint j=data->get(i)->ndata(); j>0; j--)
-      backPropRetrace(data->get(i),j);
+  for(Uint i=0; i<setSize; ++i) {
+    Sequence& SEQ = * data->get(i);
+    for(Uint j = SEQ.ndata(); j>0; --j) backPropRetrace(SEQ, j);
+  }
 }
 
 void Learner::processMemoryBuffer()
@@ -99,13 +100,13 @@ void Learner::updateRetraceEstimates()
   const std::vector<Uint>& sampled = data->lastSampledEpisodes();
   const Uint setSize = sampled.size();
   #pragma omp parallel for schedule(dynamic, 1)
-  for(Uint i = 0; i < setSize; i++) {
-    Sequence * const S = data->get(sampled[i]);
-    assert(std::fabs(S->Q_RET[S->ndata()]) < 1e-16);
-    assert(std::fabs(S->action_adv[S->ndata()]) < 1e-16);
-    if( S->isTerminal(S->ndata()) )
-      assert(std::fabs(S->state_vals[S->ndata()]) < 1e-16);
-    for(int j=S->just_sampled-1; j>0; j--) backPropRetrace(S, j);
+  for(Uint i = 0; i < setSize; ++i) {
+    Sequence& SEQ = * data->get(sampled[i]);
+    assert(std::fabs(SEQ.Q_RET[SEQ.ndata()]) < 1e-16);
+    assert(std::fabs(SEQ.action_adv[SEQ.ndata()]) < 1e-16);
+    if( SEQ.isTerminal(SEQ.ndata()) )
+      assert(std::fabs(SEQ.state_vals[SEQ.ndata()]) < 1e-16);
+    for(int j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
   }
 }
 

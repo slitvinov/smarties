@@ -183,6 +183,7 @@ struct MiniBatch
     episodes.resize(size);
     begTimeStep.resize(size);
     endTimeStep.resize(size);
+    sampledTimeStep.resize(size);
     S.resize(size); A.resize(size); MU.resize(size); R.resize(size);
     W.resize(size);
   }
@@ -190,8 +191,10 @@ struct MiniBatch
   std::vector<Sequence*> episodes;
   std::vector<Uint> begTimeStep;
   std::vector<Uint> endTimeStep;
+  std::vector<Uint> sampledTimeStep;
   Uint getBegStep(const Uint b) const { return begTimeStep[b]; }
   Uint getEndStep(const Uint b) const { return endTimeStep[b]; }
+  Uint getTstep(const Uint b) const { return sampledTimeStep[b]; }
   Uint getNumSteps(const Uint b) const { return endTimeStep[b]-begTimeStep[b]; }
   Uint mapTime2Ind(const Uint b, const Uint t) const
   {
@@ -212,53 +215,57 @@ struct MiniBatch
   std::vector< std::vector< Real  > > R;  // reward
   std::vector< std::vector< nnReal> > W;  // importance sampling
 
+  Sequence& getEpisode(const Uint b) const
+  {
+    return * episodes[b];
+  }
   NNvec& state(const Uint b, const Uint t)
   {
-    return S[b][mapInd2Time(b, t)];
+    return S[b][mapTime2Ind(b, t)];
   }
   Rvec& action(const Uint b, const Uint t)
   {
-    return * A[b][mapInd2Time(b, t)];
+    return * A[b][mapTime2Ind(b, t)];
   }
   Rvec& mu(const Uint b, const Uint t)
   {
-    return * MU[b][mapInd2Time(b, t)];
+    return * MU[b][mapTime2Ind(b, t)];
   }
   const NNvec& state(const Uint b, const Uint t) const
   {
-    return S[b][mapInd2Time(b, t)];
+    return S[b][mapTime2Ind(b, t)];
   }
   const Rvec& action(const Uint b, const Uint t) const
   {
-    return * A[b][mapInd2Time(b, t)];
+    return * A[b][mapTime2Ind(b, t)];
   }
   const Rvec& mu(const Uint b, const Uint t) const
   {
-    return * MU[b][mapInd2Time(b, t)];
+    return * MU[b][mapTime2Ind(b, t)];
   }
   void set_action(const Uint b, const Uint t, std::vector<Real>& act)
   {
-    A[b][mapInd2Time(b, t)] = & act;
+    A[b][mapTime2Ind(b, t)] = & act;
   }
   void set_mu(const Uint b, const Uint t, std::vector<Real>& pol)
   {
-    MU[b][mapInd2Time(b, t)] = & pol;
+    MU[b][mapTime2Ind(b, t)] = & pol;
   }
   Real& reward(const Uint b, const Uint t)
   {
-    return R[b][mapInd2Time(b, t)];
+    return R[b][mapTime2Ind(b, t)];
   }
   nnReal& importanceWeight(const Uint b, const Uint t)
   {
-    return W[b][mapInd2Time(b, t)];
+    return W[b][mapTime2Ind(b, t)];
   }
   const Real& reward(const Uint b, const Uint t) const
   {
-    return R[b][mapInd2Time(b, t)];
+    return R[b][mapTime2Ind(b, t)];
   }
   const nnReal& importanceWeight(const Uint b, const Uint t) const
   {
-    return W[b][mapInd2Time(b, t)];
+    return W[b][mapTime2Ind(b, t)];
   }
 
   void resizeStep(const Uint b, const Uint nSteps)

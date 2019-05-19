@@ -24,8 +24,8 @@ select(Agent& agent)
 {
   data_get->add_state(agent);
   const Approximator* const NET = networks[0];
-  Sequence* const EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
+  Sequence& EP = * data_get->get(agent.ID);
+  const MiniBatch MB = data->agentToMinibatch(&EP);
   NET->load(MB, agent, 0);
 
   if( agent.agentStatus < TERM ) // not end of sequence
@@ -42,14 +42,14 @@ select(Agent& agent)
     auto act = pol.finalize(bSamplePolicy, &generators[nThreads+agent.ID], mu);
     const auto adv = prepare_advantage<Advantage_t>(output, &pol);
     const Real advantage = adv.computeAdvantage(pol.sampAct);
-    EP->action_adv.push_back(advantage);
-    EP->state_vals.push_back(output[VsID]);
+    EP.action_adv.push_back(advantage);
+    EP.state_vals.push_back(output[VsID]);
     agent.act(act);
     data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
       auto dbg = prepare_policy<Policy_t>(output);
-      const Rvec & ACT = EP->actions.back(), & MU = EP->policies.back();
+      const Rvec & ACT = EP.actions.back(), & MU = EP.policies.back();
       dbg.prepare(ACT, MU);
       const double err = fabs(dbg.sampImpWeight-1);
       if(err>1e-10) _die("Imp W err %20.20e", err);
@@ -59,21 +59,21 @@ select(Agent& agent)
   {
     if( agent.agentStatus == TRNC ) {
       Rvec output = NET->forward(agent);
-      EP->state_vals.push_back(output[VsID]); // not a terminal state
+      EP.state_vals.push_back(output[VsID]); // not a terminal state
     } else {
-      EP->state_vals.push_back(0); //value of terminal state is 0
+      EP.state_vals.push_back(0); //value of terminal state is 0
     }
     //whether seq is truncated or terminated, act adv is undefined:
-    EP->action_adv.push_back(0);
-    const Uint N = EP->nsteps();
+    EP.action_adv.push_back(0);
+    const Uint N = EP.nsteps();
     // compute initial Qret for whole trajectory:
-    assert(N == EP->action_adv.size());
-    assert(N == EP->state_vals.size());
-    assert(0 == EP->Q_RET.size());
+    assert(N == EP.action_adv.size());
+    assert(N == EP.state_vals.size());
+    assert(0 == EP.Q_RET.size());
     //within Retrace, we use the Q_RET vector to write the Adv retrace values
-    EP->Q_RET.resize(N, 0);
-    EP->offPolicImpW.resize(N, 1);
-    for(Uint i=EP->ndata(); i>0; i--) backPropRetrace(EP, i);
+    EP.Q_RET.resize(N, 0);
+    EP.offPolicImpW.resize(N, 1);
+    for(Uint i=EP.ndata(); i>0; i--) backPropRetrace(EP, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);
