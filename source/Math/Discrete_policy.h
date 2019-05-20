@@ -60,7 +60,7 @@ struct Discrete_policy
   {
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
-    for (Uint j=0; j<nA; j++)
+    for (Uint j=0; j<nA; ++j)
       ret[j] = Utilities::unbPosMap_func(netOutputs[start_prob+j]);
     return ret;
   }
@@ -69,7 +69,7 @@ struct Discrete_policy
   {
     assert(unnorm.size()==nA);
     Real ret = 0;
-    for (Uint j=0; j<nA; j++) { ret += unnorm[j]; assert(unnorm[j]>0); }
+    for (Uint j=0; j<nA; ++j) { ret += unnorm[j]; assert(unnorm[j]>0); }
     return ret + nnEPS;
   }
 
@@ -77,7 +77,7 @@ struct Discrete_policy
   {
     assert(unnorm.size()==nA);
     Rvec ret(nA);
-    for (Uint j=0; j<nA; j++) ret[j] = unnorm[j]/normalization;
+    for (Uint j=0; j<nA; ++j) ret[j] = unnorm[j]/normalization;
     return ret;
   }
 
@@ -117,15 +117,15 @@ struct Discrete_policy
   template<typename Advantage_t>
   Rvec control_grad(const Advantage_t*const adv, const Real eta) const {
     Rvec ret(nA, 0);
-    for (Uint j=0; j<nA; j++)
+    for (Uint j=0; j<nA; ++j)
       ret[j] = eta*adv->computeAdvantage(j)/normalization;
     return ret;
   }
 
   Rvec policy_grad(const Uint act, const Real factor) const {
     Rvec ret(nA);
-    //for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
-    for (Uint i=0; i<nA; i++) ret[i] = -factor/normalization;
+    //for (Uint i=0; i<nA; ++i) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
+    for (Uint i=0; i<nA; ++i) ret[i] = -factor/normalization;
     ret[act] += factor/unnorm[act];
     return ret;
   }
@@ -137,7 +137,7 @@ struct Discrete_policy
   Real kl_divergence(const Rvec& beta) const
   {
     Real ret = 0;
-    for (Uint i=0; i<nA; i++)
+    for (Uint i=0; i<nA; ++i)
       ret += probs[i]*std::log(probs[i]/beta[i]);
     return ret;
   }
@@ -149,9 +149,9 @@ struct Discrete_policy
   Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
   {
     Rvec ret(nA, 0);
-    for (Uint j=0; j<nA; j++){
+    for (Uint j=0; j<nA; ++j){
       const Real tmp = fac*(1+std::log(probs[j]/beta[j]))/normalization;
-      for (Uint i=0; i<nA; i++) ret[i] += tmp*((i==j)-probs[j]);
+      for (Uint i=0; i<nA; ++i) ret[i] += tmp*((i==j)-probs[j]);
     }
     return ret;
   }
@@ -159,7 +159,7 @@ struct Discrete_policy
   void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
-    for (Uint j=0; j<nA; j++)
+    for (Uint j=0; j<nA; ++j)
     netGradient[start_prob+j]= grad[j]*Utilities::unbPosMap_diff(netOutputs[start_prob+j]);
   }
 

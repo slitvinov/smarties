@@ -73,7 +73,7 @@ struct Parameters
       assert( thrN * shift >= nParams ); // ensure coverage
       const nnReal *const src = grads[thrI]->params;
             nnReal *const dst = params;
-      for(Uint i=0; i<thrN; i++)
+      for(Uint i=0; i<thrN; ++i)
       {
         const Uint turn = (thrI + i) % thrN;
         const Uint start = turn * shift;
@@ -126,7 +126,7 @@ struct Parameters
   void set(const nnReal val) const
   {
     #pragma omp parallel for schedule(static)
-    for(Uint j=0; j<nParams; j++) params[j] = val;
+    for(Uint j=0; j<nParams; ++j) params[j] = val;
   }
 
   void save(const std::string fname) const
@@ -181,7 +181,7 @@ private:
     Uint nTotPara = 0;
     indBiases  = std::vector<Uint>(_nLayers, 0);
     indWeights = std::vector<Uint>(_nLayers, 0);
-    for(Uint i=0; i<_nLayers; i++) {
+    for(Uint i=0; i<_nLayers; ++i) {
       indWeights[i] = nTotPara;
       nTotPara += Utilities::roundUpSimd(_nWeights[i]);
       indBiases[i] = nTotPara;

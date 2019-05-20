@@ -217,7 +217,7 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 void MemoryBuffer::initialize()
 {
   // All sequences obtained before this point should share the same time stamp
-  for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences.load();
+  for(Uint i=0;i<Set.size();++i) Set[i]->ID = nSeenSequences.load();
 
   needs_pass = true;
   sampler->prepare(needs_pass);
@@ -232,7 +232,7 @@ void MemoryBuffer::checkNData()
 {
   #ifndef NDEBUG
     Uint cntSamp = 0;
-    for(Uint i=0; i<Set.size(); i++) {
+    for(Uint i=0; i<Set.size(); ++i) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }

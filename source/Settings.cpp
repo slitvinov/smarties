@@ -352,14 +352,14 @@ void DistributionInfo::initialzePRNG()
   generators.resize(0);
   generators.reserve(omp_get_max_threads());
   generators.push_back(std::mt19937(randSeed));
-  for(int i=1; i<omp_get_max_threads(); i++)
+  for(int i=1; i<omp_get_max_threads(); ++i)
     generators.push_back( std::mt19937( generators[0]() ) );
 }
 
 void DistributionInfo::finalizePRNG(const Uint nAgents_local)
 {
   generators.reserve(generators.size() + nAgents_local);
-  for(size_t i=generators.size(); i < generators.size() + nAgents_local; i++)
+  for(size_t i=generators.size(); i < generators.size() + nAgents_local; ++i)
     generators.push_back( std::mt19937( generators[0]() ) );
 }
 

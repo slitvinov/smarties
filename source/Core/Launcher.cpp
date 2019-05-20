@@ -35,7 +35,7 @@ Launcher::Launcher(Worker* const W, DistributionInfo& D, bool isTraining) :
 void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
 {
   #pragma omp parallel num_threads(nThreads)
-  for(Uint i = 0; i<nOwnWorkers; i++)
+  for(Uint i = 0; i<nOwnWorkers; ++i)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
@@ -83,7 +83,7 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
     createGoRunDir(currDirectory, thisWorkerGroupID, envApplication_comm);
 
     Uint settInd = 0;
-    for(size_t i=0; i<argsFiles.size(); i++)
+    for(size_t i=0; i<argsFiles.size(); ++i)
       if(globalTstepCounter >= argFilesStepsLimits[i]) settInd = i;
 
     Uint numTstepSett = argFilesStepsLimits[settInd+1] - globalTstepCounter;
@@ -98,7 +98,7 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
 
     redirect_stdout_finalize(currOutputFdescriptor);
 
-    for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
+    for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory
   }
 }
@@ -128,7 +128,7 @@ void Launcher::initArgumentFileNames()
 
   argFilesStepsLimits = std::vector<Uint>(argsFiles.size(), 0);
   argFilesStepsLimits[0] = 0; // first settings file is used from step 0
-  for (size_t i=1; i<stepNmbrs.size(); i++)
+  for (size_t i=1; i<stepNmbrs.size(); ++i)
     argFilesStepsLimits[i]= argFilesStepsLimits[i-1] +std::stol(stepNmbrs[i-1]);
   //last setup used for ever:
   argFilesStepsLimits.push_back(std::numeric_limits<Uint>::max());

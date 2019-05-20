@@ -31,7 +31,7 @@ Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
 
   worker_replies.reserve(nWorkers_own);
   //the following Irecv will be sent after sending the action
-  for(int i=1; i<=nWorkers_own; i++) comm->recvBuffer(i);
+  for(int i=1; i<=nWorkers_own; ++i) comm->recvBuffer(i);
 
   for(const auto& L : learners) L->setupTasks(tasks);
 }
@@ -65,7 +65,7 @@ void Master<CommType, Request_t>::spawnCallsHandlers()
     const Uint workerShare = std::ceil(nCallingEnvs / (double) thrN);
     const Uint workerBeg = thrID * workerShare;
     const Uint workerEnd = std::min(nCallingEnvs, (thrID+1)*workerShare);
-    for(Uint i=workerBeg; i<workerEnd; i++) shareWorkers.push_back(i);
+    for(Uint i=workerBeg; i<workerEnd; ++i) shareWorkers.push_back(i);
 
     #pragma omp critical
     if (shareWorkers.size())

@@ -27,13 +27,13 @@ void Sampling::IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,
 {
   // go through each element of ret to find corresponding seq and obs
   const Uint Bsize = seq.size();
-  for (Uint k = 0, cntO = 0, i = 0; k<nSeqs; k++) {
+  for (Uint k = 0, cntO = 0, i = 0; k<nSeqs; ++k) {
     while(1) {
       assert(ret[i] >= cntO && i < Bsize);
       if(ret[i] < cntO + Set[k]->ndata()) { // is ret[i] in sequence k?
         obs[i] = ret[i] - cntO; //if ret[i]==cntO then obs 0 of k and so forth
         seq[i] = k;
-        i++; // next iteration remember first i-1 were already found
+        ++i; // next iteration remember first i-1 were already found
       }
       else break;
       if(i == Bsize) break; // then found all elements of sequence k
@@ -69,7 +69,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       return Set[a]->ndata() > Set[b]->ndata();
     };
     std::sort(seq.begin(), seq.end(), compare);
-    for (long i=0; i<nBatch; i++) obs[i] = Set[seq[i]]->ndata() - 1;
+    for (long i=0; i<nBatch; ++i) obs[i] = Set[seq[i]]->ndata() - 1;
   }
   else
   {
@@ -112,7 +112,7 @@ void Sample_impLen::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       return Set[a]->ndata() > Set[b]->ndata();
     };
     std::sort(seq.begin(), seq.end(), compare);
-    for (Uint i=0; i<nBatch; i++) obs[i] = Set[seq[i]]->ndata() - 1;
+    for (Uint i=0; i<nBatch; ++i) obs[i] = Set[seq[i]]->ndata() - 1;
   }
   else
   {
@@ -128,7 +128,7 @@ void Sample_impLen::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       std::sort( S.begin(), S.end() );
       it = std::unique( S.begin(), S.end() );
     }
-    for (Uint i=0; i<nBatch; i++) { seq[i] = S[i].first; obs[i] = S[i].second; }
+    for (Uint i=0; i<nBatch; ++i) { seq[i] = S[i].first; obs[i] = S[i].second; }
   }
 }
 void Sample_impLen::prepare(std::atomic<bool>& needs_pass)
@@ -139,7 +139,7 @@ void Sample_impLen::prepare(std::atomic<bool>& needs_pass)
   std::vector<float> probs(nSeqs, 0);
 
   #pragma omp parallel for schedule(static)
-  for (Uint i=0; i<nSeqs; i++) probs[i] = Set[i]->ndata();
+  for (Uint i=0; i<nSeqs; ++i) probs[i] = Set[i]->ndata();
 
   dist = std::discrete_distribution<Uint>(probs.begin(), probs.end());
 }
@@ -156,12 +156,12 @@ void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nSequences(), nData = nTransitions();
   samples.resize(nData);
 
-  for(long i=0, locPrefix=0; i<nSeqs; i++) {
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
     Set[i]->prefix = locPrefix;
     locPrefix += Set[i]->ndata();
   }
   #pragma omp parallel for schedule(dynamic)
-  for(long i = 0; i < nSeqs; i++)
+  for(long i = 0; i < nSeqs; ++i)
     for(Uint j=0, k=Set[i]->prefix; j<Set[i]->ndata(); ++j, ++k)
       samples[k] = std::pair<unsigned, unsigned>{i, j};
 
@@ -216,11 +216,11 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
 
   std::vector<TupEST> errors(nData);
   // 1)
-  for(long i=0, locPrefix=0; i<nSeqs; i++) {
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
     Set[i]->prefix = locPrefix;
     const auto err_i = errors.data() + locPrefix;
     locPrefix += Set[i]->ndata();
-    for(Uint j=0; j<Set[i]->ndata(); j++)
+    for(Uint j=0; j<Set[i]->ndata(); ++j)
       err_i[j] = std::make_tuple(Set[i]->SquaredError[j], (USI)i, (USI)j );
   }
 
@@ -228,13 +228,13 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
   const auto isAbeforeB = [&] ( const TupEST& a, const TupEST& b) {
                           return std::get<0>(a) > std::get<0>(b); };
   __gnu_parallel::sort(errors.begin(), errors.end(), isAbeforeB);
-  //for(Uint i=0; i<errors.size(); i++) cout << std::get<0>(errors[i]) << endl;
+  //for(Uint i=0; i<errors.size(); ++i) cout << std::get<0>(errors[i]) << endl;
 
   // 3)
   float minP = 1e9;
   std::vector<float> probs = std::vector<float>(nData, 1);
   #pragma omp parallel for reduction(min:minP) schedule(static)
-  for(long i=0; i<nData; i++) {
+  for(long i=0; i<nData; ++i) {
     // if samples never seen by optimizer the samples have high priority
     const float P = std::get<0>(errors[i])>0 ? approxRsqrt(i+1) : 1;
     const Uint seq = std::get<1>(errors[i]), t = std::get<2>(errors[i]);
@@ -279,19 +279,19 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nSequences(), nData = nTransitions();
   std::vector<float> probs = std::vector<float>(nData, 1);
 
-  for(long i=0, locPrefix=0; i<nSeqs; i++) {
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
     Set[i]->prefix = locPrefix;
     locPrefix += Set[i]->ndata();
   }
 
   float minP = 1e9, maxP = 0;
   #pragma omp parallel for schedule(dynamic) reduction(min:minP) reduction(max:maxP)
-  for(long i=0; i<nSeqs; i++)
+  for(long i=0; i<nSeqs; ++i)
   {
     const Uint ndata = Set[i]->ndata();
     const auto probs_i = probs.data() + Set[i]->prefix;
 
-    for(Uint j=0; j<ndata; j++) {
+    for(Uint j=0; j<ndata; ++j) {
       const float deltasq = (float) Set[i]->SquaredError[j];
       // do sqrt(delta^2)^alpha with alpha = 0.5
       const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq+EPS)) : 0.0f;
@@ -303,11 +303,11 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
       probs_i[j] = P;
     }
   }
-  //for(Uint i=0; i<probs.size(); i++) cout << probs[i]<< endl;
+  //for(Uint i=0; i<probs.size(); ++i) cout << probs[i]<< endl;
   //cout <<minP <<" " <<maxP<<endl;
   // if samples never seen by optimizer the samples have high priority
   #pragma omp parallel for schedule(static)
-  for(long i=0; i<nData; i++) if(probs[i]<=0) probs[i] = maxP;
+  for(long i=0; i<nData; ++i) if(probs[i]<=0) probs[i] = maxP;
 
   setMinMaxProb(maxP, minP);
   // std::discrete_distribution handles normalizing by sum P
@@ -347,16 +347,16 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
   std::vector<float> probs = std::vector<float>(nSeqs, 1);
 
   Fval maxMSE = 0;
-  for(long i=0; i<nSeqs; i++)
+  for(long i=0; i<nSeqs; ++i)
     maxMSE = std::max(maxMSE, Set[i]->MSE / Set[i]->ndata());
 
   float minP = 1e9, maxP = 0;
   #pragma omp parallel for schedule(dynamic) reduction(min:minP) reduction(max:maxP)
-  for(long i=0; i<nSeqs; i++)
+  for(long i=0; i<nSeqs; ++i)
   {
     const Uint ndata = Set[i]->ndata();
     float sumErrors = Set[i]->MSE;
-    for(Uint j=0; j<ndata; j++)
+    for(Uint j=0; j<ndata; ++j)
       if( std::fabs( Set[i]->SquaredError[j] ) <= 0 ) sumErrors += maxMSE;
     //sampling P is episode's RMSE to the power beta=.5 times length of episode
     const float P = std::sqrt( std::sqrt( (sumErrors + EPS)/ndata ) ) * ndata;
@@ -389,7 +389,7 @@ void Sample_impSeq::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       return Set[a]->ndata() > Set[b]->ndata();
     };
     std::sort(seq.begin(), seq.end(), compare);
-    for (Uint i=0; i<nBatch; i++) obs[i] = Set[seq[i]]->ndata() - 1;
+    for (Uint i=0; i<nBatch; ++i) obs[i] = Set[seq[i]]->ndata() - 1;
   }
   else
   {
@@ -407,7 +407,7 @@ void Sample_impSeq::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       it = std::unique( S.begin(), S.end() );
     }
 
-    for (Uint i=0; i<nBatch; i++) { seq[i] = S[i].first; obs[i] = S[i].second; }
+    for (Uint i=0; i<nBatch; ++i) { seq[i] = S[i].first; obs[i] = S[i].second; }
   }
 }
 bool Sample_impSeq::requireImportanceWeights() { return true; }

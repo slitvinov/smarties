@@ -51,14 +51,14 @@ struct Gaussian_policy
   Rvec extract_precision() const {
     Rvec ret(nA);
     assert(variance.size() == nA);
-    for (Uint j=0; j<nA; j++) ret[j] = 1/variance[j];
+    for (Uint j=0; j<nA; ++j) ret[j] = 1/variance[j];
     return ret;
   }
   #ifdef EXTRACT_COVAR
     Rvec extract_stdev() const {
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
-      for(Uint i=0; i<nA; i++)
+      for(Uint i=0; i<nA; ++i)
         ret[i] = std::sqrt( Utilities::noiseMap_func(netOutputs[start_prec+i]) );
       return ret;
     }
@@ -66,7 +66,7 @@ struct Gaussian_policy
     Rvec extract_stdev() const {
       Rvec ret(nA);
       assert(netOutputs.size() >= start_prec + nA);
-      for(Uint i=0; i<nA; i++)
+      for(Uint i=0; i<nA; ++i)
         ret[i] = Utilities::noiseMap_func(netOutputs[start_prec+i]);
       return ret;
     }
@@ -75,7 +75,7 @@ struct Gaussian_policy
   Rvec extract_variance() const {
     Rvec ret(nA);
     assert(stdev.size() == nA);
-    for(Uint i=0; i<nA; i++) ret[i] = stdev[i]*stdev[i];
+    for(Uint i=0; i<nA; ++i) ret[i] = stdev[i]*stdev[i];
     return ret;
   }
 
@@ -113,7 +113,7 @@ struct Gaussian_policy
   long double evalBehavior(const Rvec& act, const Rvec& beta) const {
     long double pi  = 1;
     assert(act.size() == nA);
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       assert(beta[nA+i]>0);
       pi *= oneDnormal(act[i], beta[i], 1/(beta[nA+i]*beta[nA+i]) );
     }
@@ -122,13 +122,13 @@ struct Gaussian_policy
 
   long double evalProbability(const Rvec& act) const {
     long double pi  = 1;
-    for(Uint i=0; i<nA; i++) pi *= oneDnormal(act[i], mean[i], precision[i]);
+    for(Uint i=0; i<nA; ++i) pi *= oneDnormal(act[i], mean[i], precision[i]);
     return pi;
   }
 
   Real evalLogBehavior(const Rvec& A, const Rvec& beta) const {
     Real p = 0;
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       const Real M = beta[i], s = beta[nA+i];
       p -= std::pow( (A[i]-M) / s, 2 ) + std::log( 2*s*s*M_PI );
     }
@@ -137,7 +137,7 @@ struct Gaussian_policy
 
   Real evalLogProbability(const Rvec& act) const {
     Real p = 0;
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       p -= precision[i] * std::pow(act[i]-mean[i], 2);
       p += std::log(0.5*precision[i]/M_PI);
     }
@@ -151,7 +151,7 @@ struct Gaussian_policy
     std::normal_distribution<Real> dist(0, 1);
     std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
 
-    for(Uint i=0; i<beta.size()/2; i++) {
+    for(Uint i=0; i<beta.size()/2; ++i) {
       Real samp = dist(*gen);
       if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
@@ -164,7 +164,7 @@ struct Gaussian_policy
     std::normal_distribution<Real> dist(0, 1);
     std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
 
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       Real samp = dist(*gen);
       if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
       ret[i] = mean[i] + stdev[i]*samp;
@@ -175,7 +175,7 @@ struct Gaussian_policy
   Rvec policy_grad(const Rvec& A, const Real F) const
   {
     Rvec ret(2*nA);
-    for (Uint i=0; i<nA; i++) {
+    for (Uint i=0; i<nA; ++i) {
       const Real U = (A[i]-mean[i]) * precision[i];
       ret[i] = F * U;
       #ifdef EXTRACT_COVAR
@@ -194,7 +194,7 @@ struct Gaussian_policy
   Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
   {
     Rvec ret(2*nA);
-    for (Uint i=0; i<nA; i++) {
+    for (Uint i=0; i<nA; ++i) {
       const Real preci = 1/std::pow(beta[nA+i], 2);
       ret[i]   = fac * (mean[i]-beta[i])*preci;
       #ifdef EXTRACT_COVAR
@@ -213,7 +213,7 @@ struct Gaussian_policy
   Real kl_divergence(const Rvec& beta) const
   {
     Real ret = 0;
-    for (Uint i=0; i<nA; i++) {
+    for (Uint i=0; i<nA; ++i) {
       const Real prech = 1/std::pow(beta[nA+i],2);
       const Real R = variance[i]*prech;
       ret += R -1 -std::log(R) +std::pow(mean[i]-beta[i],2)*prech;
@@ -223,7 +223,7 @@ struct Gaussian_policy
 
   Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)
   {
-    for (Uint i=0; i<nA; i++) {
+    for (Uint i=0; i<nA; ++i) {
       const Real noise = sampAct[i] - mean[i];
       state[i] *= fac;
       sampAct[i] += state[i];
@@ -235,7 +235,7 @@ struct Gaussian_policy
   void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
-    for (Uint j=0; j<nA; j++) {
+    for (Uint j=0; j<nA; ++j) {
       netGradient[start_mean+j] = grad[j];
       //if bounded actions pass through tanh!
       //helps against NaNs in converting from bounded to unbounded action space:
@@ -246,7 +246,7 @@ struct Gaussian_policy
       }
     }
 
-    for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; j++, iS++) {
+    for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; ++j, iS++) {
       assert(netGradient.size()>=start_prec+nA);
       netGradient[iS] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
     }
@@ -255,14 +255,14 @@ struct Gaussian_policy
   Rvec finalize_grad(const Rvec grad) const
   {
     Rvec ret = grad;
-    for (Uint j=0; j<nA; j++) if( aInfo->isBounded(j) ) {
+    for (Uint j=0; j<nA; ++j) if( aInfo->isBounded(j) ) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
       else
       if(mean[j]<-BOUNDACT_MAX && grad[j]<0) ret[j]=0;
     }
 
     if(start_prec != 0)
-    for (Uint j=0, iS=start_prec; j<nA; j++, iS++)
+    for (Uint j=0, iS=start_prec; j<nA; ++j, iS++)
       ret[j+nA] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
     return ret;
   }
@@ -284,7 +284,7 @@ struct Gaussian_policy
   }
   Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
   { //scale back to action space size:
-    for(Uint i=0; i<nA; i++)
+    for(Uint i=0; i<nA; ++i)
       if ( aInfo->isBounded(i) ) {
         MU[i] = std::max(-(Real)BOUNDACT_MAX, MU[i]);
         MU[i] = std::min( (Real)BOUNDACT_MAX, MU[i]);

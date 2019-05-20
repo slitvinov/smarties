@@ -9,8 +9,8 @@
 #ifndef smarties_StateAction_h
 #define smarties_StateAction_h
 
-#include "../Utils/Definitions.h"
-#include "../Utils/Warnings.h"
+#include "Utils/Definitions.h"
+#include "Utils/Warnings.h"
 #include <array>
 #include <cmath> // log, exp, ...
 #include <cassert>
@@ -156,7 +156,7 @@ struct MDPdescriptor
     {
       if(world_rank==0) {
         printf("Action vector components :");
-        for (Uint i=0; i<dimAction; i++) {
+        for (Uint i=0; i<dimAction; ++i) {
           printf(" [ %lu : %s to (%.1f:%.1f) ]", i,
           bActionSpaceBounded[i] ? "bound" : "scaled",
           upperActionValue[i], lowerActionValue[i]);
@@ -328,7 +328,7 @@ struct ActionInfo
 
   void testDiscrete()
   {
-    //for(Uint i=0; i<MDP.maxActionLabel; i++)
+    //for(Uint i=0; i<MDP.maxActionLabel; ++i)
     //  if(i != action2label(label2action(i)))
     //    _die("label %u does not match for action [%s]. returned %u",
     //      i, print(label2action(i)).c_str(), action2label(label2action(i)) );

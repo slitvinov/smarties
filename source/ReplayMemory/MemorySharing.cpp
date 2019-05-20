@@ -89,10 +89,10 @@ MemorySharing::~MemorySharing()
 
 void MemorySharing::run()
 {
-  for(Uint i=1; i<workerSize; i++)
+  for(Uint i=1; i<workerSize; ++i)
     IrecvSize(workerRecvSeqSize[i], i, workerComm, workerRecvSizeReq[i]);
 
-  for(Uint i=0; i<sharingSize; i++)
+  for(Uint i=0; i<sharingSize; ++i)
     if(i not_eq sharingRank)
       IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
 
@@ -126,7 +126,7 @@ void MemorySharing::run()
       }
     }
 
-    for(Uint i=1; i<workerSize; i++)
+    for(Uint i=1; i<workerSize; ++i)
       if (isComplete(workerRecvSizeReq[i]))
       {
         Fvec EP(workerRecvSeqSize[i], (Fval)0);
@@ -153,7 +153,7 @@ void MemorySharing::run()
         sharingTurn = (sharingTurn+1) % sharingSize;
       }
 
-    for(Uint i=0; i<sharingSize; i++)
+    for(Uint i=0; i<sharingSize; ++i)
       if (isComplete(shareRecvSizeReq[i]))
       {
         Fvec EP(shareRecvSeqSize[i], (Fval)0);

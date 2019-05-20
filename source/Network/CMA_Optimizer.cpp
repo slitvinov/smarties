@@ -28,7 +28,7 @@ CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
   generators.resize(populationSize, nullptr);
   stdgens.resize(populationSize, nullptr);
   #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-  for(Uint i=0; i<populationSize; i++) {
+  for(Uint i=0; i<populationSize; ++i) {
     generators[i] = std::make_unique<Saru>(seed[3*i], seed[3*i+1], seed[3*i+2]);
     stdgens[i] = std::make_unique<std::mt19937>(seed[3*i +0]);
   }
@@ -38,13 +38,13 @@ CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
   //const nnReal* const D = pathDif->params;
   const nnReal _eta = computeStdDevScale();
   #pragma omp parallel num_threads(nThreads)
-  for(Uint i=1; i<populationSize; i++)
+  for(Uint i=1; i<populationSize; ++i)
   {
     Saru & gen = * generators[omp_get_thread_num()].get();
     nnReal* const Y = popNoiseVectors[i]->params;
     nnReal* const X = sampled_weights[i]->params;
     #pragma omp for schedule(static)
-    for(Uint w=pStart; w<pStart+pCount; w++) {
+    for(Uint w=pStart; w<pStart+pCount; ++w) {
       Y[w] = gen.f_mean0_var1() * _S[w];
       X[w] = M[w] + _eta * Y[w]; //+ _eta*1e-2*D[w];
     }
@@ -52,7 +52,7 @@ CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
     startAllGather(i);
   }
 
-  for(Uint i=1; i<populationSize; i++)
+  for(Uint i=1; i<populationSize; ++i)
     MPI(Wait, &weightsMPIrequests[i], MPI_STATUS_IGNORE);
 }
 
@@ -97,7 +97,7 @@ void CMA_Optimizer::apply_update()
   {
     const Uint thrID = omp_get_thread_num();
     // compute weighted mean. vectors parallelize over chunks of param vector:
-    for(Uint i=0; i<populationSize; i++)
+    for(Uint i=0; i<populationSize; ++i)
     {
       nnReal * const M = weights->params;
       const nnReal wC = popWeights[i];
@@ -106,7 +106,7 @@ void CMA_Optimizer::apply_update()
       #endif
       const nnReal* const X = sampled_weights[ inds[i] ]->params;
       #pragma omp for simd schedule(static) aligned(M,X : VEC_WIDTH) nowait
-      for(Uint w=pStart; w<pStart+pCount; w++) M[w] += wC * X[w];
+      for(Uint w=pStart; w<pStart+pCount; ++w) M[w] += wC * X[w];
     }
 
     #pragma omp barrier
@@ -114,7 +114,7 @@ void CMA_Optimizer::apply_update()
     if(thrID == 0) startAllGather(0);
 
     // compute weighted avg noise and noise second moment:
-    for(Uint i=0; i<populationSize; i++)
+    for(Uint i=0; i<populationSize; ++i)
     {
       const nnReal wC = popWeights[i];
       #ifdef FDIFF_CMA
@@ -126,7 +126,7 @@ void CMA_Optimizer::apply_update()
       nnReal * const A = avgNois->params;
       const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
       #pragma omp for simd schedule(static) aligned(A,B,Y : VEC_WIDTH) nowait
-      for(Uint w=pStart; w<pStart+pCount; w++) {
+      for(Uint w=pStart; w<pStart+pCount; ++w) {
         B[w] += wC * Y[w]*Y[w];
         A[w] += wZ * Y[w];
       }
@@ -140,7 +140,7 @@ void CMA_Optimizer::apply_update()
     nnReal * const S = diagCov->params;
 
     #pragma omp for simd schedule(static) aligned(P,A,S,B : VEC_WIDTH)
-    for(Uint w=pStart; w<pStart+pCount; w++)
+    for(Uint w=pStart; w<pStart+pCount; ++w)
     {
       P[w] = alphaP * P[w] + updSigP * A[w];
       S[w] = std::sqrt( alpha*S[w]*S[w] + c1cov*P[w]*P[w] + mu_eff*c1cov*B[w] );
@@ -164,7 +164,7 @@ void CMA_Optimizer::apply_update()
     //for(Uint i=1; i<populationSize; ++i)
     //  if( i % nThreads == thrID ) startAllGather(i);
   }
-  //for(Uint i=1; i<pop_size; i++) startAllGather(i);
+  //for(Uint i=1; i<pop_size; ++i) startAllGather(i);
   MPI(Wait, &weightsMPIrequests[0], MPI_STATUS_IGNORE);
 }
 

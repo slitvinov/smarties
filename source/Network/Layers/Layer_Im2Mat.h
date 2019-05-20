@@ -128,8 +128,8 @@ struct Im2MatLayer: public Layer
     nnReal* const weight = para->W(ID);
     assert(para->NB(ID) == OutX * OutY * Kn_C);
     assert(para->NW(ID) == Kn_X * Kn_Y * Kn_C * In_C);
-    for(Uint o=0; o<para->NB(ID); o++) biases[o] = dis(*G);
-    for(Uint o=0; o<para->NW(ID); o++) weight[o] = dis(*G);
+    for(Uint o=0; o<para->NB(ID); ++o) biases[o] = dis(*G);
+    for(Uint o=0; o<para->NW(ID); ++o) weight[o] = dis(*G);
   }
 
   void orthogonalize(const Parameters*const para) const {}

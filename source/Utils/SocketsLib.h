@@ -212,7 +212,7 @@ inline int SOCKET_serverConnect(const unsigned nClients,
   }
 
   clientSockets.resize(nClients, 0);
-  for(unsigned i = 0; i<nClients; i++)
+  for(unsigned i = 0; i<nClients; ++i)
   {
     struct sockaddr_un clientAddress;
     unsigned int addr_len = sizeof(clientAddress);

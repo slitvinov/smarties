@@ -36,23 +36,23 @@ struct Quadratic_advantage: public Quadratic_term
   {
     assert(act.size()==nA);
     Rvec dErrdP(nA*nA, 0), dPol(nA, 0), dAct(nA);
-    for (Uint j=0; j<nA; j++) dAct[j] = act[j] - mean[j];
+    for (Uint j=0; j<nA; ++j) dAct[j] = act[j] - mean[j];
 
     assert(policy == nullptr);
-    //for (Uint j=0; j<nA; j++) dPol[j] = policy->mean[j] - mean[j];
+    //for (Uint j=0; j<nA; ++j) dPol[j] = policy->mean[j] - mean[j];
 
-    for (Uint i=0; i<nA; i++)
-    for (Uint j=0; j<=i; j++) {
+    for (Uint i=0; i<nA; ++i)
+    for (Uint j=0; j<=i; ++j) {
       Real dOdPij = -dAct[j] * dAct[i];
 
       dErrdP[nA*j +i] = Qer*dOdPij;
       dErrdP[nA*i +j] = Qer*dOdPij; //if j==i overwrite, avoid `if'
     }
 
-    for (Uint j=0, kl = start_matrix; j<nA; j++)
-    for (Uint i=0; i<=j; i++) {
+    for (Uint j=0, kl = start_matrix; j<nA; ++j)
+    for (Uint i=0; i<=j; ++i) {
       Real dErrdL = 0;
-      for (Uint k=i; k<nA; k++) dErrdL += dErrdP[nA*j +k] * L[nA*k +i];
+      for (Uint k=i; k<nA; ++k) dErrdL += dErrdP[nA*j +k] * L[nA*k +i];
 
       if(i==j)
         netGradient[kl] = dErrdL * Utilities::unbPosMap_diff(netOutputs[kl]);
@@ -66,7 +66,7 @@ struct Quadratic_advantage: public Quadratic_term
       assert(netGradient.size() >= start_mean+nA);
       for (Uint a=0; a<nA; a++) {
         Real val = 0;
-        for (Uint i=0; i<nA; i++)
+        for (Uint i=0; i<nA; ++i)
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
 
         netGradient[start_mean+a] = val;
@@ -88,7 +88,7 @@ struct Quadratic_advantage: public Quadratic_term
     if(policy not_eq nullptr)
     { //subtract expectation from advantage of action
       ret += quadraticTerm(policy->mean);
-      for(Uint i=0; i<nA; i++)
+      for(Uint i=0; i<nA; ++i)
         ret += matrix[nA*i+i] * policy->variance[i];
     }
     return 0.5*ret;
@@ -113,15 +113,15 @@ struct Quadratic_advantage: public Quadratic_term
   {
     if(policy == nullptr) return 0;
     Rvec PvarP(nA*nA, 0);
-    for (Uint j=0; j<nA; j++)
-    for (Uint i=0; i<nA; i++)
-    for (Uint k=0; k<nA; k++) {
+    for (Uint j=0; j<nA; ++j)
+    for (Uint i=0; i<nA; ++i)
+    for (Uint k=0; k<nA; ++k) {
       const Uint k1 = nA*j + k;
       const Uint k2 = nA*k + i;
       PvarP[nA*j+i] += matrix[k1] * policy->variance[k] * matrix[k2];
     }
     Real ret = quadMatMul(policy->mean, PvarP);
-    for (Uint i=0; i<nA; i++)
+    for (Uint i=0; i<nA; ++i)
       ret += 0.5 * PvarP[nA*i+i] * policy->variance[i];
     return ret;
   }
@@ -131,7 +131,7 @@ struct Quadratic_advantage: public Quadratic_term
     Rvec _grad(netOutputs.size(), 0);
     grad(act, 1, _grad);
     ofstream fout("mathtest.log", ios::app);
-    for(Uint i = 0; i<nL+nA; i++)
+    for(Uint i = 0; i<nL+nA; ++i)
     {
       Rvec out_1 = netOutputs, out_2 = netOutputs;
       if(i>=nL && !start_mean) continue;

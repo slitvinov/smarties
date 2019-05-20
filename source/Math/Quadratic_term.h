@@ -27,8 +27,8 @@ struct Quadratic_term
   Rvec getParam() const
   {
      Rvec ret(nL, 0);
-     for (Uint ind=0, j=0; j<nA; j++)
-       for (Uint i=0; i<nA; i++)
+     for (Uint ind=0, j=0; j<nA; ++j)
+       for (Uint i=0; i<nA; ++i)
          if (i<j)       ret[ind++] = matrix[nA*j +i];
          else if (i==j) ret[ind++] = matrix[nA*j +i];
      return ret;
@@ -51,8 +51,8 @@ protected:
   {
     assert(act.size() == nA && mat.size() == nA*nA);
     Real ret = 0;
-    for (Uint j=0; j<nA; j++)
-    for (Uint i=0; i<nA; i++)
+    for (Uint j=0; j<nA; ++j)
+    for (Uint i=0; i<nA; ++i)
       ret += (act[i]-mean[i])*mat[nA*j+i]*(act[j]-mean[j]);
     return ret;
   }
@@ -67,8 +67,8 @@ protected:
     assert(netOutputs.size()>=start_matrix+nL);
     Rvec ret(nA*nA);
     Uint kL = start_matrix;
-    for (Uint j=0; j<nA; j++)
-    for (Uint i=0; i<nA; i++)
+    for (Uint j=0; j<nA; ++j)
+    for (Uint i=0; i<nA; ++i)
       if (i<j)
         ret[nA*j + i] = netOutputs[kL++];
       else if (i==j)
@@ -89,9 +89,9 @@ protected:
   {
     assert(L.size() == nA*nA);
     Rvec ret(nA*nA,0);
-    for (Uint j=0; j<nA; j++)
-    for (Uint i=0; i<nA; i++)
-    for (Uint k=0; k<nA; k++) {
+    for (Uint j=0; j<nA; ++j)
+    for (Uint i=0; i<nA; ++i)
+    for (Uint k=0; k<nA; ++k) {
       const Uint k1 = nA*j + k;
       const Uint k2 = nA*i + k;
       ret[nA*j + i] += L[k1] * L[k2];
@@ -106,18 +106,18 @@ protected:
     {
       Uint kL = 0;
       Rvec _dLdl(nA*nA, 0);
-      for (Uint j=0; j<nA; j++)
-      for (Uint i=0; i<nA; i++)
+      for (Uint j=0; j<nA; ++j)
+      for (Uint i=0; i<nA; ++i)
         if(i<=j) if(kL++==il) _dLdl[nA*j+i]=1;
       assert(kL==nL);
 
       netGradient[start_matrix+il] = 0;
       //_dPdl = dLdl' * L + L' * dLdl
-      for (Uint j=0; j<nA; j++)
-      for (Uint i=0; i<nA; i++)
+      for (Uint j=0; j<nA; ++j)
+      for (Uint i=0; i<nA; ++i)
       {
         Real dPijdl = 0;
-        for (Uint k=0; k<nA; k++)
+        for (Uint k=0; k<nA; ++k)
         {
           const Uint k1 = nA*j + k;
           const Uint k2 = nA*i + k;
@@ -128,8 +128,8 @@ protected:
     }
     {
       Uint kl = start_matrix;
-      for (Uint j=0; j<nA; j++)
-      for (Uint i=0; i<nA; i++) {
+      for (Uint j=0; j<nA; ++j)
+      for (Uint i=0; i<nA; ++i) {
         if (i==j) netGradient[kl] *= Utilities::unbPosMap_diff(netOutputs[kl]);
         if (i<j)  netGradient[kl] *= 1;
         if (i<=j) kl++;

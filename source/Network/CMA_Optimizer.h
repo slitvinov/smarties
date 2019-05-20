@@ -62,7 +62,7 @@ public:
   {
     std::vector<nnReal> ret(popSize);
     nnReal sum = 0;
-    for(Uint i=0; i<popSize; i++)
+    for(Uint i=0; i<popSize; ++i)
     {
       ret[i] = std::log(0.5*(popSize+1)) - std::log(i+1.);
       #ifdef FDIFF_CMA
@@ -71,7 +71,7 @@ public:
         sum += std::max( ret[i], (nnReal) 0 );
       #endif
     }
-    for(Uint i=0; i<popSize; i++) ret[i] /= sum;
+    for(Uint i=0; i<popSize; ++i) ret[i] /= sum;
     return ret;
   }
 
@@ -79,7 +79,7 @@ public:
                                      const Uint populationSize)
   {
     Real sum = 0, sumsq = 0;
-    for(Uint i=0; i<populationSize; i++) {
+    for(Uint i=0; i<populationSize; ++i) {
       #ifdef FDIFF_CMA
         const nnReal W = std::fabs( popW[i] );
       #else
@@ -93,7 +93,7 @@ public:
   static inline Real initializeSumW(const std::vector<nnReal>popW, const Uint popsz)
   {
     Real sum = 0;
-    for(Uint i=0; i<popsz; i++) sum += popW[i];
+    for(Uint i=0; i<popsz; ++i) sum += popW[i];
     return sum;
   }
   void getMetrics(std::ostringstream& buff) override;
@@ -102,14 +102,14 @@ public:
   std::vector<Uint> computePstarts() const
   {
     std::vector<Uint> ret (learn_size, 0);
-    for (Uint i=0; i < learn_size; i++)
+    for (Uint i=0; i < learn_size; ++i)
       ret[i] = mpiDistribOpsStride * i;
     return ret;
   }
   std::vector<Uint> computePcounts() const
   {
     std::vector<Uint> ret (learn_size, 0);
-    for (Uint i=0; i < learn_size; i++) {
+    for (Uint i=0; i < learn_size; ++i) {
       const Uint end = std::min(mpiDistribOpsStride*(i+1), weights->nParams);
       const Uint beg = mpiDistribOpsStride * i;
       ret[i] = end - beg;

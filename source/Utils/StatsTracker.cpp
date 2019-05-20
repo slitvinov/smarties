@@ -93,7 +93,7 @@ void TrainData::log(const Real Q, const Real Qerr,
   trackPolicy(polG, penal, thrID);
   const std::vector<Real> tmp = extra;
   assert(tmp.size() == n_extra && bPolStats);
-  for(Uint i=0; i<n_extra; i++) eVec[thrID][i] += tmp[i];
+  for(Uint i=0; i<n_extra; ++i) eVec[thrID][i] += tmp[i];
 }
 
 void TrainData::log(const Real Q, const Real Qerr,
@@ -103,7 +103,7 @@ void TrainData::log(const Real Q, const Real Qerr,
   trackQ(Q, Qerr, thrID);
   const std::vector<Real> tmp = extra;
   assert(tmp.size() == n_extra);
-  for(Uint i=0; i<n_extra; i++) eVec[thrID][i] += tmp[i];
+  for(Uint i=0; i<n_extra; ++i) eVec[thrID][i] += tmp[i];
 }
 
 void TrainData::log(const Real Q, const Real Qerr, const int thrID)
@@ -126,7 +126,7 @@ void TrainData::getMetrics(std::ostringstream& buff)
     Utilities::real2SS(buff, p[1], 6, 1);
     Utilities::real2SS(buff, p[2], 6, 0);
   }
-  for(Uint i=0; i<n_extra; i++) Utilities::real2SS(buff, e[i], 6, 1);
+  for(Uint i=0; i<n_extra; ++i) Utilities::real2SS(buff, e[i], 6, 1);
 }
 
 void TrainData::getHeaders(std::ostringstream& buff) const
@@ -148,7 +148,7 @@ void TrainData::getHeaders(std::ostringstream& buff) const
 
 void TrainData::resetSoft()
 {
-  for(Uint i=0; i<nThreads; i++) {
+  for(Uint i=0; i<nThreads; ++i) {
     cntVec[i] = 0;
     qVec[i][0] = 0;
     qVec[i][1] = 0;
@@ -158,7 +158,7 @@ void TrainData::resetSoft()
     pVec[i][2] = 0;
     qVec[i][3] =  1e9;
     qVec[i][4] = -1e9;
-    for(Uint j=0; j<n_extra; j++) eVec[i][j] = 0;
+    for(Uint j=0; j<n_extra; ++j) eVec[i][j] = 0;
   }
 }
 
@@ -176,13 +176,13 @@ void TrainData::resetHead()
   p[1] = 0;
   p[2] = 0;
 
-  for(Uint j=0; j<n_extra; j++) e[j] = 0;
+  for(Uint j=0; j<n_extra; ++j) e[j] = 0;
 }
 
 void TrainData::reduce()
 {
   resetHead();
-  for (Uint i=0; i<nThreads; i++) {
+  for (Uint i=0; i<nThreads; ++i) {
     cnt += cntVec[i];
     q[0] += qVec[i][0];
     q[1] += qVec[i][1];
@@ -192,7 +192,7 @@ void TrainData::reduce()
     p[0] += pVec[i][0];
     p[1] += pVec[i][1];
     p[2] += pVec[i][2];
-    for(Uint j=0; j<n_extra; j++) e[j] += eVec[i][j];
+    for(Uint j=0; j<n_extra; ++j) e[j] += eVec[i][j];
   }
   resetSoft();
 
@@ -204,7 +204,7 @@ void TrainData::reduce()
   p[0] /= cnt;
   p[1] /= cnt;
   p[2] /= cnt;
-  for(Uint j=0; j<n_extra; j++) e[j] /= cnt;
+  for(Uint j=0; j<n_extra; ++j) e[j] /= cnt;
 }
 
 void TrainData::trackQ(const Real Q, const Real err, const int thrID)
@@ -220,7 +220,7 @@ void TrainData::trackPolicy(const std::vector<Real> polG,
   const std::vector<Real> penal, const int thrID)
 {
   Real tmpPol = 0, tmpPen = 0, tmpPrj = 0;
-  for(Uint i=0; i<polG.size(); i++) {
+  for(Uint i=0; i<polG.size(); ++i) {
     tmpPol +=  polG[i]* polG[i];
     tmpPen += penal[i]*penal[i];
     tmpPrj +=  polG[i]*penal[i];
@@ -241,7 +241,7 @@ void StatsTracker::track_vector(const Rvec grad, const Uint thrID) const
 {
   assert(n_stats==grad.size());
   cntVec[thrID] += 1;
-  for (Uint i=0; i<n_stats; i++) {
+  for (Uint i=0; i<n_stats; ++i) {
     avgVec[thrID][i] += grad[i];
     stdVec[thrID][i] += grad[i]*grad[i];
   }
@@ -253,9 +253,9 @@ void StatsTracker::advance()
   std::fill(std.begin(),  std.end(), 0);
   cnt = 0;
 
-  for (Uint i=0; i<nThreads; i++) {
+  for (Uint i=0; i<nThreads; ++i) {
     cnt += cntVec[i];
-    for (Uint j=0; j<n_stats; j++) {
+    for (Uint j=0; j<n_stats; ++j) {
       avg[j] += avgVec[i][j];
       std[j] += stdVec[i][j];
     }
@@ -268,7 +268,7 @@ void StatsTracker::advance()
 void StatsTracker::update()
 {
   cnt = std::max((long double)2.2e-16, cnt);
-  for (Uint j=0; j<n_stats; j++) {
+  for (Uint j=0; j<n_stats; ++j) {
     const Real   mean = avg[j] / cnt;
     const Real sqmean = std[j] / cnt;
     std[j] = std::sqrt(sqmean); // - mean*mean
@@ -288,7 +288,7 @@ void StatsTracker::printToFile(const std::string base)
     }
     else pFile = fopen((base + "_outGrad_stats.raw").c_str(), "ab");
     std::vector<float> printvals(n_stats*2);
-    for (Uint i=0; i<n_stats; i++) {
+    for (Uint i=0; i<n_stats; ++i) {
       printvals[i]         = avg[i];
       printvals[i+n_stats] = std[i];
     }
@@ -302,7 +302,7 @@ void StatsTracker::finalize(const LDvec&oldM, const LDvec&oldS)
   instMean = avg;
   instStdv = std;
   nStep++;
-  for (Uint i=0; i<n_stats; i++) {
+  for (Uint i=0; i<n_stats; ++i) {
     avg[i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avg[i];
     std[i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*std[i];
     //stdVec[0][i]=std::max((1-CLIP_LEARNR)*oldstd[i], stdVec[0][i]);

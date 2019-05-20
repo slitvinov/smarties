@@ -17,7 +17,7 @@ Collector::Collector(MemoryBuffer*const RM) : replay(RM),
 {
   globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
   inProgress.resize(distrib.nAgents, nullptr);
-  for (Uint i=0; i<distrib.nAgents; i++) inProgress[i] = new Sequence();
+  for (Uint i=0; i<distrib.nAgents; ++i) inProgress[i] = new Sequence();
 }
 
 // Once learner receives a new observation, first this function is called
@@ -49,7 +49,7 @@ void Collector::add_state(Agent&a)
       bool same = true;
       const std::vector<nnReal> vecSold = a.getObservedOldState<nnReal>();
       const auto memSold = S->states.back();
-      for (Uint i=0; i<vecSold.size() && same; i++)
+      for (Uint i=0; i<vecSold.size() && same; ++i)
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
       //debugS("Agent %s and %s",
       //  print(vecSold).c_str(), print(memSold).c_str() );

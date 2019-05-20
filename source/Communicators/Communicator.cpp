@@ -176,7 +176,7 @@ void Communicator::agents_define_different_MDP()
 void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
 {
   ENV.bTrainFromAgentData.resize(ENV.nAgentsPerEnvironment, 1);
-  for(int i=agentStart; i<agentEnd; i++)
+  for(int i=agentStart; i<agentEnd; ++i)
     ENV.bTrainFromAgentData[i] = 0;
 }
 

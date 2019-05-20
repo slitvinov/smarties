@@ -20,9 +20,9 @@ inline std::string printableTuple(std::vector<double> s, double r,
 {
   std::ostringstream o;
   o << "[";
-  for (int i=0; i<static_cast<int>(s.size())-1; i++) o << s[i] << " ";
+  for (int i=0; i<static_cast<int>(s.size())-1; ++i) o << s[i] << " ";
   o << s[s.size()-1] << "] " << r << " [";
-  for (int i=0; i<static_cast<int>(a.size())-1; i++) o << a[i] << " ";
+  for (int i=0; i<static_cast<int>(a.size())-1; ++i) o << a[i] << " ";
   o << a[a.size()-1] << "]";
   return o.str();
 }
@@ -57,17 +57,17 @@ int app_main(smarties::Communicator*const rlcom,
   {
     rlcom->sendInitState(state, 0);
 
-    for(int k=0; k<10; k++)
+    for(int k=0; k<10; ++k)
     {
       if(rank == size-1) { //if last rank, generate state
-        for(int i=0; i<nS+1; i++) vec[i] = dist(gen);
+        for(int i=0; i<nS+1; ++i) vec[i] = dist(gen);
       } else {
         MPI_Recv(vec, nS+1, MPI_DOUBLE, rank+1, 1337, mpicom, MPI_STATUS_IGNORE);
       }
       if(rank) //if not rank 0, pass state along
         MPI_Send(vec, nS+1, MPI_DOUBLE, rank-1, 1337, mpicom);
 
-      for(int i=0; i<nS; i++) state[i] = vec[i];
+      for(int i=0; i<nS; ++i) state[i] = vec[i];
       double reward = vec[nS];
 
       rlcom->sendState(state, reward, 0);

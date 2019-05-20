@@ -30,11 +30,11 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     {
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
       #pragma omp for schedule(dynamic) nowait
-      for(Uint i=0; i<setSize; i++) {
+      for(Uint i=0; i<setSize; ++i) {
         count += Set[i]->ndata();
-        for(Uint j=0; j<Set[i]->ndata(); j++) {
+        for(Uint j=0; j<Set[i]->ndata(); ++j) {
           newstdvr += std::pow(Set[i]->rewards[j+1], 2);
-          for(Uint k=0; k<dimS && WS>0; k++) {
+          for(Uint k=0; k<dimS && WS>0; ++k) {
             const long double sk = Set[i]->states[j][k] - mean[k];
             thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
           }
@@ -42,7 +42,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       }
       if(WS>0) {
         #pragma omp critical
-        for(Uint k=0; k<dimS; k++) {
+        for(Uint k=0; k<dimS; ++k) {
           newSSum[k]   += thNewSSum[k];
           newSSqSum[k] += thNewSSqSum[k];
         }
@@ -74,7 +74,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   {
     const LDvec SSum1 = Ssum1Rdx.get(bInit);
     const LDvec SSum2 = Ssum2Rdx.get(bInit);
-    for(Uint k=0; k<dimS; k++)
+    for(Uint k=0; k<dimS; ++k)
     {
       // this is the sample mean minus mean[k]:
       const long double MmM = SSum1[k]/count;
@@ -96,7 +96,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
      outf.flush(); outf.close();
     }
     Uint cntSamp = 0;
-    for(Uint i=0; i<setSize; i++) {
+    for(Uint i=0; i<setSize; ++i) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
@@ -108,20 +108,20 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       {
         LDvec thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
         #pragma omp for schedule(dynamic)
-        for(Uint i=0; i<setSize; i++)
-          for(Uint j=0; j<Set[i]->ndata(); j++) {
+        for(Uint i=0; i<setSize; ++i)
+          for(Uint j=0; j<Set[i]->ndata(); ++j) {
             const auto S = RM->standardize(Set[i]->states[j]);
-            for(Uint k=0; k<dimS; k++) {
+            for(Uint k=0; k<dimS; ++k) {
               thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
             }
           }
         #pragma omp critical
-        for(Uint k=0; k<dimS; k++) {
+        for(Uint k=0; k<dimS; ++k) {
           dbgStateSum[k]   += thr_dbgStateSum[k];
           dbgStateSqSum[k] += thr_dbgStateSqSum[k];
         }
       }
-      for(Uint k=0; k<dimS && settings.learner_rank == 0; k++) {
+      for(Uint k=0; k<dimS && settings.learner_rank == 0; ++k) {
         const Real dbgMean = dbgStateSum[k]/cntSamp;
         const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
         if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
@@ -144,12 +144,12 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
   {
     std::pair<int, Real> farpol{-1, -1}, maxdkl{-1, -1}, oldest{-1, 9e9};
     #pragma omp for schedule(static, 1) nowait
-    for(Uint i = 0; i < setSize; i++)
+    for(Uint i = 0; i < setSize; ++i)
     {
       #ifndef NDEBUG
         const Fval invC = 1/CmaxRho;
         Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0, dbg_sum_mse = 0;
-        for(Uint j=0; j<Set[i]->ndata(); j++) {
+        for(Uint j=0; j<Set[i]->ndata(); ++j) {
           const Fval W = Set[i]->offPolicImpW[j];
           dbg_sum_mse += Set[i]->SquaredError[j];
           dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
@@ -209,12 +209,12 @@ void MemoryProcessing::finalize()
   // reset flags that signal request to update estimators:
   const std::vector<Uint>& sampled = RM->lastSampledEpisodes();
   const Uint sampledSize = sampled.size();
-  for(Uint i = 0; i < sampledSize; i++) {
+  for(Uint i = 0; i < sampledSize; ++i) {
     Sequence * const S = RM->get(sampled[i]);
     assert(S->just_sampled >= 0);
     S->just_sampled = -1;
   }
-  for(int i=0; i<nB4; i++) assert(RM->get(i)->just_sampled < 0);
+  for(int i=0; i<nB4; ++i) assert(RM->get(i)->just_sampled < 0);
 
   // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
@@ -236,7 +236,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
 {
   Real avgR = 0;
   const long nSeq = nSequences.load();
-  for(long i=0; i<nSeq; i++) avgR += Set[i]->totR;
+  for(long i=0; i<nSeq; ++i) avgR += Set[i]->totR;
 
   Utilities::real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
   Utilities::real2SS(buff, 1/invstd_reward, 6, 1);

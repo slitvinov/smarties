@@ -49,7 +49,7 @@ struct Gaussian_advantage
 private:
   static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA) {
     Rvec ret = Rvec(2*nA);
-    for(Uint i=0; i<2*nA; i++)
+    for(Uint i=0; i<2*nA; ++i)
       ret[i] = Utilities::unbPosMap_func(net[start +1 +i]);
 
     return ret;
@@ -60,7 +60,7 @@ private:
 
   void grad_matrix(Rvec& G, const Real err) const {
     G[start_coefs] *= err * Utilities::unbPosMap_diff(netOutputs[start_coefs]);
-    for (Uint i=0, ind=start_coefs+1; i<2*nA; i++, ind++)
+    for (Uint i=0, ind=start_coefs+1; i<2*nA; ++i, ind++)
        G[ind] *= err * Utilities::unbPosMap_diff(netOutputs[ind]);
   }
 
@@ -74,7 +74,7 @@ public:
 
   Real coefMixRatio(const Rvec&A, const Rvec&V) const {
     Real ret = 1;
-    for (Uint i=0; i<nA; i++)
+    for (Uint i=0; i<nA; ++i)
       ret *= std::sqrt(A[i]/(A[i]+V[i]))/2 +std::sqrt(A[i+nA]/(A[i+nA]+V[i]))/2;
     return ret;
   }
@@ -88,7 +88,7 @@ public:
     const Real expect = - coefMixRatio(matrix, policy->variance);
     G[start_coefs] += orig + expect;
 
-    for (Uint i=0, ind=start_coefs+1; i<nA; i++, ind++) {
+    for (Uint i=0, ind=start_coefs+1; i<nA; ++i, ind++) {
       const Real m = policy->mean[i], p1 = matrix[i], p2 = matrix[i+nA];
       G[ind]   = a[i]>m ? orig*coef * std::pow((a[i]-m)/p1, 2)/2 : 0;
       G[ind+nA]= a[i]<m ? orig*coef * std::pow((a[i]-m)/p2, 2)/2 : 0;
@@ -112,7 +112,7 @@ public:
   {
     assert(act.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;
-    for (Uint i=0; i<nA; i++) {
+    for (Uint i=0; i<nA; ++i) {
       const Uint matind = act[i]>mean[i] ? i : i+nA;
       ret += std::pow(act[i]-mean[i],2)/mat[matind];
     }

@@ -87,7 +87,7 @@ void Approximator::initializeNetwork()
 
   contexts.reserve(nThreads);
   #pragma omp parallel num_threads(nThreads)
-  for (Uint i=0; i<nThreads; i++)
+  for (Uint i=0; i<nThreads; ++i)
   {
     if(i == (Uint) omp_get_thread_num())
       contexts.emplace_back(
@@ -99,14 +99,14 @@ void Approximator::initializeNetwork()
   }
 
   agentsContexts.reserve(nAgents);
-  for (Uint i=0; i<nAgents; i++)
+  for (Uint i=0; i<nAgents; ++i)
     agentsContexts.emplace_back( std::make_unique<AgentContext>(i) );
 
   const auto& layers = net->layers;
   if (m_auxInputSize>0) // If we have an auxInput (eg policy for DPG) to what
   {                     // layer does it attach? Then we can grab gradient.
     auxInputAttachLayer = 0; // preprocessing/state and aux in one input layer
-    for(Uint i=1; i<layers.size(); i++) if(layers[i]->bInput) {
+    for(Uint i=1; i<layers.size(); ++i) if(layers[i]->bInput) {
       if(auxInputAttachLayer>0) die("too many input layers, not supported");
       auxInputAttachLayer = i;
     }
@@ -210,7 +210,7 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
   const Uint nsplit = std::min((Uint) settings.splitLayers, nLayers);
   const Uint firstSplit = nLayers - nsplit;
 
-  for(Uint i=0; i<firstSplit; i++)
+  for(Uint i=0; i<firstSplit; ++i)
     build->addLayer(layerSizes[i], funcType, false, netType);
 
   if(nOuts > 0)
@@ -218,7 +218,7 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
     if(nsplit)
     {
       const Uint lastShared = build->layers.size() - 1;
-      for (Uint i=0; i<outputSizes.size(); i++)
+      for (Uint i=0; i<outputSizes.size(); ++i)
       {
         //`link' specifies how many layers back should layer take input from
         // use layers.size()-lastShared >=1 to link back to last shared layer
@@ -226,7 +226,7 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
         build->addLayer(layerSizes[firstSplit], funcType, false,
                         netType, nConnectBack);
 
-        for (Uint j=firstSplit+1; j<layerSizes.size(); j++)
+        for (Uint j=firstSplit+1; j<layerSizes.size(); ++j)
           build->addLayer(layerSizes[j], funcType, false, netType);
 
         build->addLayer(outputSizes[i], settings.nnOutputFunc, true);

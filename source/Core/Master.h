@@ -10,7 +10,7 @@
 #define smarties_Master_h
 
 #include "Worker.h"
-#include "../Utils/SocketsLib.h"
+#include "Utils/SocketsLib.h"
 #include <thread>
 
 namespace smarties

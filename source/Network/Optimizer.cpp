@@ -149,7 +149,7 @@ void AdamOptimizer::apply_update()
     nnReal* const G  = gradSum->params;
 
   #pragma omp for simd schedule(static) aligned(paramAry,M1,M2,M3,G:VEC_WIDTH)
-    for (Uint i=0; i<weights->nParams; i++)
+    for (Uint i=0; i<weights->nParams; ++i)
     paramAry[i] += algo.step(G[i], M1[i], M2[i], M3[i], paramAry[i]);
   }
 
@@ -170,7 +170,7 @@ void AdamOptimizer::apply_update()
       else { // else is the learning rate of an exponential averaging
         nnReal* const targetAry = target_weights->params;
         #pragma omp parallel for simd schedule(static) aligned(paramAry,targetAry:VEC_WIDTH)
-        for(Uint j=0; j<weights->nParams; j++)
+        for(Uint j=0; j<weights->nParams; ++j)
           targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
       }
     }

@@ -8,7 +8,7 @@
 #include "Network/Builder.h"
 #include "Utils/SstreamUtilities.h"
 
-#ifdef ADV_GAUS
+#ifndef ADV_QUAD
 //#include "../Math/Mixture_advantage_gaus.h"
 #include "Math/Gaus_advantage.h"
 #else
@@ -37,7 +37,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareCMALoss()
     }
     aR[b] /= ESpopSize; aA[b] /= ESpopSize;
   }
-  //for(Uint b=0; b<batchSize; b++) { aR[b] = rhos[b][0]; aA[b] = advs[b][0]; }
+  //for(Uint b=0; b<batchSize; ++b) { aR[b] = rhos[b][0]; aA[b] = advs[b][0]; }
 
   const auto isFar = [&](const Real&W) {return W >= CmaxRet || W <= CinvRet;};
 
@@ -208,13 +208,13 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     Rvec output(networks[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
 
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
 
-    for(Uint i=0; i<=nL; i++) output[i] = 0.5*dist(generators[0]);
-    for(Uint i=0; i<nA; i++)
+    for(Uint i=0; i<=nL; ++i) output[i] = 0.5*dist(generators[0]);
+    for(Uint i=0; i<nA; ++i)
       output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       const Real muVar = Utilities::noiseMap_inverse(mu[i+nA]);
       output[1+nL+i+nA] = muVar + .1*dist(generators[0]);
     }
@@ -279,12 +279,12 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     Rvec output(networks[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
 
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
 
-    for(Uint i=0; i<nA; i++)
+    for(Uint i=0; i<nA; ++i)
       output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++) {
+    for(Uint i=0; i<nA; ++i) {
       const Real muVar = Utilities::noiseMap_inverse(mu[i+nA]);
       output[1+nL+i+nA] = muVar + .1*dist(generators[0]);
     }
@@ -347,15 +347,15 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approxim
   {  // TEST FINITE DIFFERENCES:
     Rvec output(networks[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<output.size(); ++i) output[i] = dist(generators[0]);
+    for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
     Real norm = 0;
-    for(Uint i=0; i<NEXPERTS; i++) {
+    for(Uint i=0; i<NEXPERTS; ++i) {
       mu[i] = std::exp(mu[i]);
       norm += mu[i];
     }
-    for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
-    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
+    for(Uint i=0; i<NEXPERTS; ++i) mu[i] = mu[i]/norm;
+    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);++i) mu[i]=std::exp(mu[i]);
 
     auto pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output);
     Rvec act = pol.finalize(1, &generators[0], mu);

@@ -58,9 +58,9 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
 
   //code to compute policy grad:
   Rvec polG(2*nA, 0);
-  for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
+  for (Uint i=0; i<nA; ++i) polG[i] = isOff? 0 : detPolG[i];
   // this keeps stdev at user's value, else NN penalization might cause drift:
-  for (Uint i=0; i<nA; i++) polG[i+nA] = explNoise - POL.stdev[i];
+  for (Uint i=0; i<nA; ++i) polG[i+nA] = explNoise - POL.stdev[i];
   const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
   // If beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG:
   Rvec mixG = weightSum2Grads(polG, penG, beta);

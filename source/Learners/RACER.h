@@ -22,7 +22,7 @@ struct Gaussian_policy;
 //class Gaussian_mixture;
 
 struct Discrete_advantage;
-#ifdef ADV_GAUS
+#ifndef ADV_QUAD
 #define Param_advantage Gaussian_advantage
 #else
 #define Param_advantage Quadratic_advantage
@@ -30,6 +30,9 @@ struct Discrete_advantage;
 struct Param_advantage;
 struct Zero_advantage;
 
+//#ifndef NEXPERTS
+//#define NEXPERTS 1
+//#endif
 //template<Uint nExperts>
 //class Mixture_advantage;
 

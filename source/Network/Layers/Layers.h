@@ -99,7 +99,7 @@ class Layer
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
       #if 0 //def SINGLE_PREC
-      for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; i++)
+      for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; ++i)
       {
         const nnReal* const W = weight + NOsimd*i;
         __m256 ret = _mm256_setzero_ps();
@@ -136,16 +136,16 @@ class Layer
     {
       nnReal* const grad_b = grad->B(ID);
       #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
-      for(Uint o=0; o<NO; o++) grad_b[o] += deltas[o];
+      for(Uint o=0; o<NO; ++o) grad_b[o] += deltas[o];
     }
 
     {
       const nnReal* const inputs = curr->Y(ID-link);
             nnReal* const grad_w = grad->W(ID);
-      for(Uint i=0; i<NI;  i++) {
+      for(Uint i=0; i<NI;  ++i) {
               nnReal* const G = grad_w + NOsimd*i;
         #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
-        for(Uint o=0; o<NO; o++) G[o] += inputs[i] * deltas[o];
+        for(Uint o=0; o<NO; ++o) G[o] += inputs[i] * deltas[o];
       }
     }
 
@@ -153,10 +153,10 @@ class Layer
     {
       const nnReal* const inputs = prev->Y(ID);
             nnReal* const grad_w = grad->W(ID) +NOsimd*NI;
-      for(Uint i=0; i<NR;  i++) {
+      for(Uint i=0; i<NR;  ++i) {
         nnReal* const G = grad_w + NOsimd*i;
         #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
-        for(Uint o=0; o<NO; o++) G[o] += inputs[i] * deltas[o];
+        for(Uint o=0; o<NO; ++o) G[o] += inputs[i] * deltas[o];
       }
     }
   }
@@ -237,9 +237,9 @@ class JoinLayer: public Layer
                 const Parameters*const para) const override {
     nnReal* const ret = curr->Y(ID);
     Uint k = 0;
-    for (Uint i=1; i<=nJoin; i++) {
+    for (Uint i=1; i<=nJoin; ++i) {
       const nnReal* const inputs = curr->Y(ID-i);
-      for (Uint j=0; j<curr->sizes[ID-i]; j++) ret[k++] = inputs[j];
+      for (Uint j=0; j<curr->sizes[ID-i]; ++j) ret[k++] = inputs[j];
     }
     assert(k==size);
   }
@@ -383,7 +383,7 @@ class ParamLayer: public Layer
                   Real initializationFac) const override
   {
     nnReal* const biases = W->B(ID);
-    for(Uint o=0; o<size; o++) biases[o] = func->inverse(initVals[o]);
+    for(Uint o=0; o<size; ++o) biases[o] = func->inverse(initVals[o]);
   }
 };
 

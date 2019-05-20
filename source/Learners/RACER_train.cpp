@@ -161,7 +161,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
   if(thrID==0) profiler->stop_start("FWD");
 
   F[0]->prepare_seq(traj, thrID, wID);
-  for (int k=0; k<ndata; k++) F[0]->forward(k, thrID);
+  for (int k=0; k<ndata; ++k) F[0]->forward(k, thrID);
 
   //if partial sequence then compute value of last state (!= R_end)
   if( traj->isTruncated(ndata) ) {

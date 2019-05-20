@@ -17,7 +17,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
   const Uint totalSize = Sequence::computeTotalEpisodeSize(dS, dA, dP, seq_len);
   std::vector<Fval> ret(totalSize, 0);
   Fval* buf = ret.data();
-  for (Uint i = 0; i<seq_len; i++) {
+  for (Uint i = 0; i<seq_len; ++i) {
     std::copy(states[i].begin(), states[i].end(), buf);
     buf[dS] = rewards[i]; buf += dS + 1;
     std::copy(actions[i].begin(),  actions[i].end(),  buf); buf += dA;
@@ -61,7 +61,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   const Uint seq_len = Sequence::computeTotalEpisodeNstep(dS,dA,dP,data.size());
   const Fval* buf = data.data();
   assert(states.size() == 0);
-  for (Uint i = 0; i<seq_len; i++) {
+  for (Uint i = 0; i<seq_len; ++i) {
     states.push_back(std::vector<nnReal>(buf, buf+dS));
     rewards.push_back(buf[dS]); buf += dS + 1;
     actions.push_back(std::vector<Fval>(buf, buf+dA)); buf += dA;

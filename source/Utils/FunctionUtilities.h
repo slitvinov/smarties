@@ -58,7 +58,7 @@ inline T nnSafeExp(const T val)
 inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
 {
   std::vector<Uint> ret(outs.size(), 0); //index 0 is 0
-  for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
+  for(Uint i=1; i<outs.size(); ++i) ret[i] = ret[i-1] + outs[i-1];
   return ret;
 }
 
@@ -100,7 +100,7 @@ template<typename T = nnReal>
 inline std::vector<T*> allocate_vec(std::vector<Uint> _sizes)
 {
   std::vector<T*> ret(_sizes.size(), nullptr);
-  for(Uint i=0; i<_sizes.size(); i++) ret[i] = allocate_ptr(_sizes[i]);
+  for(Uint i=0; i<_sizes.size(); ++i) ret[i] = allocate_ptr(_sizes[i]);
   return ret;
 }
 
@@ -202,7 +202,7 @@ inline Rvec sum3Grads(const Rvec& f, const Rvec& g, const Rvec& h)
   assert(g.size() == f.size());
   assert(h.size() == f.size());
   Rvec ret(f.size());
-  for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i]+h[i];
+  for(Uint i=0; i<f.size(); ++i) ret[i] = f[i]+g[i]+h[i];
   return ret;
 }
 
@@ -210,7 +210,7 @@ inline Rvec sum2Grads(const Rvec& f, const Rvec& g)
 {
   assert(g.size() == f.size());
   Rvec ret(f.size());
-  for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i];
+  for(Uint i=0; i<f.size(); ++i) ret[i] = f[i]+g[i];
   return ret;
 }
 
@@ -218,7 +218,7 @@ inline Rvec weightSum2Grads(const Rvec& f, const Rvec& g, const Real W)
 {
   assert(g.size() == f.size());
   Rvec ret(f.size());
-  for(Uint i=0; i<f.size(); i++) ret[i] = W*f[i]+ (1-W)*g[i];
+  for(Uint i=0; i<f.size(); ++i) ret[i] = W*f[i]+ (1-W)*g[i];
   return ret;
 }
 
@@ -228,7 +228,7 @@ inline Rvec trust_region_update(const Rvec& grad,
   assert(grad.size() == trust.size());
   Rvec ret(nA);
   Real dot=0, norm = std::numeric_limits<Real>::epsilon();
-  for (Uint j=0; j<nA; j++) {
+  for (Uint j=0; j<nA; ++j) {
     norm += trust[j] * trust[j];
     dot +=  trust[j] *  grad[j];
   }
@@ -237,7 +237,7 @@ inline Rvec trust_region_update(const Rvec& grad,
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
   //#endif
-  for (Uint j=0; j<nA; j++) ret[j] = grad[j]-proj*trust[j];
+  for (Uint j=0; j<nA; ++j) ret[j] = grad[j]-proj*trust[j];
   return ret;
 }
 
@@ -356,7 +356,7 @@ inline nnReal* init(const Uint N, const nnReal ini)
 {
   nnReal* ret;
   _allocate_quick(ret, N);
-  for (Uint j=0; j<N; j++) ret[j] = ini;
+  for (Uint j=0; j<N; ++j) ret[j] = ini;
   return ret;
 }
 
@@ -381,7 +381,7 @@ inline Rvec circle_region(const Rvec& grad,
   const Uint nA = grad.size();
   Rvec ret(nA);
   Real normKG = 0, normK = 1e-16, normG = 1e-16, dot = 0;
-  for(Uint j=0; j<nA; j++) {
+  for(Uint j=0; j<nA; ++j) {
     normKG += std::pow(grad[j]+trust[j],2);
     normK += trust[j] * trust[j];
     normG += grad[j] * grad[j];
@@ -391,18 +391,18 @@ inline Rvec circle_region(const Rvec& grad,
     const Real nG = sqrt(normG)/nact *(sqrt(normK)/nact +dot/sqrt(normG)/nact);
     const Real denom = std::max((Real)1, nG/delta);
     //const Real denom = (1+ nG/delta);
-    for(Uint j=0; j<nA; j++) ret[j] = grad[j]/denom;
+    for(Uint j=0; j<nA; ++j) ret[j] = grad[j]/denom;
   #else
     const Real nG = std::sqrt(normKG)/nact;
     const Real denom = std::max((Real)1, nG/delta);
     //const Real denom = (1+ nG/delta);
     const Real numer = std::min((Real)0, (delta-nG)/delta);
-    for(Uint j=0; j<nA; j++) ret[j] = (grad[j] + numer*trust[j])/denom;
+    for(Uint j=0; j<nA; ++j) ret[j] = (grad[j] + numer*trust[j])/denom;
   #endif
   //printf("KG:%f K:%f G:%f dot:%f denom:%f delta:%f\n",
   //       normKG,normK,normG,dot,denom,delta);
   //const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
-  //for(Uint j=0; j<nA; j++) ret[j] = (grad[j]+trust[j])*softclip -trust[j];
+  //for(Uint j=0; j<nA; ++j) ret[j] = (grad[j]+trust[j])*softclip -trust[j];
   return ret;
 }
 */

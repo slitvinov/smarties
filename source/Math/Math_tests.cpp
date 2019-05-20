@@ -22,7 +22,7 @@ void Gaussian_policy::test(const Rvec& act, const Rvec& beta) const
   const Rvec div_klgrad = div_kl_grad(beta);
   const Rvec policygrad = policy_grad(act, 1);
   std::ofstream fout("mathtest.log", std::ios::app);
-  for(Uint i = 0; i<2*nA; i++)
+  for(Uint i = 0; i<2*nA; ++i)
   {
     Rvec out_1 = netOutputs, out_2 = netOutputs;
     if(i>=nA && start_prec == 0) continue;
@@ -65,7 +65,7 @@ void Discrete_policy::test(const Uint act, const Rvec& beta) const
   const Rvec policygrad = policy_grad(act, 1);
   std::ofstream fout("mathtest.log", std::ios::app);
   //values_grad(act, 1, _grad);
-  for(Uint i = 0; i<nA; i++)
+  for(Uint i = 0; i<nA; ++i)
   {
     Rvec out_1 = netOutputs, out_2 = netOutputs;
     const Uint index = start_prob+i;
@@ -112,7 +112,7 @@ void Gaussian_advantage::test(const Rvec& act, std::mt19937*const gen) const
   Rvec _grad(numNetOutputs, 0);
   grad(act, 1, _grad);
   std::ofstream fout("mathtest.log", std::ios::app);
-  for(Uint i = 0; i<nL; i++)
+  for(Uint i = 0; i<nL; ++i)
   {
     Rvec out_1 = netOutputs, out_2 = netOutputs;
     const Uint index = start_coefs+i;

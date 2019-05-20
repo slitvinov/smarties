@@ -58,8 +58,8 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
 
   //code to compute policy grad:
   Rvec polG(2*nA, 0);
-  for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
-  for (Uint i=0; i<nA; i++) polG[i+nA] = explNoise - POL.stdev[i];
+  for (Uint i=0; i<nA; ++i) polG[i] = isOff? 0 : detPolG[i];
+  for (Uint i=0; i<nA; ++i) polG[i+nA] = explNoise - POL.stdev[i];
   // this is an experimental change to update stdev using policy gradient
   // not fully analyzed therefore should be turned off by default
   //Real a_curr = target - v_curr[0];

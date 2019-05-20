@@ -66,7 +66,7 @@ struct Environment
     assert(agents.size() == 0);
     agents.clear();
     agents.reserve(nAgents);
-    for(Uint i=0; i<nAgents; i++)
+    for(Uint i=0; i<nAgents; ++i)
     {
       // contiguous agents belong to same environment
       const Uint workerID = i / nAgentsPerEnvironment;

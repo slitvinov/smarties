@@ -23,7 +23,7 @@ struct Activation
   {
     assert(_sizes.size() == _bOut.size() && (size_t) nLayers == _bOut.size());
     Uint ret = 0;
-    for(Uint i=0; i<_bOut.size(); i++) if(_bOut[i]) ret += _sizes[i];
+    for(Uint i=0; i<_bOut.size(); ++i) if(_bOut[i]) ret += _sizes[i];
     if(!ret) die("err nOutputs");
     return ret;
   }
@@ -31,7 +31,7 @@ struct Activation
   {
     assert(_sizes.size() == _bInp.size() && (size_t) nLayers == _bInp.size());
     Uint ret = 0;
-    for(Uint i=0; i<_bInp.size(); i++) if(_bInp[i]) ret += _sizes[i];
+    for(Uint i=0; i<_bInp.size(); ++i) if(_bInp[i]) ret += _sizes[i];
     return ret;
   }
 
@@ -58,10 +58,10 @@ struct Activation
   void setInput(const std::vector<T> inp) const
   {
     assert( (size_t) nInputs == inp.size());
-    for(int j=0; j<nInputs; j++)
+    for(int j=0; j<nInputs; ++j)
       assert(!std::isnan(inp[j]) && !std::isinf(inp[j]));
     int k=0;
-    for(int i=0; i<nLayers; i++) if(input[i]) {
+    for(int i=0; i<nLayers; ++i) if(input[i]) {
       std::copy(&inp[k], &inp[k]+sizes[i], outvals[i]);
       //memcpy(outvals[i], &inp[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -72,7 +72,7 @@ struct Activation
   {
     std::vector<Real> ret(nInputs);
     int k=0;
-    for(int i=0; i<nLayers; i++) if(input[i]) {
+    for(int i=0; i<nLayers; ++i) if(input[i]) {
       std::copy(outvals[i], outvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -94,10 +94,10 @@ struct Activation
   void setOutputDelta(const std::vector<T> delta) const
   {
     assert( (size_t) nOutputs == delta.size()); //alternative not supported
-    for(int j=0; j<nOutputs; j++)
+    for(int j=0; j<nOutputs; ++j)
       assert(!std::isnan(delta[j]) && !std::isinf(delta[j]));
     int k=0;
-    for(int i=0; i<nLayers; i++) if(output[i]) {
+    for(int i=0; i<nLayers; ++i) if(output[i]) {
       std::copy(&delta[k], &delta[k]+sizes[i], errvals[i]);
       //memcpy(errvals[i], &delta[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -111,8 +111,8 @@ struct Activation
   {
     assert( (size_t) nOutputs == delta.size()); //alternative not supported
     int k=0;
-    for(int i=0; i<nLayers; i++) if(output[i])
-      for (Uint j=0; j<sizes[i]; j++, k++) errvals[i][j] += delta[k];
+    for(int i=0; i<nLayers; ++i) if(output[i])
+      for (Uint j=0; j<sizes[i]; ++j, ++k) errvals[i][j] += delta[k];
     assert(k == nOutputs);
     written = true;
   }
@@ -122,7 +122,7 @@ struct Activation
     assert(written == true);
     std::vector<nnReal> ret(nOutputs);
     int k=0;
-    for(int i=0; i<nLayers; i++) if(output[i]) {
+    for(int i=0; i<nLayers; ++i) if(output[i]) {
       std::copy(errvals[i], errvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], errvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -136,12 +136,12 @@ struct Activation
     assert(written == true);
     std::vector<Real> ret(nOutputs);
     int k=0;
-    for(int i=0; i<nLayers; i++) if(output[i]) {
+    for(int i=0; i<nLayers; ++i) if(output[i]) {
       std::copy(outvals[i], outvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
-    for(int j=0; j<nOutputs; j++)
+    for(int j=0; j<nOutputs; ++j)
       assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
     assert(k == nOutputs);
     return ret;
@@ -149,7 +149,7 @@ struct Activation
 
   void clearOutput() const
   {
-    for(int i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; ++i) {
       assert(outvals[i] not_eq nullptr);
       memset( outvals[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
@@ -157,7 +157,7 @@ struct Activation
 
   void clearErrors() const
   {
-    for(int i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; ++i) {
       assert(errvals[i] not_eq nullptr);
       memset( errvals[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
@@ -165,7 +165,7 @@ struct Activation
 
   void clearInputs() const
   {
-    for(int i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; ++i) {
       assert(suminps[i] not_eq nullptr);
       memset( suminps[i], 0, Utilities::roundUpSimd(sizes[i])*sizeof(nnReal) );
     }

@@ -239,11 +239,11 @@ struct Agent
     buf[ind++] = status2int(agentStatus) + 0.1;
     buf[ind++] = timeStepInEpisode + 0.1;
     assert( state.size() == sInfo.dim());
-    for (Uint i=0; i<state.size(); i++) buf[ind++] = (float) state[i];
+    for (Uint i=0; i<state.size(); ++i) buf[ind++] = (float) state[i];
     assert(action.size() == aInfo.dim());
-    for (Uint i=0; i<action.size(); i++) buf[ind++] = (float) action[i];
+    for (Uint i=0; i<action.size(); ++i) buf[ind++] = (float) action[i];
     buf[ind++] = reward;
-    for (Uint i=0; i<mu.size(); i++) buf[ind++] = (float) mu[i];
+    for (Uint i=0; i<mu.size(); ++i) buf[ind++] = (float) mu[i];
 
     buffCnter += writesize;
     assert(buffCnter == ind);

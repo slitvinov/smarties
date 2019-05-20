@@ -63,7 +63,7 @@ public:
     }
 
     #ifndef NDEBUG
-    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    for(Uint j=0; j<series.size(); ++j) assert(not series[j]->written);
     #endif
   }
 

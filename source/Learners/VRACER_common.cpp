@@ -24,18 +24,18 @@ void VRACER<Policy_t, Action_t>::prepareCMALoss()
   std::vector<Real> aR(batchSize, 0), aA(batchSize, 0);
   #if 1
    #pragma omp parallel for schedule(static)
-   for (Uint b=0; b<batchSize; b++) {
-     for(Uint w=0; w<ESpopSize; w++) { aR[b]+=rhos[b][w]; aA[b]+=advs[b][w]; }
+   for (Uint b=0; b<batchSize; ++b) {
+     for(Uint w=0; w<ESpopSize; ++w) { aR[b]+=rhos[b][w]; aA[b]+=advs[b][w]; }
      aR[b] /= ESpopSize; aA[b] /= ESpopSize;
    }
   #else
-   for(Uint b=0; b<batchSize; b++) { aR[b] = rhos[b][0]; aA[b] = advs[b][0]; }
+   for(Uint b=0; b<batchSize; ++b) { aR[b] = rhos[b][0]; aA[b] = advs[b][0]; }
   #endif
 
   const auto isFar = [&](const Real&W) {return W >= CmaxRet || W <= CinvRet;};
   #pragma omp parallel for schedule(static)
-  for (Uint w=0; w<ESpopSize; w++)
-  for (Uint b=0; b<batchSize; b++) {
+  for (Uint w=0; w<ESpopSize; ++w)
+  for (Uint b=0; b<batchSize; ++b) {
     const Real clipR = std::max(CinvRet, std::min(rhos[b][w], CmaxRet));
     const Real clipA = isFar(rhos[b][w]) ? aA[b] : advs[b][w];
     const Real costAdv = - beta * clipR * aA[b]; //minus: to maximize pol adv
@@ -147,10 +147,10 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
 
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
-    for(Uint i=0; i<nA; i++) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++)
+    for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<nA; ++i) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
+    for(Uint i=0; i<nA; ++i)
       output[1+i+nA] = noiseMap_inverse(mu[i+nA]) + .1*dist(generators[0]);
 
     Gaussian_policy pol = prepare_policy<Gaussian_policy>(output);
@@ -192,15 +192,15 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<output.size(); ++i) output[i] = dist(generators[0]);
+    for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
     Real norm = 0;
-    for(Uint i=0; i<NEXPERTS; i++) {
+    for(Uint i=0; i<NEXPERTS; ++i) {
       mu[i] = std::exp(mu[i]);
       norm += mu[i];
     }
-    for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
-    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
+    for(Uint i=0; i<NEXPERTS; ++i) mu[i] = mu[i]/norm;
+    for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);++i) mu[i]=std::exp(mu[i]);
 
     Gaussian_mixture<NEXPERTS> pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output);
     Rvec act = pol.finalize(1, &generators[0], mu);

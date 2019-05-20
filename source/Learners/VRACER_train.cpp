@@ -18,7 +18,7 @@ void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
   if(thrID==0) profiler->stop_start("FWD");
 
   F[0]->prepare_seq(traj, thrID, wID);
-  for (int k=0; k<ndata; k++) F[0]->forward(k, thrID);
+  for (int k=0; k<ndata; ++k) F[0]->forward(k, thrID);
 
   //if partial sequence then compute value of last state (!= R_end)
   Real Q_RET = data->scaledReward(traj, ndata);

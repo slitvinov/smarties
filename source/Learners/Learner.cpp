@@ -266,7 +266,7 @@ void Learner::restart()
   if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
   if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
 
-  for(Uint i = 0; i < nSeqs; i++) {
+  for(Uint i = 0; i < nSeqs; ++i) {
     assert(data->get(i) == nullptr);
     Sequence* const S = new Sequence();
     if( S->restart(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
@@ -300,7 +300,7 @@ void Learner::save()
   fwrite(&beta, sizeof(Real), 1, f);
   fwrite(&CmaxRet, sizeof(Real), 1, f);
 
-  for(Uint i = 0; i <nSeqs; i++)
+  for(Uint i = 0; i <nSeqs; ++i)
     data->get(i)->save(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol() );
 }
 

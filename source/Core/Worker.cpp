@@ -42,7 +42,7 @@ void Worker::runTraining()
   //////////////////////////////////////////////////////////////////////////////
   long minNdataB4Train = learners[0]->nObsB4StartTraining;
   int firstLearnerStart = 0, isStarted = 0, percentageReady = -5;
-  for(Uint i=1; i<learners.size(); i++)
+  for(Uint i=1; i<learners.size(); ++i)
     if(learners[i]->nObsB4StartTraining < minNdataB4Train) {
       minNdataB4Train = learners[i]->nObsB4StartTraining;
       firstLearnerStart = i;
@@ -222,7 +222,7 @@ void Worker::synchronizeEnvironments()
   const Uint nLearners = ENV.bAgentsHaveSeparateMDPdescriptors? 1 : ENV.nAgentsPerEnvironment;
   distrib.nAgents = ENV.nAgents;
   learners.reserve(nLearners);
-  for(Uint i = 0; i<nLearners; i++)
+  for(Uint i = 0; i<nLearners; ++i)
   {
     char lName[256]; sprintf(lName, "agent_%02lu", i);
     if(distrib.world_rank == 0) printf("Learner: %s\n", lName);

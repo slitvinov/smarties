@@ -49,7 +49,7 @@ void NAF::select(Agent& agent)
       const Quadratic_advantage advantage = prepare_advantage(output, &aInfo, net_indices);
       Rvec polvec2 = advantage.getMean();
       assert(polvec.size() == polvec2.size());
-      for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
+      for(Uint i=0;i<nA;++i) assert(abs(polvec[i]-polvec2[i])<2e-16);
     #endif
 
     polvec.resize(policyVecDim, stdParam);
@@ -110,7 +110,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
   ADV.grad(POL.sampAct, error, grad);
   if(CmaxRet>1 && beta<1 && dropRule!=2) { // then ReFER
     const Rvec penG = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
-    for(Uint i=0; i<nA; i++)
+    for(Uint i=0; i<nA; ++i)
       grad[net_indices[2]+i] = beta*grad[net_indices[2]+i] + (1-beta)*penG[i];
   }
 
@@ -127,8 +127,8 @@ void NAF::test()
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(-.5,.5);
   const int thrID = omp_get_thread_num();
-  for(Uint i = 0; i<aInfo.dim; i++) act[i] = act_dis(generators[thrID]);
-  for(Uint i = 0; i<F[0]->nOutputs(); i++) out[i] = out_dis(generators[thrID]);
+  for(Uint i = 0; i<aInfo.dim; ++i) act[i] = act_dis(generators[thrID]);
+  for(Uint i = 0; i<F[0]->nOutputs(); ++i) out[i] = out_dis(generators[thrID]);
   Quadratic_advantage A = prepare_advantage(out, &aInfo, net_indices);
   A.test(act, &generators[thrID]);
 }

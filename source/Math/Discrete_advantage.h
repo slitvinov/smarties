@@ -42,7 +42,7 @@ struct Discrete_advantage
   Real expectedAdvantage() const
   {
    Real ret = 0;
-   for (Uint j=0; j<nA; j++) ret += policy->probs[j]*advantages[j];
+   for (Uint j=0; j<nA; ++j) ret += policy->probs[j]*advantages[j];
    return ret;
   }
 
@@ -50,10 +50,10 @@ struct Discrete_advantage
   void grad(const Uint act, const Real Qer, Rvec&netGradient) const
   {
    if(policy not_eq nullptr)
-     for (Uint j=0; j<nA; j++)
+     for (Uint j=0; j<nA; ++j)
        netGradient[start_adv+j] = Qer*((j==act ? 1 : 0) - policy->probs[j]);
    else
-     for (Uint j=0; j<nA; j++)
+     for (Uint j=0; j<nA; ++j)
        netGradient[start_adv+j] = Qer* (j==act ? 1 : 0);
   }
 
@@ -79,7 +79,7 @@ struct Discrete_advantage
    if(policy == nullptr) return 0;
    const Real base = expectedAdvantage();
    Real ret = 0;
-   for (Uint j=0; j<nA; j++)
+   for (Uint j=0; j<nA; ++j)
      ret += policy->probs[j]*(advantages[j]-base)*(advantages[j]-base);
    return ret;
   }

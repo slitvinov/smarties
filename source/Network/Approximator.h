@@ -160,7 +160,7 @@ struct Approximator
   {
     ThreadContext& C = getContext(batchID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
-    //for(Uint i=0; i<grad.size(); i++) grad[i] *= PERW;
+    //for(Uint i=0; i<grad.size(); ++i) grad[i] *= PERW;
     gradStats->track_vector(gradient, C.threadID);
     const Sint ind = C.mapTime2Ind(t);
     //ind+1 because we use c-style for loops in other places:
@@ -224,7 +224,7 @@ struct Approximator
         const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
         net->backProp(timeSeries, last_error, C.partialGradient.get(), W);
 
-        //for(int i=0;i<last_error&&!thrID;i++)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
+        //for(int i=0;i<last_error&&!thrID;++i)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
         if(preprocessing and not m_blockInpGrad)
         {
           for(Sint k=0; k<last_error; ++k)
@@ -255,7 +255,7 @@ struct Approximator
     if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
 
     if(preprocessing and not m_blockInpGrad)
-      for(Uint i=0; i<ESpopSize; i++) preprocessing->losses[i] += losses[i];
+      for(Uint i=0; i<ESpopSize; ++i) preprocessing->losses[i] += losses[i];
 
     opt->prepare_update(losses);
     losses = Rvec(ESpopSize, 0);

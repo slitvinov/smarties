@@ -12,10 +12,8 @@ CXX=mpic++
 LD=mpic++
 endif
 
-isICPC=$(shell $(CXX) --version | grep -ci "icpc" )
-isLLVM=$(shell $(CXX) --version | grep -ci "llvm" )
-ifeq "$(isICPC)" "0"
-ifeq "$(isLLVM)" "0"
+ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
+ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
 compiler=gnu
 else
 compiler=llvm
@@ -24,7 +22,7 @@ else
 compiler=intel
 endif
 
-CPPFLAGS=-DSMARTIES
+CPPFLAGS=
 LIBS=
 
 ifeq ($(UNAME_S),Darwin)
@@ -48,13 +46,6 @@ endif
 ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
-
-exp ?= GAUS
-ifeq "$(exp)" "GAUS"
-CPPFLAGS+= -DADV_GAUS
-endif
-nexp ?= 1
-CPPFLAGS+= -DNEXPERTS=$(nexp)
 
 testdiff ?= off
 ifeq "$(testdiff)" "on"
@@ -125,6 +116,7 @@ endif
 
 LIBS+= -L. -lsimulation
 CPPFLAGS+= -I../source
+
 ############### Compile application as static library if needed ###############
 ifneq "$(app)" "ext_app_test"
 
@@ -137,7 +129,8 @@ CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib:
 	+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(CXX) CXX=$(CXX) compiler=$(compiler) config=$(config) precision=$(app_precision)
+	+make -C ../apps/$(app)/ CC=$(CXX) CXX=$(CXX) compiler=$(compiler) \
+	config=$(config) precision=$(app_precision)
 
 else
 

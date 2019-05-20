@@ -39,7 +39,7 @@ void CMALearner<Action_t>::select(Agent& agent)
     if(explNoise>0) {
       act.resize(aInfo.dim);
       std::normal_distribution<Real> D(0, 1);
-      for(Uint i=0; i<aInfo.dim; i++) {
+      for(Uint i=0; i<aInfo.dim; ++i) {
         pol[i+aInfo.dim] = noiseMap_func(pol[i+aInfo.dim]);
         act[i] += pol[i+aInfo.dim] * D(generators[nThreads+agent.ID]);
       }
@@ -75,8 +75,8 @@ void CMALearner<Action_t>::prepareGradient()
   updateComplete = true;
   //fflush(stdout); fflush(0);
   #pragma omp parallel for schedule(static)
-  for (Uint w=0; w<ESpopSize; w++) {
-    for (Uint b=0; b<nWorkers_own; b++) F[0]->losses[w] -= R[b][w];
+  for (Uint w=0; w<ESpopSize; ++w) {
+    for (Uint b=0; b<nWorkers_own; ++b) F[0]->losses[w] -= R[b][w];
     //std::cout << F[0]->losses[w] << std::endl;
   }
 

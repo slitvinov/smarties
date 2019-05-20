@@ -154,10 +154,9 @@ void Builder::build(const bool isInputNet)
     opt = std::make_shared<AdamOptimizer>(settings,distrib,weights,threadGrads);
 }
 
-inline bool matchConv2D(Conv2D_Descriptor DESCR, Uint InX, Uint InY, Uint InC,
-                                                 Uint KnX, Uint KnY, Uint KnC,
-                                                 Uint Sx, Uint Sy, Uint Px,
-                                                 Uint Py, Uint OpX, Uint OpY)
+inline bool matchConv2D(const Conv2D_Descriptor& DESCR,
+                    Uint InX, Uint InY, Uint InC, Uint KnX, Uint KnY, Uint KnC,
+                    Uint Sx,  Uint Sy,  Uint Px,  Uint Py,  Uint OpX, Uint OpY)
 {
   bool sameInp = DESCR.inpFeatures==InC && DESCR.inpY==InX && DESCR.inpX==InY;
   bool sameOut = DESCR.outFeatures==KnC && DESCR.outY==OpY && DESCR.outX==OpX;
@@ -180,7 +179,6 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
     _die("Mismatch between input size (%d) and previous layer size (%d).",
       inpSize, layers.back()->nOutputs() );
 
-  Layer* l = nullptr;
   // I defined here the conv layers used in the Atari paper. To add new ones add
   // an if-pattern matching the other ones and refer to the `matchConv2D`
   // function above to interpret the arguments. Useful rule of thumb to remember
@@ -206,7 +204,7 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
         "be specified in the Builder.cpp file. You'll see, it's easy.");
 
   assert(layers.size()>ID && layers.back());
-  if(bOut) nOutputs += l->nOutputs();
+  if(bOut) nOutputs += layers.back()->nOutputs();
 }
 
 } // end namespace smarties

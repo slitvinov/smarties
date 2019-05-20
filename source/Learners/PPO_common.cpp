@@ -78,7 +78,7 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   const Uint setSize = data->readNSeq();
   const Fval invstdR = data->scaledReward(1);
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < setSize; i++) {
+  for(Uint i = 0; i < setSize; ++i) {
     assert(data->get(i)->ndata()>=1);
     assert(data->get(i)->action_adv.size() == data->get(i)->ndata());
     assert(data->get(i)->Q_RET.size()      == data->get(i)->ndata());
@@ -90,7 +90,7 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   }
 
   const Uint todoSize = data_get->nInProgress();
-  for(Uint i = 0; i < todoSize; i++) {
+  for(Uint i = 0; i < todoSize; ++i) {
     if(data_get->get(i)->tuples.size() <= 1) continue;
     for (Uint j=data_get->get(i)->ndata()-1; j>0; j--) {
       data_get->get(i)->action_adv[j] *= invstdR;
@@ -163,9 +163,9 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
+    for(Uint i=0; i<output.size(); ++i) output[i] = dist(generators[0]);
+    for(Uint i=0;  i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=nA; i<mu.size(); ++i) mu[i] = std::exp(mu[i]);
 
     Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_indices);
     Rvec act = pol.finalize(1, &generators[0], mu);

@@ -138,17 +138,17 @@ void Network::checkGrads()
   Vgrad[1]->clear(); Vgrad[2]->clear(); Vgrad[3]->clear();
   std::random_device rd;
   std::mt19937 gen(rd());
-  for(Uint t=0; t<seq_len; t++)
-  for(Uint o=0; o<nOutputs; o++)
+  for(Uint t=0; t<seq_len; ++t)
+  for(Uint o=0; o<nOutputs; ++o)
   {
     vector<vector<Real>> inputs(seq_len, vector<Real>(nInputs,0));
     prepForBackProp(timeSeries, seq_len);
     Vgrad[0]->clear();
     normal_distribution<nnReal> dis_inp(0, 1);
-    for(Uint i=0; i<seq_len; i++)
-      for(Uint j=0; j<nInputs; j++) inputs[i][j] = dis_inp(gen);
+    for(Uint i=0; i<seq_len; ++i)
+      for(Uint j=0; j<nInputs; ++j) inputs[i][j] = dis_inp(gen);
 
-    for (Uint k=0; k<seq_len; k++) {
+    for (Uint k=0; k<seq_len; ++k) {
       predict(inputs[k], timeSeries, k);
       vector<nnReal> errs(nOutputs, 0);
       if(k==t) {
@@ -158,18 +158,18 @@ void Network::checkGrads()
     }
     backProp(timeSeries, t+1, Vgrad[0]);
 
-    for (Uint w=0; w<weights->nParams; w++) {
+    for (Uint w=0; w<weights->nParams; ++w) {
       nnReal diff = 0;
       const auto copy = weights->params[w];
       //1
       weights->params[w] += incr;
-      for (Uint k=0; k<seq_len; k++) {
+      for (Uint k=0; k<seq_len; ++k) {
         const vector<Real> ret = predict(inputs[k], timeSeries, k);
         if(k==t) diff = -ret[o]/(2*incr);
       }
       //2
       weights->params[w] = copy - incr;
-      for (Uint k=0; k<seq_len; k++) {
+      for (Uint k=0; k<seq_len; ++k) {
         const vector<Real> ret = predict(inputs[k], timeSeries, k);
         if(k==t) diff += ret[o]/(2*incr);
       }
@@ -190,7 +190,7 @@ void Network::checkGrads()
   }
 
   long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0;
-  for (Uint w=0; w<weights->nParams; w++) {
+  for (Uint w=0; w<weights->nParams; ++w) {
     if(Vgrad[2]->params[w]>tol)
     cout<<w<<" err:"<<Vgrad[2]->params[w]<<", grad:"<<Vgrad[1]->params[w]
         <<" diff:"<<Vgrad[3]->params[w]<<" param:"<<weights->params[w]<<endl;
@@ -222,22 +222,22 @@ void Network::dump(const int agentID)
   {
     ofstream out(nameOut_Mems.c_str());
     if(!out.good()) _die("Unable to save into file %s\n", nameOut_Mems.c_str());
-    for (Uint j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
-    for (Uint j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+    for (Uint j=0; j<nNeurons; ++j) out << *(mem[agentID]->outvals +j) << " ";
+    for (Uint j=0; j<nStates;  ++j) out << *(mem[agentID]->ostates +j) << " ";
     out << "\n";
     out.close();
   }
   {
     ofstream out(nameNeurons.c_str());
     if(!out.good()) _die("Unable to save into file %s\n", nameNeurons.c_str());
-    for (Uint j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
+    for (Uint j=0; j<nNeurons; ++j) out << *(mem[agentID]->outvals +j) << " ";
     out << "\n";
     out.close();
   }
   {
     ofstream out(nameMemories.c_str());
     if(!out.good()) _die("Unable to save into file %s\n", nameMemories.c_str());
-    for (Uint j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+    for (Uint j=0; j<nStates;  ++j) out << *(mem[agentID]->ostates +j) << " ";
     out << "\n";
     out.close();
   }

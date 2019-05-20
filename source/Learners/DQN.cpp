@@ -54,7 +54,7 @@ void DQN::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   F[0]->prepare_seq(traj, thrID, wID);
   if(thrID==0) profiler->stop_start("FWD");
 
-  for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2]
+  for (Uint k=0; k<ndata-1; ++k) { //state in k=[0:N-2]
     const bool terminal = k+2==ndata && traj->ended;
     const Rvec Qs = F[0]->forward_cur(k, thrID);
     const Uint action = aInfo.actionToLabel(traj->tuples[k]->a);

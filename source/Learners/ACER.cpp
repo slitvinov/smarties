@@ -45,7 +45,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   std::vector<Rvec> advantages(nsteps, Rvec(2+nAexpectation, 0));
 
   if(thrID==0) profiler->stop_start("FWD");
-  for(int step=tstart, i=0; step < tend; step++, i++)
+  for(int step=tstart, i=0; step < tend; step++, ++i)
   {
     const Rvec outPc = F[0]->forward_cur(step, thrID);
     policies.push_back(prepare_policy(outPc, &aInfo, traj->tuples[step]));
@@ -194,9 +194,9 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
+    for(Uint i=0; i<output.size(); ++i) output[i] = dist(generators[0]);
+    for(Uint i=0;  i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=nA; i<mu.size(); ++i) mu[i] = std::exp(mu[i]);
 
     Gaussian_policy pol = prepare_policy(output, &aInfo);
     Rvec act = pol.finalize(1, &generators[0], mu);

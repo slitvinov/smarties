@@ -17,13 +17,13 @@ void PPO<Policy_t, Action_t>::prepareGradient()
 
   debugL("update lagrangian penalization coefficient");
   cntPenal[0] = 0;
-  for(Uint i=1; i<=nThreads; i++) {
+  for(Uint i=1; i<=nThreads; ++i) {
     cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
   }
   if(cntPenal[0]<nnEPS) die("undefined behavior");
   const Real fac = learnR/cntPenal[0]; // learnRate*grad/N //
   cntPenal[0] = 0;
-  for(Uint i=1; i<=nThreads; i++) {
+  for(Uint i=1; i<=nThreads; ++i) {
       valPenal[0] += fac*valPenal[i];
       valPenal[i] = 0;
   }
@@ -198,9 +198,9 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
     std::normal_distribution<Real> dist(0, 1);
-    for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-    for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
-    for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
+    for(Uint i=0; i<output.size(); ++i) output[i] = dist(generators[0]);
+    for(Uint i=0;  i<mu.size(); ++i) mu[i] = dist(generators[0]);
+    for(Uint i=nA; i<mu.size(); ++i) mu[i] = std::exp(mu[i]);
 
     Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_indices);
     Rvec act = pol.finalize(1, &generators[0], mu);

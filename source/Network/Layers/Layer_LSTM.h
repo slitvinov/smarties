@@ -173,17 +173,17 @@ class LSTMLayer: public Layer
     std::uniform_real_distribution<nnReal> dis(-init, init);
     { // forget gate starts open, inp/out gates are closed
      nnReal* const BB = W->B(ID);
-     for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(G);
-     //for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     //for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
-     //for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(G)-LSTM_PRIME_FAC;
-     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(G)+LSTM_PRIME_FAC;
-     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(G)-LSTM_PRIME_FAC;
+     for(Uint o=0*nCells; o<1*nCells; ++o) BB[o]=dis(G);
+     //for(Uint o=1*nCells; o<2*nCells; ++o) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
+     //for(Uint o=2*nCells; o<3*nCells; ++o) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     //for(Uint o=3*nCells; o<4*nCells; ++o) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
+     for(Uint o=1*nCells; o<2*nCells; ++o) BB[o]=dis(G)-LSTM_PRIME_FAC;
+     for(Uint o=2*nCells; o<3*nCells; ++o) BB[o]=dis(G)+LSTM_PRIME_FAC;
+     for(Uint o=3*nCells; o<4*nCells; ++o) BB[o]=dis(G)-LSTM_PRIME_FAC;
     }
     {
      nnReal* const weight = W->W(ID);
-     for(Uint w=0; w<4*nCells*(nInputs+nCells); w++) weight[w] = dis(G);
+     for(Uint w=0; w<4*nCells*(nInputs+nCells); ++w) weight[w] = dis(G);
     }
   }
 };
