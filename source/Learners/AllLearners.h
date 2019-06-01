@@ -72,6 +72,9 @@ inline std::unique_ptr<Learner> createLearner(
   if (settings.learner == "VRACER")
   {
     if(MDP.bDiscreteActions) {
+      // V-RACER with discrete actions makes little sense: we revert to RACER
+      warn("V-RACER makes little sense with discrete action-spaces. Code will "
+        "override user and add parameterization for action advantage.");
       using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
       MDP.policyVecDim = RACER_discrete::getnDimPolicy(&aInfo);
       o << MDP.maxActionLabel << " " << MDP.policyVecDim;

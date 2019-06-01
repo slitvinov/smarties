@@ -185,7 +185,7 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
 {
   if ( not ENV.bFinalized ) synchronizeEnvironments();
   //const auto& MDP = ENV.getDescriptor(agentID);
-  assert(agentID>=0 && agentID<agents.size());
+  assert(agentID>=0 && (Uint) agentID < agents.size());
   agents[agentID]->update(status, state, reward);
   agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
 

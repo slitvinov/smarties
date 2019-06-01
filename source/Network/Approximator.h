@@ -204,7 +204,7 @@ struct Approximator
   void backProp(const Uint batchID) const
   {
     ThreadContext& C = getContext(batchID);
-    assert( C.endBackPropStep(samp) > 0 );
+    assert( C.endBackPropStep(0) > 0 );
 
     if(ESpopSize > 1)
     {

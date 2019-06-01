@@ -6,17 +6,15 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "CLI/CLI.hpp"
-#include <mpi.h>
-#include <omp.h>
-
 #include "Utils/Warnings.h"
 #include "Settings.h"
+#include "CLI/CLI.hpp"
 #include <cassert>
 
 namespace smarties
 {
 
+Settings::Settings() {  }
 DistributionInfo::DistributionInfo(int argc, char** argv)
 {
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
@@ -131,6 +129,8 @@ void DistributionInfo::figureOutWorkersPattern()
   // 7) mpi communicator for masters without direct link to a worker to recv
   //    training data from other masters
   workerless_masters_comm = MPI_COMM_NULL;
+  // 8) tag of group of mpi ranks running a common distributed environment
+  thisWorkerGroupID = -1;
 
   if(bThereAreMasters)
   {
@@ -171,8 +171,7 @@ void DistributionInfo::figureOutWorkersPattern()
       else
       {
         const Uint totalWorkRank = MPICommRank(learners_train_comm);
-        //const Uint totalWorkSize = MPICommRank(learners_train_comm);
-        assert(totalWorkSize == nWorker_processes && "Code logic error");
+        assert(MPICommSize(learners_train_comm) == nWorker_processes);
         nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, totalWorkRank);
 
         const Uint innerWorkRank = MPICommSize(master_workers_comm);
@@ -187,8 +186,8 @@ void DistributionInfo::figureOutWorkersPattern()
             "the nr. of ranks that the environment app requires to run (%u).\n",
             innerWorkSize-1, workerProcessesPerEnv);
           }
-          const Uint workerGroup = (innerWorkRank-1) / workerProcessesPerEnv;
-          MPI_Comm_split(master_workers_comm, workerGroup, innerWorkRank, &environment_app_comm);
+          thisWorkerGroupID = (innerWorkRank-1) / workerProcessesPerEnv;
+          MPI_Comm_split(master_workers_comm, thisWorkerGroupID, innerWorkRank, &environment_app_comm);
         } else
           nForkedProcesses2spawn = nOwnedEnvironments;
 
@@ -346,8 +345,8 @@ void DistributionInfo::initialzePRNG()
   {
     std::random_device rdev; const Uint rdSeed = rdev();
     randSeed = rdSeed % std::numeric_limits<Uint>::max();
-    if(world_rank==0) printf("Using seed %d\n", randSeed);
-    MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&randSeed, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    if(world_rank==0) printf("Using seed %lu\n", randSeed);
   }
   generators.resize(0);
   generators.reserve(omp_get_max_threads());

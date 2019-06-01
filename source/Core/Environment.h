@@ -45,6 +45,7 @@ struct Environment
     if(bFinalized) die("Cannot synchronize env description multiple times");
     bFinalized = true;
 
+printf("about to do first synch\n"); fflush(0);
     sendRecvFunc(&nAgentsPerEnvironment, 1 * sizeof(Uint) );
     sendRecvFunc(&bAgentsHaveSeparateMDPdescriptors, 1 * sizeof(bool) );
 

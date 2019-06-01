@@ -58,7 +58,7 @@ CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
 
 void CMA_Optimizer::prepare_update(const Rvec&L)
 {
-  assert(L.size() == pop_size);
+  assert(L.size() == populationSize);
   losses = L;
   if (learn_size > 1) { //add up losses across master ranks
     MPI(Iallreduce, MPI_IN_PLACE, losses.data(), populationSize, MPI_VALUE_TYPE,

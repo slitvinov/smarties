@@ -91,12 +91,12 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
     std::vector<char*> args = readRunArgLst(argsFiles[settInd]);
 
     //App output file descriptor:
-    std::pair<int, fpos_t> currOutputFdescriptor;
-    redirect_stdout_init(currOutputFdescriptor, appRank);
+    //std::pair<int, fpos_t> currOutputFdescriptor;
+    //redirect_stdout_init(currOutputFdescriptor, appRank);
 
     app_main(commptr, envApplication_comm, args.size()-1, args.data());
 
-    redirect_stdout_finalize(currOutputFdescriptor);
+    //redirect_stdout_finalize(currOutputFdescriptor);
 
     for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory

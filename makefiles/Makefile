@@ -127,7 +127,7 @@ include ../apps/$(app)/make.flags
 endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
-lib:
+env:
 	+make -C ../apps/$(app)/ clean
 	+make -C ../apps/$(app)/ CC=$(CXX) CXX=$(CXX) compiler=$(compiler) \
 	config=$(config) precision=$(app_precision)
@@ -136,13 +136,14 @@ else
 
 # app is compiled independently and uses communication through sockets
 # this is just for testing:
-lib: ext_app_test.o
+env: ext_app_test.o
 	ar rs libsimulation.a $^
 
 endif
 ###############################################################################
 
-rl: $(OBJ_FILES) lib
+#lib: Communicator.o
+rl: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o $@
 
 %.o: %.cpp

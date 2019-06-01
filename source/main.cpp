@@ -12,38 +12,41 @@
 
 int main (int argc, char** argv)
 {
-  smarties::Settings settings;
-  smarties::DistributionInfo distrib(argc, argv);
+  const auto settings = std::make_unique<smarties::Settings>();
+  const auto distrib = std::make_unique<smarties::DistributionInfo>(argc, argv);
 
-  CLI::App parser{"smarties : distributed reinforcement learning framework"};
-  settings.initializeOpts(parser);
-  distrib.initializeOpts(parser);
+  CLI::App parser("smarties : distributed reinforcement learning framework");
+  settings->initializeOpts(parser);
+  distrib->initializeOpts(parser);
   try {
     parser.parse(argc, argv);
   }
   catch (const CLI::ParseError &e) {
-    if(distrib.world_rank == 0) return parser.exit(e);
+    if(distrib->world_rank == 0) return parser.exit(e);
     else return 1;
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
-  distrib.initialzePRNG();
-  distrib.figureOutWorkersPattern();
-  settings.check();
+  distrib->initialzePRNG();
+  distrib->figureOutWorkersPattern();
+  settings->check();
   MPI_Barrier(MPI_COMM_WORLD);
 
   std::shared_ptr<smarties::Worker> process;
 
-  if(distrib.bIsMaster)
+  if(distrib->bIsMaster)
   {
-    if(distrib.nForkedProcesses2spawn > 0)
-      process = std::make_shared<smarties::MasterSockets>(settings, distrib);
+    if(distrib->nForkedProcesses2spawn > 0)
+      process = std::make_shared<smarties::MasterSockets>(* settings.get(),
+                                                          *  distrib.get() );
     else
-      process = std::make_shared<smarties::MasterMPI>(settings, distrib);
+      process = std::make_shared<smarties::MasterMPI>(* settings.get(),
+                                                      *  distrib.get() );
   }
   else
   {
-    process = std::make_shared<smarties::Worker>(settings, distrib);
+    process = std::make_shared<smarties::Worker>(* settings.get(),
+                                                 *  distrib.get() );
   }
   process->run();
   return 0;

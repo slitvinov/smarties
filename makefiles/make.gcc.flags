@@ -31,5 +31,6 @@ CPPFLAGS+= -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS+= -ftree-vectorize #-ftree-vectorizer-verbose=2 #-DNDEBUG
 CPPFLAGS+= -fmerge-all-constants #-fassociative-math
 #CPPFLAGS+= -funsafe-loop-optimizations
+CPPFLAGS+= -fvisibility=hidden
 #CPPFLAGS+= -fprofile-use
 CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG

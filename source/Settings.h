@@ -77,7 +77,7 @@ training buffer"
 
 #define COMMENT_randSeed "Random seed."
 #define DEFAULT_randSeed 0
-  int randSeed = DEFAULT_randSeed;
+  Uint randSeed = DEFAULT_randSeed;
 
 #define COMMENT_learnersOnWorkers "Whether to enable hosting learning algos \
 on worker processes such that workers send training data and recv parameters \
@@ -113,7 +113,7 @@ through sockets (=1)."
 #define COMMENT_nStepPappSett "Number of time steps per appSettings file to \
 use. Must be a list of positive numbers separated by semicolons. Last number \
 will be overwritten to 0; i.e. last appSettings will be used til termination."
-#define DEFAULT_nStepPappSett 0
+#define DEFAULT_nStepPappSett "0"
   std::string nStepPappSett = DEFAULT_nStepPappSett;
 
 #define COMMENT_appSettings "Name of file containing the command line arguments for user's application."
@@ -133,6 +133,7 @@ base run folder."
 
 struct Settings
 {
+  Settings();
   void check();
   void initializeOpts(CLI::App & parser);
   void defineDistributedLearning(const MPI_Comm learnersComm,

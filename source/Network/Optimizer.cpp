@@ -234,7 +234,7 @@ const Parameters * Optimizer::getWeights(const Sint weightsIndex)
 {
   if(weightsIndex == 0) return weights.get();
   if(weightsIndex <  0) return target_weights.get();
-  assert(weightsIndex < sampled_weights.size());
+  assert((Uint) weightsIndex < sampled_weights.size());
   assert(weightsMPIrequests.size() == sampled_weights.size());
   if(weightsMPIrequests[weightsIndex] == MPI_REQUEST_NULL)
     return sampled_weights[weightsIndex].get();

@@ -88,47 +88,6 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       invstd[k] = 1/(std[k]+EPS);
     }
   }
-
-  #ifndef NDEBUG
-    if( settings.learner_rank == 0 ) {
-     std::ofstream outf("runningAverages.dat", std::ios::app);
-     outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<std::endl;
-     outf.flush(); outf.close();
-    }
-    Uint cntSamp = 0;
-    for(Uint i=0; i<setSize; ++i) {
-      assert(Set[i] not_eq nullptr);
-      cntSamp += Set[i]->ndata();
-    }
-    assert(cntSamp==nTransitions.load());
-    if(WS>=1)
-    {
-      LDvec dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
-      #pragma omp parallel
-      {
-        LDvec thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
-        #pragma omp for schedule(dynamic)
-        for(Uint i=0; i<setSize; ++i)
-          for(Uint j=0; j<Set[i]->ndata(); ++j) {
-            const auto S = RM->standardize(Set[i]->states[j]);
-            for(Uint k=0; k<dimS; ++k) {
-              thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
-            }
-          }
-        #pragma omp critical
-        for(Uint k=0; k<dimS; ++k) {
-          dbgStateSum[k]   += thr_dbgStateSum[k];
-          dbgStateSqSum[k] += thr_dbgStateSqSum[k];
-        }
-      }
-      for(Uint k=0; k<dimS && settings.learner_rank == 0; ++k) {
-        const Real dbgMean = dbgStateSum[k]/cntSamp;
-        const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
-        if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
-          std::cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<<"\n";
-      }
-    }
-  #endif
 }
 
 void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
@@ -276,3 +235,45 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
 }
 
 }
+
+
+#if 0 // ndef NDEBUG
+  if( settings.learner_rank == 0 ) {
+   std::ofstream outf("runningAverages.dat", std::ios::app);
+   outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<std::endl;
+   outf.flush(); outf.close();
+  }
+  Uint cntSamp = 0;
+  for(Uint i=0; i<setSize; ++i) {
+    assert(Set[i] not_eq nullptr);
+    cntSamp += Set[i]->ndata();
+  }
+  assert(cntSamp==nTransitions.load());
+  if(WS>=1)
+  {
+    LDvec dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
+    #pragma omp parallel
+    {
+      LDvec thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
+      #pragma omp for schedule(dynamic)
+      for(Uint i=0; i<setSize; ++i)
+        for(Uint j=0; j<Set[i]->ndata(); ++j) {
+          const auto S = RM->standardize(Set[i]->states[j]);
+          for(Uint k=0; k<dimS; ++k) {
+            thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
+          }
+        }
+      #pragma omp critical
+      for(Uint k=0; k<dimS; ++k) {
+        dbgStateSum[k]   += thr_dbgStateSum[k];
+        dbgStateSqSum[k] += thr_dbgStateSqSum[k];
+      }
+    }
+    for(Uint k=0; k<dimS && settings.learner_rank == 0; ++k) {
+      const Real dbgMean = dbgStateSum[k]/cntSamp;
+      const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
+      if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
+        std::cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<<"\n";
+    }
+  }
+#endif

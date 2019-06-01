@@ -191,7 +191,7 @@ void MemoryBuffer::removeSequence(const Uint ind)
 {
   assert(readNSeq()>0);
   std::lock_guard<std::mutex> lock(dataset_mutex);
-  assert(nTransitions >= Set[ind]->ndata());
+  assert(nTransitions >= (long) Set[ind]->ndata());
   assert(Set[ind] not_eq nullptr);
   nSequences--;
   needs_pass = true;
@@ -231,7 +231,7 @@ MemoryBuffer::~MemoryBuffer()
 void MemoryBuffer::checkNData()
 {
   #ifndef NDEBUG
-    Uint cntSamp = 0;
+    long cntSamp = 0;
     for(Uint i=0; i<Set.size(); ++i) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();

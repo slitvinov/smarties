@@ -48,15 +48,6 @@ void Master<CommType, Request_t>::run()
 template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::spawnCallsHandlers()
 {
-  // are we communicating with environments through sockets or mpi?
-  //if(COMM->SOCK.clients.size()>0 == MPICommSize(master_workers_comm)>1);
-  //  die("impossible: environments through mpi XOR sockets");
-  if(distrib.nForkedProcesses2spawn > 0)
-    assert(COMM->SOCK.clients.size() == (size_t) nCallingEnvs);
-  else
-    assert(MPICommSize(master_workers_comm) == (size_t) nCallingEnvs+1);
-  assert(COMM->BUFF.size() == (size_t) nCallingEnvs);
-
   #pragma omp parallel num_threads(distrib.nThreads)
   {
     std::vector<Uint> shareWorkers;

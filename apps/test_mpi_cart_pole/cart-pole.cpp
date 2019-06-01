@@ -14,7 +14,7 @@
 #include <functional>
 
 #include "mpi.h"
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #define SWINGUP 0
 using namespace std;
 
@@ -152,12 +152,11 @@ struct CartPole
 };
 
 int app_main(
-  Communicator*const comm, // communicator with smarties
+  smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,         // mpi_comm that mpi-based apps can use
-  int argc, char**argv,    // arguments read from app's runtime settings file
-  const unsigned numSteps      // number of time steps to run before exit
+  int argc, char**argv    // arguments read from app's runtime settings file
 ) {
-  comm->update_state_action_dims(6, 1);
+  comm->set_state_action_dims(6, 1);
 
   //OPTIONAL: action bounds
   bool bounded = true;
@@ -185,6 +184,7 @@ int app_main(
   // But real application is to env with two competing/collaborating agents
   CartPole env;
 
+printf("about to go to training loop\n"); fflush(0);
   while(true) //train loop
   {
     //reset environment:

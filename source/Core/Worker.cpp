@@ -16,7 +16,19 @@ namespace smarties
 
 Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
   COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
-  ENV( COMM->ENV ), agents( ENV.agents ) { }
+  ENV( COMM->ENV ), agents( ENV.agents )
+{
+  if (0) { //}(distrib.bIsMaster) {
+    // are we communicating with environments through sockets or mpi?
+    //if(COMM->SOCK.clients.size()>0 == MPICommSize(master_workers_comm)>1);
+    //  die("impossible: environments through mpi XOR sockets");
+    if(distrib.nForkedProcesses2spawn > 0)
+      assert(COMM->SOCK.clients.size() == (size_t) nCallingEnvs);
+    else
+      assert(MPICommSize(master_workers_comm) == (size_t) nCallingEnvs+1);
+    assert(COMM->BUFF.size() == (size_t) nCallingEnvs);
+  }
+}
 
 void Worker::run()
 {
@@ -84,13 +96,13 @@ void Worker::runTraining()
 
 void Worker::answerStateAction(const int bufferID) const
 {
-  assert(bufferID < COMM->BUFF.size());
+  assert( (Uint) bufferID < COMM->BUFF.size());
   const COMM_buffer& buffer = getCommBuffer(bufferID+1);
   const unsigned localAgentID = Agent::getMessageAgentID(buffer.dataStateBuf);
   // compute agent's ID within worker from the agentid within environment:
   const int agentID = bufferID * ENV.nAgentsPerEnvironment + localAgentID;
   //read from worker's buffer:
-  assert(agentID < agents.size());
+  assert( (Uint) agentID < agents.size() );
   Agent& agent = * agents[agentID].get();
   agent.unpackStateMsg(buffer.dataStateBuf);
   if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
@@ -163,6 +175,7 @@ void Worker::synchronizeEnvironments()
   // here cannot use the recurring template because behavior changes slightly:
   const std::function<void(void*, size_t)> recvBuffer = [&](void* buffer, size_t size)
   {
+printf("Running synchronize envs function\n"); fflush(0);
     bool received = false;
     if( COMM->SOCK.clients.size() > 0 ) { // master with apps connected through sockets (on the same compute node)
       SOCKET_Brecv(buffer, size, COMM->SOCK.clients[0]);
@@ -175,6 +188,7 @@ void Worker::synchronizeEnvironments()
       }
     }
 
+    if(master_workers_comm not_eq MPI_COMM_NULL)
     if( MPICommSize(master_workers_comm) >  1 &&
         MPICommRank(master_workers_comm) == 0 ) {
       if(received) die("Sockets and MPI workers: should be impossible");
@@ -184,15 +198,18 @@ void Worker::synchronizeEnvironments()
       for(Uint i=2; i < MPICommSize(master_workers_comm); ++i) {
         void * const testbuf = malloc(size);
         MPI_Recv(testbuf, size, MPI_BYTE, i, 368637, master_workers_comm, MPI_STATUS_IGNORE);
-        const int err = memcmp(testbuf, buffer, size); free(buffer);
+        const int err = memcmp(testbuf, buffer, size); free(testbuf);
         if(err) die(" error: mismatch");
       }
     }
 
+    if(master_workers_comm not_eq MPI_COMM_NULL)
     if( MPICommSize(master_workers_comm) >  1 &&
         MPICommRank(master_workers_comm) >  0 ) {
       MPI_Send(buffer, size, MPI_BYTE, 0, 368637, master_workers_comm);
     }
+
+    if(workerless_masters_comm == MPI_COMM_NULL) return;
 
     if( MPICommSize(workerless_masters_comm) >  1 &&
         MPICommRank(workerless_masters_comm) == 0 ) {
@@ -317,7 +334,7 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
 
 int Worker::getSocketID(const Uint worker) const
 {
-  assert( worker>=0 && worker <= COMM->SOCK.clients.size() );
+  assert( worker <= COMM->SOCK.clients.size() );
   return worker>0? COMM->SOCK.clients[worker-1] : COMM->SOCK.server;
 }
 

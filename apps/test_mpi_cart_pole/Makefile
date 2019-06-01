@@ -1,7 +1,9 @@
 .DEFAULT_GOAL := app
 
-SMARTIESDIR = ../../source/Communicators/
-CPPFLAGS += -std=c++11 -I$(SMARTIESDIR) -DSMARTIES_APP
+SMARTIESDIR = ../../source/ #Communicators/
+CPPFLAGS += -std=c++14 -I$(SMARTIESDIR) -DSMARTIES_APP
+#CPPFLAGS += -fsanitize=undefined -g -O0 
+CPPFLAGS += -fsanitize=address -g -O0 
 VPATH := $(VPATH):$(SMARTIESDIR)
 
 app: cart-pole.o

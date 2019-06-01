@@ -44,7 +44,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
 
   *(buf++) = ended+.5; *(buf++) = ID+.5; *(buf++) = nOffPol;
   *(buf++) = MSE; *(buf++) = sumKLDiv; *(buf++) = totR;
-  assert(buf - ret.data() == totalSize);
+  assert(buf - ret.data() == (ptrdiff_t) totalSize);
   return ret;
 }
 
@@ -76,7 +76,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   priorityImpW = std::vector<float>(seq_len, 1);
   ended = *(buf++); ID = *(buf++); nOffPol = *(buf++);
   MSE = *(buf++); sumKLDiv = *(buf++); totR = *(buf++);
-  assert(buf-data.data()==Sequence::computeTotalEpisodeSize(dS,dA,dP,seq_len));
+  assert(buf-data.data()==(ptrdiff_t)computeTotalEpisodeSize(dS,dA,dP,seq_len));
 }
 
 int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
