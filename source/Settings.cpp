@@ -174,7 +174,7 @@ void DistributionInfo::figureOutWorkersPattern()
         assert(MPICommSize(learners_train_comm) == nWorker_processes);
         nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, totalWorkRank);
 
-        const Uint innerWorkRank = MPICommSize(master_workers_comm);
+        const Uint innerWorkRank = MPICommRank(master_workers_comm);
         const Uint innerWorkSize = MPICommSize(master_workers_comm);
         assert(nOwnedEnvironments==1 && innerWorkRank>0 && innerWorkSize>1);
 
@@ -226,7 +226,7 @@ void DistributionInfo::figureOutWorkersPattern()
     workerless_masters_comm = MPI_COMM_NULL; // all are workers implies all have data
 
     const Uint totalWorkRank = MPICommRank(learners_train_comm);
-    const Uint totalWorkSize = MPICommRank(learners_train_comm);
+    const Uint totalWorkSize = MPICommSize(learners_train_comm);
     if( (totalWorkSize-1) % workerProcessesPerEnv not_eq 0) {
       _die("Number of worker ranks per master (%u) must be a multiple of "
       "the nr. of ranks that the environment app requires to run (%u).\n",
@@ -284,31 +284,31 @@ Main advantage of distributing according to learners is that synch is centralize
 Problem is what happens for multiple workerless masters?
 */
 
-void Settings::defineDistributedLearning(const MPI_Comm learnersComm, const MPI_Comm gatheringComm)
+void Settings::defineDistributedLearning(DistributionInfo& distrib)
 {
-  #if 0
+  const MPI_Comm& learnersComm = distrib.learners_train_comm;
+  //const MPI_Comm& gatheringComm = distrib.master_workers_comm;
+  const Uint nLearners = MPICommSize(learnersComm);
+  const Real nL = nLearners;
   // each learner computes a fraction of the batch:
-  const Real nL = learner_size;
   if(batchSize > 1) {
     batchSize = std::ceil(batchSize / nL) * nL;
-    batchSize_loc = batchSize / learner_size;
-  } else batchSize_loc = batchSize;
+    batchSize_local = batchSize / nLearners;
+  } else batchSize_local = batchSize;
 
   if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
   minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
-  minTotObsNum_loc = minTotObsNum / learner_size;
+  minTotObsNum_local = minTotObsNum / nLearners;
   // each learner processes a fraction of the entire dataset:
   maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
-  maxTotObsNum_loc = maxTotObsNum / learner_size;
+  maxTotObsNum_local = maxTotObsNum / nLearners;
 
   // each worker collects a fraction of the initial memory buffer:
-  obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
+  //obsPerStep_local = nWorkers_own * obsPerStep / nWorkers;
+  obsPerStep_local = obsPerStep;
 
-  if(batchSize_loc <= 0) die(" ");
-  if(obsPerStep_loc < 0) die(" ");
-  if(minTotObsNum_loc < 0) die(" ");
-  if(maxTotObsNum_loc <= 0) die(" ");
-  #endif
+  if(batchSize_local <= 0) die(" ");
+  if(maxTotObsNum_local <= 0) die(" ");
 }
 
 void Settings::check()
@@ -357,8 +357,9 @@ void DistributionInfo::initialzePRNG()
 
 void DistributionInfo::finalizePRNG(const Uint nAgents_local)
 {
-  generators.reserve(generators.size() + nAgents_local);
-  for(size_t i=generators.size(); i < generators.size() + nAgents_local; ++i)
+  const Uint finalSize = generators.size() + nAgents_local;
+  generators.reserve(finalSize);
+  for(size_t i=generators.size(); i < finalSize; ++i)
     generators.push_back( std::mt19937( generators[0]() ) );
 }
 

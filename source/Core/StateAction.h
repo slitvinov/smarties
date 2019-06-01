@@ -53,10 +53,10 @@ struct MDPdescriptor
 
   ///////////////////////////// ACTION DESCRIPTION /////////////////////////////
   // dimensionality of action vector
-  Uint dimAction;
+  Uint dimAction = 0;
   // dimensionality of policy vector (typically 2*dimAction for continuous act,
   // which are mean and diag covariance, or dimAction for discrete policy)
-  Uint policyVecDim;
+  Uint policyVecDim = 0;
 
   // whether action have a lower && upper bounded (bool)
   // if true scaled action = tanh ( unscaled action )
@@ -77,8 +77,7 @@ struct MDPdescriptor
 
   std::vector<Conv2D_Descriptor> conv2dDescriptors;
 
-  void synchronizeDescriptor(
-    const std::function<void(void*, size_t)>& sendRecvFunc )
+  void synchronize(const std::function<void(void*, size_t)>& sendRecvFunc )
   {
     const int world_rank = MPIworldRank();
 
@@ -106,17 +105,18 @@ struct MDPdescriptor
       die("Application error in setup of bStateVarObserved.");
 
     // by default state vector scaling is assumed to be with mean 0 and std 1
-    if(stateMean.size() == 0) stateMean = std::vector<Real> (dimState, 0);
+    if(stateMean.size() == 0) stateMean = std::vector<nnReal> (dimState, 0);
     sendRecvVectorFunc(sendRecvFunc, stateMean);
     if( stateMean.size() not_eq (size_t) dimState)
       die("Application error in setup of stateMean.");
 
     // by default agent can observer all components of action vector
-    if(stateStdDev.size() == 0) stateStdDev = std::vector<Real> (dimState, 1);
+    if(stateStdDev.size() == 0) stateStdDev = std::vector<nnReal> (dimState, 1);
     sendRecvVectorFunc(sendRecvFunc, stateStdDev);
     if( stateStdDev.size() not_eq (size_t) dimState)
       die("Application error in setup of stateStdDev.");
 
+    stateScale.resize(dimState);
     for(Uint i=0; i<dimState; ++i) {
       if( stateStdDev[i] < std::numeric_limits<Real>::epsilon() )
         _die("Invalid value in scaling of state component %u.", i);

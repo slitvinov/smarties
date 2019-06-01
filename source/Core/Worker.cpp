@@ -175,7 +175,6 @@ void Worker::synchronizeEnvironments()
   // here cannot use the recurring template because behavior changes slightly:
   const std::function<void(void*, size_t)> recvBuffer = [&](void* buffer, size_t size)
   {
-printf("Running synchronize envs function\n"); fflush(0);
     bool received = false;
     if( COMM->SOCK.clients.size() > 0 ) { // master with apps connected through sockets (on the same compute node)
       SOCKET_Brecv(buffer, size, COMM->SOCK.clients[0]);
@@ -244,6 +243,7 @@ printf("Running synchronize envs function\n"); fflush(0);
     char lName[256]; sprintf(lName, "agent_%02lu", i);
     if(distrib.world_rank == 0) printf("Learner: %s\n", lName);
     learners[i] = createLearner(ENV.getDescriptor(i), settings, distrib);
+    fflush(0);
     learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
   }
@@ -304,7 +304,7 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
     // MPI MSG to master of a single state:
     MPI_Request send_request, recv_request;
     MPI_Isend(BUF.dataStateBuf, BUF.sizeStateMsg, MPI_BYTE,
-        0, 22846, master_workers_comm, &send_request);
+        0, 78283, master_workers_comm, &send_request);
     MPI_Request_free(&send_request);
     // MPI MSG from master of a single action:
     MPI_Irecv(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE,

@@ -41,6 +41,8 @@ template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::run()
 {
   synchronizeEnvironments();
+printf("finished synchronizeEnvironments\n"); fflush(0);
+
   spawnCallsHandlers();
   runTraining();
 }
@@ -58,6 +60,7 @@ void Master<CommType, Request_t>::spawnCallsHandlers()
     const Uint workerEnd = std::min(nCallingEnvs, (thrID+1)*workerShare);
     for(Uint i=workerBeg; i<workerEnd; ++i) shareWorkers.push_back(i);
 
+printf("create thread to handle %lu workers\n", shareWorkers.size()); fflush(0);
     #pragma omp critical
     if (shareWorkers.size())
       worker_replies.push_back (
@@ -75,7 +78,7 @@ void Master<CommType,Request_t>::waitForStateActionCallers(const std::vector<Uin
   for(size_t i=0; i<nClients; ++i) {
     const Uint callerID = givenWorkers[i]+1;
     const COMM_buffer& B = getCommBuffer( callerID );
-    interface()->Irecv(B.dataStateBuf, B.sizeStateMsg, callerID, 0, reqs[i]);
+    interface()->Irecv(B.dataStateBuf, B.sizeStateMsg, callerID, 78283, reqs[i]);
   }
 
   for(size_t i=0; ; ++i) // infinite loop : communicate until break command
@@ -92,8 +95,8 @@ void Master<CommType,Request_t>::waitForStateActionCallers(const std::vector<Uin
     if(completed) {
       answerStateAction(callID);
       const COMM_buffer& B = getCommBuffer(callRank);
-      interface()->Send(B.dataActionBuf, B.sizeActionMsg, callRank, 0);
-      interface()->Irecv(B.dataStateBuf, B.sizeStateMsg,  callRank, 0, reqs[j]);
+      interface()->Send(B.dataActionBuf, B.sizeActionMsg, callRank, 22846);
+      interface()->Irecv(B.dataStateBuf, B.sizeStateMsg,  callRank, 78283, reqs[j]);
       if(bExit.load()>0) break;
     } else {
       usleep(1); // this is to avoid burning cpus when waiting environments
@@ -104,7 +107,7 @@ void Master<CommType,Request_t>::waitForStateActionCallers(const std::vector<Uin
   for(size_t i=0; i<nClients; ++i) { // send KILL messages
     interface()->WaitComm(reqs[i]);
     const COMM_buffer& B = getCommBuffer(givenWorkers[i]+1);
-    interface()->Send(B.dataActionBuf, B.sizeActionMsg, givenWorkers[i]+1, 0);
+    interface()->Send(B.dataActionBuf, B.sizeActionMsg, givenWorkers[i]+1, 22846);
   }
 }
 

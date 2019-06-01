@@ -136,8 +136,7 @@ struct Settings
   Settings();
   void check();
   void initializeOpts(CLI::App & parser);
-  void defineDistributedLearning(const MPI_Comm learnersComm,
-                                 const MPI_Comm gatheringComm);
+  void defineDistributedLearning(DistributionInfo&);
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO LEARNING ALGORITHM

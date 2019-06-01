@@ -141,6 +141,7 @@ void Communicator::set_state_scales(const std::vector<double> upper,
 
 void Communicator::set_num_agents(int _nAgents)
 {
+  assert(_nAgents > 0);
   ENV.nAgentsPerEnvironment = _nAgents;
 }
 
@@ -241,12 +242,14 @@ void Communicator::synchronizeEnvironments()
 void Communicator::initOneCommunicationBuffer()
 {
   Uint maxDimState  = 0, maxDimAction = 0;
+  assert(ENV.descriptors.size() > 0);
   for(size_t i=0; i<ENV.descriptors.size(); ++i)
   {
     maxDimState  = std::max(maxDimState,  ENV.descriptors[i]->dimState );
     maxDimAction = std::max(maxDimAction, ENV.descriptors[i]->dimAction);
   }
-  assert(ENV.nAgentsPerEnvironment>0 && maxDimAction>0); // state can be 0-D
+  assert(ENV.nAgentsPerEnvironment>0);
+  assert(maxDimAction>0); // state can be 0-D
   BUFF.emplace_back(std::make_unique<COMM_buffer>(maxDimState, maxDimAction) );
 }
 

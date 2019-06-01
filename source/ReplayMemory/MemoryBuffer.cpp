@@ -273,7 +273,7 @@ std::unique_ptr<Sampling> MemoryBuffer::prepareSampler(MemoryBuffer* const R, Se
     D_.generators, R, S_.bSampleSequences);
 
   assert(ret not_eq nullptr);
-  return std::move(ret);
+  return ret;
 }
 
 }

@@ -17,7 +17,7 @@ namespace smarties
 
 struct Environment
 {
-  Uint nAgents, nAgentsPerEnvironment;
+  Uint nAgents, nAgentsPerEnvironment = 1;
   bool bAgentsHaveSeparateMDPdescriptors = false;
   //Uint nMPIranksPerEnvironment = 1;
   bool bFinalized = false;
@@ -45,7 +45,6 @@ struct Environment
     if(bFinalized) die("Cannot synchronize env description multiple times");
     bFinalized = true;
 
-printf("about to do first synch\n"); fflush(0);
     sendRecvFunc(&nAgentsPerEnvironment, 1 * sizeof(Uint) );
     sendRecvFunc(&bAgentsHaveSeparateMDPdescriptors, 1 * sizeof(bool) );
 
@@ -63,6 +62,7 @@ printf("about to do first synch\n"); fflush(0);
 
     initDescriptors(bAgentsHaveSeparateMDPdescriptors);
     const Uint nDescriptors = descriptors.size();
+    for(Uint i=0; i<nDescriptors; ++i) descriptors[i]->synchronize(sendRecvFunc);
 
     assert(agents.size() == 0);
     agents.clear();
