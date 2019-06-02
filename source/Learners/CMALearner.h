@@ -21,9 +21,7 @@ protected:
   const Uint nSeqPerWorker = batchSize * ESpopSize_loc / nWorkers_own;
   const Uint ESpopStart = ESpopSize_loc * learn_rank;
 
-  THRvec<long> WiEnded = THRvec<long>(nWorkers_own, 0);
-  THRvec<long> WnEnded = THRvec<long>(nWorkers_own, 0);
-  THRvec<long> WwghtID = THRvec<long>(nWorkers_own, 0);
+  THRvec<long> WiEnded, WnEnded, WwghtID;
 
   std::vector<Rvec> R = std::vector<Rvec>(nWorkers_own, Rvec(ESpopSize, 0) );
 

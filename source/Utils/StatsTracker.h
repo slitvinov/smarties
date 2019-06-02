@@ -35,6 +35,7 @@ struct DelayedReductor
   }
 
   DelayedReductor(const DistributionInfo&, const std::vector<T> init);
+  ~DelayedReductor();
 
   std::vector<T> get(const bool accurate = false);
 
@@ -59,10 +60,8 @@ struct TrainData
   LDvec p = LDvec(3, 0);
   LDvec e = LDvec(n_extra, 0);
 
-  THRvec<long double> cntVec = THRvec<long double>(nThreads, 0);
-  THRvec<LDvec> qVec = THRvec<LDvec>(nThreads, LDvec(5, 0));
-  THRvec<LDvec> pVec = THRvec<LDvec>(nThreads, LDvec(3, 0));
-  THRvec<LDvec> eVec = THRvec<LDvec>(nThreads, LDvec(n_extra, 0));
+  THRvec<long double> cntVec;
+  THRvec<LDvec> qVec, pVec, eVec;
 
   TrainData(const std::string _name, const DistributionInfo&, bool bPPol=0,
     const std::string extrah = std::string(), const Uint nextra=0);
@@ -98,9 +97,8 @@ struct StatsTracker
   long double cnt = 0;
   LDvec avg = LDvec(n_stats, 0);
   LDvec std = LDvec(n_stats, 10);
-  THRvec<long double> cntVec = THRvec<long double>(nThreads, 0);
-  THRvec<LDvec> avgVec = THRvec<LDvec>(nThreads, LDvec(n_stats, 0));
-  THRvec<LDvec> stdVec = THRvec<LDvec>(nThreads, LDvec(n_stats, 0));
+  THRvec<long double> cntVec;
+  THRvec<LDvec> avgVec, stdVec;
 
   LDvec instMean, instStdv;
   unsigned long nStep = 0;

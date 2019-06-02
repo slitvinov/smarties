@@ -23,6 +23,14 @@ DelayedReductor<T>::DelayedReductor(const DistributionInfo& D,
 mpicomm(MPICommDup(D.learners_train_comm)), arysize(I.size()),
 mpisize(MPICommSize(D.learners_train_comm)), distrib(D), return_ret(I) {}
 
+
+template<typename T>
+DelayedReductor<T>::~DelayedReductor()
+{
+  MPI_Comm* commptr = const_cast<MPI_Comm *>(&mpicomm);
+  MPI_Comm_free(commptr);
+}
+
 template<typename T>
 std::vector<T> DelayedReductor<T>::get(const bool accurate)
 {
@@ -76,7 +84,8 @@ template class DelayedReductor<long double>;
 
 TrainData::TrainData(const std::string _name, const DistributionInfo& distrib,
   bool bPPol, const std::string extrah, const Uint nextra) :
-  n_extra(nextra), nThreads(distrib.nThreads), bPolStats(bPPol), name(_name), extra_header(extrah)
+  n_extra(nextra), nThreads(distrib.nThreads), bPolStats(bPPol), name(_name), extra_header(extrah), cntVec(nThreads, 0), qVec(nThreads, LDvec(5, 0)),
+  pVec(nThreads, LDvec(3, 0)), eVec(nThreads, LDvec(n_extra, 0))
 {
   resetSoft();
   resetHead();
@@ -232,7 +241,9 @@ void TrainData::trackPolicy(const std::vector<Real> polG,
 }
 
 StatsTracker::StatsTracker(const Uint N, const DistributionInfo& distrib) :
-n_stats(N), nThreads(distrib.nThreads), learn_rank(MPICommRank(distrib.learners_train_comm))
+  n_stats(N), nThreads(distrib.nThreads),
+  learn_rank(MPICommRank(distrib.learners_train_comm)), cntVec(nThreads, 0),
+  avgVec(nThreads, LDvec(n_stats, 0)), stdVec(nThreads, LDvec(n_stats, 0))
 {
   instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
 }

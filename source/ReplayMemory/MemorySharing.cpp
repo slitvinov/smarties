@@ -83,7 +83,8 @@ MemorySharing::~MemorySharing()
     bFetcherRunning = 0;
     fetcher.join();
   }
-
+  if(sharingComm not_eq MPI_COMM_NULL) MPI_Comm_free(&sharingComm);
+  if(workerComm not_eq MPI_COMM_NULL) MPI_Comm_free(&workerComm);
   for(auto & S : completed) Utilities::dispose_object(S);
 }
 

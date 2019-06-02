@@ -15,17 +15,19 @@ int main (int argc, char** argv)
   smarties::Settings settings; // todo will be vector and ini file parsing
   smarties::DistributionInfo distrib(argc, argv);
 
-  CLI::App parser("smarties : distributed reinforcement learning framework");
-  settings.initializeOpts(parser);
-  distrib.initializeOpts(parser);
-  try {
-    parser.parse(argc, argv);
+  {
+    CLI::App parser("smarties : distributed reinforcement learning framework");
+    settings.initializeOpts(parser);
+    distrib.initializeOpts(parser);
+    try {
+      parser.parse(argc, argv);
+    }
+    catch (const CLI::ParseError &e) {
+      if(distrib.world_rank == 0) return parser.exit(e);
+      else return 1;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
-  catch (const CLI::ParseError &e) {
-    if(distrib.world_rank == 0) return parser.exit(e);
-    else return 1;
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
 
   distrib.initialzePRNG();
   distrib.figureOutWorkersPattern();

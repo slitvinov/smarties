@@ -49,7 +49,7 @@ public:
   Optimizer(const Settings& S, const DistributionInfo& D,
             const std::shared_ptr<Parameters>& W);
 
-  virtual ~Optimizer() {}
+  virtual ~Optimizer();
   virtual void save(const std::string fname, const bool bBackup) = 0;
   virtual int restart(const std::string fname) = 0;
 

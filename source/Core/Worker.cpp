@@ -103,6 +103,8 @@ void Worker::answerStateAction(const Uint bufferID) const
   const int agentID = bufferID * ENV.nAgentsPerEnvironment + localAgentID;
   //read from worker's buffer:
   assert( (Uint) agentID < agents.size() );
+  assert( (Uint) agents[agentID]->workerID == bufferID );
+  assert( (Uint) agents[agentID]->localID == localAgentID );
   Agent& agent = * agents[agentID].get();
   agent.unpackStateMsg(buffer.dataStateBuf);
   if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
@@ -119,6 +121,7 @@ void Worker::answerStateAction(const Uint bufferID) const
   const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
   const Uint nSteps = algo.nLocTimeStepsTrain();
   agent.learnerStepID = factor * nSteps;
+  agent.packActionMsg(buffer.dataActionBuf);
   if(agent.agentStatus >= TERM) // localAgentID, bufferID
     dumpCumulativeReward(agent, algo.nGradSteps(), nSteps);
   //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
@@ -182,7 +185,7 @@ void Worker::synchronizeEnvironments()
       for(size_t i=1; i < COMM->SOCK.clients.size(); ++i) {
         void * const testbuf = malloc(size);
         SOCKET_Brecv(testbuf, size, COMM->SOCK.clients[i]);
-        const int err = memcmp(testbuf, buffer, size); free(buffer);
+        const int err = memcmp(testbuf, buffer, size); free(testbuf);
         if(err) die(" error: comm mismatch");
       }
     }
@@ -242,8 +245,8 @@ void Worker::synchronizeEnvironments()
   {
     char lName[256]; sprintf(lName, "agent_%02lu", i);
     if(distrib.world_rank == 0) printf("Learner: %s\n", lName);
-    learners[i] = createLearner(ENV.getDescriptor(i), settings, distrib);
-    fflush(0);
+    learners.emplace_back( createLearner(ENV.getDescriptor(i), settings, distrib) );
+    assert(learners.size() == i+1);
     learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
   }
@@ -280,10 +283,10 @@ void Worker::loopSocketsToMaster()
     if(bTerminate) break;
   }
 
-  for(const auto& A : agents) A->learnStatus = KILL;
   for(size_t i=0; i<nClients; ++i) {
     SOCKET_Wait(reqs[i]);
     const auto& B = getCommBuffer(i+1);
+    Agent::messageLearnerStatus((char*) B.dataActionBuf) = KILL;
     SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, getSocketID(i+1));
   }
 }
@@ -328,7 +331,6 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
     //Therefore, recv the action obtained from master:
     MPI_Bcast(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE, 0, appCom);
   }
-
   //learner_step_id = (unsigned) BUF.dataActionBuf[0];
 }
 

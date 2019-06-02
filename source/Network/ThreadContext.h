@@ -163,11 +163,10 @@ struct AgentContext
   static constexpr Uint nAddedSamples = 0;
   const Uint agentID;
   const MiniBatch* batch;
-  const Sequence * episode;
   //vector over time:
   std::vector<std::unique_ptr<Activation>> activations;
   //std::shared_ptr<Parameters>> partialGradient;
-  ADDED_INPUT _addedInputType;
+  ADDED_INPUT _addedInputType = NONE;
   std::vector<NNvec> _addedInputVec;
   Sint lastGradTstep;
   Sint weightIndex;
@@ -188,6 +187,7 @@ struct AgentContext
             const Agent& agent,
             const Uint weightID)
   {
+    batch = & B;
     assert(agent.ID == agentID);
     lastGradTstep = -1;
     weightIndex = weightID;
@@ -248,6 +248,12 @@ struct AgentContext
   {
     assert(batch not_eq nullptr);
     return batch->action(0, t);
+  }
+  const Sequence* episode() const
+  {
+    assert(batch not_eq nullptr);
+    assert(batch->episodes.size() == 1 && batch->episodes[0] not_eq nullptr);
+    return batch->episodes[0];
   }
 };
 

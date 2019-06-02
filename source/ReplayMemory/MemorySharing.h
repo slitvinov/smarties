@@ -28,13 +28,13 @@ struct MemorySharing
   // allows masters to share episodes between each others
   // each master sends the size (in floats) of the episode
   // then sends the episode itself. same goes for receiving
-  MPI_Comm sharingComm;
+  MPI_Comm sharingComm = MPI_COMM_NULL;
   Uint sharingSize, sharingRank, sharingTurn;
   std::vector<MPI_Request> shareSendSizeReq, shareSendSeqReq, shareRecvSizeReq;
   std::vector<unsigned long> shareSendSeqSize, shareRecvSeqSize;
   std::vector<Fvec> shareSendSeq;
 
-  MPI_Comm workerComm;
+  MPI_Comm workerComm = MPI_COMM_NULL;
   Uint workerSize, workerRank;
   std::vector<MPI_Request> workerRecvSizeReq;
   std::vector<unsigned long> workerRecvSeqSize;

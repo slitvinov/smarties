@@ -33,14 +33,7 @@ private:
   Real avgDKL = 0;
   int delPtr = -1;
 
-  DelayedReductor<long double> Ssum1Rdx =
-         DelayedReductor<long double>(distrib, LDvec(MDP.dimStateObserved, 0) );
-  DelayedReductor<long double> Ssum2Rdx =
-         DelayedReductor<long double>(distrib, LDvec(MDP.dimStateObserved, 1) );
-  DelayedReductor<long double> Rsum2Rdx =
-         DelayedReductor<long double>(distrib, LDvec(                   1, 1) );
-  DelayedReductor<long double> Csum1Rdx =
-         DelayedReductor<long double>(distrib, LDvec(                   1, 1) );
+  DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
 
   const std::vector<Sequence*>& Set = RM->Set;
   std::atomic<long>& nSequences = RM->nSequences;

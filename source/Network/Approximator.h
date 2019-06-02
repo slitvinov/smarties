@@ -56,6 +56,7 @@ struct Approximator
                const MemoryBuffer* const replay_,
                const Approximator* const preprocessing_ = nullptr,
                const Approximator* const auxInputNet_ = nullptr);
+  ~Approximator();
 
   void load(const MiniBatch& B, const Uint batchID, const Sint wghtID) const
   {
@@ -151,7 +152,7 @@ struct Approximator
   Rvec forward(const Agent& agent) const // run network for agent's recent step
   {
     const auto& C = getContext(agent);
-    return forward(agent, C.episode->nsteps() - 1, 0);
+    return forward(agent, C.episode()->nsteps() - 1, 0);
   }
 
   void setGradient(      Rvec gradient,
@@ -323,7 +324,7 @@ private:
   }
   AgentContext&  getContext(const Agent& agent) const
   {
-    assert(agentsContexts.size() > agent.ID);
+    assert(agentsContexts.size() > agent.ID && agentsContexts[agent.ID]);
     return * agentsContexts[agent.ID].get();
   }
 

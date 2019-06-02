@@ -195,15 +195,20 @@ struct MiniBatch
   Uint getBegStep(const Uint b) const { return begTimeStep[b]; }
   Uint getEndStep(const Uint b) const { return endTimeStep[b]; }
   Uint getTstep(const Uint b) const { return sampledTimeStep[b]; }
-  Uint getNumSteps(const Uint b) const { return endTimeStep[b]-begTimeStep[b]; }
+  Uint getNumSteps(const Uint b) const {
+    assert(begTimeStep.size() > b);
+    assert(endTimeStep.size() > b);
+    return endTimeStep[b] - begTimeStep[b];
+  }
   Uint mapTime2Ind(const Uint b, const Uint t) const
   {
-    assert(begTimeStep[b] <= t);
+    assert(begTimeStep.size() > b && begTimeStep[b] <= t);
     //ind is mapping from time stamp along trajectoy and along alloc memory
     return t - begTimeStep[b];
   }
   Uint mapInd2Time(const Uint b, const Uint k) const
   {
+    assert(begTimeStep.size() > b);
     //ind is mapping from time stamp along trajectoy and along alloc memory
     return k + begTimeStep[b];
   }

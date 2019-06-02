@@ -185,6 +185,9 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward)
 {
   if ( not ENV.bFinalized ) synchronizeEnvironments();
+  if(bTrainIsOver) {
+    printf("ABORTING: App recvd end-of-training signal but did not abort on it's own.\n"); fflush(0); abort();
+  }
   //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && (Uint) agentID < agents.size());
   agents[agentID]->update(status, state, reward);
@@ -206,7 +209,8 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
 
   // we cannot control application. if we received a termination signal we abort
   if(agents[agentID]->learnStatus == KILL) {
-    printf("ABORTING: App recvd end-of-training signal.\n"); fflush(0); abort();
+    printf("App recvd end-of-training signal.\n");
+    bTrainIsOver = true;
   }
 }
 
@@ -256,10 +260,13 @@ void Communicator::initOneCommunicationBuffer()
 std::mt19937& Communicator::getPRNG() {
   return gen;
 }
-bool Communicator::isTraining() {
+bool Communicator::isTraining() const {
   return bTrain;
 }
-int Communicator::desiredNepisodes() {
+bool Communicator::terminateTraining() const {
+  return bTrainIsOver;
+}
+int Communicator::desiredNepisodes() const {
   return nEpisodes;
 }
 

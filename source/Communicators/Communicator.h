@@ -110,8 +110,9 @@ public:
   ////////////////////////////// UTILITY METHODS ///////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   std::mt19937& getPRNG();
-  bool isTraining();
-  int desiredNepisodes();
+  bool isTraining() const;
+  bool terminateTraining() const;
+  int desiredNepisodes() const;
 
   //////////////////////////////////////////////////////////////////////////////
   ///////////////////////////// DEVELOPER METHODS //////////////////////////////
@@ -134,6 +135,7 @@ protected:
   std::mt19937 gen;
   //internal counters & flags
   bool bTrain = true;
+  bool bTrainIsOver = false;
   int nEpisodes = -1;
   Uint globalTstepCounter = 0;
 

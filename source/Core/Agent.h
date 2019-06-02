@@ -50,9 +50,9 @@ struct Agent
   const StateInfo  sInfo = StateInfo(MDP);
   const ActionInfo aInfo = ActionInfo(MDP);
 
-  std::vector<double> sOld; // previous state
-  std::vector<double> state;  // current state
-  std::vector<double> action;
+  std::vector<double> sOld = std::vector<double>(MDP.dimState, 0); // previous state
+  std::vector<double> state = std::vector<double>(MDP.dimState, 0);  // current state
+  std::vector<double> action = std::vector<double>(MDP.dimAction, 0);
   double reward; // current reward
   double cumulativeRewards = 0;
 

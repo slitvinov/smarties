@@ -159,7 +159,7 @@ Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI)
 }
 
 template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) :
-Learner(E, S)
+Learner(E, S), WiEnded(S.nWorkers_own, 0), WnEnded(S.nWorkers_own, 0), WwghtID(S.nWorkers_own, 0)
 {
   bReady4Init = true;
   tPrint = 100;

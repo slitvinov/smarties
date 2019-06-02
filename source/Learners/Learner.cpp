@@ -16,13 +16,14 @@ namespace smarties
 {
 
 Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
-  distrib(D_), settings(S_), MDP(MDP_),
+  distrib(D_), settings(S_), MDP(MDP_), ReFER_reduce(D_, LDvec{ 0.0, 1.0 } ),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
   data_proc( new MemoryProcessing( data.get() ) ),
   data_get ( new Collector       ( data.get() ) ) {}
 
 Learner::~Learner()
 {
+  if(trainInfo not_eq nullptr) delete trainInfo;
   delete data_proc;
   delete data_get;
 }

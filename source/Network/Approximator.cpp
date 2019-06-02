@@ -23,6 +23,12 @@ Approximator::Approximator(std::string name_,
   preprocessing(preprocessing_), auxInputNet(auxInputNet_)
 { }
 
+Approximator::~Approximator()
+{
+  if(gradStats not_eq nullptr) delete gradStats;
+}
+
+
 void Approximator::setNumberOfAddedSamples(const Uint nSamples)
 {
   if(bCreatedNetwork) die("cannot modify network setup after it was built");
