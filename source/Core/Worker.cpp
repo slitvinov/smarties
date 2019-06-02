@@ -94,7 +94,7 @@ void Worker::runTraining()
   }
 }
 
-void Worker::answerStateAction(const int bufferID) const
+void Worker::answerStateAction(const Uint bufferID) const
 {
   assert( (Uint) bufferID < COMM->BUFF.size());
   const COMM_buffer& buffer = getCommBuffer(bufferID+1);

@@ -31,8 +31,8 @@ public:
   void loopSocketsToMaster();
 
   // may be called from application:
-  void answerStateAction(const int bufferID) const;
-  void stepWorkerToMaster(const Uint bufferID) const;
+  void answerStateAction(const Uint bufferID) const;
+  void stepWorkerToMaster(const Uint bufferID = 0) const;
 
   virtual void run();
 

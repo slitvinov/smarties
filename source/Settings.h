@@ -296,10 +296,10 @@ multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
   //SETTINGS THAT ARE NOT READ FROM FILE
   ///////////////////////////////////////////////////////////////////////////////
   // rank-local data-acquisition goals:
-  Uint batchSize_local = -1;
-  Real obsPerStep_local = -1;
-  Uint minTotObsNum_local = -1;
-  Uint maxTotObsNum_local = -1;
+  Uint batchSize_local = 0;
+  Real obsPerStep_local = 0;
+  Uint minTotObsNum_local = 0;
+  Uint maxTotObsNum_local = 0;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
 };

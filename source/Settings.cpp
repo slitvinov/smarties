@@ -296,7 +296,7 @@ void Settings::defineDistributedLearning(DistributionInfo& distrib)
     batchSize_local = batchSize / nLearners;
   } else batchSize_local = batchSize;
 
-  if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
+  if(minTotObsNum <= 0) minTotObsNum = maxTotObsNum;
   minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
   minTotObsNum_local = minTotObsNum / nLearners;
   // each learner processes a fraction of the entire dataset:

@@ -193,7 +193,7 @@ void Communicator::sendState(const int agentID, const episodeStatus status,
 #ifndef SMARTIES_LIB
   if(worker not_eq nullptr)
   {
-    worker->stepWorkerToMaster(1);
+    worker->stepWorkerToMaster();
   }
   else
 #endif

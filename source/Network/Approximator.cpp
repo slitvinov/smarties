@@ -263,6 +263,7 @@ void Approximator::buildPreprocessing(const std::vector<Uint> preprocLayers)
       build->addInput(extraInputSize);
     }
   }
+  else build->addInput( dimS );
 
   for (Uint i=0; i<preprocLayers.size(); ++i)
     build->addLayer(preprocLayers[i], settings.nnFunc, false);
