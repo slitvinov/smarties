@@ -100,6 +100,7 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
 
     for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory
+    if(bTrainIsOver) break;
   }
 }
 

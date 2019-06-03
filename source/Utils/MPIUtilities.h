@@ -20,16 +20,19 @@ namespace smarties
 #ifdef MPI_VERSION
 
 inline MPI_Comm MPICommDup(const MPI_Comm C) {
+  if(C == MPI_COMM_NULL) return MPI_COMM_NULL;
   MPI_Comm ret;
   MPI_Comm_dup(C, &ret);
   return ret;
 }
 inline unsigned MPICommSize(const MPI_Comm C) {
+  if(C == MPI_COMM_NULL) return 0;
   int size;
   MPI_Comm_size(C, &size);
   return (unsigned) size;
 }
 inline unsigned MPICommRank(const MPI_Comm C) {
+  if(C == MPI_COMM_NULL) return 0;
   int rank;
   MPI_Comm_rank(C, &rank);
   return (unsigned) rank;

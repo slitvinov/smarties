@@ -248,4 +248,10 @@ const Parameters * Optimizer::getWeights(const Sint weightsIndex)
   return sampled_weights[weightsIndex].get();
 }
 
+Optimizer::~Optimizer()
+{
+  MPI_Comm* commptr = const_cast<MPI_Comm *>(&learnersComm);
+  MPI_Comm_free(commptr);
+}
+
 } // end namespace smarties

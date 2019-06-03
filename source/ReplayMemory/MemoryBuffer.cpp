@@ -174,6 +174,7 @@ MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
     ret.begTimeStep[0] = currStep - nRecurr;
     ret.endTimeStep[0] = currStep + 1;
   }
+  ret.sampledTimeStep[0] = inProgress->nsteps() - 1;
   // number of states to process ( also, see why we used sampleT[b]+2 )
   const Uint nSteps = ret.endTimeStep[0] - ret.begTimeStep[0];
   ret.resizeStep(0, nSteps);

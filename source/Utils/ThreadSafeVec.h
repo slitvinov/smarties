@@ -22,40 +22,36 @@ struct THRvec
 {
   Uint nThreads;
   const T initial;
-  std::vector<std::shared_ptr<T>> m_v;
+  std::vector<std::unique_ptr<T>> m_v;
 
   THRvec(const Uint size, const T init=T()) : nThreads(size), initial(init)
   {
     m_v.resize(nThreads);
     #pragma omp parallel for num_threads(nThreads) schedule(static, 1)
-    for(Uint i=0; i<nThreads; ++i) m_v[i] = std::make_shared<T>(initial);
+    for(Uint i=0; i<nThreads; ++i) m_v[i] = std::make_unique<T>(initial);
   }
 
-  THRvec(const THRvec&c) : nThreads(c.nThreads), initial(c.initial)
-  {
-    m_v.resize(nThreads);
-    #pragma omp parallel for num_threads(nThreads) schedule(static, 1)
-    for(Uint i=0; i<nThreads; ++i) m_v[i] = c.m_v[i];
-  }
+  THRvec(const THRvec&c) = delete;
 
   void resize(const Uint N)
   {
     if(N == nThreads) return;
 
-    if(N < nThreads) m_v.resize(N);
-    else { // N > nThreads
-      m_v.reserve(N);
-    }
+    m_v.resize(N);
     nThreads = N;
-    m_v.resize(N, nullptr);
+    #pragma omp parallel for schedule(static, 1)
+    for(Uint i=0; i<N; ++i) {
+      if(m_v[i]) continue;
+      m_v[i] = std::make_unique<T>(initial);
+    }
   }
 
   Uint size() const { return nThreads; }
 
   T& operator[] (const Uint i) const
   {
-    assert(m_v[i] not_eq nullptr);
-    return * m_v[i];
+    assert(m_v[i]);
+    return * m_v[i].get();
   }
 };
 

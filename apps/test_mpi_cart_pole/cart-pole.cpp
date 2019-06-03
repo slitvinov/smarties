@@ -184,13 +184,13 @@ int app_main(
   // But real application is to env with two competing/collaborating agents
   CartPole env;
 
-printf("about to go to training loop\n"); fflush(0);
   while(true) //train loop
   {
     //reset environment:
     env.reset(comm->getPRNG()); //comm contains rng with different seed on each rank
 
     comm->sendInitState(env.getState()); //send initial state
+    if(comm->terminateTraining()) return 0; // exit program
 
     while (true) //simulation loop
     {
@@ -203,11 +203,11 @@ printf("about to go to training loop\n"); fflush(0);
       double reward = env.getReward();
 
       if(terminated)  //tell smarties that this is a terminal state
-      {
         comm->sendTermState(state, reward);
-        break;
-      }
       else comm->sendState(state, reward);
+
+      if(comm->terminateTraining()) return 0; // exit program
+      if(terminated) break; // go back up to reset
     }
   }
   return 0;

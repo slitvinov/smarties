@@ -2,8 +2,8 @@
 
 SMARTIESDIR = ../../source/ #Communicators/
 CPPFLAGS += -std=c++14 -I$(SMARTIESDIR) -DSMARTIES_APP
-#CPPFLAGS += -fsanitize=undefined -g -O0 
-CPPFLAGS += -g -O0 -fsanitize=address 
+#CPPFLAGS += -fsanitize=undefined -g -O0
+#CPPFLAGS += -g -O0 -fsanitize=address 
 VPATH := $(VPATH):$(SMARTIESDIR)
 
 app: cart-pole.o

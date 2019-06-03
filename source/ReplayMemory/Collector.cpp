@@ -13,7 +13,8 @@ namespace smarties
 {
 
 Collector::Collector(MemoryBuffer*const RM) : replay(RM),
-  sharing( std::make_unique<MemorySharing>(RM) )
+  sharing( std::make_unique<MemorySharing>(RM) ),
+  globalStep_reduce(replay->distrib, std::vector<long>{0, 0})
 {
   globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
   inProgress.resize(distrib.nAgents, nullptr);

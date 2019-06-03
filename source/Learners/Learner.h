@@ -53,9 +53,8 @@ public:
   const Real CmaxPol = settings.clipImpWeight;
   const Real epsAnneal = settings.epsAnneal;
 
+  DelayedReductor<long double> ReFER_reduce;
   const FORGET ERFILTER;
-  DelayedReductor<long double> ReFER_reduce =
-                      DelayedReductor<long double>(distrib, LDvec{ 0.0, 1.0 } );
 
 
 protected:

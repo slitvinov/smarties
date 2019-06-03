@@ -181,5 +181,8 @@ fi
 else
 
 mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node ./rl ${SETTINGS} | tee out.log
+#mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
+#valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes --show-reachable=yes \
+#./rl ${SETTINGS}
 
 fi

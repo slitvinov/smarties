@@ -28,8 +28,7 @@ private:
 
   std::vector<Sequence*> inProgress;
 
-  DelayedReductor<long> globalStep_reduce =
-                         DelayedReductor<long>(distrib, std::vector<long>{0,0});
+  DelayedReductor<long> globalStep_reduce;
 
   std::atomic<long>& nSeenSequences = replay->nSeenSequences;
   std::atomic<long>& nSeenTransitions = replay->nSeenTransitions;

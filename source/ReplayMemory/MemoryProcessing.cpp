@@ -14,7 +14,10 @@
 namespace smarties
 {
 
-MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM) { }
+MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
+  Ssum1Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 0) ),
+  Ssum2Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 1) ),
+  Rsum2Rdx(distrib, LDvec(1, 1) ), Csum1Rdx(distrib, LDvec(1, 1) ) { }
 
 // update the second order moment of the rewards in the memory buffer
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)

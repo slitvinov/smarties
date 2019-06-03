@@ -288,7 +288,8 @@ void Settings::defineDistributedLearning(DistributionInfo& distrib)
 {
   const MPI_Comm& learnersComm = distrib.learners_train_comm;
   //const MPI_Comm& gatheringComm = distrib.master_workers_comm;
-  const Uint nLearners = MPICommSize(learnersComm);
+  const Uint nLearners = learnersComm==MPI_COMM_NULL? 1
+                         : MPICommSize(learnersComm);
   const Real nL = nLearners;
   // each learner computes a fraction of the batch:
   if(batchSize > 1) {

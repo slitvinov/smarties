@@ -209,6 +209,7 @@ struct StateInfo
   template<typename T = Real>
   std::vector<T> state2observed(const Rvec& state) const
   {
+    assert(state.size() == MDP.dimState);
     std::vector<T> ret(MDP.dimStateObserved);
     for (Uint i=0, k=0; i<MDP.dimState; ++i)
       if (MDP.bStateVarObserved[i]) ret[k++] = state[i];

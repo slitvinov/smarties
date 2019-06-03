@@ -22,6 +22,12 @@ Master<MasterMPI, MPI_Request>(S, D) { }
 template<typename CommType, typename Request_t>
 Master<CommType, Request_t>::Master(Settings&S, DistributionInfo&D) : Worker(S,D) {}
 
+template<typename CommType, typename Request_t>
+Master<CommType, Request_t>::~Master()
+{
+  for(auto& thread : worker_replies) thread.join();
+}
+
 /*
 Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
   Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
@@ -41,8 +47,6 @@ template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::run()
 {
   synchronizeEnvironments();
-printf("finished synchronizeEnvironments\n"); fflush(0);
-
   spawnCallsHandlers();
   runTraining();
 }
@@ -60,7 +64,6 @@ void Master<CommType, Request_t>::spawnCallsHandlers()
     const Uint workerEnd = std::min(nCallingEnvs, (thrID+1)*workerShare);
     for(Uint i=workerBeg; i<workerEnd; ++i) shareWorkers.push_back(i);
 
-printf("create thread to handle %lu workers\n", shareWorkers.size()); fflush(0);
     #pragma omp critical
     if (shareWorkers.size())
       worker_replies.push_back (
@@ -95,18 +98,18 @@ void Master<CommType,Request_t>::waitForStateActionCallers(const std::vector<Uin
     if(completed) {
       answerStateAction(callID);
       const COMM_buffer& B = getCommBuffer(callRank);
-      interface()->Send(B.dataActionBuf, B.sizeActionMsg, callRank, 22846);
-      interface()->Irecv(B.dataStateBuf, B.sizeStateMsg,  callRank, 78283, reqs[j]);
+      interface()->Send(B.dataActionBuf,B.sizeActionMsg,callRank,22846);
+      interface()->Irecv(B.dataStateBuf,B.sizeStateMsg, callRank,78283,reqs[j]);
       if(bExit.load()>0) break;
     } else {
       usleep(1); // this is to avoid burning cpus when waiting environments
     }
   }
 
-  for(const auto& A : agents) A->learnStatus = KILL;
   for(size_t i=0; i<nClients; ++i) { // send KILL messages
     interface()->WaitComm(reqs[i]);
     const COMM_buffer& B = getCommBuffer(givenWorkers[i]+1);
+    Agent::messageLearnerStatus((char*) B.dataActionBuf) = KILL;
     interface()->Send(B.dataActionBuf, B.sizeActionMsg, givenWorkers[i]+1, 22846);
   }
 }
