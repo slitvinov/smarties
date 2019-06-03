@@ -249,6 +249,7 @@ void Worker::synchronizeEnvironments()
     assert(learners.size() == i+1);
     learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
+    learners[i]->setupTasks(tasks);
   }
 }
 
