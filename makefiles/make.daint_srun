@@ -1,3 +1,6 @@
+MPICXX=CC
+LD=CC
+
 #CPPFLAGS+= -static
 #LIBS += -static
 #LIBS += -lstdc++

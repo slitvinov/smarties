@@ -1,26 +1,8 @@
-hn ?= $(shell hostname)
-username ?= $(shell whoami)
+SHELL := /bin/bash
+CURPWD := $(shell pwd)/
 UNAME_S := $(shell uname -s)
 config ?= prod
 extra ?=
-
-ifeq "$(findstring daint,$(shell hostname))" "daint"
-CXX=CC
-LD=CC
-else
-CXX=mpic++
-LD=mpic++
-endif
-
-ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
-ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
-compiler=gnu
-else
-compiler=llvm
-endif
-else
-compiler=intel
-endif
 
 CPPFLAGS=
 LIBS=
@@ -45,6 +27,23 @@ include make.falcon
 endif
 ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
+endif
+
+ifeq "$(MPICXX)" ""
+CPPFLAGS+= -I$(CURPWD)../extern/build/mpich-3.3/include/
+LIBS+= -L$(CURPWD)../extern/build/mpich-3.3/lib/
+MPICXX=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
+LD=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
+endif
+
+ifeq "$(shell $(MPICXX) --version | grep -ci 'icpc')" "0"
+ifeq "$(shell $(MPICXX) --version | grep -ci 'llvm')" "0"
+compiler=gnu
+else
+compiler=llvm
+endif
+else
+compiler=intel
 endif
 
 testdiff ?= off
@@ -129,7 +128,7 @@ CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 env:
 	+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(CXX) CXX=$(CXX) compiler=$(compiler) \
+	+make -C ../apps/$(app)/ CC=$(MPICXX) CXX=$(MPICXX) compiler=$(compiler) \
 	config=$(config) precision=$(app_precision)
 
 else
@@ -147,10 +146,10 @@ rl: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o $@
 
 %.o: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(MPICXX) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -c -MD $<
+	$(MPICXX) $(extra)  $(CPPFLAGS) -c -MD $<
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
