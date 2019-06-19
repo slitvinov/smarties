@@ -39,9 +39,18 @@ struct Sequence
   std::vector<float> priorityImpW;
 
   // some quantities needed for processing of experiences
-  long ended = 0, ID = -1, just_sampled = -1;
-  Uint prefix = 0;
   Fval nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
+
+  // did episode terminate (i.e. terminal state) or was a time out (i.e. V(s_end) != 0
+  bool ended = false;
+  // unique identifier of the episode, counter 
+  Sint ID = -1;
+  // used for prost processing eps: idx of latest time step sampled during past gradient update
+  Sint just_sampled = -1;
+  // used for uniform sampling : prefix sum
+  Uint prefix = 0;
+  // local agent id (agent id within environment) that generated epiosode
+  Uint agentID;
 
   std::mutex seq_mutex;
 
@@ -160,16 +169,19 @@ struct Sequence
     const Uint dP, const Uint Nstep)
   {
     const Uint tuplSize = dS+dA+dP+1;
-    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    const Uint ret = (tuplSize+infoSize)*Nstep + 6;
+    static constexpr Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    //extras : ended,ID,sampled,prefix,agentID x 2 for conversion safety
+    static constexpr Uint extraSize = 14;
+    const Uint ret = (tuplSize+infoSize)*Nstep + extraSize;
     return ret;
   }
   static Uint computeTotalEpisodeNstep(const Uint dS, const Uint dA,
     const Uint dP, const Uint size)
   {
     const Uint tuplSize = dS+dA+dP+1;
-    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    const Uint nStep = (size - 6)/(tuplSize+infoSize);
+    static constexpr Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    static constexpr Uint extraSize = 14;
+    const Uint nStep = (size - extraSize)/(tuplSize+infoSize);
     assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
     return nStep;
   }

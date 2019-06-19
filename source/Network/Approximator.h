@@ -17,6 +17,8 @@
 namespace smarties
 {
 
+class ParameterBlob;
+
 struct Approximator
 {
   //when this flag is true, specification of network properties is disabled:
@@ -277,6 +279,8 @@ struct Approximator
     opt->apply_update();
     reducedGradients = 0;
   }
+
+  void gatherParameters(ParameterBlob& params) const;
 
   void getHeaders(std::ostringstream& buff) const;
   void getMetrics(std::ostringstream& buff) const;

@@ -6,18 +6,21 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef smarties_MemorySharing_h
-#define smarties_MemorySharing_h
+#ifndef smarties_DataCoordinator_h
+#define smarties_DataCoordinator_h
 
 #include "MemoryBuffer.h"
+#include "Utils/TaskQueue.h"
+#include "Utils/ParameterBlob.h"
 #include <thread>
 
 namespace smarties
 {
 
-struct MemorySharing
+class DataCoordinator
 {
   MemoryBuffer* const replay;
+  ParameterBlob & params;
   const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;
 
@@ -39,27 +42,35 @@ struct MemorySharing
   std::vector<MPI_Request> workerRecvSizeReq;
   std::vector<unsigned long> workerRecvSeqSize;
 
-  std::mutex complete_mutex;
 
-  std::thread fetcher;
-  std::atomic<Uint> bFetcherRunning {0};
+  std::vector<MPI_Request> workerReqParamReq;
+  std::vector<unsigned long> workerReqParamFlag;
+
+  std::mutex complete_mutex;
 
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
-  long int globSeen[2] = {0, 0};
+  const TaskQueue * allTasksPtr = nullptr;
 
-  MemorySharing(MemoryBuffer*const RM);
-  ~MemorySharing();
+public:
+  DataCoordinator(MemoryBuffer*const RM, ParameterBlob & params);
+  ~DataCoordinator();
 
-  inline int testBuffer(MPI_Request& req);
+  void setupTasks(TaskQueue& tasks);
+
+  void answerWorkersParameterUpdates();
+
+  void distributePendingEpisodes();
+
+  void mastersRecvEpisodes();
+
+  void addComplete(Sequence* const EP, const bool bUpdateParams = true);
+
+private:
 
   void recvEP(const int ID2);
 
   void sendEp(const int ID2, Sequence* const EP);
-
-  void run();
-
-  void addComplete(Sequence* const EP);
 
   void IrecvSize(unsigned long& size, const int rank, const MPI_Comm C, MPI_Request&R) const
   {

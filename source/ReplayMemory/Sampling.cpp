@@ -7,7 +7,8 @@
 //
 #include "MemoryBuffer.h"
 #include "Sampling.h"
-#include <parallel/algorithm>
+#include <algorithm>
+//#include <parallel/algorithm>
 
 namespace smarties
 {
@@ -170,7 +171,8 @@ void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
     std::uniform_int_distribution<int> dist(0, max-1);
     return dist(gens[0]);
   };
-  __gnu_parallel::random_shuffle(samples.begin(), samples.end(), RNG);
+  //__gnu_parallel::random_shuffle(samples.begin(), samples.end(), RNG);
+  std::random_shuffle(samples.begin(), samples.end(), RNG);
 }
 void TSample_shuffle::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
@@ -227,7 +229,8 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
   // 2)
   const auto isAbeforeB = [&] ( const TupEST& a, const TupEST& b) {
                           return std::get<0>(a) > std::get<0>(b); };
-  __gnu_parallel::sort(errors.begin(), errors.end(), isAbeforeB);
+  //__gnu_parallel
+  std::sort(errors.begin(), errors.end(), isAbeforeB);
   //for(Uint i=0; i<errors.size(); ++i) cout << std::get<0>(errors[i]) << endl;
 
   // 3)

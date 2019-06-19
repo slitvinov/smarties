@@ -10,6 +10,7 @@
 #define smarties_Learner_pytorch_h
 
 #include "Learner.h"
+#include "Utils/ParameterBlob.h"
 
 namespace smarties
 {
@@ -32,7 +33,9 @@ class Learner_pytorch: public Learner
   Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
   void select(Agent& ) override {}
-  void setupTasks(TaskQueue&) override {}
+  void setupTasks(TaskQueue& tasks) override {
+    Learner::setupTasks(tasks);
+  }
   virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;

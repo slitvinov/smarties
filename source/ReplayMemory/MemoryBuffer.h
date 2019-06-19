@@ -37,7 +37,7 @@ class MemoryBuffer
 
   friend class Sampling;
   friend class Collector;
-  friend struct MemorySharing;
+  friend struct DataCoordinator;
   friend class MemoryProcessing;
 
   std::vector<std::mt19937>& generators = distrib.generators;
@@ -56,10 +56,13 @@ class MemoryBuffer
   std::vector<Uint> lastSampledEps;
   std::mutex dataset_mutex;
 
-  std::atomic<long> nSequences{0};
-  std::atomic<long> nTransitions{0};
+  // num of samples contained in dataset:
+  std::atomic<long> nSequences{0}; // num of episodes
+  std::atomic<long> nTransitions{0}; // num of individual time steps
+  // num of samples seen from the beginning
   std::atomic<long> nSeenSequences{0};
   std::atomic<long> nSeenTransitions{0};
+  // num of samples seen from beginning locally:
   std::atomic<long> nSeenSequences_loc{0};
   std::atomic<long> nSeenTransitions_loc{0};
 

@@ -9,6 +9,7 @@
 #include "Approximator.h"
 #include "Optimizer.h"
 #include "Network.h"
+#include "Utils/ParameterBlob.h"
 
 namespace smarties
 {
@@ -207,7 +208,7 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
       build->addInput(inputSize);
   }
 
-  //User can specify how many layers exist independendlty for each output
+  // User can specify how many layers exist independendlty for each output
   // of the network. For example, if the settings file specifies 3 layer
   // sizes and splitLayers=1, the network will have 2 shared bottom Layers
   // (not counting input layer) and then for each of the outputs a separate
@@ -293,6 +294,11 @@ void Approximator::restart(const std::string base)
 {
   if(opt == nullptr) die("Attempted to restart uninitialized net!");
   opt->restart(base+name);
+}
+
+void Approximator::gatherParameters(ParameterBlob& params) const
+{
+   params.add(net->weights->nParams, net->weights->params);
 }
 
 } // end namespace smarties

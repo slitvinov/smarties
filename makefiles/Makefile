@@ -82,7 +82,7 @@ OBJ_FILES = \
 	Collector.o \
 	Math_tests.o \
 	MemoryBuffer.o \
-	MemorySharing.o \
+	DataCoordinator.o \
 	MemoryProcessing.o \
 	Builder.o \
 	Network.o \

@@ -10,22 +10,25 @@
 #include "Utils/FunctionUtilities.h"
 #include "Utils/SstreamUtilities.h"
 #include "ReplayMemory/MemoryProcessing.h"
+#include "ReplayMemory/DataCoordinator.h"
 #include "ReplayMemory/Collector.h"
 
 namespace smarties
 {
 
-Learner::Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
-  distrib(D_), settings(S_), MDP(MDP_), ReFER_reduce(D_, LDvec{ 0.0, 1.0 } ),
-  ERFILTER(MemoryProcessing::readERfilterAlgo(S_.ERoldSeqFilter, CmaxPol>0)),
+Learner::Learner(MDPdescriptor& MD, Settings& S, DistributionInfo& D):
+  distrib(D), settings(S), MDP(MD), params(D), ReFER_reduce(D, LDvec{0.,1.}),
+  ERFILTER(MemoryProcessing::readERfilterAlgo(S.ERoldSeqFilter, CmaxPol>0)),
   data_proc( new MemoryProcessing( data.get() ) ),
-  data_get ( new Collector       ( data.get() ) ) {}
+  data_coord( new DataCoordinator( data.get(), params ) ),
+  data_get ( new Collector       ( data.get(), data_coord ) ) {}
 
 Learner::~Learner()
 {
   if(trainInfo not_eq nullptr) delete trainInfo;
   delete data_proc;
   delete data_get;
+  delete data_coord;
 }
 
 void Learner::initializeLearner()
@@ -107,7 +110,7 @@ void Learner::updateRetraceEstimates()
     assert(std::fabs(SEQ.action_adv[SEQ.ndata()]) < 1e-16);
     if( SEQ.isTerminal(SEQ.ndata()) )
       assert(std::fabs(SEQ.state_vals[SEQ.ndata()]) < 1e-16);
-    for(int j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
+    for(Sint j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
   }
 }
 
@@ -133,12 +136,16 @@ bool Learner::blockDataAcquisition() const
   return nLocTimeStepsTrain() > (nGradSteps()+1) * obsPerStep_loc;
 }
 
-bool Learner::unblockGradientUpdates() const
+bool Learner::blockGradientUpdates() const
 {
   // almost the same of the function before
-  if( data->readNData() < nObsB4StartTraining ) return false;
   // 'freeze if there is too little data for the current gradient step'
-  return nLocTimeStepsTrain() >= nGradSteps() * obsPerStep_loc;
+  return nLocTimeStepsTrain() < nGradSteps() * obsPerStep_loc;
+}
+
+void Learner::setupTasks(TaskQueue& tasks)
+{
+  data_coord->setupTasks(tasks);
 }
 
 void Learner::logStats()

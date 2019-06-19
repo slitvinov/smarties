@@ -18,20 +18,29 @@ namespace smarties
 
 class TaskQueue
 {
-  using cond_t = std::function<bool()>;
-  using func_t = std::function<void()>;
-  std::vector<std::pair<cond_t, func_t>> tasks;
+  // some tasks may require to know whether data acquisition is globally locked
+  const std::function<bool()> lockDataAcquisition;
+
+  std::vector< std::function<void()> > tasks;
 
 public:
-  inline void add(cond_t && cond, func_t && func) {
-    tasks.emplace_back(std::move(cond), std::move(func));
+  void add (std::function<void()> && func)
+  {
+    tasks.emplace_back(std::move(func));
   }
 
-  inline void run()
+  void run()
   {
     // go through task list once and execute all that are ready:
-    for(size_t i=0; i<tasks.size(); ++i) if(tasks[i].first()) tasks[i].second();
+    for(size_t i=0; i<tasks.size(); ++i) tasks[i]();
   }
+
+  bool dataAcquisitionIsLocked() const
+  {
+    return lockDataAcquisition();
+  }
+
+  TaskQueue(const std::function<bool()> lock) : lockDataAcquisition(lock) {}
 };
 
 } // end namespace smarties

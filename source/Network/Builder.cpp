@@ -127,7 +127,9 @@ void Builder::build(const bool isInputNet)
   }
 
   // Make sure that all ranks have the same weights (copy from rank 0)
-  weights->broadcast(distrib.learners_train_comm);
+  if(distrib.learnersOnWorkers) weights->broadcast(MPI_COMM_WORLD);
+  else weights->broadcast(distrib.learners_train_comm);
+
   // Initialize network workspace to check that all is ok
   const std::unique_ptr<Activation> test = Network::allocActivation(layers);
   if(test->nInputs not_eq (int) nInputs)

@@ -158,6 +158,7 @@ void DistributionInfo::figureOutWorkersPattern()
       if(bIsMaster)
       {
         nOwnedEnvironments = MPICommSize(master_workers_comm) - 1;
+        _warn("master %lu owns %lu environments\n", world_rank, nOwnedEnvironments);
         if(nWorker_processes < nMasters)
              workerless_masters_comm = MPICommDup(learners_train_comm);
         else workerless_masters_comm = MPI_COMM_NULL;
@@ -188,8 +189,12 @@ void DistributionInfo::figureOutWorkersPattern()
           }
           thisWorkerGroupID = (innerWorkRank-1) / workerProcessesPerEnv;
           MPI_Comm_split(master_workers_comm, thisWorkerGroupID, innerWorkRank, &environment_app_comm);
-        } else
+        } else {
+          thisWorkerGroupID = 0;
           nForkedProcesses2spawn = nOwnedEnvironments;
+        }
+
+        _warn("worker %lu owns %lu environments, has rank %lu out of %lu. worker ID inside group %d.\n", world_rank, nOwnedEnvironments, innerWorkRank, innerWorkSize, thisWorkerGroupID);
 
         MPI_Comm_free(& learners_train_comm);
         learners_train_comm = MPI_COMM_NULL;

@@ -8,15 +8,14 @@
 
 #include "Collector.h"
 #include "Utils/FunctionUtilities.h"
+#include "DataCoordinator.h"
 
 namespace smarties
 {
 
-Collector::Collector(MemoryBuffer*const RM) : replay(RM),
-  sharing( std::make_unique<MemorySharing>(RM) ),
-  globalStep_reduce(replay->distrib, std::vector<long>{0, 0})
+Collector::Collector(MemoryBuffer*const RM, DataCoordinator*const C) :
+replay(RM), sharing(C)
 {
-  globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
   inProgress.resize(distrib.nAgents, nullptr);
   for (Uint i=0; i<distrib.nAgents; ++i) inProgress[i] = new Sequence();
 }
@@ -28,6 +27,11 @@ void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
   Sequence* const S = inProgress[a.ID];
+
+  // assign or check id of agent generating episode
+  if (a.agentStatus == INIT) S->agentID = a.localID;
+  else assert(S->agentID == a.localID);
+
   const std::vector<nnReal> storedState = a.getObservedState<nnReal>();
   if(a.trackSequence == false)
   {
@@ -121,11 +125,6 @@ void Collector::push_back(const int & agentId)
   else die("Found episode with no steps");
 
   inProgress[agentId] = new Sequence();
-
-  globalStep_reduce.update({nSeenSequences_loc.load(), nSeenTransitions_loc.load()});
-  const std::vector<long> nDataGlobal = globalStep_reduce.get();
-  nSeenSequences = nDataGlobal[0];
-  nSeenTransitions = nDataGlobal[1];
 }
 
 Collector::~Collector() {

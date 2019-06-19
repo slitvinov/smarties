@@ -34,6 +34,7 @@ private:
   int delPtr = -1;
 
   DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
+  DelayedReductor<long> globalStep_reduce;
 
   const std::vector<Sequence*>& Set = RM->Set;
   std::atomic<long>& nSequences = RM->nSequences;

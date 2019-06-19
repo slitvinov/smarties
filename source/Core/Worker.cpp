@@ -15,6 +15,7 @@ namespace smarties
 {
 
 Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
+  tasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
   ENV( COMM->ENV ), agents( ENV.agents )
 {
@@ -234,12 +235,12 @@ void Worker::synchronizeEnvironments()
 
   // now i know nAgents, might need more generators:
   distrib.finalizePRNG(ENV.nAgents);
+  distrib.nAgents = ENV.nAgents;
 
   // return if this process should not host the learning algorithms
   if(not distrib.bIsMaster and not distrib.learnersOnWorkers) return;
 
   const Uint nLearners = ENV.bAgentsHaveSeparateMDPdescriptors? 1 : ENV.nAgentsPerEnvironment;
-  distrib.nAgents = ENV.nAgents;
   learners.reserve(nLearners);
   for(Uint i = 0; i<nLearners; ++i)
   {

@@ -9,6 +9,7 @@
 #ifndef smarties_Worker_h
 #define smarties_Worker_h
 
+#include "Utils/ParameterBlob.h"
 #include "Utils/TaskQueue.h"
 #include "Core/Environment.h"
 #include "Core/Launcher.h"

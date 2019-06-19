@@ -87,56 +87,54 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 
   // ALGORITHM DESCRIPTION
   algoSubStepID = -1; // pre initialization
-  {
-    auto condInit = [&]() {
-      if( algoSubStepID>=0 ) return false;
-      return data->readNData() >= nObsB4StartTraining;
-    };
-    auto stepInit = [&]() {
-      debugL("Initialize Learner");
-      initializeLearner();
-      algoSubStepID = 0;
-    };
-    tasks.add(condInit, stepInit);
-  }
 
+  auto stepInit = [&]()
   {
-    auto condMain = [&]() {
-      if( algoSubStepID != 0 ) return false;
-      else return unblockGradientUpdates();
-    };
-    auto stepMain = [&]() {
-      debugL("Sample the replay memory and compute the gradients");
-      spawnTrainTasks();
-      debugL("Gather gradient estimates from each thread and Learner MPI rank");
-      prepareGradient();
-      debugL("Search work to do in the Replay Memory");
-      processMemoryBuffer(); // find old eps, update avg quantities ...
-      debugL("Update Retrace est. for episodes sampled in prev. grad update");
-      updateRetraceEstimates();
-      debugL("Compute state/rewards stats from the replay memory");
-      finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
-      logStats();
-      algoSubStepID = 1;
-    };
-    tasks.add(condMain, stepMain);
-  }
+    // conditions to start the initialization task:
+    if ( algoSubStepID >= 0 ) return; // we done with init
+    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+
+    debugL("Initialize Learner");
+    initializeLearner();
+    algoSubStepID = 0;
+  };
+  tasks.add(stepInit);
+
+  auto stepMain = [&]()
+  {
+    // conditions to begin the update-compute task
+    if ( algoSubStepID not_eq 0 ) return; // some other op is in progress
+    if ( blockGradientUpdates() ) return; // waiting for enough data
+
+    debugL("Sample the replay memory and compute the gradients");
+    spawnTrainTasks();
+    debugL("Gather gradient estimates from each thread and Learner MPI rank");
+    prepareGradient();
+    debugL("Search work to do in the Replay Memory");
+    processMemoryBuffer(); // find old eps, update avg quantities ...
+    debugL("Update Retrace est. for episodes sampled in prev. grad update");
+    updateRetraceEstimates();
+    debugL("Compute state/rewards stats from the replay memory");
+    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
+    logStats();
+    algoSubStepID = 1;
+  };
+  tasks.add(stepMain);
+
   // these are all the tasks I can do before the optimizer does an allreduce
+  auto stepComplete = [&]()
   {
-    auto condComplete = [&]() {
-      if(algoSubStepID != 1) return false;
-      // assumption here is that I have at least one approximator
-      // and it that one is ready to apply update they are all/will be soon
-      return networks[0]->ready2ApplyUpdate();
-    };
-    auto stepComplete = [&]() {
-      debugL("Apply SGD update after reduction of gradients");
-      applyGradient();
-      algoSubStepID = 0; // rinse and repeat
-      globalGradCounterUpdate(); // step ++
-    };
-    tasks.add(condComplete, stepComplete);
-  }
+    if ( algoSubStepID not_eq 1 ) return;
+    if ( networks[0]->ready2ApplyUpdate() == false ) return;
+
+    debugL("Apply SGD update after reduction of gradients");
+    applyGradient();
+    algoSubStepID = 0; // rinse and repeat
+    globalGradCounterUpdate(); // step ++
+  };
+  tasks.add(stepComplete);
+
+  Learner_approximator::setupTasks(tasks);
 }
 
 ////////////////////////////////////////////////////////////////////////////

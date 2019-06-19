@@ -28,6 +28,27 @@ namespace smarties
 
 // Base class of all layer types. To insert a new layer type, overwrite all
 // virtual functions.
+template<typename T>
+static void GEMVomp(const Uint NI, const Uint NO, const Uint S,
+                    const T * __restrict__ const _W,
+                    const T * __restrict__ const _X,
+                          T * __restrict__ const _Y)
+{
+  typedef __attribute__((aligned(VEC_WIDTH))) T alignT;
+  static constexpr Uint safelen = VEC_WIDTH / sizeof(T);
+  const alignT * __restrict__ const W_ = static_cast<const alignT *>(_W);
+  const alignT * __restrict__ const X_ = static_cast<const alignT *>(_X);
+        alignT * __restrict__ const Y_ = static_cast<      alignT *>(_Y);
+  for (Uint o=0; o<NO; ++o)
+  {
+    const alignT* __restrict__ const W = W_ + S * o;
+    T Y = 0;
+    #pragma omp simd aligned(X_,W : VEC_WIDTH) safelen(safelen) reduction(+:Y)
+    for (Uint i=0; i<NI; ++i) Y += W[i] * X_[i];
+    Y_[o] += Y;
+  }
+}
+
 class Layer
 {
  public:
@@ -98,28 +119,14 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
-      #if 0 //def SINGLE_PREC
-      for (Uint i = startCompInpGrads; i < spanCompInpGrads+startCompInpGrads; ++i)
-      {
-        const nnReal* const W = weight + NOsimd*i;
-        __m256 ret = _mm256_setzero_ps();
-        for (Uint o = 0; o < NO; o+=8) {
-         ret = _mm256_fmadd_ps(_mm256_load_ps(W+o), _mm256_load_ps(deltas+o), ret);
-        }
-        errors[i] += ((ret[0]+ret[4])+(ret[1]+ret[5])) + ((ret[2]+ret[6])+(ret[3]+ret[7]));
-      }
+      #if 1 //def SINGLE_PREC
+        GEMVomp(NO, spanCompInpGrads, NOsimd,
+                weight + startCompInpGrads * NOsimd,
+                deltas, errors + startCompInpGrads);
       #else
-      gemv(CblasRowMajor, CblasNoTrans,
-        spanCompInpGrads,
-        NO,
-        1,
-        weight + startCompInpGrads*NOsimd,
-        NOsimd,
-        deltas,
-        1,
-        1,
-        errors + startCompInpGrads,
-        1);
+      gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, NO, 1,
+        weight + startCompInpGrads * NOsimd, NOsimd,
+        deltas, 1, 1, errors + startCompInpGrads, 1);
       #endif
     }
 

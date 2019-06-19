@@ -17,11 +17,24 @@ namespace smarties
 MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
   Ssum1Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 0) ),
   Ssum2Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 1) ),
-  Rsum2Rdx(distrib, LDvec(1, 1) ), Csum1Rdx(distrib, LDvec(1, 1) ) { }
+  Rsum2Rdx(distrib, LDvec(1, 1) ), Csum1Rdx(distrib, LDvec(1, 1) ),
+  globalStep_reduce(_RM->distrib, std::vector<long>{0, 0})
+{
+    globalStep_reduce.update( { nSeenSequences_loc.load(),
+                                nSeenTransitions_loc.load() } );
+}
 
 // update the second order moment of the rewards in the memory buffer
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
 {
+  //////////////////////////////////////////////////////////////////////////////
+  globalStep_reduce.update( { nSeenSequences_loc.load(),
+                              nSeenTransitions_loc.load() } );
+  const std::vector<long> nDataGlobal = globalStep_reduce.get();
+  nSeenSequences = nDataGlobal[0];
+  nSeenTransitions = nDataGlobal[1];
+  //////////////////////////////////////////////////////////////////////////////
+
   if(not settings.bTrain) return; //if not training, keep the stored values
   const Uint setSize = RM->readNSeq(), dimS = MDP.dimStateObserved;
 
@@ -202,7 +215,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
 
   Utilities::real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
   Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
-  Utilities::real2SS(buff, avgDKL, 6, 1);
+  Utilities::real2SS(buff, avgDKL, 5, 1);
 
   buff<<" "<<std::setw(5)<<nSeq;
   buff<<" "<<std::setw(7)<<nTransitions.load();

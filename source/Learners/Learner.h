@@ -13,6 +13,7 @@
 #include "Utils/Profiler.h"
 #include "ReplayMemory/MemoryBuffer.h"
 #include "Utils/StatsTracker.h"
+#include "Utils/ParameterBlob.h"
 #include "Utils/TaskQueue.h"
 #include "Settings.h"
 
@@ -20,6 +21,7 @@ namespace smarties
 {
 
 class MemoryProcessing;
+class DataCoordinator;
 class Collector;
 
 class Learner
@@ -29,6 +31,7 @@ protected:
   DistributionInfo & distrib;
   Settings & settings;
   MDPdescriptor & MDP;
+  ParameterBlob params;
 
 public:
   const MPI_Comm learnersComm = distrib.learners_train_comm;
@@ -73,8 +76,9 @@ protected:
 
   const std::unique_ptr<MemoryBuffer> data =
                          std::make_unique<MemoryBuffer>(MDP, settings, distrib);
-  MemoryProcessing* const data_proc;
-  Collector* const        data_get;
+  MemoryProcessing * const data_proc;
+  DataCoordinator * const  data_coord;
+  Collector * const        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
 
   TrainData* trainInfo = nullptr;
@@ -116,12 +120,12 @@ public:
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void setupTasks(TaskQueue& tasks) = 0;
+  virtual void setupTasks(TaskQueue& tasks);
 
   virtual void globalGradCounterUpdate();
 
   virtual bool blockDataAcquisition() const;
-  virtual bool unblockGradientUpdates() const;
+  virtual bool blockGradientUpdates() const;
 
   void processMemoryBuffer();
   void updateRetraceEstimates();

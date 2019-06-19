@@ -82,7 +82,7 @@ training buffer"
 #define COMMENT_learnersOnWorkers "Whether to enable hosting learning algos \
 on worker processes such that workers send training data and recv parameters \
 from masters. If false workers only send states and recv actions from masters."
-#define DEFAULT_learnersOnWorkers false
+#define DEFAULT_learnersOnWorkers true
   bool learnersOnWorkers = DEFAULT_learnersOnWorkers;
 
 #define COMMENT_fakeMastersRanks "This options will pack master ranks in the \

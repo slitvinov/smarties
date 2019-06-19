@@ -9,6 +9,7 @@
 #include "Learner_approximator.h"
 #include "Network/Approximator.h"
 #include "Network/Builder.h"
+#include "Utils/ParameterBlob.h"
 #include <chrono>
 
 namespace smarties
@@ -160,6 +161,16 @@ void Learner_approximator::initializeApproximators()
   {
     net->initializeNetwork();
   }
+}
+
+void Learner_approximator::setupTasks(TaskQueue& tasks)
+{
+  params.add(MDP.stateScale.size(), MDP.stateScale.data());
+  params.add(MDP.stateMean.size(), MDP.stateMean.data());
+  params.add(1, & MDP.rewardsScale);
+  for(const auto& net : networks)  net->gatherParameters(params);
+
+  Learner::setupTasks(tasks);
 }
 
 }

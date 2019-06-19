@@ -9,17 +9,19 @@
 #ifndef smarties_Collector_h
 #define smarties_Collector_h
 
-#include "MemorySharing.h"
+#include "MemoryBuffer.h"
 #include "Utils/StatsTracker.h"
 
 namespace smarties
 {
 
+class DataCoordinator;
+
 class Collector
 {
 private:
   MemoryBuffer * const replay;
-  const std::unique_ptr<MemorySharing> sharing;
+  DataCoordinator * const sharing;
   const MDPdescriptor & MDP = replay->MDP;
   const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;
@@ -28,10 +30,6 @@ private:
 
   std::vector<Sequence*> inProgress;
 
-  DelayedReductor<long> globalStep_reduce;
-
-  std::atomic<long>& nSeenSequences = replay->nSeenSequences;
-  std::atomic<long>& nSeenTransitions = replay->nSeenTransitions;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
 
@@ -48,7 +46,7 @@ public:
     return inProgress.size();
   }
 
-  Collector(MemoryBuffer*const RM);
+  Collector(MemoryBuffer*const RM, DataCoordinator*const C);
 
   ~Collector();
 };
