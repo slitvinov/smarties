@@ -46,10 +46,11 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
       if(not distrib.bIsMaster) die("impossible");
       workerRecvSizeReq = std::vector<MPI_Request>(workerSize);
       workerRecvSeqSize = std::vector<unsigned long>(workerSize);
+      workerReqParamFlag= std::vector<unsigned long>(workerSize);
+      workerReqParamReq = std::vector<MPI_Request>(workerSize);
       //workerRecvSeq = std::vector<Fvec>(workerSize);
     } else {
       if(distrib.bIsMaster) die("impossible");
-      return; // do not create thread
     }
   } else {
     workerSize = 0; workerRank = 0; workerComm = MPI_COMM_NULL;
@@ -94,9 +95,13 @@ DataCoordinator::~DataCoordinator()
 void DataCoordinator::setupTasks(TaskQueue& tasks)
 {
   allTasksPtr = & tasks;
+  if(workerRank > 0) return;
+
   //////////////////////////////////////////////////////////////////////
   // Waiting for workers to request parameters
   /////////////////////////////////////////////////////////////////////
+  assert(workerReqParamFlag.size() == workerSize);
+  assert(workerReqParamReq .size() == workerSize);
   for(Uint i=1; i<workerSize; ++i)
     MPI(Irecv, & workerReqParamFlag[i], 1, MPI_UNSIGNED_LONG, i, 89,
                workerComm, & workerReqParamReq[i]);
@@ -250,7 +255,10 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
     unsigned long sendSz = sendSq.size();
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 98, workerComm);
-    if(bUpdateParams) params.recv(0);
+    if(bUpdateParams) {
+      MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 89, workerComm);
+      params.recv(0);
+    }
   }
   else // data stays here
   {

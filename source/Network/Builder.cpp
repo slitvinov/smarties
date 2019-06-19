@@ -112,7 +112,11 @@ void Builder::build(const bool isInputNet)
   bBuilt = true;
 
   nLayers = layers.size();
-  const Uint lsize = MPICommSize(distrib.learners_train_comm);
+  unsigned long lsize = MPICommSize(distrib.learners_train_comm);
+  const MPI_Comm & tmpComm = distrib.learnersOnWorkers ? MPI_COMM_WORLD :
+                             distrib.learners_train_comm;
+  MPI_Bcast( &lsize, 1, MPI_UNSIGNED_LONG, 0, tmpComm);
+
   const Uint lrank = MPICommRank(distrib.learners_train_comm);
   std::shared_ptr<Parameters> weights = Network::allocParameters(layers, lsize);
 
