@@ -117,11 +117,11 @@ void Worker::answerStateAction(const Uint bufferID) const
   //pick next action and ...do a bunch of other stuff with the data:
   algo.select(agent);
 
-  static constexpr auto vec2str = Utilities::vec2string<double>;
-  const int agentStatus = status2int(agent.agentStatus);
-  _warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
-        vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
-        agent.reward, vec2str(agent.action,-1).c_str());
+  //static constexpr auto vec2str = Utilities::vec2string<double>;
+  //const int agentStatus = status2int(agent.agentStatus);
+  //_warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
+  //      vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
+  //      agent.reward, vec2str(agent.action,-1).c_str());
 
   // Some logging and passing around of step id:
   const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;

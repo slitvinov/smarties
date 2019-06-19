@@ -68,7 +68,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
     shareSendSeq = std::vector<Fvec>(sharingSize);
     //shareRecvSeq = std::vector<Fvec>(sharingSize);
   } else {
-    sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
+    sharingTurn = 0; sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
   }
 
   //if(distrib.bIsMaster) { } else { }
@@ -181,7 +181,7 @@ void DataCoordinator::distributePendingEpisodes()
     }
     completed.pop_back();
     // who's turn is next to receive an episode?
-    sharingTurn = (sharingTurn+1) % sharingSize;
+    if(sharingSize>0) sharingTurn = (sharingTurn+1) % sharingSize; //pick next
   }
 }
 
@@ -234,7 +234,7 @@ void DataCoordinator::mastersRecvEpisodes()
         IsendSize(shareSendSeqSize[I], I, sharingComm, shareSendSizeReq[I]);
         IsendSeq(shareSendSeq[I], I, sharingComm, shareSendSeqReq[I]);
       }
-      sharingTurn = (sharingTurn+1) % sharingSize;
+      if(sharingSize>0) sharingTurn = (sharingTurn+1) % sharingSize; //pick next
     }
 }
 
