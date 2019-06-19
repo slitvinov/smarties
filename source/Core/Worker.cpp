@@ -9,6 +9,7 @@
 #include "Worker.h"
 #include "Learners/AllLearners.h"
 #include "Utils/SocketsLib.h"
+#include "Utils/SstreamUtilities.h"
 #include <fstream>
 
 namespace smarties
@@ -107,16 +108,20 @@ void Worker::answerStateAction(const Uint bufferID) const
   assert( (Uint) agents[agentID]->workerID == bufferID );
   assert( (Uint) agents[agentID]->localID == localAgentID );
   Agent& agent = * agents[agentID].get();
-  agent.unpackStateMsg(buffer.dataStateBuf);
+  // unpack state onto agent, but update it only if this rank is master
+  // otherwise we are just overwriting and doing some checks
+  agent.unpackStateMsg(buffer.dataStateBuf, distrib.bIsMaster);
   if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
   // get learning algorithm:
   Learner& algo = * learners[getLearnerID(localAgentID)].get();
   //pick next action and ...do a bunch of other stuff with the data:
   algo.select(agent);
-  //debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
-  //  agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
-  //  agents[agent]->s._print().c_str(), agents[agent]->r,
-  //  agents[agent]->a._print().c_str());
+
+  static constexpr auto vec2str = Utilities::vec2string<double>;
+  const int agentStatus = status2int(agent.agentStatus);
+  _warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
+        vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
+        agent.reward, vec2str(agent.action,-1).c_str());
 
   // Some logging and passing around of step id:
   const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
@@ -297,12 +302,13 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
 {
   assert(master_workers_comm not_eq MPI_COMM_NULL);
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
+
+  if(learners.size()) return answerStateAction(bufferID);
+
   const COMM_buffer& BUF = getCommBuffer(bufferID+1);
   const auto& appCom = COMM->workers_application_comm;
   const int appRank = MPICommRank(appCom), appSize = MPICommSize(appCom);
   if(appSize) assert( COMM->SOCK.clients.size() == 0 );
-
-  if(learners.size()) return answerStateAction(bufferID);
 
   if (appRank<=0 || COMM->bEnvDistributedAgents)
   {

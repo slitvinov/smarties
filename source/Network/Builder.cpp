@@ -117,7 +117,6 @@ void Builder::build(const bool isInputNet)
                              distrib.learners_train_comm;
   MPI_Bcast( &lsize, 1, MPI_UNSIGNED_LONG, 0, tmpComm);
 
-  const Uint lrank = MPICommRank(distrib.learners_train_comm);
   std::shared_ptr<Parameters> weights = Network::allocParameters(layers, lsize);
 
   std::mt19937& gen = distrib.generators[0];
@@ -126,7 +125,7 @@ void Builder::build(const bool isInputNet)
     l->initialize(gen, weights.get(),
       l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
-  if(lrank == 0) {
+  if(MPICommRank(tmpComm) == 0) {
     for(const auto & l : layers) printf( "%s", l->printSpecs().c_str() );
   }
 

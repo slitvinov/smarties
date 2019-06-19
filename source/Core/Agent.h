@@ -127,12 +127,12 @@ struct Agent
     msgPos +=                          sizeof(double) * state.size() ;
   }
 
-  void unpackStateMsg(const void * const buffer) // get state from buffer
+  void unpackStateMsg(const void * const buffer, const bool update) // get state from buffer
   {
     assert(buffer not_eq nullptr);
     const char * msgPos = (const char*) buffer;
     unsigned testAgentID, testStepID;
-    std::swap(sOld, state); //what is stored in state now is sold
+    if(update) std::swap(sOld, state); //what is stored in state now is sold
 
     memcpy(&testAgentID,       msgPos, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
@@ -145,14 +145,18 @@ struct Agent
     memcpy( state.data(),      msgPos, sizeof(double) * state.size());
     msgPos +=                          sizeof(double) * state.size() ;
 
-    if(agentStatus == INIT) {
-      cumulativeRewards = 0;
-      timeStepInEpisode = 0;
-    } else {
-      cumulativeRewards += reward;
-      ++timeStepInEpisode;
+    assert(testAgentID == localID);
+    if(update) {
+      assert(timeStepInEpisode not_eq testStepID);
+      if(agentStatus == INIT) {
+        cumulativeRewards = 0;
+        timeStepInEpisode = 0;
+      } else {
+        cumulativeRewards += reward;
+        ++timeStepInEpisode;
+      }
     }
-    assert(testStepID == timeStepInEpisode && testAgentID == localID);
+    assert(testStepID == timeStepInEpisode);
   }
 
   void packActionMsg(void * const buffer) const
@@ -166,7 +170,7 @@ struct Agent
     memcpy(msgPos, &learnerStepID, sizeof(unsigned));
     msgPos +=                      sizeof(unsigned) ;
     memcpy(msgPos,  action.data(), sizeof(double) * action.size());
-    msgPos +=                      sizeof(double) * action.size() ;
+  msgPos +=                      sizeof(double) * action.size() ;
   }
 
   void unpackActionMsg(const void * const buffer)
