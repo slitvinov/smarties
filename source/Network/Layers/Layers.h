@@ -114,7 +114,9 @@ class Layer
                 const Parameters*const para) const
   {
     const nnReal* const deltas = curr->E(ID);
-    if( spanCompInpGrads && NO )
+    if(NO == 0) return;
+
+    if( spanCompInpGrads )
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
@@ -133,8 +135,12 @@ class Layer
     {
             nnReal* const errors = prev->E(ID);
       const nnReal* const weight = para->W(ID) +NOsimd*NI;
+      #if 1 //def SINGLE_PREC
+        GEMVomp(NO, NR, NOsimd, weight, deltas, errors);
+      #else
       gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
         weight, NOsimd, deltas, 1, 1, errors, 1);
+      #endif
     }
 
     if(grad == nullptr) return;
