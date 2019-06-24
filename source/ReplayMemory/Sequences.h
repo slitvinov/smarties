@@ -26,6 +26,9 @@ struct Sequence
     policies.reserve(MAX_SEQ_LEN);
     rewards.reserve(MAX_SEQ_LEN);
   }
+
+  bool isEqual(const Sequence * const S) const;
+
   // Fval is just a storage format, probably float while Real is prob. double
   std::vector<Fvec> states;
   std::vector<Rvec> actions;
@@ -43,7 +46,7 @@ struct Sequence
 
   // did episode terminate (i.e. terminal state) or was a time out (i.e. V(s_end) != 0
   bool ended = false;
-  // unique identifier of the episode, counter 
+  // unique identifier of the episode, counter
   Sint ID = -1;
   // used for prost processing eps: idx of latest time step sampled during past gradient update
   Sint just_sampled = -1;

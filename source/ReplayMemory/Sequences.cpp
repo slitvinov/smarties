@@ -134,4 +134,39 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
   return 0;
 }
 
+inline isDifferent(const double& a, const double& b) {
+  return std::fabs(a-b) > std::numeric_limits<double>::epsilon();
+}
+inline isDifferent(const float& a, const float& b) {
+  return std::fabs(a-b) > std::numeric_limits<float>::epsilon();
+}
+template<typename T>
+inline isDifferent(const std::vector<T>& a, const std::vector<T>& b) {
+  if(a.size() not_eq b.size()) return true;
+  for(size_t i=0; i<b.size(); ++i) if( isDifferent(a[i], b[i]) ) return true;
+}
+
+bool Sequence::isEqual(const Sequence * const S) const
+{
+  if( isDifferent(S->states      , states      ) ) return false;
+  if( isDifferent(S->actions     , actions     ) ) return false;
+  if( isDifferent(S->policies    , policies    ) ) return false;
+  if( isDifferent(S->rewards     , rewards     ) ) return false;
+  if( isDifferent(S->Q_RET       , Q_RET       ) ) return false;
+  if( isDifferent(S->action_adv  , action_adv  ) ) return false;
+  if( isDifferent(S->state_vals  , state_vals  ) ) return false;
+  if( isDifferent(S->SquaredError, SquaredError) ) return false;
+  if( isDifferent(S->offPolicImpW, offPolicImpW) ) return false;
+  if( isDifferent(S->KullbLeibDiv, KullbLeibDiv) ) return false;
+  if( isDifferent(S->nOffPol     , nOffPol     ) ) return false;
+  if( isDifferent(S->MSE         , MSE         ) ) return false;
+  if( isDifferent(S->sumKLDiv    , sumKLDiv    ) ) return false;
+  if( isDifferent(S->totR        , totR        ) ) return false;
+  if(S->ended        not_eq ended       ) return false;
+  if(S->ID           not_eq ID          ) return false;
+  if(S->just_sampled not_eq just_sampled) return false;
+  if(S->prefix       not_eq prefix      ) return false;
+  if(S->agentID      not_eq agentID     ) return false;
+}
+
 }
