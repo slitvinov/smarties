@@ -127,27 +127,25 @@ struct Agent
     msgPos +=                          sizeof(double) * state.size() ;
   }
 
-  void unpackStateMsg(const void * const buffer, const bool update) // get state from buffer
+  void unpackStateMsg(const void * const buffer) // get state from buffer
   {
     assert(buffer not_eq nullptr);
     const char * msgPos = (const char*) buffer;
     unsigned testAgentID, testStepID;
-    if(update) std::swap(sOld, state); //what is stored in state now is sold
 
     memcpy(&testAgentID,       msgPos, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
+    assert(testAgentID == localID);
     memcpy(&agentStatus,       msgPos, sizeof(episodeStatus));
     msgPos +=                          sizeof(episodeStatus) ;
     memcpy(&testStepID,        msgPos, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
-    memcpy(&reward,            msgPos, sizeof(double));
-    msgPos +=                          sizeof(double) ;
-    memcpy( state.data(),      msgPos, sizeof(double) * state.size());
-    msgPos +=                          sizeof(double) * state.size() ;
 
-    assert(testAgentID == localID);
-    if(update) {
-      assert(timeStepInEpisode not_eq testStepID);
+    // if timeStepInEpisode==testStepID then agent was told to pack and
+    // unpack the same state. happens e.g. if learner == worker
+    if(timeStepInEpisode not_eq testStepID)
+    {
+      std::swap(sOld, state); //what is stored in state now is sold
       if(agentStatus == INIT) {
         cumulativeRewards = 0;
         timeStepInEpisode = 0;
@@ -157,6 +155,11 @@ struct Agent
       }
     }
     assert(testStepID == timeStepInEpisode);
+
+    memcpy(&reward,            msgPos, sizeof(double));
+    msgPos +=                          sizeof(double) ;
+    memcpy( state.data(),      msgPos, sizeof(double) * state.size());
+    msgPos +=                          sizeof(double) * state.size() ;
   }
 
   void packActionMsg(void * const buffer) const
@@ -170,7 +173,7 @@ struct Agent
     memcpy(msgPos, &learnerStepID, sizeof(unsigned));
     msgPos +=                      sizeof(unsigned) ;
     memcpy(msgPos,  action.data(), sizeof(double) * action.size());
-  msgPos +=                      sizeof(double) * action.size() ;
+    msgPos +=                      sizeof(double) * action.size() ;
   }
 
   void unpackActionMsg(const void * const buffer)

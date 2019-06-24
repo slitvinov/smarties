@@ -108,9 +108,8 @@ void Worker::answerStateAction(const Uint bufferID) const
   assert( (Uint) agents[agentID]->workerID == bufferID );
   assert( (Uint) agents[agentID]->localID == localAgentID );
   Agent& agent = * agents[agentID].get();
-  // unpack state onto agent, but update it only if this rank is master
-  // otherwise we are just overwriting and doing some checks
-  agent.unpackStateMsg(buffer.dataStateBuf, distrib.bIsMaster);
+  // unpack state onto agent
+  agent.unpackStateMsg(buffer.dataStateBuf);
   if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
   // get learning algorithm:
   Learner& algo = * learners[getLearnerID(localAgentID)].get();
