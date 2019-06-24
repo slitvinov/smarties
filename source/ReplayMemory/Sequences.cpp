@@ -8,6 +8,7 @@
 
 #include "Sequences.h"
 #include <cstring>
+#include <cmath>
 
 namespace smarties
 {
@@ -134,16 +135,17 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
   return 0;
 }
 
-inline isDifferent(const double& a, const double& b) {
+inline bool isDifferent(const double& a, const double& b) {
   return std::fabs(a-b) > std::numeric_limits<double>::epsilon();
 }
-inline isDifferent(const float& a, const float& b) {
+inline bool isDifferent(const float& a, const float& b) {
   return std::fabs(a-b) > std::numeric_limits<float>::epsilon();
 }
 template<typename T>
-inline isDifferent(const std::vector<T>& a, const std::vector<T>& b) {
+inline bool isDifferent(const std::vector<T>& a, const std::vector<T>& b) {
   if(a.size() not_eq b.size()) return true;
   for(size_t i=0; i<b.size(); ++i) if( isDifferent(a[i], b[i]) ) return true;
+  return false;
 }
 
 bool Sequence::isEqual(const Sequence * const S) const
@@ -167,6 +169,7 @@ bool Sequence::isEqual(const Sequence * const S) const
   if(S->just_sampled not_eq just_sampled) return false;
   if(S->prefix       not_eq prefix      ) return false;
   if(S->agentID      not_eq agentID     ) return false;
+  return true;
 }
 
 }

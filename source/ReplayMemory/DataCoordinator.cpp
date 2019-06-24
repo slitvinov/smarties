@@ -220,6 +220,7 @@ void DataCoordinator::mastersRecvEpisodes()
       if (sharingTurn == sharingRank) {
         Sequence * const tmp = new Sequence();
         tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
+        //_warn("storing new sequence of size %lu", tmp->ndata());
         replay->pushBackSequence(tmp);
       } else {
         const Uint I = sharingTurn;
@@ -252,13 +253,22 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
     // this better be a worker!
     assert(workerRank>0 && workerSize>1 && not distrib.bIsMaster);
     Fvec sendSq = EP->packSequence(sI.dimObs(), aI.dim(), aI.dimPol());
+    #ifndef NDEBUG
+      Sequence * const tmp = new Sequence();
+      tmp->unpackSequence(sendSq, sI.dimObs(), aI.dim(), aI.dimPol());
+      //_warn("storing new sequence of size %lu", tmp->ndata());
+      EP->isEqual(tmp);
+      delete tmp; 
+    #endif
     unsigned long sendSz = sendSq.size();
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 98, workerComm);
     if(bUpdateParams) {
+      //_warn("sent episode of size %lu and update params", EP->ndata() );
       MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 89, workerComm);
       params.recv(0);
-    }
+    } //else _warn("sent ep of size %lu w/o update params", EP->ndata() );
+    delete EP;
   }
   else // data stays here
   {
