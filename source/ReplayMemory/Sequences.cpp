@@ -15,12 +15,16 @@ namespace smarties
 std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uint dP)
 {
   const Uint seq_len = states.size();
+  assert(states.size() == actions.size() && states.size() == policies.size());
   const Uint totalSize = Sequence::computeTotalEpisodeSize(dS, dA, dP, seq_len);
   std::vector<Fval> ret(totalSize, 0);
   Fval* buf = ret.data();
 
   for (Uint i = 0; i<seq_len; ++i)
   {
+    assert(states[i].size() == dS);
+    assert(actions[i].size() == dA);
+    assert(policies[i].size() == dP);
     std::copy(states[i].begin(), states[i].end(), buf);
     buf[dS] = rewards[i]; buf += dS + 1;
     std::copy(actions[i].begin(),  actions[i].end(),  buf); buf += dA;
@@ -63,12 +67,12 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
   *(buf++) = totR; //fval
 
   char * charPos = (char*) buf;
-  memcpy(&       ended, charPos, sizeof(bool)); charPos += sizeof(bool);
-  memcpy(&          ID, charPos, sizeof(Sint)); charPos += sizeof(Sint);
-  memcpy(&just_sampled, charPos, sizeof(Sint)); charPos += sizeof(Sint);
-  memcpy(&      prefix, charPos, sizeof(Uint)); charPos += sizeof(Uint);
-  memcpy(&     agentID, charPos, sizeof(Uint)); charPos += sizeof(Uint);
-  
+  memcpy(charPos, &       ended, sizeof(bool)); charPos += sizeof(bool);
+  memcpy(charPos, &          ID, sizeof(Sint)); charPos += sizeof(Sint);
+  memcpy(charPos, &just_sampled, sizeof(Sint)); charPos += sizeof(Sint);
+  memcpy(charPos, &      prefix, sizeof(Uint)); charPos += sizeof(Uint);
+  memcpy(charPos, &     agentID, sizeof(Uint)); charPos += sizeof(Uint);
+
   // assert(buf - ret.data() == (ptrdiff_t) totalSize);
   return ret;
 }
@@ -109,12 +113,12 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   sumKLDiv = *(buf++);
   totR     = *(buf++);
 
-  char * charPos = (char*) buf;
-  memcpy(charPos, &       ended, sizeof(bool)); charPos += sizeof(bool);
-  memcpy(charPos, &          ID, sizeof(Sint)); charPos += sizeof(Sint);
-  memcpy(charPos, &just_sampled, sizeof(Sint)); charPos += sizeof(Sint);
-  memcpy(charPos, &      prefix, sizeof(Uint)); charPos += sizeof(Uint);
-  memcpy(charPos, &     agentID, sizeof(Uint)); charPos += sizeof(Uint);
+  const char * charPos = (const char *) buf;
+  memcpy(&       ended, charPos, sizeof(bool)); charPos += sizeof(bool);
+  memcpy(&          ID, charPos, sizeof(Sint)); charPos += sizeof(Sint);
+  memcpy(&just_sampled, charPos, sizeof(Sint)); charPos += sizeof(Sint);
+  memcpy(&      prefix, charPos, sizeof(Uint)); charPos += sizeof(Uint);
+  memcpy(&     agentID, charPos, sizeof(Uint)); charPos += sizeof(Uint);
   //assert(buf-data.data()==(ptrdiff_t)computeTotalEpisodeSize(dS,dA,dP,seq_len));
 }
 
