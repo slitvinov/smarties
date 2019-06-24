@@ -32,8 +32,8 @@ struct ThreadContext
 
   std::shared_ptr<Parameters> partialGradient;
 
-  std::vector<Sint> lastGradTstep;
-  std::vector<Sint> weightIndex;
+  std::vector<Sint> lastGradTstep = std::vector<Sint>(allSamplCnt, -1);
+  std::vector<Sint> weightIndex = std::vector<Sint>(allSamplCnt, 0);
   const MiniBatch * batch;
   Uint batchIndex;
 
@@ -67,12 +67,11 @@ struct ThreadContext
   {
     batch = & B;
     batchIndex = batchID;
-    const Uint allSamples = 1 + nAddedSamples + bHaveTargetW;
-    lastGradTstep = std::vector<Sint>(allSamples, -1);
-    weightIndex = std::vector<Sint>(allSamples, weightID);
+    lastGradTstep = std::vector<Sint>(allSamplCnt, -1);
+    weightIndex = std::vector<Sint>(allSamplCnt, weightID);
     if(bHaveTargetW) weightIndex.back() = targetWeightIndex;
 
-    for(Uint i=0; i < allSamples; ++i)
+    for(Uint i=0; i < allSamplCnt; ++i)
       NET->allocTimeSeries(activations[i], batch->getNumSteps(batchIndex));
   }
 

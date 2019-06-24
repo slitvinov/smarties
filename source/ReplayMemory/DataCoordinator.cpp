@@ -220,6 +220,7 @@ void DataCoordinator::mastersRecvEpisodes()
       if (sharingTurn == sharingRank) {
         Sequence * const tmp = new Sequence();
         tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
+        assert(nStep == tmp->ndata() + 1);
         //_warn("storing new sequence of size %lu", tmp->ndata());
         replay->pushBackSequence(tmp);
       } else {
@@ -257,7 +258,7 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
       Sequence * const tmp = new Sequence();
       tmp->unpackSequence(sendSq, sI.dimObs(), aI.dim(), aI.dimPol());
       //_warn("storing new sequence of size %lu", tmp->ndata());
-      EP->isEqual(tmp);
+      assert(EP->isEqual(tmp));
       delete tmp; 
     #endif
     unsigned long sendSz = sendSq.size();

@@ -35,17 +35,16 @@ static void GEMVomp(const Uint NI, const Uint NO, const Uint S,
                           T * __restrict__ const _Y)
 {
   typedef __attribute__((aligned(VEC_WIDTH))) T alignT;
-  static constexpr Uint safelen = VEC_WIDTH / sizeof(T);
+  static constexpr Uint safelen_ = VEC_WIDTH / sizeof(T);
   const alignT * __restrict__ const W_ = static_cast<const alignT *>(_W);
   const alignT * __restrict__ const X_ = static_cast<const alignT *>(_X);
-        alignT * __restrict__ const Y_ = static_cast<      alignT *>(_Y);
   for (Uint o=0; o<NO; ++o)
   {
     const alignT* __restrict__ const W = W_ + S * o;
     T Y = 0;
-    #pragma omp simd aligned(X_,W : VEC_WIDTH) safelen(safelen) reduction(+:Y)
+    #pragma omp simd aligned(X_,W : VEC_WIDTH) safelen(safelen_) reduction(+:Y)
     for (Uint i=0; i<NI; ++i) Y += W[i] * X_[i];
-    Y_[o] += Y;
+    _Y[o] += Y;
   }
 }
 
@@ -115,7 +114,7 @@ class Layer
                 const Parameters*const para) const
   {
     const nnReal* const deltas = curr->E(ID);
-    if( spanCompInpGrads )
+    if( spanCompInpGrads && NO )
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
