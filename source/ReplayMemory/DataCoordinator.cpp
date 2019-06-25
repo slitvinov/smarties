@@ -29,7 +29,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   }
 
   if(distrib.learnersOnWorkers && distrib.nOwnedEnvironments) {
-    warn("Creating communicator to send episodes from workers to learners.");
+    //warn("Creating communicator to send episodes from workers to learners.");
     if(distrib.master_workers_comm == MPI_COMM_NULL) {
       warn("learning algorithm entirely hosted on workers"); return;
     }
@@ -55,7 +55,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   }
 
   if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
-    warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
+    //warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
     sharingTurn = sharingRank; // says that first full episode stays on rank
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
@@ -143,20 +143,19 @@ void DataCoordinator::distributePendingEpisodes()
   std::lock_guard<std::mutex> lockQueue(complete_mutex);
   while ( completed.size() )
   {
-    if (sharingTurn == sharingRank)
-      replay->pushBackSequence(completed.back());
+    Sequence* const EP = completed.back();
+    if (sharingTurn == sharingRank) replay->pushBackSequence(EP);
     else
     {
       const Uint I = sharingTurn;
-      Sequence* const EP = completed.back();
       if(shareSendSizeReq[I] not_eq MPI_REQUEST_NULL)
         MPI(Wait, & shareSendSizeReq[I], MPI_STATUS_IGNORE);
       if( shareSendSeqReq[I] not_eq MPI_REQUEST_NULL)
         MPI(Wait, &  shareSendSeqReq[I], MPI_STATUS_IGNORE);
 
       shareSendSeq[I] = EP->packSequence(sI.dimObs(),aI.dim(),aI.dimPol());
-      Utilities::dispose_object(completed.back());
       shareSendSeqSize[I] = shareSendSeq[I].size();
+      Utilities::dispose_object(EP);
 
       IsendSize(shareSendSeqSize[I], I, sharingComm, shareSendSizeReq[I]);
       IsendSeq(shareSendSeq[I], I, sharingComm, shareSendSeqReq[I]);
@@ -190,7 +189,7 @@ void DataCoordinator::mastersRecvEpisodes()
     if (isComplete(workerRecvSizeReq[i]))
     {
       Fvec EP(workerRecvSeqSize[i], (Fval)0);
-      Uint nStep = Sequence::computeTotalEpisodeNstep(sI.dimObs(),
+      const Uint nStep = Sequence::computeTotalEpisodeNstep(sI.dimObs(),
                                                       aI.dim(), aI.dimPol(),
                                                       workerRecvSeqSize[i]);
       RecvSeq(EP, i, workerComm);

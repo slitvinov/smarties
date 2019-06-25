@@ -57,7 +57,7 @@ public:
     // workers always recv params from learner (rank 0)
     for(const auto& data : dataList ) {
       MPI(Recv, data.second, data.first, MPI_NNVALUE_TYPE, 0,
-        413515, comm, MPI_STATUS_IGNORE);
+        72726, comm, MPI_STATUS_IGNORE);
     }
   }
 
@@ -76,7 +76,7 @@ public:
         MPI(Wait, & sendReqs[transfID], MPI_STATUS_IGNORE);
 
       MPI(Isend, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
-        413515, comm, & sendReqs[transfID]);
+        72726, comm, & sendReqs[transfID]);
 
       transfID++;
     }
