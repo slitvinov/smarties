@@ -40,7 +40,7 @@ public:
 protected:
   Settings& settings;
   DistributionInfo& distrib;
-  TaskQueue tasks;
+  TaskQueue dataTasks, algoTasks;
 
   const std::unique_ptr<Launcher> COMM;
 

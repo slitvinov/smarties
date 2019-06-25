@@ -16,7 +16,8 @@ namespace smarties
 {
 
 Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
-  tasks( [&]() { return learnersBlockingDataAcquisition(); } ),
+  dataTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
+  algoTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
   ENV( COMM->ENV ), agents( ENV.agents )
 {
@@ -82,18 +83,39 @@ void Worker::runTraining()
     return dataCounter * factor >= settings.totNumSteps;
   };
 
+
+  //////////////////////////////////////////////////////////////////////////////
+  /////////////////////////// START DATA COLLECTION ////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+  std::atomic<Uint> bDataCoordRunning {1};
+  std::thread dataCoordProcess;
+
+  #pragma omp parallel
+  if( omp_get_thread_num() == std::min(omp_get_num_threads()-1, 2) )
+    dataCoordProcess = std::thread( [&] () {
+      while(1) {
+        dataTasks.run();
+        if (bDataCoordRunning == 0) break;
+        usleep(1); // wait for workers to send data without burning a cpu
+      }
+    } );
+
   //////////////////////////////////////////////////////////////////////////////
   /////////////////////////////// TRAINING LOOP ////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   while(1) {
     isTrainingStarted();
 
-    tasks.run();
+    algoTasks.run();
 
     bool over = true;
     for(const auto& L : learners) over = over && isTrainingOver(L.get());
     if (over) break;
   }
+
+  // kill data gathering process
+  bDataCoordRunning = 0;
+  dataCoordProcess.join();
 }
 
 void Worker::answerStateAction(const Uint bufferID) const
@@ -253,7 +275,8 @@ void Worker::synchronizeEnvironments()
     assert(learners.size() == i+1);
     learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
-    learners[i]->setupTasks(tasks);
+    learners[i]->setupTasks(algoTasks);
+    learners[i]->setupDataCollectionTasks(dataTasks);
   }
 }
 

@@ -143,7 +143,7 @@ bool Learner::blockGradientUpdates() const
   return nLocTimeStepsTrain() < nGradSteps() * obsPerStep_loc;
 }
 
-void Learner::setupTasks(TaskQueue& tasks)
+void Learner::setupDataCollectionTasks(TaskQueue& tasks)
 {
   data_coord->setupTasks(tasks);
 }

@@ -133,8 +133,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
     globalGradCounterUpdate(); // step ++
   };
   tasks.add(stepComplete);
-
-  Learner_approximator::setupTasks(tasks);
 }
 
 ////////////////////////////////////////////////////////////////////////////

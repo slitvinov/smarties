@@ -120,7 +120,8 @@ public:
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void setupTasks(TaskQueue& tasks);
+  virtual void setupTasks(TaskQueue& tasks) = 0;
+  virtual void setupDataCollectionTasks(TaskQueue& tasks);
 
   virtual void globalGradCounterUpdate();
 

@@ -67,23 +67,10 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   } else {
     sharingTurn = 0; sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
   }
-
-  //if(distrib.bIsMaster) { } else { }
-  //  bFetcherRunning = 1;
-  //  #pragma omp parallel
-  //  {
-  //    const int thrID = omp_get_thread_num();
-  //    const int tgtCPU =  std::min(omp_get_num_threads()-1, 2);
-  //    if( thrID==tgtCPU ) fetcher = std::thread( [ &, this ] () { run(); } );
-  //  }
 }
 
 DataCoordinator::~DataCoordinator()
 {
-  //if(bFetcherRunning) {
-  //  bFetcherRunning = 0;
-  //  fetcher.join();
-  //}
   if(sharingComm not_eq MPI_COMM_NULL) MPI_Comm_free(&sharingComm);
   if(workerComm not_eq MPI_COMM_NULL) MPI_Comm_free(&workerComm);
   for(auto & S : completed) Utilities::dispose_object(S);
@@ -254,7 +241,7 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
       tmp->unpackSequence(sendSq, sI.dimObs(), aI.dim(), aI.dimPol());
       //_warn("storing new sequence of size %lu", tmp->ndata());
       assert(EP->isEqual(tmp));
-      delete tmp; 
+      delete tmp;
     #endif
     unsigned long sendSz = sendSq.size();
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
