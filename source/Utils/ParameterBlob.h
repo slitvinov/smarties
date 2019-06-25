@@ -34,7 +34,7 @@ class ParameterBlob
 {
   using dataInfo = std::pair<Uint, nnReal*>;
   const DistributionInfo& distrib;
-  const MPI_Comm & comm = distrib.master_workers_comm;
+  const MPI_Comm comm = MPICommDup (distrib.master_workers_comm);
   const Uint nWorkers = MPICommSize(comm);
   Uint lastCommGradID = 0; // shared initialization
   std::vector<MPI_Request> sendReqs;

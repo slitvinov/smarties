@@ -103,7 +103,7 @@ public:
   long locDataSetSize() const {
     return data->readNData();
   }
-  unsigned nSeqsEval() const {
+  long nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
   long nGradSteps() const {

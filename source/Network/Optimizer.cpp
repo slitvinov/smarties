@@ -109,6 +109,7 @@ void AdamOptimizer::prepare_update(const Rvec& esLosses)
   if (learn_size > 1)
   { //add up gradients across master ranks
     MPI(Iallreduce, MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, learnersComm, &paramRequest);
+    assert(paramRequest not_eq MPI_REQUEST_NULL);
   }
   nStep++;
 }
@@ -116,11 +117,9 @@ void AdamOptimizer::prepare_update(const Rvec& esLosses)
 void AdamOptimizer::apply_update()
 {
   if(nStep == 0) die("nStep == 0");
-  if(learn_size > 1) {
-    if(paramRequest == MPI_REQUEST_NULL)
-      die("I am in finalize without having started a reduction");
+  if(learn_size > 1 && paramRequest not_eq MPI_REQUEST_NULL)
     MPI(Wait, &paramRequest, MPI_STATUS_IGNORE);
-  }
+
   #ifndef __EntropySGD
     using Algorithm = Adam;
   #else

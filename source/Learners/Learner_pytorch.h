@@ -33,9 +33,7 @@ class Learner_pytorch: public Learner
   Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
   void select(Agent& ) override {}
-  void setupTasks(TaskQueue& tasks) override {
-    Learner::setupTasks(tasks);
-  }
+  void setupTasks(TaskQueue& tasks) override {}
   virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;

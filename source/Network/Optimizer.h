@@ -22,7 +22,7 @@ protected:
   const Settings & settings;
   const MPI_Comm learnersComm = MPICommDup(distrib.learners_train_comm);
   const Uint learn_size = MPICommSize(learnersComm);
-  const Uint learn_rank = MPICommSize(learnersComm);
+  const Uint learn_rank = MPICommRank(learnersComm);
   const Uint populationSize = settings.ESpopSize;
   const Uint nThreads = distrib.nThreads;
 

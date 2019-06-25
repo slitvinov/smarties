@@ -18,7 +18,7 @@ MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
   Ssum1Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 0) ),
   Ssum2Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 1) ),
   Rsum2Rdx(distrib, LDvec(1, 1) ), Csum1Rdx(distrib, LDvec(1, 1) ),
-  globalStep_reduce(_RM->distrib, std::vector<long>{0, 0})
+  globalStep_reduce(distrib, std::vector<long>{0, 0})
 {
     globalStep_reduce.update( { nSeenSequences_loc.load(),
                                 nSeenTransitions_loc.load() } );
@@ -28,9 +28,11 @@ MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
 {
   //////////////////////////////////////////////////////////////////////////////
+  //_warn("globalStep_reduce %ld %ld", nSeenSequences_loc.load(), nSeenTransitions_loc.load());
   globalStep_reduce.update( { nSeenSequences_loc.load(),
                               nSeenTransitions_loc.load() } );
-  const std::vector<long> nDataGlobal = globalStep_reduce.get();
+  const std::vector<long> nDataGlobal = globalStep_reduce.get(bInit);
+  //_warn("nDataGlobal %ld %ld", nDataGlobal[0], nDataGlobal[1]);
   nSeenSequences = nDataGlobal[0];
   nSeenTransitions = nDataGlobal[1];
   //////////////////////////////////////////////////////////////////////////////

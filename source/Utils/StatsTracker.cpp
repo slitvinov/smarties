@@ -64,8 +64,7 @@ void DelayedReductor<T>::update(const std::vector<T> ret)
   reduce_ret = ret;
   assert(mpicomm not_eq MPI_COMM_NULL);
   assert(buffRequest == MPI_REQUEST_NULL);
-  MPI(Iallreduce, MPI_IN_PLACE, reduce_ret.data(), arysize,
-                 MPI_LONG_DOUBLE, MPI_SUM, mpicomm, &buffRequest);
+  beginRDX();
 }
 
 template<> void DelayedReductor<long double>::beginRDX()

@@ -218,6 +218,7 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 void MemoryBuffer::initialize()
 {
   // All sequences obtained before this point should share the same time stamp
+  std::lock_guard<std::mutex> lock(dataset_mutex);
   for(Uint i=0;i<Set.size();++i) Set[i]->ID = nSeenSequences.load();
 
   needs_pass = true;

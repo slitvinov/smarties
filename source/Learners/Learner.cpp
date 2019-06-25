@@ -46,13 +46,13 @@ void Learner::initializeLearner()
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
   data_proc->updateRewardsStats(1, 1, true);
+  // shift counters after initial data is gathered and sync is concluded
+  nDataGatheredB4Startup = data->readNSeen_loc();
   //data_proc->updateRewardsStats(1, 1e-3, true);
   if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
 
   data->initialize();
 
-  // shift counters after initial data is gathered and sync is concluded
-  nDataGatheredB4Startup = data->readNSeen_loc();
 
   if( not computeQretrace ) return;
   // Rewards second moment is computed right before actual training begins
