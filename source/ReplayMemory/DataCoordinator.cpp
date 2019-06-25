@@ -130,6 +130,7 @@ void DataCoordinator::answerWorkersParameterUpdates()
 {
   for(Uint i=1; i<workerSize; ++i)
     if (isComplete(workerReqParamReq[i])) {
+      //_warn("send parameters to rank %lu", i);
       params.send(i, 0);
       MPI(Irecv, & workerReqParamFlag[i], 1, MPI_UNSIGNED_LONG, i, 89,
                workerComm, & workerReqParamReq[i]);

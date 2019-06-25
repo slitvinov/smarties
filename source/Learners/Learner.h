@@ -47,6 +47,7 @@ public:
   const Uint totNumSteps = settings.totNumSteps;
   const Real obsPerStep_loc = settings.obsPerStep_local;
   const long nObsB4StartTraining = settings.minTotObsNum_local;
+  long _nObsB4StartTraining = std::numeric_limits<long>::max();
   const bool bTrain = settings.bTrain;
 
   // some algorithm hyper-parameters:

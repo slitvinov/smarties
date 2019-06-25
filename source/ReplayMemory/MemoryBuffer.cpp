@@ -207,11 +207,12 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
   std::lock_guard<std::mutex> lock(dataset_mutex);
   assert( readNSeq() == (long) Set.size() and seq not_eq nullptr);
   const auto ind = Set.size();
+  seq->ID = nSeenSequences.load();
+  seq->prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
   Set.push_back(seq);
-  Set[ind]->prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
   nTransitions += seq->ndata();
-  needs_pass = true;
   nSequences++;
+  needs_pass = true;
   assert( readNSeq() == (long) Set.size());
 }
 

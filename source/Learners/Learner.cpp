@@ -48,6 +48,7 @@ void Learner::initializeLearner()
   data_proc->updateRewardsStats(1, 1, true);
   // shift counters after initial data is gathered and sync is concluded
   nDataGatheredB4Startup = data->readNSeen_loc();
+  _nObsB4StartTraining = nObsB4StartTraining;
   //data_proc->updateRewardsStats(1, 1e-3, true);
   if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
 
@@ -129,7 +130,10 @@ void Learner::finalizeMemoryProcessing()
 bool Learner::blockDataAcquisition() const
 {
   //if there is not enough data for training, need more data
-  if( data->readNData() < nDataGatheredB4Startup ) return false;
+  //_warn("readNSeen:%ld nData:%ld nDataGatheredB4Start:%ld gradSteps:%ld obsPerStep:%f",
+  //data->readNSeen_loc(), data->readNData(), nDataGatheredB4Startup, _nGradSteps.load(), obsPerStep_loc);
+
+  if( data->readNData() < _nObsB4StartTraining ) return false;
 
   // block data if we have observed too many observations
   // here we add one to concurrently gather data and compute gradients
@@ -139,6 +143,8 @@ bool Learner::blockDataAcquisition() const
 
 bool Learner::blockGradientUpdates() const
 {
+  //_warn("readNSeen:%ld nDataGatheredB4Start:%ld gradSteps:%ld obsPerStep:%f",
+  //data->readNSeen_loc(), nDataGatheredB4Startup, _nGradSteps.load(), obsPerStep_loc);
   // almost the same of the function before
   // 'freeze if there is too little data for the current gradient step'
   return nLocTimeStepsTrain() < nGradSteps() * obsPerStep_loc;

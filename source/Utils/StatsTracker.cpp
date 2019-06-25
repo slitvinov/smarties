@@ -54,7 +54,11 @@ template<typename T>
 void DelayedReductor<T>::update(const std::vector<T> ret)
 {
   assert(ret.size() == arysize);
-  if (mpisize <= 1) { return_ret = ret; return; }
+  if (mpisize <= 1) {
+    buffRequest = MPI_REQUEST_NULL;
+    return_ret = ret;
+    return;
+  }
 
   if(buffRequest not_eq MPI_REQUEST_NULL) {
     MPI(Wait, &buffRequest, MPI_STATUS_IGNORE);

@@ -181,6 +181,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
 
 void MemoryProcessing::finalize()
 {
+  //std::lock_guard<std::mutex> lock(RM->dataset_mutex);
   const int nB4 = RM->readNSeq();
 
   // reset flags that signal request to update estimators:
