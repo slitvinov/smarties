@@ -217,18 +217,17 @@ void Worker::synchronizeEnvironments()
     }
 
     if(workerless_masters_comm == MPI_COMM_NULL) return;
+    assert( MPICommSize(workerless_masters_comm) >  1 );
 
-    if( MPICommSize(workerless_masters_comm) >  1 &&
-        MPICommRank(workerless_masters_comm) == 0 ) {
+    if( MPICommRank(workerless_masters_comm) == 0 ) {
       if(not received) die("rank 0 of workerless masters comm has no worker");
       for(Uint i=1; i < MPICommSize(workerless_masters_comm); ++i)
         MPI_Send(buffer, size, MPI_BYTE, i, 368637, workerless_masters_comm);
     }
 
-    if( MPICommSize(workerless_masters_comm) >  1 &&
-        MPICommRank(workerless_masters_comm) >  0 ) {
+    if( MPICommRank(workerless_masters_comm) >  0 ) {
       if(received) die("rank >0 of workerless masters comm owns workers");
-      MPI_Recv(buffer, size, MPI_BYTE, 0, 368637, master_workers_comm, MPI_STATUS_IGNORE);
+      MPI_Recv(buffer, size, MPI_BYTE, 0, 368637, workerless_masters_comm, MPI_STATUS_IGNORE);
     }
   };
 

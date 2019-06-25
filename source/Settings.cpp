@@ -310,8 +310,9 @@ void Settings::defineDistributedLearning(DistributionInfo& distrib)
   maxTotObsNum_local = maxTotObsNum / nLearners;
 
   // each worker collects a fraction of the initial memory buffer:
-  //obsPerStep_local = nWorkers_own * obsPerStep / nWorkers;
-  obsPerStep_local = obsPerStep;
+  const Real nOwnEnvs = distrib.nOwnedEnvironments, nTotEnvs = distrib.nWorkers;
+  obsPerStep_local = nOwnEnvs * obsPerStep / nTotEnvs;
+  //obsPerStep_local = obsPerStep;
 
   if(batchSize_local <= 0) die(" ");
   if(maxTotObsNum_local <= 0) die(" ");

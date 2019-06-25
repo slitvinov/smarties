@@ -18,19 +18,17 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
 {
   completed.reserve(distrib.nAgents);
 
+  // if all masters have socketed workers, no need for the coordinator
   if(distrib.workerless_masters_comm == MPI_COMM_NULL &&
      distrib.learnersOnWorkers == false) return;
-  if(distrib.workerless_masters_comm != MPI_COMM_NULL &&
-     distrib.learnersOnWorkers) die("TODO: workerlessmasters & workerlearner");
 
-  if(distrib.workerless_masters_comm != MPI_COMM_NULL) {
+  if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
     sharingComm = MPICommDup( distrib.workerless_masters_comm);
-    sharingSize = MPICommSize(workerComm);
-    sharingRank = MPICommRank(workerComm);
+    sharingSize = MPICommSize(sharingComm);
+    sharingRank = MPICommRank(sharingComm);
   }
 
-  if(distrib.learnersOnWorkers)
-  {
+  if(distrib.learnersOnWorkers && distrib.nOwnedEnvironments) {
     warn("Creating communicator to send episodes from workers to learners.");
     if(distrib.master_workers_comm == MPI_COMM_NULL) {
       warn("learning algorithm entirely hosted on workers"); return;
@@ -56,8 +54,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
     workerSize = 0; workerRank = 0; workerComm = MPI_COMM_NULL;
   }
 
-  if(distrib.workerless_masters_comm != MPI_COMM_NULL)
-  {
+  if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
     warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
     sharingTurn = sharingRank; // says that first full episode stays on rank
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
@@ -121,24 +118,21 @@ void DataCoordinator::setupTasks(TaskQueue& tasks)
 
   if (workerSize > 0)
   {
-    auto stepSendParams = [&]()
-    {
+    auto stepSendParams = [&] () {
       answerWorkersParameterUpdates();
     };
     tasks.add(stepSendParams);
   }
   if (sharingSize > 0 || workerSize > 0)
   {
-    auto stepDistribEps = [&]()
-    {
+    auto stepDistribEps = [&] () {
       distributePendingEpisodes();
     };
     tasks.add(stepDistribEps);
   }
   if (sharingSize > 0 || workerSize > 0)
   {
-    auto stepReceiveEps = [&]()
-    {
+    auto stepReceiveEps = [&] () {
       mastersRecvEpisodes();
     };
     tasks.add(stepReceiveEps);
@@ -188,7 +182,7 @@ void DataCoordinator::distributePendingEpisodes()
 void DataCoordinator::mastersRecvEpisodes()
 {
   for(Uint i=0; i<sharingSize; ++i)
-    if (isComplete(shareRecvSizeReq[i]))
+    if (i not_eq sharingRank and isComplete(shareRecvSizeReq[i]))
     {
       Fvec EP(shareRecvSeqSize[i], (Fval)0);
       RecvSeq(EP, i, sharingComm);
@@ -217,6 +211,7 @@ void DataCoordinator::mastersRecvEpisodes()
       // prepare the next one:
       IrecvSize(workerRecvSeqSize[i], i, workerComm, workerRecvSizeReq[i]);
 
+      //_warn("sending to rank %lu", sharingTurn);
       if (sharingTurn == sharingRank) {
         Sequence * const tmp = new Sequence();
         tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
