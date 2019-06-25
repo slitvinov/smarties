@@ -37,8 +37,7 @@ public:
   const MPI_Comm learnersComm = distrib.learners_train_comm;
   const Uint learn_rank = MPICommRank(learnersComm);
   const Uint learn_size = MPICommSize(learnersComm);
-  const Uint nThreads = distrib.nThreads;
-  const Uint nAgents = distrib.nAgents;
+  const Uint nThreads = distrib.nThreads, nAgents = distrib.nAgents;
 
   const Uint policyVecDim = MDP.policyVecDim;
   const ActionInfo aInfo = ActionInfo(MDP);
@@ -59,9 +58,8 @@ public:
   DelayedReductor<long double> ReFER_reduce;
   const FORGET ERFILTER;
 
-
 protected:
-  long nDataGatheredB4Startup = 0;
+  long nDataGatheredB4Startup = std::numeric_limits<long>::max();
   int algoSubStepID = -1;
 
   Real alpha = 0.5; // weight between critic and policy
@@ -93,25 +91,25 @@ public:
   Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
   virtual ~Learner();
 
-  inline void setLearnerName(const std::string lName, const Uint id) {
+  void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
     data->learnID = id;
     learnID = id;
   }
 
-  inline long nLocTimeStepsTrain() const {
+  long nLocTimeStepsTrain() const {
     return data->readNSeen_loc() - nDataGatheredB4Startup;
   }
-  inline long locDataSetSize() const {
+  long locDataSetSize() const {
     return data->readNData();
   }
-  inline unsigned nSeqsEval() const {
+  unsigned nSeqsEval() const {
     return data->readNSeenSeq_loc();
   }
-  inline long nGradSteps() const {
+  long nGradSteps() const {
     return _nGradSteps.load();
   }
-  inline Real annealingFactor() const {
+  Real annealingFactor() const {
     //number that goes from 1 to 0 with optimizer's steps
     assert(epsAnneal>1.);
     const auto mynstep = nGradSteps();

@@ -42,8 +42,6 @@ void Learner::initializeLearner()
     warn("Skipping initialization for restartd learner.");
     return;
   }
-  // shift counters after initial data is gathered
-  nDataGatheredB4Startup = data->readNSeen_loc();
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
@@ -52,6 +50,9 @@ void Learner::initializeLearner()
   if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
 
   data->initialize();
+
+  // shift counters after initial data is gathered and sync is concluded
+  nDataGatheredB4Startup = data->readNSeen_loc();
 
   if( not computeQretrace ) return;
   // Rewards second moment is computed right before actual training begins
@@ -128,7 +129,7 @@ void Learner::finalizeMemoryProcessing()
 bool Learner::blockDataAcquisition() const
 {
   //if there is not enough data for training, need more data
-  if( data->readNData() < nObsB4StartTraining ) return false;
+  if( data->readNData() < nDataGatheredB4Startup ) return false;
 
   // block data if we have observed too many observations
   // here we add one to concurrently gather data and compute gradients
