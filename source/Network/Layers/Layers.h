@@ -120,10 +120,11 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
-      #if 1 //def SINGLE_PREC
-        GEMVomp(NO, spanCompInpGrads, NOsimd,
-                weight + startCompInpGrads * NOsimd,
-                deltas, errors + startCompInpGrads);
+      #if 0 //def SINGLE_PREC
+        GEMVomp(NO, NI, NOsimd, weight, deltas, errors);
+        //GEMVomp(NO, spanCompInpGrads, NOsimd,
+        //        weight + startCompInpGrads * NOsimd,
+        //        deltas, errors + startCompInpGrads);
       #else
       gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, NO, 1,
         weight + startCompInpGrads * NOsimd, NOsimd,
@@ -135,7 +136,7 @@ class Layer
     {
             nnReal* const errors = prev->E(ID);
       const nnReal* const weight = para->W(ID) +NOsimd*NI;
-      #if 1 //def SINGLE_PREC
+      #if 0 //def SINGLE_PREC
         GEMVomp(NO, NR, NOsimd, weight, deltas, errors);
       #else
       gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,

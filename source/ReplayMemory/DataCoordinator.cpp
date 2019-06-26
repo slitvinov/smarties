@@ -86,9 +86,9 @@ void DataCoordinator::setupTasks(TaskQueue& tasks)
   /////////////////////////////////////////////////////////////////////
   assert(workerReqParamFlag.size() == workerSize);
   assert(workerReqParamReq .size() == workerSize);
-  for(Uint i=1; i<workerSize; ++i)
-    MPI(Irecv, & workerReqParamFlag[i], 1, MPI_UNSIGNED_LONG, i, 89,
-               workerComm, & workerReqParamReq[i]);
+  //for(Uint i=1; i<workerSize; ++i)
+  //  MPI(Irecv, & workerReqParamFlag[i], 1, MPI_UNSIGNED_LONG, i, 89,
+  //             workerComm, & workerReqParamReq[i]);
 
   //////////////////////////////////////////////////////////////////////
   // Waiting for workers to send episodes
@@ -103,13 +103,13 @@ void DataCoordinator::setupTasks(TaskQueue& tasks)
     if(i not_eq sharingRank)
       IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
 
-  if (workerSize > 0)
-  {
-    auto stepSendParams = [&] () {
-      answerWorkersParameterUpdates();
-    };
-    tasks.add(stepSendParams);
-  }
+  //if (workerSize > 0)
+  //{
+  //  auto stepSendParams = [&] () {
+  //    answerWorkersParameterUpdates();
+  //  };
+  //  tasks.add(stepSendParams);
+  //}
   if (sharingSize > 0 || workerSize > 0)
   {
     auto stepDistribEps = [&] () {
@@ -169,15 +169,27 @@ void DataCoordinator::distributePendingEpisodes()
 void DataCoordinator::mastersRecvEpisodes()
 {
   for(Uint i=0; i<sharingSize; ++i)
-    if (i not_eq sharingRank and isComplete(shareRecvSizeReq[i]))
-    {
-      Fvec EP(shareRecvSeqSize[i], (Fval)0);
-      RecvSeq(EP, i, sharingComm);
-      // prepare the next one:
-      IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
-      Sequence * const tmp = new Sequence();
-      tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
-      replay->pushBackSequence(tmp);
+    if (i not_eq sharingRank) {
+      if (isComplete(shareRecvSizeReq[i]))
+      {
+        Fvec EP(shareRecvSeqSize[i], (Fval)0);
+        RecvSeq(EP, i, sharingComm);
+        // prepare the next one:
+        IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
+        Sequence * const tmp = new Sequence();
+        tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
+        replay->pushBackSequence(tmp);
+      }
+      if(shareSendSizeReq[i] not_eq MPI_REQUEST_NULL) {
+        int complete = 0;
+        MPI(Test, & shareSendSizeReq[i], &complete, MPI_STATUS_IGNORE);
+        if(complete) assert(shareSendSizeReq[i] == MPI_REQUEST_NULL);
+      }
+      if( shareSendSeqReq[i] not_eq MPI_REQUEST_NULL) {
+        int complete = 0;
+        MPI(Test, &  shareSendSeqReq[i], &complete, MPI_STATUS_IGNORE);
+        if(complete) assert(shareSendSizeReq[i] == MPI_REQUEST_NULL);
+      }
     }
 
   assert(allTasksPtr not_eq nullptr);
@@ -193,6 +205,10 @@ void DataCoordinator::mastersRecvEpisodes()
                                                       aI.dim(), aI.dimPol(),
                                                       workerRecvSeqSize[i]);
       RecvSeq(EP, i, workerComm);
+      int bSendParams = 0;
+      MPI(Recv, &bSendParams, 1, MPI_INT, i, 89, workerComm, MPI_STATUS_IGNORE);
+      if(bSendParams) params.send(i, 0);
+
       nSeenTransitions_loc += nStep - 1; // we do not count init state
       nSeenSequences_loc += 1;
       // prepare the next one:
@@ -246,9 +262,10 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
     unsigned long sendSz = sendSq.size();
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 98, workerComm);
+    const int intUpdateParams = bUpdateParams;
+    MPI(Send, &intUpdateParams, 1, MPI_INT, 0, 89, workerComm);
     if(bUpdateParams) {
       //_warn("sent episode of size %lu and update params", EP->ndata() );
-      MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 89, workerComm);
       params.recv(0);
     } //else _warn("sent ep of size %lu w/o update params", EP->ndata() );
     delete EP;
