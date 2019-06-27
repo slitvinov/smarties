@@ -58,9 +58,9 @@ public:
   // Send truncated state/reward: the last step of an episode which ends because
   // of TRUNCATION (e.g. agent cannot continue due to time limits). Difference
   // from TERMINATION is that policy was not direct cause of episode's end.
-  void truncateSeq(const std::vector<double>& state,
-                   const double reward,
-                   const int agentID = 0)
+  void sendLastState(const std::vector<double>& state,
+                     const double reward,
+                     const int agentID = 0)
   {
     return sendState(agentID, TRNC, state, reward);
   }
