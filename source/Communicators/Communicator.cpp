@@ -233,12 +233,12 @@ void Communicator::synchronizeEnvironments()
   else
 #endif
   {
+    // application process only needs one communication buffer:
+    initOneCommunicationBuffer();
     const auto sendBufferFunc = [&](void* buffer, size_t size) {
       SOCKET_Bsend(buffer, size, SOCK.server);
     };
     ENV.synchronizeEnvironments(sendBufferFunc);
-    // application process only needs one communication buffer:
-    initOneCommunicationBuffer();
   }
   assert(BUFF.size() > 0);
 }
@@ -279,5 +279,6 @@ int Communicator::desiredNepisodes() const {
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
 gen(G()), bTrain(isTraining), worker(W) {}
 
-}
 #endif
+
+}

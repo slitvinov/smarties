@@ -58,7 +58,7 @@ struct Environment
     sendRecvFunc(bTrainFromAgentData.data(), nAgentsPerEnvironment*sizeof(bool));
 
     nAgents = nAgentsPerEnvironment * nCallingEnvironments;
-    assert(nCallingEnvironments>0);
+    //assert(nCallingEnvironments>0);
 
     initDescriptors(bAgentsHaveSeparateMDPdescriptors);
     const Uint nDescriptors = descriptors.size();

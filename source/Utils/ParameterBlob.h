@@ -75,8 +75,10 @@ public:
       if(sendReqs[transfID] not_eq MPI_REQUEST_NULL)
         MPI(Wait, & sendReqs[transfID], MPI_STATUS_IGNORE);
 
-      MPI(Isend, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
-        72726, comm, & sendReqs[transfID]);
+      //MPI(Isend, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
+      //  72726, comm, & sendReqs[transfID]);
+      MPI(Send, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
+        72726, comm);
 
       transfID++;
     }

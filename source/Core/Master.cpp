@@ -46,6 +46,8 @@ Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
 template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::run()
 {
+  if(distrib.nForkedProcesses2spawn > 0)
+    COMM->forkApplication(distrib.nThreads, distrib.nOwnedEnvironments);
   synchronizeEnvironments();
   spawnCallsHandlers();
   runTraining();

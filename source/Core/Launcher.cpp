@@ -9,6 +9,7 @@
 #include "Core/Launcher.h"
 #include "Core/Worker.h"
 #include "Utils/Warnings.h"
+#include "Utils/SocketsLib.h"
 #include "Utils/LauncherUtilities.h"
 #include "Utils/SstreamUtilities.h"
 
@@ -35,11 +36,12 @@ Launcher::Launcher(Worker* const W, DistributionInfo& D, bool isTraining) :
 void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
 {
   #pragma omp parallel num_threads(nThreads)
-  for(Uint i = 0; i<nOwnWorkers; ++i)
+  for(int i = 0; i < (int) nOwnWorkers; ++i)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
     const int workloadID = i + nOwnWorkers * MPICommSize(MPI_COMM_WORLD);
+    assert(nThreads == (Uint) omp_get_num_threads());
 
     #pragma omp critical
     if ( ( thrID==tgtCPU ) && ( fork() == 0 ) )
@@ -52,7 +54,7 @@ void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
       redirect_stdout_init(currOutputFdescriptor, workloadID);
       // TODO ARGS!
       const std::string exec = "../" + execPath; // TODO : TEST currDirectory
-      printf("About to exec %s.... \n", exec.c_str());
+      _warn("About to exec %s.... \n", exec.c_str());
       const int res = execlp(exec.c_str(), exec.c_str(), NULL);
 
       redirect_stdout_finalize(currOutputFdescriptor);
@@ -63,6 +65,8 @@ void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
       die("Client application returned. Aborting...");
     }
   }
+
+  SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
 }
 
 void Launcher::runApplication(const MPI_Comm envApplication_comm,
@@ -136,7 +140,7 @@ void Launcher::initArgumentFileNames()
   assert(argFilesStepsLimits.size() == argsFiles.size() + 1);
 }
 
-void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom)
+void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm envAppCom)
 {
   char newDir[1024];
   getcwd(initDir, 512);
@@ -145,14 +149,13 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom)
 
   while(true)
   {
-    sprintf(newDir,"%s/%s_%03lud_%05lu", initDir, "simulation", folderID, iter);
+    sprintf(newDir,"%s/%s_%03lu_%05lu", initDir, "simulation", folderID, iter);
     if ( stat(newDir, &fileStat) >= 0 ) iter++; // directory already exists
     else
     {
-      if( MPICommSize(anvAppCom)>1 )
-          MPI_Barrier(anvAppCom);
+      if( MPICommSize(envAppCom)>1 ) MPI_Barrier(envAppCom);
 
-      if( MPICommRank(anvAppCom)>1 ) // app's root sets up dir
+      if( MPICommRank(envAppCom)<1 ) // app's root sets up dir
       {
         mkdir(newDir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if(setupFolder not_eq "") //copy any file in the setup dir
@@ -162,8 +165,7 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom)
         }
       }
 
-      if( MPICommSize(anvAppCom)>1 )
-          MPI_Barrier(anvAppCom);
+      if( MPICommSize(envAppCom)>1 ) MPI_Barrier(envAppCom);
 
       chdir(newDir);
       break;

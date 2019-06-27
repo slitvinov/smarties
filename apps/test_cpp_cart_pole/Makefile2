@@ -13,7 +13,6 @@ CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
 cart-pole: $(OBJ_FILES)
 	$(CC) -L../../makefiles/ -o $@ $^ -lrlcomm 
-	#$(CC) -o $@ $^
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@

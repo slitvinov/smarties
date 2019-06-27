@@ -55,7 +55,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   }
 
   if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
-    //warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
+    warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
     sharingTurn = sharingRank; // says that first full episode stays on rank
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);

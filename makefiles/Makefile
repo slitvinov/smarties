@@ -107,7 +107,7 @@ OBJ_FILES = \
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
-.DEFAULT_GOAL := rl
+.DEFAULT_GOAL := all
 
 ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
@@ -141,9 +141,25 @@ env: ext_app_test.o
 endif
 ###############################################################################
 
-#lib: Communicator.o
-rl: $(OBJ_FILES) env
-	$(LD) $(OBJ_FILES) $(LIBS) -o $@
+###################### Compile Communicator Library ###########################
+OBJCOMM=../source/Communicators/Communicator.cpp
+LIBNAME=librlcomm.so
+OBJNAME=CommunicatorLib.o
+
+test: $(OBJ_FILES) testempty.o
+	g++ $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(OBJCOMM) -o $(OBJNAME)
+	$(LD) $(OBJNAME) testempty.o -o $@
+
+lib:
+	g++ $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(OBJCOMM) -o $(OBJNAME)
+	ar rs librlcomm.a $(OBJNAME)
+	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) $(OBJNAME)
+	#g++ -shared -o $(LIBNAME) $(OBJNAME)
+
+exec: $(OBJ_FILES) env
+	$(LD) $(OBJ_FILES) $(LIBS) -o rl
+
+all: lib exec
 
 %.o: %.cpp
 	$(MPICXX) $(extra)  $(CPPFLAGS) -c $< -o $@
@@ -155,4 +171,4 @@ vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o *.so *.s *.d libsimulation.a rl
+	rm -f *.o *.so *.s *.d libsimulation.a librlcomm.* rl

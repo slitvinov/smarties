@@ -40,8 +40,8 @@ inline int SOCKET_Test(int& completed, SOCKET_REQ& req)
   char* const todo_buffer = (char*) req.buffer + transferred_size;
   assert(transferred_size <= req.size);
   const int bytes = req.type == SOCKET_SEND
-                  ? send(req.client, todo_buffer, req.todo, MSG_DONTWAIT)
-                  : recv(req.client, todo_buffer, req.todo, MSG_DONTWAIT);
+                  ? send(req.client, todo_buffer, req.todo, 0)
+                  : recv(req.client, todo_buffer, req.todo, 0);
   if(bytes >= 0) {
     assert((unsigned) bytes <= req.todo);
     req.todo -= bytes;
@@ -55,6 +55,7 @@ inline int SOCKET_Test(int& completed, SOCKET_REQ& req)
 
 inline int SOCKET_Wait(SOCKET_REQ& req)
 {
+  if(req.todo == 0) return 0;
   const unsigned transferred_size = req.size - req.todo;
   char* todo_buffer = (char*) req.buffer + transferred_size;
   assert(transferred_size <= req.size);
