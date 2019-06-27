@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-CURPWD := $(shell pwd)/
+CURPWD := $(shell pwd)
 UNAME_S := $(shell uname -s)
 config ?= prod
 extra ?=
@@ -142,19 +142,24 @@ endif
 ###############################################################################
 
 ###################### Compile Communicator Library ###########################
-OBJCOMM=../source/Communicators/Communicator.cpp
-LIBNAME=librlcomm.so
-OBJNAME=CommunicatorLib.o
+PATH_COMM=../source/Communicators/Communicator
+PYBINDINC=$(shell python3 -m pybind11 --includes)
+PYBINDSUF=$(shell python3-config --extension-suffix)
 
-test: $(OBJ_FILES) testempty.o
-	g++ $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(OBJCOMM) -o $(OBJNAME)
-	$(LD) $(OBJNAME) testempty.o -o $@
+CommunicatorLib.o:
+	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(PATHCOM).cpp -o $@
 
-lib:
-	g++ $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(OBJCOMM) -o $(OBJNAME)
-	ar rs librlcomm.a $(OBJNAME)
-	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) $(OBJNAME)
-	#g++ -shared -o $(LIBNAME) $(OBJNAME)
+Communicator_pybind11.o:
+	$(MPICXX) $(CPPFLAGS) $(PYBINDINC) -fPIC -c $(PATHCOM)_pybind11.cpp -o $@
+
+test: CommunicatorLib.o testempty.o
+	$(LD) $^ -o $@
+
+lib: CommunicatorLib.o Communicator_pybind11.o
+	$(MPICXX) -shared  $^ -o librlcomm$(PYBINDSUF)
+	ar rs librlcomm.a CommunicatorLib.o
+	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
+	#g++ -shared -o $(LIBNAME) CommunicatorLib.o
 
 exec: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o rl

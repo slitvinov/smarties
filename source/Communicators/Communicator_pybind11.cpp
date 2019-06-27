@@ -10,91 +10,97 @@ PYBIND11_MODULE(smarties, m)
     .def(py::init<int stateDim, int actionDim, int number_of_agents> () )
 
     .def("sendInitState",
-         & Communicator::sendInitState,
-         "Send initial state of a new episode of agent # 'agentID'.",
-         "state"_a, "agentID"_a = 0)
+         & smarties::Communicator::sendInitState,
+         "state"_a, "agentID"_a = 0,
+         "Send initial state of a new episode for agent # 'agentID'.")
 
     .def("sendState",
-         & Communicator::sendState,
-         "Send normal state and reward for agent # 'agentID'.",
-         "state"_a, "reward"_a, "agentID"_a = 0)
+         & smarties::Communicator::sendState,
+         "state"_a, "reward"_a, "agentID"_a = 0,
+         "Send normal state and reward for agent # 'agentID'.")
 
     .def("sendTermState",
-         & Communicator::sendTermState,
-         "Send terminal state and reward for agent # 'agentID'."
-         " Note: V(s_terminal) = 0.",
-         "state"_a, "reward"_a, "agentID"_a = 0)
+         & smarties::Communicator::sendTermState,
+         "state"_a, "reward"_a, "agentID"_a = 0,
+         "Send terminal state and reward for agent # 'agentID'. "
+         "NOTE: V(s_terminal) = 0 because episode cannot continue. "
+         "For example, agent succeeded in task or is incapacitated.")
 
     .def("sendLastState",
-         & Communicator::sendLastState,
-         "Send last state and reward of the episode for agent # 'agentID'."
-         " Note that in general: V(s_last) != 0.",
-         "state"_a, "reward"_a, "agentID"_a = 0)
+         & smarties::Communicator::sendLastState,
+         "state"_a, "reward"_a, "agentID"_a = 0,
+         "Send last state and reward of the episode for agent # 'agentID'. "
+         "NOTE: V(s_last) != 0 because it would be possible to continue the "
+         "episode. For example, timeout not caused by the agent's policy.")
 
     .def("recvAction",
-         & Communicator::recvAction,
-         "Get an action for agent # 'agentID' given previously sent state.",
-         "agentID"_a = 0)
+         & smarties::Communicator::recvAction,
+         "agentID"_a = 0,
+         "Get an action for agent # 'agentID' given previously sent state.")
 
     .def("set_state_action_dims",
-         & Communicator::set_state_action_dims,
-         "Set dimensionality of state and action for agent # 'agentID'.",
-         "dimState"_a, "dimAct"_a, "agentID"_a = 0)
+         & smarties::Communicator::set_state_action_dims,
+         "dimState"_a, "dimAct"_a, "agentID"_a = 0,
+         "Set dimensionality of state and action for agent # 'agentID'.")
 
     .def("set_action_scales",
-         ( void (Communicator::*) (
+         ( void (smarties::Communicator::*) (
             const std::vector<double>, const std::vector<double>,
-            const bool, const int)
-         ) & Communicator::set_action_scales,
-         "Set lower and upper scale of the actions for agent # 'agentID'.",
-         "upper_scale"_a, "lower_scale"_a, "areBounds"_a, "agentID"_a = 0)
+            const bool, const int) )
+         & smarties::Communicator::set_action_scales,
+         "upper_scale"_a, "lower_scale"_a, "areBounds"_a, "agentID"_a = 0,
+         "Set lower and upper scale of the actions for agent # 'agentID'. "
+         "Boolean arg specifies if actions are bounded between gien values.")
 
     .def("set_action_scales",
-         ( void (Communicator::*) (
+         ( void (smarties::Communicator::*) (
             const std::vector<double>, const std::vector<double>,
-            const std::vector<bool>, const int)
-         ) & Communicator::set_action_scales,
-         "Set lower and upper scale of the actions for agent # 'agentID'.",
-         "upper_scale"_a, "lower_scale"_a, "areBounds"_a, "agentID"_a = 0)
+            const std::vector<bool>, const int) )
+         & Communicator::set_action_scales,
+         "upper_scale"_a, "lower_scale"_a, "areBounds"_a, "agentID"_a = 0,
+         "Set lower and upper scale of the actions for agent # 'agentID'. "
+         "Boolean arg specifies if actions are bounded between gien values.")
 
     .def("set_action_options",
-         ( void (Communicator::*) (const int, const int)
-         ) & Communicator::set_action_options,
-         "Set number of discrete control options for agent # 'agentID'.",
-         "n_options"_a, "agentID"_a = 0)
+         ( void (smarties::Communicator::*) (const int, const int) )
+         & smarties::Communicator::set_action_options,
+         "n_options"_a, "agentID"_a = 0,
+         "Set number of discrete control options for agent # 'agentID'.")
 
     .def("set_action_options",
-         ( void (Communicator::*) (const int, const std::vector<int>)
-         ) & Communicator::set_action_options,
-         "Set number of discrete control options for agent # 'agentID'.",
-         "n_options"_a, "agentID"_a = 0)
+         ( void (smarties::Communicator::*) (const std::vector<int>,const int) )
+         & smarties::Communicator::set_action_options,
+         "n_options"_a, "agentID"_a = 0,
+         "Set number of discrete control options for agent # 'agentID'.")
 
     .def("set_state_observable",
-         & Communicator::set_state_observable,
-         "Set whether each state var is observed by the agent # 'agentID'.",
-         "is_observable"_a, "agentID"_a = 0)
+         & smarties::Communicator::set_state_observable,
+         "is_observable"_a, "agentID"_a = 0,
+         "For each state variable, set whether observed by agent # 'agentID'.")
 
     .def("set_state_scales",
-         & Communicator::sendState)
-
-    .def("env_has_distributed_agents",
-         & Communicator::sendState)
+         & smarties::Communicator::set_state_scales,
+         "upper_scale"_a, "lower_scale"_a, "agentID"_a = 0,
+         "Set upper & lower scaling values for the state of agent # 'agentID'.")
 
     .def("agents_define_different_MDP",
-         & Communicator::sendState)
+         & smarties::Communicator::agents_define_different_MDP,
+         "Specify that each agent defines a different MPD (state/action/rew).")
 
     .def("disableDataTrackingForAgents",
-         & Communicator::disableDataTrackingForAgents)
+         & smarties::Communicator::disableDataTrackingForAgents,
+         "agentStart"_a, "agentEnd"_a,
+         "Set agents whose experiences should not be used as training data.")
 
     .def("isTraining",
-         & Communicator::isTraining)
+         & smarties::Communicator::isTraining,
+         "Returns true if smarties is training, false if evaluating a policy.")
 
     .def("terminateTraining",
-         & Communicator::terminateTraining)
+         & smarties::Communicator::terminateTraining,
+         "Returns true if smarties is requesting application to exit.")
 
     .def("desiredNepisodes",
-         & Communicator::desiredNepisodes)
-
-    .def("env_has_distributed_agents",
-         & Communicator::env_has_distributed_agents);
+         & smarties::Communicator::desiredNepisodes,
+         "Returns the number of state/action steps requested by smarties.");
 }
