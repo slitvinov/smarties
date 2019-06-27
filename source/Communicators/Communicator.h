@@ -35,7 +35,7 @@ public:
   void sendInitState(const std::vector<double>& state,
                      const int agentID=0)
   {
-    return sendState(agentID, INIT, state, 0);
+    return _sendState(agentID, INIT, state, 0);
   }
 
   // Send normal state and reward:
@@ -43,7 +43,7 @@ public:
                  const double reward,
                  const int agentID = 0)
   {
-    return sendState(agentID, CONT, state, reward);
+    return _sendState(agentID, CONT, state, reward);
   }
 
   // Send terminal state/reward: the last step of an episode which ends because
@@ -52,7 +52,7 @@ public:
                     const double reward,
                     const int agentID = 0)
   {
-    return sendState(agentID, TERM, state, reward);
+    return _sendState(agentID, TERM, state, reward);
   }
 
   // Send truncated state/reward: the last step of an episode which ends because
@@ -62,7 +62,7 @@ public:
                      const double reward,
                      const int agentID = 0)
   {
-    return sendState(agentID, TRNC, state, reward);
+    return _sendState(agentID, TRNC, state, reward);
   }
 
   // receive action for the latest given state:
@@ -140,7 +140,7 @@ protected:
   Uint globalTstepCounter = 0;
 
   //called by app to interact with smarties:
-  void sendState(const int agentID, const episodeStatus status,
+  void _sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
   #ifndef SMARTIES_LIB

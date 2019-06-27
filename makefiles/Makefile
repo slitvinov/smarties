@@ -143,23 +143,26 @@ endif
 
 ###################### Compile Communicator Library ###########################
 PATH_COMM=../source/Communicators/Communicator
-PYBINDINC=$(shell python3 -m pybind11 --includes)
-PYBINDSUF=$(shell python3-config --extension-suffix)
+NOWARNP11= -Wno-cast-function-type -Wno-redundant-decls -Wno-deprecated-declarations \
+	-Wno-shadow -Wno-cast-function-type -Wno-missing-declarations -Wno-float-equal
+
+PYBINDINC:=$(shell python3 -m pybind11 --includes) $(NOWARNP11)
+PYBINDSUF:=$(shell python3-config --extension-suffix)
 
 CommunicatorLib.o:
-	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(PATHCOM).cpp -o $@
-
-Communicator_pybind11.o:
-	$(MPICXX) $(CPPFLAGS) $(PYBINDINC) -fPIC -c $(PATHCOM)_pybind11.cpp -o $@
+	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(PATH_COMM).cpp -o $@
 
 test: CommunicatorLib.o testempty.o
 	$(LD) $^ -o $@
 
-lib: CommunicatorLib.o Communicator_pybind11.o
-	$(MPICXX) -shared  $^ -o librlcomm$(PYBINDSUF)
-	ar rs librlcomm.a CommunicatorLib.o
-	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
-	#g++ -shared -o $(LIBNAME) CommunicatorLib.o
+lib: CommunicatorLib.o
+	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared $(PYBINDINC) -fPIC \
+		$(PATH_COMM)_pybind11.cpp -o smarties$(PYBINDSUF)
+	ar rs libsmarties.a CommunicatorLib.o
+
+#$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
+#$(PATH_COMM).cpp -o libsmarties.so
+#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
 
 exec: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o rl
@@ -176,4 +179,4 @@ vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o *.so *.s *.d libsimulation.a librlcomm.* rl
+	rm -f *.o *.so *.s *.d libsimulation.a libsmarties.* rl

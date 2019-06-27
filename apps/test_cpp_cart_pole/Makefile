@@ -12,7 +12,7 @@ CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 .DEFAULT_GOAL := cart-pole
 
 cart-pole: $(OBJ_FILES)
-	$(CC) -L../../makefiles/ -o $@ $^ -lrlcomm 
+	$(CC) -L../../makefiles/ -o $@ $^ -lsmarties
 	#$(CC) -o $@ $^
 
 %.o: %.cpp

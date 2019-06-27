@@ -181,7 +181,7 @@ void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
     ENV.bTrainFromAgentData[i] = 0;
 }
 
-void Communicator::sendState(const int agentID, const episodeStatus status,
+void Communicator::_sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward)
 {
   if ( not ENV.bFinalized ) synchronizeEnvironments();
