@@ -17,20 +17,13 @@ fi
 source create_rundir.sh
 
 HOSTNAME=`hostname`
-if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
-then
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-/home/novatig/Python-3.5.2/build/bin/python3.5 ../Communicator_gym.py \$1 $APP
+python3 ../Communicator_gym.py $APP
 EOF
-else
-cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_gym.py \$1 $APP
-EOF
-fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 export INTERNALAPP=false
 
-cp ../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../makefiles/smarties*                      ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 
 source launch_base.sh

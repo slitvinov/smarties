@@ -83,8 +83,7 @@ class atariWrapper():
         assert( self.env.unwrapped.get_action_meanings()[0] == 'NOOP' )
         self.obsShape = self.env.observation_space.shape
         self.buffer = np.zeros((self.nPool,)+self.obsShape, dtype=np.uint8)
-        upprScale = 255 * np.ones(dimState, dtype=np.float64)
-        lowrScale =   0 * np.ones(dimState, dtype=np.float64)
+        upprScale, lowrScale = dimState * [255.0], dimState * [0.0]
         self.comm.set_state_scales(upprScale, lowrScale, 0)
 
         self.noop_max = 30

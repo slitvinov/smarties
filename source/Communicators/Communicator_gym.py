@@ -39,7 +39,7 @@ def constructCommunicator(env):
   if hasattr(env.action_space, 'spaces'):
       dimAction = len(env.action_space.spaces)
       comm = Communicator(dimState, dimAction, 1) # 1 agent
-      control_options = np.zeros(dimAction, dtype=np.int)
+      control_options = dimAction * [0] 
       for i in range(dimAction):
           control_options[i] = env.action_space.spaces[i].n
       comm.set_action_options(control_options, 0) # agent 0
@@ -50,9 +50,9 @@ def constructCommunicator(env):
   elif hasattr(env.action_space, 'shape'):
       dimAction = env.action_space.shape[0]
       comm = Communicator(dimState, dimAction, 1) # 1 agent
-      upprScale = np.zeros(dimAction, dtype=np.float64)
-      lowrScale = np.zeros(dimAction, dtype=np.float64)
-      isBounded = np.zeros(dimAction, dtype=bool)
+      upprScale = dimAction * [0.0]
+      lowrScale = dimAction * [0.0]
+      isBounded = dimAction * [False]
       for i in range(dimAction):
           test = env.reset()
           test_act = 0.5*(env.action_space.low + env.action_space.high)
@@ -96,7 +96,7 @@ if __name__ == '__main__':
             #print(t, done, env._max_episode_steps)
             if done == True and t >= env._max_episode_steps:
               comm.sendLastState(observation, reward)
-            else if done == True:
+            elif done == True:
               comm.sendTermState(observation, reward)
             else: comm.sendState(observation, reward)
             #print(t, observation, action, reward, done)

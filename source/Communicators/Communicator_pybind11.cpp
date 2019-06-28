@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 // include entire cpp file to have only one obj file to compile
 // (improves compatibility)
 #include "Communicators/Communicator.cpp"
