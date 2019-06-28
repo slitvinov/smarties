@@ -7,93 +7,73 @@
 ##  Created by Guido Novati (novatig@ethz.ch).
 ##
 
-import gym, sys, socket, os, os.path, time
+import gym, sys, socket, os, os.path, time, numpy as np
 from gym import wrappers
-#import matplotlib.pyplot as plt
-import numpy as np
 os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
-from Communicator import Communicator
+from smarties import Communicator
 
-class Communicator_gym(Communicator):
-    def get_env(self):
-        assert(self.gym is not None)
-        return self.gym
+def getAction(comm, env):
+  buf = comm.recvAction()
+  if   hasattr(env.action_space, 'n'):
+      action = int(buf[0])
+  elif hasattr(env.action_space, 'spaces'):
+      action = [int(buf[0])]
+      for i in range(1, comm.nActions): action = action+[int(buf[i])]
+  elif hasattr(env.action_space, 'shape'):
+      action = buf
+  else: assert(False)
+  return action
 
-    def __init__(self):
-        self.start_server()
-        self.sent_stateaction_info = False
-        self.discrete_actions = False
-        self.number_of_agents = 1
-        print("openAI environment: ", sys.argv[2])
-        env = gym.make(sys.argv[2])
-        nAct, nObs = 1, 1
-        actVals = np.zeros([0], dtype=np.float64)
-        actOpts = np.zeros([0], dtype=np.float64)
-        obsBnds = np.zeros([0], dtype=np.float64)
-        if hasattr(env.action_space, 'spaces'):
-            nAct = len(env.action_space.spaces)
-            self.discrete_actions = True
-            for i in range(nAct):
-                nActions_i = env.action_space.spaces[i].n
-                actOpts = np.append(actOpts, [nActions_i+.1, 1])
-                actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
-        elif hasattr(env.action_space, 'n'):
-            nActions_i = env.action_space.n
-            self.discrete_actions = True
-            actOpts = np.append(actOpts, [nActions_i, 1])
-            actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
-        elif hasattr(env.action_space, 'shape'):
-            nAct = env.action_space.shape[0]
-            for i in range(nAct):
-                bounded = 0 #figure out if environment is strict about the bounds on action:
-                test = env.reset()
-                test_act = 0.5*(env.action_space.low + env.action_space.high)
-                test_act[i] = env.action_space.high[i]+1
-                try: test = env.step(test_act)
-                except: bounded = 1.1
-                env.reset()
-                actOpts = np.append(actOpts, [2.1, bounded])
-                if bounded:
-                  actVals = np.append(actVals, max(env.action_space.low[i],-1e3))
-                  actVals = np.append(actVals, min(env.action_space.high[i],1e3))
-                else:
-                  actVals = np.append(actVals, env.action_space.high[i])
-                  actVals = np.append(actVals, env.action_space.low[i] )
-                  #actVals = np.append(actVals, 1)
-                  #actVals = np.append(actVals, -1)
-        else: assert(False)
+def constructCommunicator(env):
+  # first figure out dimensionality of state
+  dimState = 1
+  if hasattr(env.observation_space, 'shape'):
+      for i in range(len(env.observation_space.shape)):
+          dimState *= env.observation_space.shape[i]
+  elif hasattr(env.observation_space, 'n'):
+      dimState = 1
+  else: assert(False)
 
-        if hasattr(env.observation_space, 'shape'):
-            for i in range(len(env.observation_space.shape)):
-                nObs *= env.observation_space.shape[i]
+  # then figure out action dims and details
+  comm = None
+  if hasattr(env.action_space, 'spaces'):
+      dimAction = len(env.action_space.spaces)
+      comm = Communicator(dimState, dimAction, 1) # 1 agent
+      control_options = np.zeros(dimAction, dtype=np.int)
+      for i in range(dimAction):
+          control_options[i] = env.action_space.spaces[i].n
+      comm.set_action_options(control_options, 0) # agent 0
+  elif hasattr(env.action_space, 'n'):
+      dimAction = 1
+      comm = Communicator(dimState, dimAction, 1) # 1 agent
+      comm.set_action_options(env.action_space.n, 0) # agent 0
+  elif hasattr(env.action_space, 'shape'):
+      dimAction = env.action_space.shape[0]
+      comm = Communicator(dimState, dimAction, 1) # 1 agent
+      upprScale = np.zeros(dimAction, dtype=np.float64)
+      lowrScale = np.zeros(dimAction, dtype=np.float64)
+      isBounded = np.zeros(dimAction, dtype=bool)
+      for i in range(dimAction):
+          test = env.reset()
+          test_act = 0.5*(env.action_space.low + env.action_space.high)
+          test_act[i] = env.action_space.high[i]+1
+          try: test = env.step(test_act)
+          except: isBounded[i] = True
+          assert(env.action_space.high[i]< 1e6) # make sure that values
+          assert(env.action_space.low[i] >-1e6) # make sense
+          upprScale[i] = env.action_space.high[i]
+          lowrScale[i] = env.action_space.low[i]
+      comm.set_action_scales(upprScale, lowrScale, isBounded, 0)
+  else: assert(False)
 
-            for i in range(nObs):
-                if(env.observation_space.high[i]<1e3 and env.observation_space.low[i]>-1e3):
-                    obsBnds = np.append(obsBnds, env.observation_space.high[i])
-                    obsBnds = np.append(obsBnds, env.observation_space.low[i])
-                else: #no scaling
-                    obsBnds = np.append(obsBnds, [1, -1])
-        elif hasattr(env.observation_space, 'n'):
-            obsBnds = np.append(obsBnds, env.observation_space.n)
-            obsBnds = np.append(obsBnds, 0)
-        else: assert(False)
-
-        self.obs_in_use = np.ones(nObs, dtype=np.float64)
-        self.nActions, self.nStates = nAct, nObs
-        self.observation_bounds = obsBnds
-        self.action_options = actOpts
-        self.action_bounds = actVals
-        self.send_stateaction_info()
-        self.gym = env
-        self.seq_id, self.frame_id = 0, 0
-        self.seed = sys.argv[1]
-        self.actionBuffer = [np.zeros([nAct], dtype=np.float64)]
+  return comm
 
 
 if __name__ == '__main__':
-    comm = Communicator_gym() # create communicator with smarties
-    env = comm.get_env() #
-    #env.seed(comm.seed)
+    print("openAI environment: ", sys.argv[1])
+    env = gym.make(sys.argv[1])
+    comm = constructCommunicator(env) # create communicator with smarties
+
     #fig = plt.figure()
     while True: #training loop
         observation = env.reset()
@@ -104,13 +84,7 @@ if __name__ == '__main__':
 
         while True: # simulation loop
             #receive action from smarties
-            buf = comm.recvAction()
-            if hasattr(env.action_space, 'n'):        action = int(buf[0])
-            elif hasattr(env.action_space, 'shape'):  action = buf
-            elif hasattr(env.action_space, 'spaces'):
-                action = [int(buf[0])]
-                for i in range(1, comm.nActions): action = action+[int(buf[i])]
-            else: assert(False)
+            action = getAction(comm, env)
             #advance the environment
             observation, reward, done, info = env.step(action)
             #if t>0 : env.env.viewer_setup()
@@ -121,8 +95,9 @@ if __name__ == '__main__':
             #send the observation to smarties
             #print(t, done, env._max_episode_steps)
             if done == True and t >= env._max_episode_steps:
-              comm.truncateSeq(observation, reward)
-            else:
-              comm.sendState(observation, reward, terminal=done)
+              comm.sendLastState(observation, reward)
+            else if done == True:
+              comm.sendTermState(observation, reward)
+            else: comm.sendState(observation, reward)
             #print(t, observation, action, reward, done)
             if done: break
