@@ -7,18 +7,13 @@
 ##  Created by Guido Novati (novatig@ethz.ch).
 ##
 
-import gym, sys, socket, os, os.path, time
+import gym, sys, socket, os, os.path, time, numpy as np, cv2
 from gym import wrappers
-import numpy as np
-from Communicator import Communicator
-import cv2
 cv2.ocl.setUseOpenCL(False)
+os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
+from smarties import Communicator
 
-class Communicator_atari(Communicator):
-    def get_env(self):
-        assert(self.env is not None)
-        return self.env
-
+class atariWrapper():
     def base_reset(self):
         self.buffI = 1
         self.buffer = np.zeros((self.nPool,)+self.obsShape, dtype=np.uint8)
@@ -81,61 +76,37 @@ class Communicator_atari(Communicator):
         return obs[:, :, None].ravel()
 
     def __init__(self):
-        self.start_server()
-        self.sent_stateaction_info = False
-        self.number_of_agents = 1
+        dimState, dimAction = 84 * 84, 1
+        self.comm = Communicator(dimState, dimAction, 1) # 1 agent
+        self.env = gym.make(sys.argv[1]+'NoFrameskip-v4')
+        assert( hasattr(self.env.action_space, 'n') )
+        assert( self.env.unwrapped.get_action_meanings()[0] == 'NOOP' )
+        self.obsShape = self.env.observation_space.shape
+        self.buffer = np.zeros((self.nPool,)+self.obsShape, dtype=np.uint8)
+        upprScale = 255 * np.ones(dimState, dtype=np.float64)
+        lowrScale =   0 * np.ones(dimState, dtype=np.float64)
+        self.comm.set_state_scales(upprScale, lowrScale, 0)
+
         self.noop_max = 30
         self.nSkip = 4
         self.nPool = 3
         self.buffI = 0
         self.lives = 0
         self.was_real_done = True
-        print("openAI environment: ", sys.argv[2])
-        env = gym.make(sys.argv[2]+'NoFrameskip-v4')
-        self.obsShape = env.observation_space.shape
-        self.buffer = np.zeros((self.nPool,)+self.obsShape, dtype=np.uint8)
-        nAct, nObs = 1, 84 * 84
-        actVals = np.zeros([0], dtype=np.float64)
-        actOpts = np.zeros([0], dtype=np.float64)
-        obsBnds = np.zeros([0], dtype=np.float64)
-
-        assert( hasattr(env.action_space, 'n') )
-        assert( env.unwrapped.get_action_meanings()[0] == 'NOOP' )
-        nActions_i = env.action_space.n
-        self.discrete_actions = True
-        actOpts = np.append(actOpts, [nActions_i, 1])
-        actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
-
-        for i in range(nObs): obsBnds = np.append(obsBnds, [255,0])
-
-        self.obs_in_use = np.ones(nObs, dtype=np.float64)
-        self.nActions, self.nStates = nAct, nObs
-        self.observation_bounds = obsBnds
-        self.action_options = actOpts
-        self.action_bounds = actVals
-        self.send_stateaction_info()
-        #if self.bRender==3:
-        #    env = gym.wrappers.Monitor(env, './', force=True)
-        self.env = env
-        self.seq_id, self.frame_id = 0, 0
-        self.seed = sys.argv[1]
-        self.actionBuffer = [np.zeros([nAct], dtype=np.float64)]
-
 
 if __name__ == '__main__':
-    comm = Communicator_atari() # create communicator with smarties
+    print("openAI atari environment: ", sys.argv[1])
+    comm = atariWrapper() # create communicator with smarties
 
     while True: #training loop
         observation = comm.env_reset()
-
-        #send initial state
-        comm.sendInitState(observation)
+        comm.sendInitState(observation) #send initial state
 
         while True: # simulation loop
-            #receive action from smarties
-            buf = comm.recvAction()
+            buf = comm.recvAction() #receive action from smarties
             #advance the environment
             observation, reward, done, info = comm.env_step(int(buf[0]))
-            #send the observation to smarties
-            comm.sendState(observation, reward, terminal=done)
-            if done: break
+            if done: #send the observation to smarties
+              comm.sendTermState(observation, reward)
+              break
+            else: comm.sendState(observation, reward)
