@@ -106,6 +106,6 @@ if __name__ == '__main__':
             #advance the environment
             observation, reward, done, info = comm.env_step(int(buf[0]))
             if done: #send the observation to smarties
-              comm.sendTermState(observation, reward)
+              comm.sendTermState(observation.ravel().tolist(), reward)
               break
-            else: comm.sendState(observation, reward)
+            else: comm.sendState(observation.ravel().tolist(), reward)

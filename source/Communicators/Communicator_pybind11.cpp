@@ -10,7 +10,10 @@ PYBIND11_MODULE(smarties, m)
 {
   py::class_<smarties::Communicator>(m, "Communicator")
 
-    .def(py::init<int, int, int> () )
+    .def(py::init<int, int, int> (),
+      py::arg("state_dim"), py::arg("action_dim"), py::arg("num_of_agents") = 1,
+      "Constructor for the communicator with smarties."
+      "WARNING: will immediately start trying to call the smarties server.")
 
     .def("sendInitState",
          & smarties::Communicator::sendInitState,

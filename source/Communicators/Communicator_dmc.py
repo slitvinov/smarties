@@ -22,9 +22,8 @@ if __name__ == '__main__':
     for component in obs_spec.values():
         if len(component.shape): dimState = dimState + component.shape[0]
         else: dimState = dimState + 1
-    upprActScale =  1 * np.ones(dimAction, dtype=np.float64)
-    lowrActScale = -1 * np.ones(dimAction, dtype=np.float64)
-    isBounded = np.ones(dimAction, dtype=bool) # all bounded in DMC
+    upprActScale, lowrActScale = dimAction * [ 1.0], dimAction * [-1.0]
+    isBounded = dimAction * [True] # all bounded in DMC
 
     comm = Communicator(dimState, dimAction, 1) # 1 agent
     comm.set_action_scales(upprScale, lowrScale, isBounded, 0)
@@ -33,7 +32,7 @@ if __name__ == '__main__':
         t = env.reset()
         obsVec = np.zeros([0], dtype=np.float64)
         for oi in t.observation.values(): obsVec = np.append(obsVec, oi)
-        comm.sendInitState(obsVec) #send initial state
+        comm.sendInitState(obsVec.ravel().tolist()) #send initial state
 
         while True: # simulation loop
             action = comm.recvAction() #receive action from smarties
@@ -43,6 +42,6 @@ if __name__ == '__main__':
             for oi in obs.values(): obsVec = np.append(obsVec, oi)
             #send the observation to smarties
             if t.last(): # DMC does not have term condition, just truncated seqs
-                comm.sendLastState(obsVec, rew)
+                comm.sendLastState(obsVec.ravel().tolist(), rew)
                 break
-            else: comm.sendState(obsVec, rew)
+            else: comm.sendState(obsVec.ravel().tolist(), rew)
