@@ -21,9 +21,9 @@ namespace smarties
 static inline Gaussian_policy prepare_policy(const Rvec & out,
                                              const ActionInfo * const aInfo,
                                              const Rvec ACT = Rvec(),
-                                             const Rvec MU  = Rvec()) const
+                                             const Rvec MU  = Rvec())
 {
-  Gaussian_policy pol({0, aI->dim}, aI, out);
+  Gaussian_policy pol({0, aInfo->dim()}, aInfo, out);
   if(ACT.size()) {
     assert(MU.size());
     pol.prepare(ACT, MU);
@@ -31,22 +31,15 @@ static inline Gaussian_policy prepare_policy(const Rvec & out,
   return pol;
 }
 
-void DPG::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
-  const Uint thrID) const
-{
-  die("");
-}
-
 void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   Sequence& S = MB.getEpisode(bID);
   const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
-  const Approximator & actor = * networks[0], & critc = * networks[1];
 
   if(thrID==0) profiler->stop_start("FWD");
   const Rvec pvec = actor->forward(bID, t); // network compute
   const auto POL = prepare_policy(pvec, &aInfo, MB.action(bID,t), MB.mu(bID,t));
-  const Real DKL = POL.sampKLdiv, RHO = P.sampImpWeight;
+  const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
   const bool isOff = S.isFarPolicy(t, RHO, CmaxRet, CinvRet);
 
   critc->setAddedInputType(ACTION, bID, t);
@@ -56,7 +49,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Rvec pval = critc->forward(bID, t, -1); //net alloc, with target wegiths
 
   #ifdef DPG_RETRACE_TGT
-    if( traj->isTruncated(t+1) ) {
+    if( S.isTruncated(t+1) ) {
       actor->forward(bID, t+1);
       critc->setAddedInputType(NETWORK, bID, t+1); // retrace : skip tgt weights
       const Rvec v_next = critc->forward(bID, t+1); // value with state+policy
@@ -66,7 +59,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     const Real target = S.Q_RET[t];
   #else
     Real target = data->scaledReward(S, t+1);
-    if (not traj->isTerminal(t+1) && not isOff) {
+    if (not S.isTerminal(t+1) && not isOff) {
       actor->forward(bID, t+1, -1); // policy at next step, with tgt weights
       critc->setAddedInputType(NETWORK, bID, t+1, -1);
       const Rvec v_next = critc->forward(bID, t+1, -1); //target value s_next
@@ -74,10 +67,9 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     }
   #endif
 
-  //code to compute policy grad:
-  const Rvec DPG = critc->oneStepBackProp({1}, bID, t, -1);
-  Rvec polGrad(2*nA, 0);
-  for (Uint i=0; i<nA; ++i) polGrad[i] = isOff? 0 : DPG[i];
+  //code to compute deterministic policy grad:
+  Rvec polGrad = isOff? Rvec(nA,0) : critc->oneStepBackProp({1}, bID, t, -1);
+  assert(polGrad.size() == nA); polGrad.resize(2*nA, 0); // space for stdev
   // In order to enable learning stdev on request, stdev is part of actor output
   #ifdef DPG_LEARN_STDEV
     const Rvec SPG = POL.policy_grad(target * std::min(CmaxRet,RHO));
@@ -89,7 +81,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   //if(!thrID) cout << "G "<<print(detPolG) << endl;
   const Rvec penGrad = POL.div_kl_grad(S.policies[t], -1);
-  Rvec finalG = Rvec(F[0]->nOutputs(), 0);
+  Rvec finalG = Rvec(actor->nOutputs(), 0);
   POL.finalize_grad(Utilities::weightSum2Grads(polGrad, penGrad, beta), finalG);
   actor->setGradient(finalG, bID, t);
 
@@ -107,10 +99,10 @@ void DPG::select(Agent& agent)
 {
   data_get->add_state(agent);
   Sequence& EP = * data_get->get(agent.ID);
-  const Uint currStep = EP->nsteps() - 1; assert(EP->nsteps()>0);
   const MiniBatch MB = data->agentToMinibatch(&EP);
   actor->load(MB, agent, 0);
   #ifdef DPG_RETRACE_TGT
+    const Uint currStep = EP.nsteps() - 1; assert(EP.nsteps()>0);
     critc->load(MB, agent, 0);
   #endif
 
@@ -227,9 +219,9 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
 {
   settings.splitLayers = 0; // legacy
   #if 0 // create encoder where only conv layers are shared
-    const bool bCreatedEncorder = createSharedEncoder();
+    const bool bCreatedEncorder = createEncoder();
   #else // create encoder with most layers are shared
-    const bool bCreatedEncorder = createSharedEncoder(0);
+    const bool bCreatedEncorder = createEncoder(0);
   #endif
   assert(networks.size() == bCreatedEncorder? 1 : 0);
   const Approximator* const encoder = bCreatedEncorder? networks[0] : nullptr;
@@ -240,9 +232,9 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   actor = networks.back();
   actor->buildFromSettings(nA);
   #ifdef EXTRACT_COVAR
-    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+    const Real stdParam = Utilities::noiseMap_inverse(explNoise*explNoise);
   #else
-    const Real stdParam = noiseMap_inverse(explNoise);
+    const Real stdParam = Utilities::noiseMap_inverse(explNoise);
   #endif
   actor->getBuilder().addParamLayer(nA, "Linear", stdParam);
   actor->initializeNetwork();
@@ -259,7 +251,7 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   critc->initializeNetwork();
   printf("DPG\n");
 
-  trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
+  trainInfo = new TrainData("DPG", distrib, 1, "| beta | avgW ", 2);
 }
 
 }

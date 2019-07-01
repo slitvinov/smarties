@@ -88,7 +88,7 @@ struct Approximator
                      const Uint t, Sint sampID = 0) const
   {
     assert(addedInput.size());
-    getContext(contextID).addedInputType(t, sampID) = VECTOR;
+    getContext(contextID).addedInputType(sampID) = VECTOR;
     getContext(contextID).addedInputVec(t, sampID) = NNvec( addedInput.begin(),
                                                             addedInput.end() );
   }
@@ -97,7 +97,7 @@ struct Approximator
                          const contextid_t& contextID,
                          const Uint t, Sint sampID = 0) const
   {
-    getContext(contextID).addedInputType(t, sampID) = type;
+    getContext(contextID).addedInputType(sampID) = type;
   }
 
   // forward: compute net output taking care also to gather additional required

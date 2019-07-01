@@ -37,7 +37,7 @@ struct Gaussian_policy
     assert(aI->dim()); return aI->dim();
   }
 
-  Gaussian_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
+  Gaussian_policy(const std::vector<Uint> start, const ActionInfo*const aI,
     const Rvec&out) : aInfo(aI), start_mean(start[0]),
     start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim()), netOutputs(out),
     mean(extract_mean()), stdev(extract_stdev()),

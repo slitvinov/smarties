@@ -9,7 +9,7 @@
 #ifndef smarties_AllLearners_h
 #define smarties_AllLearners_h
 
-//#include "DPG.h"
+#include "DPG.h"
 #include "RACER.h"
 #include "Learner_pytorch.h"
 #include <fstream>
@@ -87,6 +87,18 @@ inline std::unique_ptr<Learner> createLearner(
       ret = std::make_unique<RACER_continuous>(MDP, settings, distrib);
     }
   }
+  else
+  if (settings.learner == "DDPG" || settings.learner == "DPG")
+  {
+    settings.bSampleSequences = false;
+    MDP.policyVecDim = 2*MDP.dimAction;
+    // non-NPER DPG is unstable with annealed network learn rate
+    // because critic network must adapt quickly
+    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
+    ret = std::make_unique<DPG>(MDP, settings, distrib);
+  }
   /*
   else
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
@@ -114,18 +126,6 @@ inline std::unique_ptr<Learner> createLearner(
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = new NAF(env, settings);
-  }
-  else
-  if (settings.learner == "DP" || settings.learner == "DPG")
-  {
-    settings.bSampleSequences = false;
-    MDP.policyVecDim = 2*MDP.dimAction;
-    // non-NPER DPG is unstable with annealed network learn rate
-    // because critic network must adapt quickly
-    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << MDP.dimAction << " " << MDP.policyVecDim;
-    printLogfile(o, "problem_size.log", distrib.world_rank);
-    ret = new DPG(env, settings);
   }
   else
   if (settings.learner == "RETPG")
