@@ -88,6 +88,7 @@ struct Approximator
                      const Uint t, Sint sampID = 0) const
   {
     assert(addedInput.size());
+    getContext(contextID).addedInputType(t, sampID) = VECTOR;
     getContext(contextID).addedInputVec(t, sampID) = NNvec( addedInput.begin(),
                                                             addedInput.end() );
   }
@@ -96,7 +97,7 @@ struct Approximator
                          const contextid_t& contextID,
                          const Uint t, Sint sampID = 0) const
   {
-    getContext(contextID).addedInput(t, sampID) = type;
+    getContext(contextID).addedInputType(t, sampID) = type;
   }
 
   // forward: compute net output taking care also to gather additional required
@@ -105,16 +106,18 @@ struct Approximator
   // or a previously loaded agent.
   template< typename contextid_t >
   Rvec forward(const contextid_t& contextID,
-               const Uint t, Sint sampID = 0) const
+               const Uint t, Sint sampID=0, const bool overwrite=false) const
   {
     const auto& C = getContext(contextID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
+    if(overwrite)
+       C.activation(t, sampID)->written = false;
     if(C.activation(t, sampID)->written)
       return C.activation(t, sampID)->getOutput();
     const Uint ind = C.mapTime2Ind(t);
     // compute previous outputs if needed by recurrencies. limitation. what should
     // we do for target net / additional samples?
-    // this next line assumes we want to use curr W and sample 0 for recurrencies:
+    // next line assumes we want to use curr W and sample 0 for recurrencies:
     if(ind>0 && not C.activation(t-1, 0)->written) forward(contextID, t-1, 0);
     //if(ind>0 && not C.net(t, samp)->written) forward(C, t-1, samp);
     const Activation* const recur = ind>0? C.activation(t-1, 0) : nullptr;
@@ -151,10 +154,11 @@ struct Approximator
     return net->predict(INP, recur, activation, W);
   }
 
-  Rvec forward(const Agent& agent) const // run network for agent's recent step
+  // run network for agent's recent step
+  Rvec forward(const Agent& agent, const bool overwrite = false) const
   {
     const auto& C = getContext(agent);
-    return forward(agent, C.episode()->nsteps() - 1, 0);
+    return forward(agent, C.episode()->nsteps() - 1, 0, overwrite);
   }
 
   void setGradient(      Rvec gradient,

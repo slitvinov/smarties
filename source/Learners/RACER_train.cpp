@@ -13,10 +13,9 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
 Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  const Uint thrID = omp_get_thread_num();
-  const Approximator& NET = * networks[0]; // racer always uses only one net
   Sequence& S = MB.getEpisode(bID);
-  const Uint t = MB.getTstep(bID);
+  const Approximator& NET = * networks[0]; // racer always uses only one net
+  const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->stop_start("FWD");
   const Rvec O = NET.forward(bID, t); // network compute

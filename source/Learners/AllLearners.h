@@ -9,8 +9,8 @@
 #ifndef smarties_AllLearners_h
 #define smarties_AllLearners_h
 
+//#include "DPG.h"
 #include "RACER.h"
-//#include "VRACER.h"
 #include "Learner_pytorch.h"
 #include <fstream>
 #include <sstream>
@@ -22,8 +22,6 @@ namespace smarties
 #include "DQN.h"
 #include "ACER.h"
 #include "NAF.h"
-#include "DPG.h"
-#include "RETPG.h"
 #include "CMALearner.h"
 #include "PPO.h"
 */

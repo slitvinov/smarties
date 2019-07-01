@@ -172,6 +172,10 @@ struct Gaussian_policy
     return ret;
   }
 
+  Rvec policy_grad(const Real F) const
+  {
+    return policy_grad(sampAct, F);
+  }
   Rvec policy_grad(const Rvec& A, const Real F) const
   {
     Rvec ret(2*nA);
