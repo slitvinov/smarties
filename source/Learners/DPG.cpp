@@ -218,7 +218,7 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
   settings.splitLayers = 0; // legacy
-  #if 0 // create encoder where only conv layers are shared
+  #if 1 // create encoder where only conv layers are shared
     const bool bCreatedEncorder = createEncoder();
   #else // create encoder with most layers are shared
     const bool bCreatedEncorder = createEncoder(0);
@@ -243,6 +243,7 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     new Approximator("critic", settings, distrib, data.get(), encoder, actor)
   );
   critc = networks.back();
+  critc->setAddedInput(NETWORK, nA);
   // update settings that are going to be read by critic:
   settings.learnrate *= 10; // DPG wants critic faster than actor
   settings.nnLambda = 1e-4; // also wants L2 penl coef

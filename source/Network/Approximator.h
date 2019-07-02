@@ -133,8 +133,9 @@ struct Approximator
     if(C.addedInputType(sampID) == NETWORK)
     {
       assert(auxInputNet not_eq nullptr);
-      const NNvec addedinp = auxInputNet->forward(contextID, t, sampID);
+      NNvec addedinp = auxInputNet->forward(contextID, t, sampID);
       assert(addedinp.size());
+      addedinp.resize(m_auxInputSize);
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
       //if(!thrID) cout << "relay "<<print(addedinp) << endl;
     }
@@ -190,7 +191,10 @@ struct Approximator
     }
     ThreadContext& C = getContext(batchID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
+    const MDPdescriptor & MDP = replay->MDP;
     const Parameters* const W = opt->getWeights(C.usedWeightID(sampID));
+    const Uint inputSize = preprocessing? preprocessing->nOutputs()
+                         : (1+MDP.nAppendedObs) * MDP.dimStateObserved;
     Activation* const A = C.activation(t, sampID);
     //const std::vector<Activation*>& act = series_tgt[thrID];
     //const int ind = mapTime2Ind(samp, thrID);
@@ -204,8 +208,7 @@ struct Approximator
     //  cout <<"G:"<<print(pret)<< " Inp:"<<print(pinp)<<endl;
     //}
     if(auxInputAttachLayer>0) return ret;
-    else return Rvec(& ret[preprocessing->nOutputs()],
-                     & ret[preprocessing->nOutputs() + m_auxInputSize]);
+    else return Rvec(& ret[inputSize], & ret[inputSize + m_auxInputSize]);
   }
 
   void backProp(const Uint batchID) const

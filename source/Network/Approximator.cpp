@@ -196,7 +196,7 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
   }
   else
   {
-    Uint inputSize = preprocessing? preprocessing->nOutputs()
+    Uint inputSize = preprocessing not_eq nullptr ? preprocessing->nOutputs()
                                   : (1+MDP.nAppendedObs) * MDP.dimStateObserved;
     if(m_auxInputSize>0) inputSize += m_auxInputSize;
 

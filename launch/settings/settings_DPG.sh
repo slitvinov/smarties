@@ -5,8 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnLayerSizes 128 128"
 
 #subject to changes
 SETTINGS+=" --nnFunc SoftSign"
