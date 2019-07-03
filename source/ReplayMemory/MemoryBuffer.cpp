@@ -85,6 +85,31 @@ void MemoryBuffer::clearAll()
   needs_pass = true;
 }
 
+Uint MemoryBuffer::clearOffPol(const Real C, const Real tol)
+{
+  std::lock_guard<std::mutex> lock(dataset_mutex);
+  Uint i = 0;
+  while(1) {
+    if(i>=Set.size()) break;
+    Uint _nOffPol = 0;
+    const Uint N = EP.ndata();
+    const auto & EP = * Set[i];
+    for(Uint j=0; j<N; ++j)
+      _nOffPol += EP.offPolicImpW[j] > 1+C || EP.offPolicImpW[j] < 1-C;
+    if(_nOffPol > tol*N) {
+      std::swap(Set[i], Set.back());
+      nSequences   --;
+      nTransitions -= N;
+      Utilities::dispose_object(Set.back());
+      Set.pop_back();
+      assert(nSequences == (long) Set.size());
+    }
+    else ++i;
+  }
+  needs_pass = true;
+  return readNData();
+}
+
 MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
                                         const Uint stepID)
 {

@@ -73,6 +73,7 @@ CPPFLAGS+= -I../extern/CLI11/include/
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
+	PPO.o \
 	DPG.o \
 	RACER.o \
 	Learner_pytorch.o \
@@ -98,7 +99,6 @@ OBJ_FILES = \
 	Master.o \
 	Worker.o \
 	main.o
-	#PPO.o \
 	#RETPG.o \
 	#NAF.o \
 	#DQN.o \

@@ -8,6 +8,18 @@
 
 #include "PPO.h"
 
+#define PPO_learnDKLt
+#define PPO_PENALKL
+#define PPO_CLIPPED
+
+#include "Network/Builder.h"
+#include "Utils/StatsTracker.h"
+#include "Network/Approximator.h"
+#include "Math/Gaussian_policy.h"
+#include "Math/Discrete_policy.h"
+#include "ReplayMemory/Collector.h"
+#include "Utils/SstreamUtilities.h"
+
 template class PPO<Discrete_policy, Uint>;
 template class PPO<Gaussian_policy, Rvec>;
 using PPO_contAct = PPO<Gaussian_policy, Rvec>;
@@ -15,6 +27,9 @@ using PPO_discAct = PPO<Discrete_policy, Uint>;
 
 #include "PPO_common.cpp"
 #include "PPO_train.cpp"
+
+namespace smarties
+{
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::select(Agent& agent)
@@ -50,7 +65,7 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
   else // TERM state
     EP.state_vals.push_back(0); //value of terminal state is 0
 
-  updatePPO(EP);
+  updateGAE(EP);
 
   //advance counters of available data for training
   if(agent.agentStatus >= TERM) data_get->terminate_seq(agent);
@@ -59,7 +74,20 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
 template<typename Policy_t, typename Action_t>
 bool PPO<Policy_t, Action_t>::blockDataAcquisition() const
 {
+  // block data if we have observed too many observations
+  // here we add one to concurrently gather data and compute gradients
+  // 'freeze if there is too much data for the  next gradient step'
   return data->readNData() >= nHorizon + cntKept;
+}
+
+template<typename Policy_t, typename Action_t>
+bool PPO<Policy_t, Action_t>::blockGradientUpdates() const
+{
+  //_warn("readNSeen:%ld nDataGatheredB4Start:%ld gradSteps:%ld obsPerStep:%f",
+  //data->readNSeen_loc(), nDataGatheredB4Startup, _nGradSteps.load(), obsPerStep_loc);
+  // almost the same of the function before
+  // 'freeze if there is too little data for the current gradient step'
+  return data->readNData() < nHorizon;
 }
 
 template<typename Policy_t, typename Action_t>
@@ -94,13 +122,7 @@ void PPO<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
     debugL("Gather gradient estimates from each thread and Learner MPI rank");
     prepareGradient();
     updatePenalizationCoef();
-    advanceEpochCounters();
-    debugL("Search work to do in the Replay Memory");
-    processMemoryBuffer(); // find old eps, update avg quantities ...
-    debugL("Update Retrace est. for episodes sampled in prev. grad update");
-    updateRetraceEstimates();
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
+    data_proc->finalize();
     logStats();
     algoSubStepID = 1;
   };
@@ -114,8 +136,11 @@ void PPO<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 
     debugL("Apply SGD update after reduction of gradients");
     applyGradient();
+    advanceEpochCounters();
     algoSubStepID = 0; // rinse and repeat
     globalGradCounterUpdate(); // step ++
   };
   tasks.add(stepComplete);
+}
+
 }

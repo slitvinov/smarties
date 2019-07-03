@@ -198,13 +198,14 @@ void MemoryProcessing::finalize()
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
-  if(delPtr<0) die("undefined behavior");
-  const Uint maxTotObsNum_loc = settings.maxTotObsNum_local;
-  if(nTransitions.load()-Set[delPtr]->ndata() > maxTotObsNum_loc)
-    RM->removeSequence(delPtr);
-  delPtr = -1;
-  const long nSeq = RM->readNSeq();
-  nPruned += nB4 - nSeq;
+  if(delPtr>=0)
+  {
+    const Uint maxTotObsNum_loc = settings.maxTotObsNum_local;
+    if(nTransitions.load()-Set[delPtr]->ndata() > maxTotObsNum_loc)
+      RM->removeSequence(delPtr);
+    delPtr = -1;
+  }
+  nPruned += nB4 - RM->readNSeq();
 
   // update sampling algorithm:
   RM->sampler->prepare(RM->needs_pass);

@@ -6,11 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#define PPO_PENALKL
-#define PPO_CLIPPED
 
-#include "../Math/Gaussian_policy.h"
-#include "../Math/Discrete_policy.h"
+namespace smarties
+{
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::updatePenalizationCoef()
@@ -26,7 +24,6 @@ void PPO<Policy_t, Action_t>::updatePenalizationCoef()
   penalUpdateDelta = 0;
 }
 
-
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::advanceEpochCounters()
 {
@@ -34,7 +31,8 @@ void PPO<Policy_t, Action_t>::advanceEpochCounters()
   debugL("shift counters of epochs over the stored data");
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
-    const Real annlLR = Utilities::annealRate(learnR, currStep, epsAnneal);
+    using Utilities::annealRate;
+    const Real annlLR = annealRate(settings.learnrate, currStep, epsAnneal);
     data_proc->updateRewardsStats(0.001, annlLR);
     cntBatch = 0;
     cntEpoch++;
@@ -107,4 +105,6 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   if(thrID==0)  profiler->stop_start("BCK");
   actor->setGradient(totG, bID, t);
   critc->setGradient({ verr * ( isFarPol? 1 : 0 ) }, bID, t);
+}
+
 }

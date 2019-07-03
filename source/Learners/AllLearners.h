@@ -9,6 +9,7 @@
 #ifndef smarties_AllLearners_h
 #define smarties_AllLearners_h
 
+#include "PPO.h"
 #include "DPG.h"
 #include "RACER.h"
 #include "Learner_pytorch.h"
@@ -23,7 +24,6 @@ namespace smarties
 #include "ACER.h"
 #include "NAF.h"
 #include "CMALearner.h"
-#include "PPO.h"
 */
 
 inline static void printLogfile(std::ostringstream& o, std::string fname, int rank)
@@ -99,6 +99,24 @@ inline std::unique_ptr<Learner> createLearner(
     printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = std::make_unique<DPG>(MDP, settings, distrib);
   }
+  else
+  if (settings.learner == "GAE" || settings.learner == "PPO")
+  {
+    settings.bSampleSequences = false;
+    if(aInfo.bDiscreteActions) {
+      using PPO_discrete = PPO<Discrete_policy, Uint>;
+      MDP.policyVecDim = PPO_discrete::getnDimPolicy(&aInfo);
+      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
+      ret = std::make_unique<PPO_discrete>(MDP, settings, distrib);
+    } else {
+      using PPO_continuous = PPO<Gaussian_policy, Rvec>;
+      MDP.policyVecDim = PPO_continuous::getnDimPolicy(&aInfo);
+      o << MDP.dimAction << " " << MDP.policyVecDim;
+      printLogfile(o, "problem_size.log", distrib.world_rank);
+      ret = std::make_unique<PPO_continuous>(MDP, settings, distrib);
+    }
+  }
   /*
   else
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
@@ -165,24 +183,6 @@ inline std::unique_ptr<Learner> createLearner(
       o << MDP.dimAction << " " << MDP.policyVecDim;
       printLogfile(o, "problem_size.log", distrib.world_rank);
       ret = new CMA_continuous(env, settings);
-    }
-  }
-  else
-  if (settings.learner == "GAE" || settings.learner == "PPO")
-  {
-    settings.bSampleSequences = false;
-    if(aInfo.discrete) {
-      using PPO_discrete = PPO<Discrete_policy, Uint>;
-      MDP.policyVecDim = PPO_discrete::getnDimPolicy(&aInfo);
-      o << MDP.maxActionLabel << " " << MDP.policyVecDim;
-      printLogfile(o, "problem_size.log", distrib.world_rank);
-      ret = new PPO_discrete(env, settings);
-    } else {
-      using PPO_continuous = PPO<Gaussian_policy, Rvec>;
-      MDP.policyVecDim = PPO_continuous::getnDimPolicy(&aInfo);
-      o << MDP.dimAction << " " << MDP.policyVecDim;
-      printLogfile(o, "problem_size.log", distrib.world_rank);
-      ret = new PPO_continuous(env, settings);
     }
   }
   */

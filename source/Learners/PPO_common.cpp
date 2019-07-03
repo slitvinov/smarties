@@ -6,9 +6,24 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "../Network/Builder.h"
-#include "../Math/Gaussian_policy.h"
-#include "../Math/Discrete_policy.h"
+
+namespace smarties
+{
+
+template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::
+updateDKL_target(const bool farPolSample, const Real DivKL) const
+{
+  #ifdef PPO_learnDKLt
+    //In absence of penalty term, it happens that within nEpochs most samples
+    //are far-pol and therefore policy loss is 0. To keep samples on policy
+    //we adapt DKL_target s.t. approx. 80% of samples are always near-Policy.
+    //For most gym tasks with eta=1e-4 this results in ~0 penalty term.
+    if( farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9995;
+    else
+    if(!farPolSample && DKL_target<DivKL) DKL_target = DKL_target*1.0001;
+  #endif
+}
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::setupNet()
@@ -62,7 +77,7 @@ void PPO<Policy_t, Action_t>::setupNet()
 }
 
 template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::updatePPO(Sequence& seq) const
+void PPO<Policy_t, Action_t>::updateGAE(Sequence& seq) const
 {
   assert(seq.tuples.size());
   assert(seq.tuples.size() == seq.state_vals.size());
@@ -159,8 +174,9 @@ Uint PPO_contAct::getnDimPolicy(const ActionInfo*const aI)
   return 2*aI->dim; // policy dimension is mean and diag covariance
 }
 
-template<> PPO_contAct::PPO(Environment*const E, Settings&S) :
-Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
+template<> PPO_contAct::
+PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&E->aI))
 {
   printf("Continuous-action PPO\n");
   setupNet();
@@ -201,9 +217,12 @@ Uint PPO_discAct::getnDimPolicy(const ActionInfo*const aI)
   return aI->maxLabel;
 }
 
-template<> PPO_discAct::PPO(Environment*const E, Settings&S) :
-Learner(E,S), pol_outputs(count_pol_outputs(&E->aI))
+template<> PPO_discAct::
+PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&E->aI))
 {
   printf("Discrete-action PPO\n");
   setupNet();
+}
+
 }

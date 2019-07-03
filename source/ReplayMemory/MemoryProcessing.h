@@ -30,8 +30,8 @@ private:
   Real& invstd_reward = RM->invstd_reward;
 
   Uint nPruned = 0, minInd = 0, nOffPol = 0;
-  Real avgDKL = 0;
-  int delPtr = -1;
+  Real avgDKL =  0;
+  Sint delPtr = -1;
 
   DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
   DelayedReductor<long> globalStep_reduce;

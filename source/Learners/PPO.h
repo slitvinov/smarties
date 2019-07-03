@@ -5,16 +5,19 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#pragma once
-#include "Learner.h"
+
+#ifndef smarties_PPO_h
+#define smarties_PPO_h
+#include "Learner_approximator.h"
+
+namespace smarties
+{
 
 class Discrete_policy;
 class Gaussian_policy;
 
-#define PPO_learnDKLt
-
 template<typename Policy_t, typename Action_t>
-class PPO : public Learner
+class PPO : public Learner_approximator
 {
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
@@ -28,19 +31,6 @@ class PPO : public Learner
   mutable std::atomic<Real> penalUpdateCount{ 0 }, penalUpdateDelta{ 0 };
   Real penalCoef = 1;
 
-  void updateDKL_target(const bool farPolSample, const Real DivKL) const
-  {
-    #ifdef PPO_learnDKLt
-      //In absence of penalty term, it happens that within nEpochs most samples
-      //are far-pol and therefore policy loss is 0. To keep samples on policy
-      //we adapt DKL_target s.t. approx. 80% of samples are always near-Policy.
-      //For most gym tasks with eta=1e-4 this results in ~0 penalty term.
-      if( farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9995;
-      else
-      if(!farPolSample && DKL_target<DivKL) DKL_target = DKL_target*1.0001;
-    #endif
-  }
-
   Policy_t prepare_policy(const Rvec& O,
                           const Rvec  ACT = Rvec(),
                           const Rvec  MU  = Rvec()) const
@@ -52,13 +42,18 @@ class PPO : public Learner
     }
   }
 
-  void Train(const Uint seq, const Uint samp,
-    const Uint wID, const Uint bID, const Uint thrID) const;
+  void Train(const MiniBatch& MB, const Uint, const Uint) const override;
 
-  static vector<Uint> count_pol_outputs(const ActionInfo*const aI);
-  static vector<Uint> count_pol_starts(const ActionInfo*const aI);
+  void updatePenalizationCoef();
+  void advanceEpochCounters();
 
-  void updatePPO(Sequence*const seq) const;
+  static std::vector<Uint> count_pol_outputs(const ActionInfo*const aI);
+  static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
+
+  void updateDKL_target(const bool farPolSample, const Real DivKL) const;
+  void updateGAE(Sequence& seq) const;
+  void initializeGAE();
+  void setupNet();
 
   static Real annealDiscount(const Real targ,
                              const Real orig,
@@ -73,16 +68,17 @@ class PPO : public Learner
 
  public:
 
-  PPO(Environment*const _env, Settings& _set);
+  PPO(MDPdescriptor&, Settings&, DistributionInfo&);
 
   void select(Agent& agent) override;
 
-  void prepareGradient() override;
-  void initializeLearner() override;
   bool blockDataAcquisition() const override;
-  void spawnTrainTasks_seq() override;
-  void spawnTrainTasks_par() override;
-  bool bNeedSequentialTrain() override;
+  bool blockGradientUpdates() const override;
+
+  void setupTasks(TaskQueue& tasks) override;
 
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
+
+}
+#endif

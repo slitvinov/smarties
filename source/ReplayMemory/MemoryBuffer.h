@@ -80,6 +80,7 @@ class MemoryBuffer
   void initialize();
 
   void clearAll();
+  Uint clearOffPol(const Real C, const Real tol);
 
   template<typename V = nnReal, typename T>
   std::vector<V> standardizedState(const T seq, const T samp) const {
@@ -135,7 +136,6 @@ class MemoryBuffer
   void setNData(const long val)        { nTransitions = val;  }
   void setNSeq(const long val) { nSequences = val; Set.resize(val, nullptr); }
 
-  void popBackSequence();
   void removeSequence(const Uint ind);
   void pushBackSequence(Sequence*const seq);
 
