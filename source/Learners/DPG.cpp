@@ -248,7 +248,7 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   settings.learnrate *= 10; // DPG wants critic faster than actor
   settings.nnLambda = 1e-4; // also wants L2 penl coef
   settings.nnOutputFunc = "Linear"; // critic must be linear
-  critc->buildFromSettings(nA);
+  critc->buildFromSettings(1);
   critc->initializeNetwork();
   printf("DPG\n");
 

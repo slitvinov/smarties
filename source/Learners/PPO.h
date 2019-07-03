@@ -18,9 +18,6 @@ class PPO : public Learner
 {
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  mutable LDvec valPenal = LDvec(nThreads+1,0);
-  mutable LDvec cntPenal = LDvec(nThreads+1,0);
-  const Real lambda = settings.lambda;
   const std::vector<Uint> pol_outputs;
   const std::vector<Uint> pol_indices = count_indices(pol_outputs);
   const Uint nHorizon = settings.maxTotObsNum;
@@ -28,8 +25,10 @@ class PPO : public Learner
 
   mutable Uint cntBatch = 0, cntEpoch = 0, cntKept = 0;
   mutable std::atomic<Real> DKL_target{ settings.klDivConstraint };
+  mutable std::atomic<Real> penalUpdateCount{ 0 }, penalUpdateDelta{ 0 };
+  Real penalCoef = 1;
 
-  inline void updateDKL_target(const bool farPolSample, const Real DivKL) const
+  void updateDKL_target(const bool farPolSample, const Real DivKL) const
   {
     #ifdef PPO_learnDKLt
       //In absence of penalty term, it happens that within nEpochs most samples
@@ -42,6 +41,17 @@ class PPO : public Learner
     #endif
   }
 
+  Policy_t prepare_policy(const Rvec& O,
+                          const Rvec  ACT = Rvec(),
+                          const Rvec  MU  = Rvec()) const
+  {
+    Policy_t pol(pol_indices, &aInfo, O);
+    if(ACT.size()) {
+      assert(MU.size());
+      pol.prepare(ACT, MU);
+    }
+  }
+
   void Train(const Uint seq, const Uint samp,
     const Uint wID, const Uint bID, const Uint thrID) const;
 
@@ -50,10 +60,13 @@ class PPO : public Learner
 
   void updatePPO(Sequence*const seq) const;
 
-  static inline Real annealDiscount(const Real targ, const Real orig,
-    const Real t, const Real T=1e5) {
-      // this function makes 1/(1-ret) linearly go from
-      // 1/(1-orig) to 1/(1-targ) for t = 0:T. if t>=T it returns targ
+  static Real annealDiscount(const Real targ,
+                             const Real orig,
+                             const Real t,
+                             const Real T = 1e5)
+  {
+    // this function makes 1/(1-ret) linearly go from
+    // 1/(1-orig) to 1/(1-targ) for t = 0:T. if t>=T it returns targ
     assert(targ>=orig);
     return t<T ? 1 -(1-orig)*(1-targ)/(1-targ +(t/T)*(targ-orig)) : targ;
   }

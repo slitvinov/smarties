@@ -54,7 +54,6 @@ void Learner::initializeLearner()
 
   data->initialize();
 
-
   if( not computeQretrace ) return;
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
