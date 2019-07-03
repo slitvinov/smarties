@@ -103,7 +103,7 @@ inline std::unique_ptr<Learner> createLearner(
   if (settings.learner == "GAE" || settings.learner == "PPO")
   {
     settings.bSampleSequences = false;
-    if(aInfo.bDiscreteActions) {
+    if(MDP.bDiscreteActions) {
       using PPO_discrete = PPO<Discrete_policy, Uint>;
       MDP.policyVecDim = PPO_discrete::getnDimPolicy(&aInfo);
       o << MDP.maxActionLabel << " " << MDP.policyVecDim;

@@ -122,6 +122,10 @@ struct Discrete_policy
     return ret;
   }
 
+  Rvec policy_grad(const Real factor) const
+  {
+    return policy_grad(sampAct, factor);
+  }
   Rvec policy_grad(const Uint act, const Real factor) const {
     Rvec ret(nA);
     //for (Uint i=0; i<nA; ++i) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);

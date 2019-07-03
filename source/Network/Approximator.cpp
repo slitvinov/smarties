@@ -29,6 +29,10 @@ Approximator::~Approximator()
   if(gradStats not_eq nullptr) delete gradStats;
 }
 
+void Approximator::setBlockGradsToPreprocessing()
+{
+  m_blockInpGrad = true;
+}
 
 void Approximator::setNumberOfAddedSamples(const Uint nSamples)
 {

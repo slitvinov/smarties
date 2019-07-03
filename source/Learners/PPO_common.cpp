@@ -44,7 +44,7 @@ void PPO<Policy_t, Action_t>::setupNet()
     new Approximator("policy", settings, distrib, data.get(), encoder)
   );
   actor = networks.back();
-  actor->m_blockInpGrad = true;
+  actor->setBlockGradsToPreprocessing();
   actor->buildFromSettings(nA);
   if(isContinuous) {
     const Real explNoise = settings.explNoise;
@@ -73,23 +73,22 @@ void PPO<Policy_t, Action_t>::setupNet()
   #else
    trainInfo = new TrainData("PPO",distrib,1,"| beta |  DKL | avgW ",3);
   #endif
-  valPenal[0] = 1;
 }
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::updateGAE(Sequence& seq) const
 {
-  assert(seq.tuples.size());
-  assert(seq.tuples.size() == seq.state_vals.size());
+  assert(seq.states.size());
+  assert(seq.states.size() == seq.state_vals.size());
 
   //this is only triggered by t = 0 (or truncated trajectories)
   // at t=0 we do not have a reward, and we cannot compute delta
   //(if policy was updated after prev action we treat next state as initial)
   if(seq.state_vals.size() < 2)  return;
-  assert(seq.tuples.size() == 2+seq.Q_RET.size());
-  assert(seq.tuples.size() == 2+seq.action_adv.size());
+  assert(seq.states.size() == 2+seq.Q_RET.size());
+  assert(seq.states.size() == 2+seq.action_adv.size());
 
-  const Uint N = seq.tuples.size();
+  const Uint N = seq.states.size();
   const Fval vSold = seq.state_vals[N-2], vSnew = seq.state_vals[N-1];
   const Fval R = data->scaledReward(seq, N-1);
   // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
@@ -146,7 +145,7 @@ void PPO<Policy_t, Action_t>::initializeGAE()
 
   const Uint todoSize = data_get->nInProgress();
   for(Uint i = 0; i < todoSize; ++i) {
-    if(data_get->get(i)->tuples.size() <= 1) continue;
+    if(data_get->get(i)->states.size() <= 1) continue;
     for (Uint j=data_get->get(i)->ndata()-1; j>0; --j) {
       data_get->get(i)->action_adv[j] *= invstdR;
       data_get->get(i)->Q_RET[j] *= invstdR;
@@ -157,26 +156,26 @@ void PPO<Policy_t, Action_t>::initializeGAE()
 ///////////////////////////////////////////////////////////////////////
 /////////// TEMPLATE SPECIALIZATION FOR CONTINUOUS ACTIONS ////////////
 ///////////////////////////////////////////////////////////////////////
-template<>
-std::vector<Uint> PPO_contAct::count_pol_outputs(const ActionInfo*const aI)
+template<> std::vector<Uint> PPO<Gaussian_policy, Rvec>::
+count_pol_outputs(const ActionInfo*const aI)
 {
-  return std::vector<Uint>{aI->dim, aI->dim};
+  return std::vector<Uint>{aI->dim(), aI->dim()};
 }
-template<>
-std::vector<Uint> PPO_contAct::count_pol_starts(const ActionInfo*const aI)
+template<> std::vector<Uint> PPO<Gaussian_policy, Rvec>::
+count_pol_starts(const ActionInfo*const aI)
 {
-  const std::vector<Uint> indices = count_indices(count_pol_outputs(aI));
+  const std::vector<Uint> indices = Utilities::count_indices(count_pol_outputs(aI));
   return std::vector<Uint>{indices[0], indices[1]};
 }
-template<>
-Uint PPO_contAct::getnDimPolicy(const ActionInfo*const aI)
+template<> Uint PPO<Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI)
 {
-  return 2*aI->dim; // policy dimension is mean and diag covariance
+  return 2*aI->dim(); // policy dimension is mean and diag covariance
 }
 
-template<> PPO_contAct::
+template<> PPO<Gaussian_policy, Rvec>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
-  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&E->aI))
+  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
   printf("Continuous-action PPO\n");
   setupNet();
@@ -200,26 +199,26 @@ PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
 ///////////////////////////////////////////////////////////////////////
 //////////// TEMPLATE SPECIALIZATION FOR DISCRETE ACTIONS /////////////
 ///////////////////////////////////////////////////////////////////////
-template<>
-std::vector<Uint> PPO_discAct::count_pol_outputs(const ActionInfo*const aI)
+template<> std::vector<Uint> PPO<Discrete_policy, Uint>::
+count_pol_outputs(const ActionInfo*const aI)
 {
-  return std::vector<Uint>{aI->maxLabel};
+  return std::vector<Uint>{aI->dimDiscrete()};
 }
-template<>
-std::vector<Uint> PPO_discAct::count_pol_starts(const ActionInfo*const aI)
+template<> std::vector<Uint> PPO<Discrete_policy, Uint>::
+count_pol_starts(const ActionInfo*const aI)
 {
-  const std::vector<Uint> indices = count_indices(count_pol_outputs(aI));
+  const std::vector<Uint> indices = Utilities::count_indices(count_pol_outputs(aI));
   return std::vector<Uint>{indices[0]};
 }
-template<>
-Uint PPO_discAct::getnDimPolicy(const ActionInfo*const aI)
+template<> Uint PPO<Discrete_policy, Uint>::
+getnDimPolicy(const ActionInfo*const aI)
 {
-  return aI->maxLabel;
+  return aI->dimDiscrete();
 }
 
-template<> PPO_discAct::
+template<> PPO<Discrete_policy, Uint>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
-  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&E->aI))
+  Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
   printf("Discrete-action PPO\n");
   setupNet();

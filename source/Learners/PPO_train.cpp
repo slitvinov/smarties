@@ -27,9 +27,9 @@ void PPO<Policy_t, Action_t>::updatePenalizationCoef()
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::advanceEpochCounters()
 {
-  const Uint currStep = nStep()+1; //base class will advance this with this func
+  const Uint currStep = nGradSteps()+1; //base class will advance this with this func
   debugL("shift counters of epochs over the stored data");
-  cntBatch += batchSize;
+  cntBatch += settings.batchSize;
   if(cntBatch >= nHorizon) {
     using Utilities::annealRate;
     const Real annlLR = annealRate(settings.learnrate, currStep, epsAnneal);
@@ -65,13 +65,15 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   if(thrID==0)  profiler->stop_start("CMP");
 
-  const auto POL = prepare_policy<Policy_t>(pVec, S.actions[t], S.policies[t]);
+  const auto POL = prepare_policy(pVec, S.actions[t], S.policies[t]);
   const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
   const bool isOff = S.isFarPolicy(t, RHO, CmaxRet, CinvRet);
 
-  ++ penalUpdateCount;
-  if(DKL < DKL_target / 1.5) penalUpdateDelta -= penalCoef/2; //half
-  if(DKL > 1.5 * DKL_target) penalUpdateDelta += penalCoef; //double
+  penalUpdateCount = penalUpdateCount + 1.0;
+  if(DKL < DKL_target / 1.5)
+    penalUpdateDelta = penalUpdateDelta - penalCoef/2; //half
+  if(DKL > 1.5 * DKL_target)
+    penalUpdateDelta = penalUpdateDelta + penalCoef; //double
 
   Real gain = RHO * S.action_adv[t];
   #ifdef PPO_CLIPPED
@@ -83,15 +85,15 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   #ifdef PPO_PENALKL //*nonZero(gain)
     const Rvec polG = POL.policy_grad(gain);
     const Rvec penG = POL.div_kl_grad(S.policies[t], - penalCoef);
-    const Rvec totG = Utilities::weightSum2Grads(penal_grad, policy_grad);
+    const Rvec totG = Utilities::weightSum2Grads(polG, penG, 1);
   #else //we still learn the penal coef, for simplicity, but no effect
     const Rvec totG = POL.policy_grad(gain), penG = Rvec(policy_grad.size(), 0);
     const Rvec& polG = totalPolGrad;
   #endif
 
   assert(wID == 0);
-  Rvec grad(F[0]->nOutputs(), 0);
-  pol.finalize_grad(totalPolGrad, grad);
+  Rvec grad(actor->nOutputs(), 0);
+  POL.finalize_grad(totG, grad);
 
   //bookkeeping:
   const Real verr = S.Q_RET[t] - sVal[0]; // Q_ret actually stores V_gae here
@@ -104,7 +106,7 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   if(thrID==0)  profiler->stop_start("BCK");
   actor->setGradient(totG, bID, t);
-  critc->setGradient({ verr * ( isFarPol? 1 : 0 ) }, bID, t);
+  critc->setGradient({ verr * ( isOff? 1 : 0 ) }, bID, t);
 }
 
 }

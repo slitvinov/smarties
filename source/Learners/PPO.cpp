@@ -19,17 +19,18 @@
 #include "Math/Discrete_policy.h"
 #include "ReplayMemory/Collector.h"
 #include "Utils/SstreamUtilities.h"
-
-template class PPO<Discrete_policy, Uint>;
-template class PPO<Gaussian_policy, Rvec>;
-using PPO_contAct = PPO<Gaussian_policy, Rvec>;
-using PPO_discAct = PPO<Discrete_policy, Uint>;
+#include "ReplayMemory/MemoryProcessing.h"
 
 #include "PPO_common.cpp"
 #include "PPO_train.cpp"
 
 namespace smarties
 {
+
+template class PPO<Discrete_policy, Uint>;
+template class PPO<Gaussian_policy, Rvec>;
+using PPO_contAct = PPO<Gaussian_policy, Rvec>;
+using PPO_discAct = PPO<Discrete_policy, Uint>;
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::select(Agent& agent)
@@ -43,8 +44,8 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
     actor->load(MB, agent, 0);
     critc->load(MB, agent, 0);
     //Compute policy and value on most recent element of the sequence.
-    Gaussian_policy POL = prepare_policy(actor->forward(agent));
-    const Rvec sval = critc->forward_agent(agent);
+    auto POL = prepare_policy(actor->forward(agent));
+    const Rvec sval = critc->forward(agent);
     EP.state_vals.push_back(sval[0]); // not a terminal state
     Rvec MU = POL.getVector(); // vector-form current policy for storage
 
@@ -59,7 +60,7 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
   else if( agent.agentStatus == TRNC )
   {
     critc->load(MB, agent, 0);
-    const Rvec sval = critc->forward_agent(agent);
+    const Rvec sval = critc->forward(agent);
     EP.state_vals.push_back(sval[0]); // not a terminal state
   }
   else // TERM state

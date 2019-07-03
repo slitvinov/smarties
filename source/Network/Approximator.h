@@ -31,6 +31,8 @@ struct Approximator
   void setUseTargetNetworks(const Sint targetNetworkSampleID = -1,
                             const bool bTargetNetUsesTargetWeights = true);
 
+  void setBlockGradsToPreprocessing();
+
   void buildFromSettings(const Uint outputSize) {
     buildFromSettings( std::vector<Uint>(1, outputSize) );
   }

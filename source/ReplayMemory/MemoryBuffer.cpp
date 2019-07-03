@@ -92,8 +92,8 @@ Uint MemoryBuffer::clearOffPol(const Real C, const Real tol)
   while(1) {
     if(i>=Set.size()) break;
     Uint _nOffPol = 0;
+    const auto& EP = * Set[i];
     const Uint N = EP.ndata();
-    const auto & EP = * Set[i];
     for(Uint j=0; j<N; ++j)
       _nOffPol += EP.offPolicImpW[j] > 1+C || EP.offPolicImpW[j] < 1-C;
     if(_nOffPol > tol*N) {

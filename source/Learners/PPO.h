@@ -9,6 +9,7 @@
 #ifndef smarties_PPO_h
 #define smarties_PPO_h
 #include "Learner_approximator.h"
+#include "Utils/FunctionUtilities.h"
 
 namespace smarties
 {
@@ -22,14 +23,19 @@ class PPO : public Learner_approximator
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const std::vector<Uint> pol_outputs;
-  const std::vector<Uint> pol_indices = count_indices(pol_outputs);
-  const Uint nHorizon = settings.maxTotObsNum;
-  const Uint nEpochs = settings.batchSize/settings.obsPerStep;
+  const std::vector<Uint> pol_indices = Utilities::count_indices(pol_outputs);
+  const long nHorizon = settings.maxTotObsNum;
+  const long nEpochs = settings.batchSize/settings.obsPerStep;
 
-  mutable Uint cntBatch = 0, cntEpoch = 0, cntKept = 0;
+  mutable long cntBatch = 0, cntEpoch = 0, cntKept = 0;
   mutable std::atomic<Real> DKL_target{ settings.klDivConstraint };
   mutable std::atomic<Real> penalUpdateCount{ 0 }, penalUpdateDelta{ 0 };
   Real penalCoef = 1;
+
+  DelayedReductor<long double> penal_reduce;
+
+  Approximator* actor;
+  Approximator* critc;
 
   Policy_t prepare_policy(const Rvec& O,
                           const Rvec  ACT = Rvec(),
@@ -40,6 +46,7 @@ class PPO : public Learner_approximator
       assert(MU.size());
       pol.prepare(ACT, MU);
     }
+    return pol;
   }
 
   void Train(const MiniBatch& MB, const Uint, const Uint) const override;
