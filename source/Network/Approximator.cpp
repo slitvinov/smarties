@@ -86,9 +86,11 @@ void Approximator::initializeNetwork()
   const MDPdescriptor & MDP = replay->MDP;
   if(build->layers.back()->bOutput == false)
   {
-    warn("Requested net where last layer isnt output. Overridden: now it is");
+    assert(build->nOutputs == 0);
+    if (MPICommSize(MPI_COMM_WORLD) == 0)
+      warn("Requested net where last layer isnt output. Overridden: now it is");
     build->layers.back()->bOutput = true;
-    build->nOutputs += build->layers.back()->size;
+    build->nOutputs = build->layers.back()->size;
   }
   build->build();
   std::swap(net, build->net); std::swap(opt, build->opt);

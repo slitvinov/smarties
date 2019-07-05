@@ -79,8 +79,7 @@ void PPO<Policy_t, Action_t>::setupNet()
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::updateGAE(Sequence& seq) const
 {
-  assert(seq.states.size());
-  assert(seq.states.size() == seq.state_vals.size());
+  assert(seq.states.size()==seq.state_vals.size() && seq.states.size()>0);
 
   //this is only triggered by t = 0 (or truncated trajectories)
   // at t=0 we do not have a reward, and we cannot compute delta
@@ -89,13 +88,13 @@ void PPO<Policy_t, Action_t>::updateGAE(Sequence& seq) const
   assert(seq.states.size() == 2+seq.Q_RET.size());
   assert(seq.states.size() == 2+seq.action_adv.size());
 
-  const Uint N = seq.states.size();
+  const Sint N = seq.states.size();
   const Fval vSold = seq.state_vals[N-2], vSnew = seq.state_vals[N-1];
   const Fval R = data->scaledReward(seq, N-1);
   // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
   // received with transition to s_t+1, sometimes referred to as r_t)
 
-  const Fval delta = R +(Fval)gamma*vSnew -vSold;
+  const Fval delta = R + (Fval)gamma * vSnew - vSold;
   seq.action_adv.push_back(0);
   seq.Q_RET.push_back(0);
 
@@ -108,11 +107,11 @@ void PPO<Policy_t, Action_t>::updateGAE(Sequence& seq) const
   const Fval rGamma = settings.gamma, rLambda = settings.lambda;
   // reward of i=0 is 0, because before any action
   // adv(0) is also 0, V(0) = V(s_0)
-  for (int i=N-2; i>=0; i--) { //update all rewards before current step
+  for (Sint i=N-2; i>=0; --i) { //update all rewards before current step
     //will contain MC sum of returns:
     seq.Q_RET[i] += fac_gamma * R;
     //#ifndef IGNORE_CRITIC
-      seq.action_adv[i] += fac_lambda * delta;
+    seq.action_adv[i] += fac_lambda * delta;
     //#else
     //  seq.action_adv[i] += fac_gamma * R;
     //#endif
@@ -134,23 +133,19 @@ void PPO<Policy_t, Action_t>::initializeGAE()
   const Fval invstdR = data->scaledReward(1);
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < setSize; ++i) {
-    assert(data->get(i)->ndata()>=1);
-    assert(data->get(i)->action_adv.size() == data->get(i)->ndata());
-    assert(data->get(i)->Q_RET.size()      == data->get(i)->ndata());
-    assert(data->get(i)->state_vals.size() == data->get(i)->ndata()+1);
-    for (Uint j=data->get(i)->ndata()-1; j>0; --j) {
-      data->get(i)->action_adv[j] *= invstdR;
-      data->get(i)->Q_RET[j] *= invstdR;
-    }
+    Sequence& EP = * data->get(i);
+    assert(EP.ndata() >= 1 && EP.state_vals.size() == EP.ndata()+1);
+    assert(EP.action_adv.size() >= EP.ndata() && EP.Q_RET.size() >= EP.ndata());
+    for (Uint j=0; j<EP.action_adv.size(); ++j) EP.action_adv[j] *= invstdR;
+    for (Uint j=0; j<EP.Q_RET.size();      ++j) EP.Q_RET[j]      *= invstdR;
   }
 
   const Uint todoSize = data_get->nInProgress();
   for(Uint i = 0; i < todoSize; ++i) {
-    if(data_get->get(i)->states.size() <= 1) continue;
-    for (Uint j=data_get->get(i)->ndata()-1; j>0; --j) {
-      data_get->get(i)->action_adv[j] *= invstdR;
-      data_get->get(i)->Q_RET[j] *= invstdR;
-    }
+    Sequence& EP = * data_get->get(i);
+    if(EP.states.size() <= 1) continue;
+    for (Uint j=0; j<EP.action_adv.size(); ++j) EP.action_adv[j] *= invstdR;
+    for (Uint j=0; j<EP.Q_RET.size();      ++j) EP.Q_RET[j]      *= invstdR;
   }
 }
 
