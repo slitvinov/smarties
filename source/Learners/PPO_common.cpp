@@ -38,13 +38,14 @@ void PPO<Policy_t, Action_t>::setupNet()
     const bool bCreatedEncorder = createEncoder(0);
   #endif
   assert(networks.size() == bCreatedEncorder? 1 : 0);
+  if(bCreatedEncorder) networks[0]->initializeNetwork();
   const Approximator* const encoder = bCreatedEncorder? networks[0] : nullptr;
 
   networks.push_back(
     new Approximator("policy", settings, distrib, data.get(), encoder)
   );
   actor = networks.back();
-  actor->setBlockGradsToPreprocessing();
+  //actor->setBlockGradsToPreprocessing();
   actor->buildFromSettings(nA);
   if(isContinuous) {
     const Real explNoise = settings.explNoise;
