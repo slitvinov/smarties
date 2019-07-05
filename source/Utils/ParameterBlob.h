@@ -36,7 +36,7 @@ class ParameterBlob
   const DistributionInfo& distrib;
   const MPI_Comm comm = MPICommDup (distrib.master_workers_comm);
   const Uint nWorkers = MPICommSize(comm);
-  Uint lastCommGradID = 0; // shared initialization
+  //Uint lastCommGradID = 0; // shared initialization
   std::vector<MPI_Request> sendReqs;
 
   std::vector<dataInfo> dataList;

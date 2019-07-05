@@ -33,7 +33,6 @@ struct Conv2DLayer: public Layer
   using Kernel = ALIGNSPEC nnReal[InC][KnC][KnY][KnX];
   static constexpr int inp_size = InC*InX*InY;
   static constexpr int out_size = KnC*OpY*OpX;
-  const Uint link;
 
   void requiredParameters(std::vector<Uint>& nWeight,
                           std::vector<Uint>& nBiases ) const override {
@@ -49,7 +48,8 @@ struct Conv2DLayer: public Layer
   }
   void biasInitialValues(const std::vector<Real> init) override { }
 
-  Conv2DLayer(int _ID, bool bO, Uint iL): Layer(_ID, out_size, bO), link(iL)
+  Conv2DLayer(int _ID, bool bOut, Uint iLink):
+    Layer(_ID, out_size, bOut, false, iLink)
   {
     spanCompInpGrads = inp_size;
     static_assert(InC>0 && InY>0 && InX>0, "Invalid input image size");

@@ -14,8 +14,8 @@
 namespace smarties
 {
 
-class Discrete_policy;
-class Gaussian_policy;
+struct Discrete_policy;
+struct Gaussian_policy;
 
 template<typename Policy_t, typename Action_t>
 class PPO : public Learner_approximator

@@ -28,7 +28,7 @@ protected:
   void waitForStateActionCallers(const std::vector<Uint> givenWorkers);
 
 public:
-  Master(Settings& settings, DistributionInfo& distribinfo);
+  Master(Settings& , DistributionInfo& );
   virtual ~Master() override;
   void run() override;
   void spawnCallsHandlers();
@@ -85,7 +85,7 @@ public:
   }
 
 public:
-  MasterMPI(Settings& settings, DistributionInfo& distribinfo);
+  MasterMPI(Settings& , DistributionInfo& );
 };
 
 }

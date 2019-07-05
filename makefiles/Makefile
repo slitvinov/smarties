@@ -34,6 +34,8 @@ CPPFLAGS+= -I$(CURPWD)../extern/build/mpich-3.3/include/
 LIBS+= -L$(CURPWD)../extern/build/mpich-3.3/lib/
 MPICXX=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
 LD=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
+else
+LD=$(MPICXX)
 endif
 
 ifeq "$(shell $(MPICXX) --version | grep -ci 'icpc')" "0"
@@ -167,7 +169,8 @@ lib: CommunicatorLib.o
 exec: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o rl
 
-all: lib exec
+#all: lib exec
+all: exec
 
 %.o: %.cpp
 	$(MPICXX) $(extra)  $(CPPFLAGS) -c $< -o $@

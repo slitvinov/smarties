@@ -31,6 +31,7 @@ class Sampling
 
  public:
   Sampling(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSampleSeqs);
+  virtual ~Sampling() {}
   virtual void sample(std::vector<Uint>& seq, std::vector<Uint>& obs) = 0;
   virtual void prepare(std::atomic<bool>& needs_pass) = 0;
   void IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,

@@ -37,7 +37,7 @@ class MemoryBuffer
 
   friend class Sampling;
   friend class Collector;
-  friend struct DataCoordinator;
+  friend class DataCoordinator;
   friend class MemoryProcessing;
 
   std::vector<std::mt19937>& generators = distrib.generators;

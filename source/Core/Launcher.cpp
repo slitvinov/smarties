@@ -75,7 +75,7 @@ void Launcher::runApplication(const MPI_Comm envApplication_comm,
 {
   if(thisWorkerGroupID<0) die("Error in setup of envApplication_comm");
   assert(envApplication_comm not_eq MPI_COMM_NULL);
-  const Uint appRank = MPICommRank(envApplication_comm);
+  //const Uint appRank = MPICommRank(envApplication_comm);
   const Uint appSize = MPICommSize(envApplication_comm);
   // app only needs lower level functionalities:
   // ie. send state, recv action, specify state/action spaces properties...

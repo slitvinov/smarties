@@ -29,8 +29,6 @@ namespace smarties
 
 template class PPO<Discrete_policy, Uint>;
 template class PPO<Gaussian_policy, Rvec>;
-using PPO_contAct = PPO<Gaussian_policy, Rvec>;
-using PPO_discAct = PPO<Discrete_policy, Uint>;
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::select(Agent& agent)

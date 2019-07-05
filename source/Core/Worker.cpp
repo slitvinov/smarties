@@ -21,6 +21,7 @@ Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
   COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
   ENV( COMM->ENV ), agents( ENV.agents )
 {
+  /*
   if (0) { //}(distrib.bIsMaster) {
     // are we communicating with environments through sockets or mpi?
     //if(COMM->SOCK.clients.size()>0 == MPICommSize(master_workers_comm)>1);
@@ -31,6 +32,7 @@ Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
       assert(MPICommSize(master_workers_comm) == (size_t) nCallingEnvs+1);
     assert(COMM->BUFF.size() == (size_t) nCallingEnvs);
   }
+  */
 }
 
 void Worker::run()

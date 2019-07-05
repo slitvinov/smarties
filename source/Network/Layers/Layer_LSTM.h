@@ -54,7 +54,7 @@ class LSTMLayer: public Layer
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  virtual void biasInitialValues(const std::vector<Real> init) {}
+  void biasInitialValues(const std::vector<Real> init) override { }
 
   LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, std::string funcType,
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),

@@ -76,10 +76,10 @@ public:
   }
 
   static inline Real initializeMuEff(const std::vector<nnReal>popW,
-                                     const Uint populationSize)
+                                     const Uint popSize)
   {
     Real sum = 0, sumsq = 0;
-    for(Uint i=0; i<populationSize; ++i) {
+    for(Uint i=0; i<popSize; ++i) {
       #ifdef FDIFF_CMA
         const nnReal W = std::fabs( popW[i] );
       #else

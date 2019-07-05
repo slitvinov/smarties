@@ -82,8 +82,8 @@ template<> void DelayedReductor<long>::beginRDX()
                  MPI_LONG, MPI_SUM, mpicomm, &buffRequest);
 }
 
-template class DelayedReductor<long>;
-template class DelayedReductor<long double>;
+template struct DelayedReductor<long>;
+template struct DelayedReductor<long double>;
 
 TrainData::TrainData(const std::string _name, const DistributionInfo& distrib,
   bool bPPol, const std::string extrah, const Uint nextra) :

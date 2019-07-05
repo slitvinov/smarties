@@ -139,6 +139,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
 
 template class RACER<Discrete_advantage, Discrete_policy, Uint>;
 template class RACER<Param_advantage, Gaussian_policy, Rvec>;
+template class RACER<Zero_advantage, Gaussian_policy, Rvec>;
 //template class RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
 
 }
