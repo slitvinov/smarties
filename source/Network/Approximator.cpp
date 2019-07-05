@@ -92,6 +92,9 @@ void Approximator::initializeNetwork()
     build->layers.back()->bOutput = true;
     build->nOutputs = build->layers.back()->size;
   }
+  if(MPICommRank(MPI_COMM_WORLD) == 0) {
+    printf("Initializing %s approximator.\nLayers composition:\n",name.c_str());
+  }
   build->build();
   std::swap(net, build->net); std::swap(opt, build->opt);
   std::vector<std::shared_ptr<Parameters>> grads = build->threadGrads;

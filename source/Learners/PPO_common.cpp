@@ -67,7 +67,6 @@ void PPO<Policy_t, Action_t>::setupNet()
   settings.nnOutputFunc = "Linear"; // critic must be linear
   critc->buildFromSettings(1);
   critc->initializeNetwork();
-  printf("PPO\n");
 
   #ifdef PPO_learnDKLt
    trainInfo = new TrainData("PPO",distrib,1,"| beta |  DKL | avgW | DKLt ",4);
@@ -173,7 +172,11 @@ template<> PPO<Gaussian_policy, Rvec>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
-  printf("Continuous-action PPO\n");
+  if(MPICommRank(MPI_COMM_WORLD) == 0) printf(
+  "==========================================================================\n"
+  "                          Continuous-action PPO                           \n"
+  "==========================================================================\n"
+  );
   setupNet();
 
   #if 0
@@ -216,7 +219,11 @@ template<> PPO<Discrete_policy, Uint>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
-  printf("Discrete-action PPO\n");
+  if(MPICommRank(MPI_COMM_WORLD) == 0) printf(
+  "==========================================================================\n"
+  "                           Discrete-action PPO                            \n"
+  "==========================================================================\n"
+  );
   setupNet();
 }
 

@@ -125,7 +125,7 @@ void Builder::build(const bool isInputNet)
     l->initialize(gen, weights.get(),
       l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
-  if(MPICommRank(tmpComm) == 0) {
+  if(MPICommRank(MPI_COMM_WORLD) == 0) {
     for(const auto & l : layers) printf( "%s", l->printSpecs().c_str() );
   }
 

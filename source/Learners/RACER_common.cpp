@@ -143,10 +143,16 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   pol_start(count_pol_starts(&aInfo)), adv_start(count_adv_starts(&aInfo))
 {
   if(D_.world_rank == 0) {
-    using Utilities::vec2string;
-    printf("Discrete-action RACER\n"
-           "Built network with outputs: v:%lu pol:%s adv:%s\n",
-           VsID, vec2string(pol_start).c_str(), vec2string(adv_start).c_str());
+  using Utilities::vec2string;
+  printf(
+  "==========================================================================\n"
+  "               Discrete-action RACER with Bernoulli policy                \n"
+  "==========================================================================\n"
+  "    Single net with outputs: [%lu] : V(s),\n"
+  "                             [%s] : policy mean and stdev,\n"
+  "                             [%s] : advantage\n"
+  "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
+    vec2string(adv_start).c_str(), vec2string(net_outputs).c_str());
   }
   computeQretrace = true;
   setupNet();
@@ -195,11 +201,16 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   pol_start(count_pol_starts(&aInfo)), adv_start(count_adv_starts(&aInfo))
 {
   if(D_.world_rank == 0) {
-    using Utilities::vec2string;
-    printf("Gaussian continuous-action RACER\n"
-           "Built network with outputs: v:%lu pol:%s adv:%s (sorted %s)\n",
-           VsID, vec2string(pol_start).c_str(),
-           vec2string(adv_start).c_str(), vec2string(net_outputs).c_str());
+  using Utilities::vec2string;
+  printf(
+  "==========================================================================\n"
+  "               Continuous-action RACER with Gaussian policy               \n"
+  "==========================================================================\n"
+  "    Single net with outputs: [%lu] : V(s),\n"
+  "                             [%s] : policy mean and stdev,\n"
+  "                             [%s] : advantage\n"
+  "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
+    vec2string(adv_start).c_str(), vec2string(net_outputs).c_str());
   }
   computeQretrace = true;
   setupNet();
@@ -267,10 +278,15 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   pol_start(count_pol_starts(&aInfo)), adv_start(count_adv_starts(&aInfo))
 {
   if(D_.world_rank == 0) {
-    using Utilities::vec2string;
-    printf("Gaussian continuous-action V-RACER\n"
-           "Built network with outputs: v:%lu pol:%s (sorted %s)\n",
-           VsID, vec2string(pol_start).c_str(),vec2string(net_outputs).c_str());
+  using Utilities::vec2string;
+  printf(
+  "==========================================================================\n"
+  "              Continuous-action V-RACER with Gaussian policy              \n"
+  "==========================================================================\n"
+  "    Single net with outputs: [%lu] : V(s),\n"
+  "                             [%s] : policy mean and stdev,\n"
+  "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
+    vec2string(net_outputs).c_str());
   }
   computeQretrace = true;
   setupNet();
