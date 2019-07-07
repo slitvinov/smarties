@@ -244,7 +244,7 @@ struct Approximator
           {
             const Uint t = C.mapInd2Time(k);
             // assume that preprocessing is layer 0:
-            Rvec inputGrad = C.activation(k, samp)->getInputGradient(0);
+            Rvec inputGrad = C.activation(t, samp)->getInputGradient(0);
             // we might have added inputs, therefore trim those:
             inputGrad.resize(preprocessing->nOutputs());
             preprocessing->setGradient(inputGrad, batchID, t, samp);
