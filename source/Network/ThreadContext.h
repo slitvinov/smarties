@@ -61,7 +61,7 @@ struct ThreadContext
   }
 
   void load(const std::shared_ptr<Network> NET,
-            const MiniBatch&B,
+            const MiniBatch & B,
             const Uint batchID,
             const Uint weightID)
   {

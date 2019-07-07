@@ -100,10 +100,9 @@ void DPG::select(Agent& agent)
   data_get->add_state(agent);
   Sequence& EP = * data_get->get(agent.ID);
   const MiniBatch MB = data->agentToMinibatch(&EP);
-  actor->load(MB, agent, 0);
+  for (const auto & net : networks ) net->load(MB, agent, 0);
   #ifdef DPG_RETRACE_TGT
     const Uint currStep = EP.nsteps() - 1; assert(EP.nsteps()>0);
-    critc->load(MB, agent, 0);
   #endif
 
   if( agent.agentStatus < TERM ) // not end of sequence
@@ -125,9 +124,9 @@ void DPG::select(Agent& agent)
     #ifdef DPG_RETRACE_TGT
       //careful! act may be scaled to agent's action space, mean/sampAct aren't
       critc->setAddedInput(POL.sampAct,   agent, currStep);
-      const Rvec qval = F[1]->forward_agent(agent);
+      const Rvec qval = F[1]->forward(agent);
       critc->setAddedInput(POL.getMean(), agent, currStep);
-      const Rvec sval = F[1]->forward_agent(agent, true); // overwrite = true
+      const Rvec sval = F[1]->forward(agent, true); // overwrite = true
       EP.action_adv.push_back(qval[0]-sval[0]);
       EP.state_vals.push_back(sval[0]);
     #endif

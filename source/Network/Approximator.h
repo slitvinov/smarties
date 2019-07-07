@@ -71,8 +71,8 @@ struct Approximator
     threadsPerBatch[batchID] = thrID;
     assert(C.endBackPropStep(0)<0 && "Previous backprop did not finish?");
     C.load(net, B, batchID, wghtID);
-    if(preprocessing) preprocessing->load(B, batchID, wghtID);
-    if(auxInputNet) auxInputNet->load(B, batchID, wghtID);
+    //if(preprocessing) preprocessing->load(B, batchID, wghtID);
+    //if(auxInputNet) auxInputNet->load(B, batchID, wghtID);
   }
 
   void load(const MiniBatch& B, const Agent& agent, const Sint wghtID) const
@@ -80,8 +80,8 @@ struct Approximator
     assert(agentsContexts.size() > agent.ID);
     AgentContext & C = * agentsContexts[agent.ID].get();
     C.load(net, B, agent, wghtID);
-    if(preprocessing) preprocessing->load(B, agent, wghtID);
-    if(auxInputNet) auxInputNet->load(B, agent, wghtID);
+    //if(preprocessing) preprocessing->load(B, agent, wghtID);
+    //if(auxInputNet) auxInputNet->load(B, agent, wghtID);
   }
 
   template< typename contextid_t, typename val_t>
@@ -117,6 +117,7 @@ struct Approximator
     if(C.activation(t, sampID)->written)
       return C.activation(t, sampID)->getOutput();
     const Uint ind = C.mapTime2Ind(t);
+
     // compute previous outputs if needed by recurrencies. limitation. what should
     // we do for target net / additional samples?
     // next line assumes we want to use curr W and sample 0 for recurrencies:

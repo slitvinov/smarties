@@ -156,7 +156,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   const std::vector<Sequence*>& sampleE = ret.episodes;
   const nnReal impSampAnneal = std::min( (Real)1, stepID*settings.epsAnneal);
   const nnReal beta = 0.5 + 0.5 * impSampAnneal;
-
+  const bool bReqImpSamp = bRequireImportanceSampling();
   #pragma omp parallel for schedule(static) // collapse(2)
   for(Uint b=0; b<batchSize; ++b)
   for(Uint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
@@ -165,7 +165,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     ret.set_action(b, t, sampleE[b]->actions[t] );
     ret.set_mu(b, t, sampleE[b]->policies[t] );
     ret.reward(b, t) = scaledReward(sampleE[b], t);
-    if( bRequireImportanceSampling() ) {
+    if( bReqImpSamp ) {
       const nnReal impW_undef = sampleE[b]->priorityImpW[t];
       // if imp weight is 0 or less assume it was not computed and therefore
       // ep is probably a new experience that should be given high priority

@@ -217,7 +217,10 @@ struct MiniBatch
   }
   Uint mapTime2Ind(const Uint b, const Uint t) const
   {
-    assert(begTimeStep.size() > b && begTimeStep[b] <= t);
+    volatile int indexFake = -1;
+    begTimeStep[indexFake= 0 ;
+    assert(begTimeStep.size() >  b);
+    //assert(begTimeStep[b]     <= t);
     //ind is mapping from time stamp along trajectoy and along alloc memory
     return t - begTimeStep[b];
   }

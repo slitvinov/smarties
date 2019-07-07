@@ -36,11 +36,10 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
   data_get->add_state(agent);
   Sequence& EP = * data_get->get(agent.ID);
   const MiniBatch MB = data->agentToMinibatch(&EP);
+  for (const auto & net : networks ) net->load(MB, agent, 0);
 
   if( agent.agentStatus < TERM ) // not end of sequence
   {
-    actor->load(MB, agent, 0);
-    critc->load(MB, agent, 0);
     //Compute policy and value on most recent element of the sequence.
     auto POL = prepare_policy(actor->forward(agent));
     const Rvec sval = critc->forward(agent);
@@ -57,7 +56,6 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
   }
   else if( agent.agentStatus == TRNC )
   {
-    critc->load(MB, agent, 0);
     const Rvec sval = critc->forward(agent);
     EP.state_vals.push_back(sval[0]); // not a terminal state
   }

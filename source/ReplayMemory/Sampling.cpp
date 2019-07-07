@@ -54,6 +54,12 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   if(seq.size() not_eq obs.size()) die(" ");
 
   const long nSeqs = nSequences(), nData = nTransitions(), nBatch = obs.size();
+  #ifndef NDEBUG
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
+    assert(Set[i]->prefix == (Uint) locPrefix);
+    locPrefix += Set[i]->ndata();
+  }
+  #endif
 
   if(bSampleSequences)
   {

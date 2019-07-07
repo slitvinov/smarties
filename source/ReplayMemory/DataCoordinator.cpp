@@ -8,7 +8,7 @@
 
 #include "DataCoordinator.h"
 #include "Utils/FunctionUtilities.h"
-
+#include <unistd.h>
 
 namespace smarties
 {
@@ -207,7 +207,6 @@ void DataCoordinator::mastersRecvEpisodes()
       RecvSeq(EP, i, workerComm);
       int bSendParams = 0;
       MPI(Recv, &bSendParams, 1, MPI_INT, i, 89, workerComm, MPI_STATUS_IGNORE);
-      if(bSendParams) params.send(i, 0);
 
       nSeenTransitions_loc += nStep - 1; // we do not count init state
       nSeenSequences_loc += 1;
@@ -233,6 +232,11 @@ void DataCoordinator::mastersRecvEpisodes()
 
         IsendSize(shareSendSeqSize[I], I, sharingComm, shareSendSizeReq[I]);
         IsendSeq(shareSendSeq[I], I, sharingComm, shareSendSeqReq[I]);
+      }
+
+      if(bSendParams) {
+        while(allTasksPtr->dataAcquisitionIsLocked()) usleep(1);
+        params.send(i, 0);
       }
       if(sharingSize>0) sharingTurn = (sharingTurn+1) % sharingSize; //pick next
     }
