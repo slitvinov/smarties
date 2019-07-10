@@ -110,13 +110,6 @@ public:
   long nGradSteps() const {
     return _nGradSteps.load();
   }
-  Real annealingFactor() const {
-    //number that goes from 1 to 0 with optimizer's steps
-    assert(epsAnneal>1.);
-    const auto mynstep = nGradSteps();
-    if(mynstep*epsAnneal >= 1 || !bTrain) return 0;
-    else return 1 - mynstep*epsAnneal;
-  }
 
   virtual void select(Agent& agent) = 0;
   virtual void setupTasks(TaskQueue& tasks) = 0;

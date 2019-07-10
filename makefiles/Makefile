@@ -76,8 +76,12 @@ CPPFLAGS+= -I../extern/CLI11/include/
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = \
 	PPO.o \
+	NAF.o \
 	DPG.o \
+	DQN.o \
+	ACER.o \
 	RACER.o \
+	CMALearner.o \
 	Learner_pytorch.o \
 	Learner_approximator.o \
 	Sequences.o \
@@ -101,11 +105,6 @@ OBJ_FILES = \
 	Master.o \
 	Worker.o \
 	main.o
-	#RETPG.o \
-	#NAF.o \
-	#DQN.o \
-	#ACER.o \
-	#CMALearner.o \
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

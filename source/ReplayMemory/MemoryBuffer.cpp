@@ -164,7 +164,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     ret.state(b, t)  = standardizedState<nnReal>(sampleE[b], t);
     ret.set_action(b, t, sampleE[b]->actions[t] );
     ret.set_mu(b, t, sampleE[b]->policies[t] );
-    ret.reward(b, t) = scaledReward(sampleE[b], t);
+    ret.reward(b, t) = scaledReward(sampleE[b], t+1);
     if( bReqImpSamp ) {
       const nnReal impW_undef = sampleE[b]->priorityImpW[t];
       // if imp weight is 0 or less assume it was not computed and therefore
@@ -208,7 +208,7 @@ MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
     ret.state(0, t) = standardizedState<nnReal>(inProgress, t);
     ret.set_action(0, t, inProgress->actions[t] );
     ret.set_mu(0, t, inProgress->policies[t] );
-    ret.reward(0, t) = scaledReward(inProgress, t);
+    ret.reward(0, t) = scaledReward(inProgress, t+1);
   }
   return ret;
 }

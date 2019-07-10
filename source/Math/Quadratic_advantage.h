@@ -97,7 +97,7 @@ struct Quadratic_advantage: public Quadratic_term
   Real computeAdvantageNoncentral(const Rvec& action) const
   {
     Real ret = -quadraticTerm(action);
-    return 0.5*ret;
+    return ret / 2;
   }
 
   Rvec getMean() const
@@ -122,39 +122,11 @@ struct Quadratic_advantage: public Quadratic_term
     }
     Real ret = quadMatMul(policy->mean, PvarP);
     for (Uint i=0; i<nA; ++i)
-      ret += 0.5 * PvarP[nA*i+i] * policy->variance[i];
+      ret += PvarP[nA*i+i] * policy->variance[i] / 2;
     return ret;
   }
 
-  void test(const Rvec& act, mt19937*const gen) const
-  {
-    Rvec _grad(netOutputs.size(), 0);
-    grad(act, 1, _grad);
-    ofstream fout("mathtest.log", ios::app);
-    for(Uint i = 0; i<nL+nA; ++i)
-    {
-      Rvec out_1 = netOutputs, out_2 = netOutputs;
-      if(i>=nL && !start_mean) continue;
-      const Uint index = i>=nL ? start_mean+i-nL : start_matrix+i;
-      out_1[index] -= nnEPS;
-      out_2[index] += nnEPS;
-
-     Quadratic_advantage a1 = Quadratic_advantage(vector<Uint>{start_matrix, start_mean}, aInfo, out_1, policy);
-
-     Quadratic_advantage a2 = Quadratic_advantage(vector<Uint>{start_matrix, start_mean}, aInfo, out_2, policy);
-
-      const Real A_1 = a1.computeAdvantage(act);
-      const Real A_2 = a2.computeAdvantage(act);
-     {
-       const double diffVal = (A_2-A_1)/(2*nnEPS);
-       const double gradVal = _grad[index];
-       const double errVal  = std::fabs(_grad[index]-(A_2-A_1)/(2*nnEPS));
-       fout<<"Advantage grad "<<i<<" finite differences "
-           <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
-     }
-    }
-    fout.close();
-  }
+  void test(const Rvec& act, std::mt19937*const gen) const;
 };
 
 } // end namespace smarties

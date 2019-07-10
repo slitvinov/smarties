@@ -49,11 +49,7 @@ void PPO<Policy_t, Action_t>::setupNet()
   actor->buildFromSettings(nA);
   if(isContinuous) {
     const Real explNoise = settings.explNoise;
-    #ifdef EXTRACT_COVAR
-      const Real stdParam = Utilities::noiseMap_inverse(explNoise*explNoise);
-    #else
-      const Real stdParam = Utilities::noiseMap_inverse(explNoise);
-    #endif
+    const Rvec stdParam = Policy_t::initial_Stdev(&aInfo, explNoise);
     actor->getBuilder().addParamLayer(nA, "Linear", stdParam);
   }
   actor->initializeNetwork();

@@ -17,6 +17,15 @@ ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O0
 endif
 
+ifeq "$(config)" "segf"
+CPPFLAGS+= -g -O0 -fsanitize=address
+LIBS += -fsanitize=address
+endif
+ifeq "$(config)" "nans"
+CPPFLAGS+= -g -O0 -fsanitize=undefined
+LIBS += -fsanitize=undefined
+endif
+
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O3
 endif

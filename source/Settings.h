@@ -48,6 +48,7 @@ struct DistributionInfo
 
   bool bIsMaster;
   Uint nOwnedEnvironments = 0;
+  Uint nOwnedAgentsPerAlgo = 1;
   Uint nForkedProcesses2spawn = 0;
 
   //random number generators (one per thread)

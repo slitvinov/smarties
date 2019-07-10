@@ -8,6 +8,7 @@
 
 #ifndef smarties_PPO_h
 #define smarties_PPO_h
+
 #include "Learner_approximator.h"
 #include "Utils/FunctionUtilities.h"
 

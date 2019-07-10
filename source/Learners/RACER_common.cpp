@@ -8,23 +8,13 @@
 #include "Network/Builder.h"
 #include "Utils/SstreamUtilities.h"
 
-#ifndef ADV_QUAD
-//#include "../Math/Mixture_advantage_gaus.h"
-#include "Math/Gaus_advantage.h"
-#else
-//#include "../Math/Mixture_advantage_quad.h"
-#include "Math/Quadratic_advantage.h"
-#endif
-#include "Math/Discrete_advantage.h"
-#include "Math/Zero_advantage.h"
-
 namespace smarties
 {
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::prepareCMALoss()
 {
-  if(ESpopSize==1) return;
+  if(ESpopSize<=1) return;
 
   profiler->stop_start("LOSS");
   std::vector<Real> aR(batchSize, 0), aA(batchSize, 0);
@@ -61,8 +51,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   const std::type_info& vecT = typeid(Rvec);
   const bool isContinuous = actT.hash_code() == vecT.hash_code();
 
-  createEncoder(0);
   settings.splitLayers = 0;
+  createEncoder(0);
   // should have already created all hidden layers and this vec should be empty:
   assert(settings.nnLayerSizes.size() == 0);
   networks[0]->rename("net"); // not preprocessing, is is the main&only net
@@ -85,12 +75,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
 
     #ifdef RACER_simpleSigma // sigma not linked to state: param output
       networkBuilder.setLastLayersBias(biases);
-      #ifdef EXTRACT_COVAR
-        Real initParam = Utilities::noiseMap_inverse(explNoise*explNoise);
-      #else
-        Real initParam = Utilities::noiseMap_inverse(explNoise);
-      #endif
-      networkBuilder.addParamLayer(varianceSize, "Linear", initParam);
+      const Rvec stdParam = Policy_t::initial_Stdev(&aInfo, explNoise);
+      networkBuilder.addParamLayer(varianceSize, "Linear", stdParam);
     #else
       Policy_t::setInitial_Stdev(&aInfo, biases, explNoise);
       networkBuilder.setLastLayersBias(biases);
@@ -102,6 +88,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   networks[0]->initializeNetwork();
   //networks[0]->opt->bAnnealLearnRate= true;
   trainInfo = new TrainData("racer", distrib, 1, "| dAdv | avgW ", 2);
+  computeQretrace = true;
 }
 
 // Template specializations. From now on, nothing relevant to algorithm itself.
@@ -154,7 +141,6 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
     vec2string(adv_start).c_str(), vec2string(net_outputs).c_str());
   }
-  computeQretrace = true;
   setupNet();
 }
 
@@ -212,7 +198,6 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
     vec2string(adv_start).c_str(), vec2string(net_outputs).c_str());
   }
-  computeQretrace = true;
   setupNet();
 
   {  // TEST FINITE DIFFERENCES:
@@ -220,14 +205,14 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     std::normal_distribution<Real> dist(0, 1);
 
     for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5 * mu[i+nA] -1);
 
-    for(Uint i=0; i<=nL; ++i) output[i] = 0.5*dist(generators[0]);
+    for(Uint i=0; i<=nL; ++i) output[i] = 0.5 * dist(generators[0]);
     for(Uint i=0; i<nA; ++i)
       output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];
     for(Uint i=0; i<nA; ++i) {
       const Real muVar = Utilities::noiseMap_inverse(mu[i+nA]);
-      output[1+nL+i+nA] = muVar + .1*dist(generators[0]);
+      output[1+nL+i+nA] = muVar + 0.1 * dist(generators[0]);
     }
 
     auto pol = prepare_policy<Gaussian_policy>(output);
@@ -288,7 +273,6 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "    Size per entry = [%s].\n", VsID, vec2string(pol_start).c_str(),
     vec2string(net_outputs).c_str());
   }
-  computeQretrace = true;
   setupNet();
 
   {  // TEST FINITE DIFFERENCES:
@@ -357,7 +341,6 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner_approxim
   if(_set.learner_rank == 0) {
     printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
   }
-  computeQretrace = true;
   setupNet();
 
   {  // TEST FINITE DIFFERENCES:

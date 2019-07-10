@@ -11,25 +11,23 @@
 
 #include "PPO.h"
 #include "DPG.h"
+#include "DQN.h"
+#include "NAF.h"
+#include "ACER.h"
 #include "RACER.h"
+#include "CMALearner.h"
 #include "Learner_pytorch.h"
+
 #include <fstream>
 #include <sstream>
 
 namespace smarties
 {
 
-/*
-#include "DQN.h"
-#include "ACER.h"
-#include "NAF.h"
-#include "CMALearner.h"
-*/
-
-inline static void printLogfile(std::ostringstream& o, std::string fname, int rank)
+inline static void printLogfile(std::ostringstream&o, std::string fn, int rank)
 {
   if(rank != 0) return;
-  std::ofstream fout(fname.c_str(), std::ios::app);
+  std::ofstream fout(fn.c_str(), std::ios::app);
   fout << o.str() << std::endl;
   fout.flush();
   fout.close();
@@ -117,74 +115,66 @@ inline std::unique_ptr<Learner> createLearner(
       ret = std::make_unique<PPO_continuous>(MDP, settings, distrib);
     }
   }
-  /*
   else
-  if(settings.learner=="NFQ" || settings.learner=="DQN") {
-    assert(aInfo.discrete);
-    o << MDP.maxActionLabel << " " << MDP.maxActionLabel;
-    printLogfile(o, "problem_size.log", distrib.world_rank);
-    MDP.policyVecDim = MDP.maxActionLabel;
-    ret = new DQN(env, settings);
-  }
-  else if (settings.learner == "ACER")
+  if (settings.learner == "ACER")
   {
     settings.bSampleSequences = true;
-    assert(aInfo.discrete == false);
+    if(MDP.bDiscreteActions)
+      die("implemented ACER supports only continuous-action problems");
     MDP.policyVecDim = ACER::getnDimPolicy(&aInfo);
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
-    ret = new ACER(env, settings);
+    ret = std::make_unique<ACER>(MDP, settings, distrib);
+  }
+  else
+  if(settings.learner=="NFQ" || settings.learner=="DQN")
+  {
+    if(not MDP.bDiscreteActions)
+      die("DQN supports only discrete-action problems");
+    settings.bSampleSequences = false;
+    o << MDP.maxActionLabel << " " << MDP.maxActionLabel;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
+    MDP.policyVecDim = MDP.maxActionLabel;
+    ret = std::make_unique<DQN>(MDP, settings, distrib);
   }
   else
   if (settings.learner == "NA" || settings.learner == "NAF")
   {
     settings.bSampleSequences = false;
     MDP.policyVecDim = 2*MDP.dimAction;
-    assert(not aInfo.discrete);
+    assert(not MDP.bDiscreteActions);
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
-    ret = new NAF(env, settings);
-  }
-  else
-  if (settings.learner == "RETPG")
-  {
-    settings.bSampleSequences = false;
-    MDP.policyVecDim = 2*MDP.dimAction;
-    // non-NPER DPG is unstable with annealed network learn rate
-    // because critic network must adapt quickly
-    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << MDP.dimAction << " " << MDP.policyVecDim;
-    printLogfile(o, "problem_size.log", distrib.world_rank);
-    ret = new RETPG(env, settings);
+    ret = std::make_unique<NAF>(MDP, settings, distrib);
   }
   else
   if (settings.learner == "CMA")
   {
-    settings.batchSize_loc = settings.batchSize;
-    if(settings.ESpopSize<2)
-      die("Must be coupled with CMA. Set ESpopSize>1");
-    if( settings.nWorkers % settings.learner_size )
-      die("nWorkers must be multiple of learner ranks");
-    if( settings.ESpopSize % settings.learner_size )
-      die("CMA pop size must be multiple of learners");
-    if( settings.ESpopSize % settings.nWorkers )
-      die("CMA pop size must be multiple of nWorkers");
+    //if(settings.ESpopSize<2)
+    //  die("Must be coupled with CMA. Set ESpopSize>1");
+    //if( settings.nWorkers % settings.learner_size )
+    //  die("nWorkers must be multiple of learner ranks");
+    //if( settings.ESpopSize % settings.learner_size )
+    //  die("CMA pop size must be multiple of learners");
+    //if( settings.ESpopSize % settings.nWorkers )
+    //  die("CMA pop size must be multiple of nWorkers");
 
-    if(aInfo.discrete) {
+    if(MDP.bDiscreteActions) {
       using CMA_discrete = CMALearner<Uint>;
       MDP.policyVecDim = CMA_discrete::getnDimPolicy(&aInfo);
       o << MDP.maxActionLabel << " " << MDP.policyVecDim;
       printLogfile(o, "problem_size.log", distrib.world_rank);
-      ret = new CMA_discrete(env, settings);
+      ret = std::make_unique<CMA_discrete>(MDP, settings, distrib);
     } else {
       using CMA_continuous = CMALearner<Rvec>;
       MDP.policyVecDim = CMA_continuous::getnDimPolicy(&aInfo);
       if(settings.explNoise > 0) MDP.policyVecDim += MDP.dimAction;
       o << MDP.dimAction << " " << MDP.policyVecDim;
       printLogfile(o, "problem_size.log", distrib.world_rank);
-      ret = new CMA_continuous(env, settings);
+      ret = std::make_unique<CMA_continuous>(MDP, settings, distrib);
     }
   }
+  /*
   */
   else die("Learning algorithm not recognized");
 

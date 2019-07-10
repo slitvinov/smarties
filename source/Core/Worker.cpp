@@ -267,9 +267,12 @@ void Worker::synchronizeEnvironments()
   // return if this process should not host the learning algorithms
   if(not distrib.bIsMaster and not distrib.learnersOnWorkers) return;
 
-  const Uint nLearners = ENV.bAgentsHaveSeparateMDPdescriptors? 1 : ENV.nAgentsPerEnvironment;
-  learners.reserve(nLearners);
-  for(Uint i = 0; i<nLearners; ++i)
+  const Uint nAlgorithms =
+    ENV.bAgentsHaveSeparateMDPdescriptors? ENV.nAgentsPerEnvironment : 1;
+  distrib.nOwnedAgentsPerAlgo =
+    distrib.nOwnedEnvironments * ENV.nAgentsPerEnvironment / nAlgorithms;
+  learners.reserve(nAlgorithms);
+  for(Uint i = 0; i<nAlgorithms; ++i)
   {
     char lName[256]; sprintf(lName, "agent_%02lu", i);
     if(distrib.world_rank == 0) printf("Learner: %s\n", lName);

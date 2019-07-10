@@ -9,7 +9,11 @@
 #ifndef smarties_Gaussian_policy_h
 #define smarties_Gaussian_policy_h
 
-#include "Utils/FunctionUtilities.h"
+#include "Network/Layers/Functions.h"
+
+#ifndef PosDefMapping_f
+#define PosDefMapping_f SoftPlus
+#endif
 
 namespace smarties
 {
@@ -30,73 +34,98 @@ struct Gaussian_policy
 
  public:
 
-  Rvec map_action(const Rvec& sent) const {
+  Rvec map_action(const Rvec& sent) const
+  {
     return aInfo->scaledAction2action(sent);
   }
-  static Uint compute_nA(const ActionInfo* const aI) {
+  static Uint compute_nA(const ActionInfo* const aI)
+  {
     assert(aI->dim()); return aI->dim();
   }
 
-  Gaussian_policy(const std::vector<Uint> start, const ActionInfo*const aI,
-    const Rvec&out) : aInfo(aI), start_mean(start[0]),
-    start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim()), netOutputs(out),
+  static Real extract_stdev(const Real unbounbed)
+  {
+    #ifdef EXTRACT_COVAR
+      return std::sqrt( PosDefMapping_f::_eval(unbounbed) );
+    #else
+      return            PosDefMapping_f::_eval(unbounbed)  ;
+    #endif
+  }
+
+  Gaussian_policy(const std::vector<Uint> start,
+                    const ActionInfo*const aI,
+                    const Rvec&out) :
+    aInfo(aI), start_mean(start[0]),
+    start_prec(start.size()>1 ? start[1] : 0),
+    nA(aI->dim()), netOutputs(out),
     mean(extract_mean()), stdev(extract_stdev()),
-    variance(extract_variance()), precision(extract_precision()) {}
+    variance(extract_variance()),
+    precision(extract_precision()) {}
 
  private:
-  Rvec extract_mean() const {
+
+  Rvec extract_mean() const
+  {
     assert(netOutputs.size() >= start_mean + nA);
     return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean+nA]));
   }
-  Rvec extract_precision() const {
+
+  Rvec extract_precision() const
+  {
     Rvec ret(nA);
     assert(variance.size() == nA);
     for (Uint j=0; j<nA; ++j) ret[j] = 1/variance[j];
     return ret;
   }
-  #ifdef EXTRACT_COVAR
-    Rvec extract_stdev() const {
-      Rvec ret(nA);
-      assert(netOutputs.size() >= start_prec + nA);
-      for(Uint i=0; i<nA; ++i)
-        ret[i] = std::sqrt( Utilities::noiseMap_func(netOutputs[start_prec+i]) );
-      return ret;
-    }
-  #else
-    Rvec extract_stdev() const {
-      Rvec ret(nA);
-      assert(netOutputs.size() >= start_prec + nA);
-      for(Uint i=0; i<nA; ++i)
-        ret[i] = Utilities::noiseMap_func(netOutputs[start_prec+i]);
-      return ret;
-    }
-  #endif
 
-  Rvec extract_variance() const {
+  Rvec extract_stdev() const
+  {
+    Rvec ret(nA);
+    assert(netOutputs.size() >= start_prec + nA);
+    for(Uint i=0; i<nA; ++i) ret[i] = extract_stdev(netOutputs[start_prec+i]);
+    return ret;
+  }
+
+  Rvec extract_variance() const
+  {
     Rvec ret(nA);
     assert(stdev.size() == nA);
     for(Uint i=0; i<nA; ++i) ret[i] = stdev[i]*stdev[i];
     return ret;
   }
 
-  static long double oneDnormal(const Real A,const Real M,const Real P) {
-    const long double arg = .5 * std::pow(A-M,2) * P;
+  static long double oneDnormal(const Real A,const Real M,const Real P)
+  {
+    const long double arg = std::pow(A-M,2) * P / 2;
     return std::sqrt(P/M_PI/2)*std::exp(-arg);
   }
 
- public:
+public:
+
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<aI->dim(); e++) initBias.push_back(0);
   }
-  static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
+
+  static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, Real S)
   {
-    for(Uint e=0; e<aI->dim(); e++)
+    if(S<=0) {
+      printf("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.\n");
+      S = std::numeric_limits<float>::epsilon();
+    }
     #ifdef EXTRACT_COVAR
-      O.push_back(Utilities::noiseMap_inverse(S*S));
+      const Real invFS = PosDefMapping_f::_inv(S*S);
     #else
-      O.push_back(Utilities::noiseMap_inverse(S));
+      const Real invFS = PosDefMapping_f::_inv(S);
     #endif
+    for(Uint e=0; e<aI->dim(); ++e) O.push_back(invFS);
+  }
+
+  static Rvec initial_Stdev(const ActionInfo*const aI, const Real S)
+  {
+    Rvec ret; ret.reserve(aI->dim());
+    setInitial_Stdev(aI, ret, S);
+    return ret;
   }
 
   void prepare(const Rvec& unbact, const Rvec& beta)
@@ -110,7 +139,8 @@ struct Gaussian_policy
     sampKLdiv = kl_divergence(beta);
   }
 
-  long double evalBehavior(const Rvec& act, const Rvec& beta) const {
+  long double evalBehavior(const Rvec& act, const Rvec& beta) const
+  {
     long double pi  = 1;
     assert(act.size() == nA);
     for(Uint i=0; i<nA; ++i) {
@@ -120,13 +150,15 @@ struct Gaussian_policy
     return pi;
   }
 
-  long double evalProbability(const Rvec& act) const {
+  long double evalProbability(const Rvec& act) const
+  {
     long double pi  = 1;
     for(Uint i=0; i<nA; ++i) pi *= oneDnormal(act[i], mean[i], precision[i]);
     return pi;
   }
 
-  Real evalLogBehavior(const Rvec& A, const Rvec& beta) const {
+  Real evalLogBehavior(const Rvec& A, const Rvec& beta) const
+  {
     Real p = 0;
     for(Uint i=0; i<nA; ++i) {
       const Real M = beta[i], s = beta[nA+i];
@@ -135,13 +167,14 @@ struct Gaussian_policy
     return 0.5 * p;
   }
 
-  Real evalLogProbability(const Rvec& act) const {
+  Real evalLogProbability(const Rvec& act) const
+  {
     Real p = 0;
     for(Uint i=0; i<nA; ++i) {
       p -= precision[i] * std::pow(act[i]-mean[i], 2);
-      p += std::log(0.5*precision[i]/M_PI);
+      p += std::log(precision[i]/M_PI/2);
     }
-    return 0.5 * p;
+    return p / 2;
   }
 
   static Rvec sample(std::mt19937*const gen, const Rvec& beta)
@@ -191,8 +224,10 @@ struct Gaussian_policy
     return ret;
   }
 
-  Rvec div_kl_grad(const Gaussian_policy*const MU,const Real F=1) const {
-    const Rvec vecTarget = MU->getVector();
+  template<typename T>
+  Rvec div_kl_grad(const T*const tgt_pol,const Real F=1) const
+  {
+    const Rvec vecTarget = tgt_pol->getVector();
     return div_kl_grad(vecTarget, F);
   }
   Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
@@ -210,8 +245,10 @@ struct Gaussian_policy
     return ret;
   }
 
-  Real kl_divergence(const Gaussian_policy*const pol_hat) const {
-    const Rvec vecTarget = pol_hat->getVector();
+  template<typename T>
+  Real kl_divergence(const T*const tgt_pol) const
+  {
+    const Rvec vecTarget = tgt_pol->getVector();
     return kl_divergence(vecTarget);
   }
   Real kl_divergence(const Rvec& beta) const
@@ -236,7 +273,7 @@ struct Gaussian_policy
     return aInfo->action2scaledAction(sampAct);
   }
 
-  void finalize_grad(const Rvec grad, Rvec&netGradient) const
+  void finalize_grad(const Rvec grad, Rvec& netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; ++j) {
@@ -252,7 +289,7 @@ struct Gaussian_policy
 
     for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; ++j, iS++) {
       assert(netGradient.size()>=start_prec+nA);
-      netGradient[iS] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
+      netGradient[iS] = grad[j+nA] * PosDefMapping_f::_evalDiff(netOutputs[iS]);
     }
   }
 
@@ -267,7 +304,7 @@ struct Gaussian_policy
 
     if(start_prec != 0)
     for (Uint j=0, iS=start_prec; j<nA; ++j, iS++)
-      ret[j+nA] = grad[j+nA] * Utilities::noiseMap_diff(netOutputs[iS]);
+      ret[j+nA] = grad[j+nA] * PosDefMapping_f::_evalDiff(netOutputs[iS]);
     return ret;
   }
 
@@ -305,6 +342,7 @@ struct Gaussian_policy
 
   void test(const Rvec& act, const Rvec& beta) const;
 };
+
 
 } // end namespace smarties
 #endif // smarties_Gaussian_policy_h

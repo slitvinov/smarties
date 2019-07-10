@@ -47,26 +47,32 @@ struct Linear : public Function
   {
     return std::sqrt(1./inps);
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(1./inps);
   }
+
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
     memcpy(out, in, N*sizeof(nnReal));
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     memcpy(out, in, N*sizeof(nnReal));
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
     return in;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return 1;
   }
+
   nnReal eval(const nnReal in) const override
   {
     return in;
@@ -83,30 +89,34 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
-  std::string name() const override { return "Tanh";}
+  std::string name() const override { return "Tanh"; }
+
   Real initFactor(const Uint inps, const Uint outs) const override
   {
     return std::sqrt(6./(inps + outs));
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(6./(inps + outs));
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
     if(in > 0) {
-      const nnReal e2x = std::exp(-2*in);
+      const T e2x = std::exp(-2*in);
       return (1-e2x)/(1+e2x);
     } else {
-      const nnReal e2x = std::exp( 2*in);
+      const T e2x = std::exp( 2*in);
       return (e2x-1)/(1+e2x);
     }
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return 1 - out*out;
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     for(Uint i=0; i<N; ++i) out[i] = _eval(in[i]);
   }
@@ -121,7 +131,7 @@ struct Tanh : public Function
   nnReal inverse(const nnReal in) const override
   {
     assert(std::fabs(in)<1);
-    return 0.5 * std::log((1+in)/(1-in));
+    return std::log((1+in)/(1-in)) / 2;
   }
   nnReal evalDiff(const nnReal in, const nnReal out) const override
   {
@@ -136,36 +146,43 @@ struct Sigm : public Function
   {
     return std::sqrt(6./(inps + outs));
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(6./(inps + outs));
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
     if(in > 0) return 1/(1+Utilities::safeExp(-in));
     else {
-      const nnReal ex = Utilities::safeExp(in);
+      const T ex = Utilities::safeExp(in);
       return ex/(1+ex);
     }
   }
-  static inline nnReal _inv(const nnReal in)
+
+  template <typename T> static T _inv(const T in)
   {
    assert(in > 0 && in < 1);
    return - std::log(1/in - 1);
   }
-  static inline nnReal _evalDiff(const nnReal in)
+
+  template <typename T> static T _evalDiff(const T in)
   {
-    const Real expx = Utilities::safeExp(in);
+    const T expx = Utilities::safeExp(in);
     return expx / std::pow(expx+1, 2);
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return out*(1-out);
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     for(Uint i=0; i<N; ++i) out[i] = _eval(in[i]);
   }
+
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
     for(Uint i=0; i<N; ++i) out[i] = _eval(in[i]);
@@ -191,20 +208,24 @@ struct HardSign : public Function
   {
     return std::sqrt(6./(inps + outs));
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(6./(inps + outs));
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
     return in/std::sqrt(1+in*in);
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
-    const nnReal denom = std::sqrt(1+in*in);
+    const T denom = std::sqrt(1+in*in);
     return 1/(denom*denom*denom);
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0; i<N; ++i) out[i] = in[i]/std::sqrt(1+in[i]*in[i]);
@@ -236,24 +257,29 @@ struct SoftSign : public Function
   {
     return std::sqrt(6./(inps + outs));
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(6./(inps + outs));
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
-    return SoftSign_FAC*in/(1 + SoftSign_FAC*std::fabs(in));
+    return SoftSign_FAC * in/(1 + SoftSign_FAC*std::fabs(in));
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
-    const nnReal denom = 1 + SoftSign_FAC*std::fabs(in);
+    const T denom = 1 + SoftSign_FAC*std::fabs(in);
     return SoftSign_FAC/(denom*denom);
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; ++i) out[i] = _eval(in[i]);
   }
+
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
     return _eval(in, out, N);
@@ -280,23 +306,28 @@ struct Relu : public Function
   {
     return std::sqrt(2./inps);
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(2./inps);
   }
-  static inline nnReal _eval(const nnReal in)
+
+  template <typename T> static T _eval(const T in)
   {
     return in>0 ? in : 0;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return in>0 ? 1 : 0;
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; ++i) out[i] = in[i]>0 ? in[i] : 0;
   }
+
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
     return _eval(in, out, N);
@@ -321,21 +352,21 @@ struct LRelu : public Function
   std::string name() const override { return "LRelu";}
   Real initFactor(const Uint inps, const Uint outs) const override
   {
-    return std::sqrt(1./inps);
+    return std::sqrt(1.0/inps);
   }
   static Real _initFactor(const Uint inps, const Uint outs)
   {
-    return std::sqrt(1./inps);
+    return std::sqrt(1.0/inps);
   }
-  static inline nnReal _eval(const nnReal in)
+  template <typename T> static T _eval(const T in)
   {
     return in>0 ? in : PRELU_FAC*in;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return in>0 ? 1 : PRELU_FAC;
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; ++i) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
@@ -362,33 +393,30 @@ struct LRelu : public Function
 struct ExpPlus : public Function
 {
   std::string name() const override { return "ExpPlus";}
-  Real initFactor(const Uint inps, const Uint outs) const override
-  {
+  Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
-  static Real _initFactor(const Uint inps, const Uint outs)
-  {
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
-  static inline nnReal _inv(const nnReal in)
-  {
+  template <typename T> static T _inv(const T in) {
     return std::log(Utilities::safeExp(in) - 1);
   }
   // Used here, std::exp is trigger happy with nans, therefore we clip it
   // between exp(-32) and exp(16).
-  static inline nnReal _eval(const nnReal in)
+  template <typename T> static T _eval(const T in)
   {
     return std::log(1 + Utilities::safeExp(in));
   }
-  static inline nnReal _evalDiff(const nnReal in)
+  template <typename T> static T _evalDiff(const T in)
   {
     return 1/(1 + Utilities::safeExp(-in));
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return 1/(1 + Utilities::safeExp(-in));
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     for(Uint i=0; i<N; ++i) out[i] = _eval(in[i]);
   }
@@ -421,27 +449,27 @@ struct SoftPlus : public Function
   {
     return std::sqrt(2./inps);
   }
-  static inline nnReal _eval(const nnReal in)
+  template <typename T> static T _eval(const T in)
   {
-    return .5*(in + std::sqrt(1+in*in));
+    return (in + std::sqrt(1+in*in)) / 2;
   }
-  static inline nnReal _evalDiff(const nnReal in)
+  template <typename T> static T _evalDiff(const T in)
   {
-    return .5*(1 + in/std::sqrt(1+in*in));
+    return (1 + in/std::sqrt(1+in*in)) / 2;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
-    return .5*(1 + in/std::sqrt(1+in*in));
+    return (1 + in/std::sqrt(1+in*in)) / 2;
   }
-  static inline nnReal _inv(const nnReal in)
+  template <typename T> static T _inv(const T in)
   {
     assert(in > 0);
-    return (in*in - 0.25)/in;
+    return (in*in - (T)0.25)/in;
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
-    for (Uint i=0;i<N; ++i) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
+    for (Uint i=0;i<N; ++i) out[i] = (in[i] + std::sqrt(1+in[i]*in[i])) / 2;
   }
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
@@ -462,21 +490,37 @@ struct Exp : public Function
   {
     return std::sqrt(2./inps);
   }
+
   static Real _initFactor(const Uint inps, const Uint outs)
   {
     return std::sqrt(2./inps);
   }
-  static inline nnReal _eval(const nnReal in) {
+
+  template <typename T> static T _inv(const T in)
+  {
+    return std::log(in);
+  }
+
+  template <typename T> static T _eval(const T in)
+  {
     return Utilities::nnSafeExp(in);
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal out)
+
+  template <typename T> static T _evalDiff(const T in)
+  {
+    return Utilities::nnSafeExp(in);
+  }
+
+  template <typename T> static T _evalDiff(const T in, const T out)
   {
     return out;
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     for(Uint i=0; i<N; ++i) out[i] = Utilities::nnSafeExp(in[i]);
   }
+
   void eval(const nnReal*const in, nnReal*const out, const Uint N) const override
   {
     return _eval(in, out, N);
@@ -490,7 +534,8 @@ struct Exp : public Function
     assert(in > 0);
     return std::log(in);
   }
-  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+  nnReal evalDiff(const nnReal in, const nnReal out) const override
+  {
     return _evalDiff(in, out);
   }
 };
@@ -500,7 +545,7 @@ struct DualRelu
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N)
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N)
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0; i<N; ++i){
@@ -508,7 +553,7 @@ struct DualRelu
       out[2*i +1] = in[i]>0 ? in[i] : 0;
     }
   }
-  static inline void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N)
+  static void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N)
   {
     #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0; i<N; ++i)
@@ -521,14 +566,14 @@ struct DualLRelu
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
-  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
+  static void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; ++i){
       out[2*i +0] = in[i]<0 ? in[i] : PRELU_FAC*in[i];
       out[2*i +1] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
     }
   }
-  static inline void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N) {
+  static void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N) {
     #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0;i<N; ++i)
     E[i] = E[2*i]*(I[i]<0? 1:PRELU_FAC) +E[2*i+1]*(I[i]>0? 1:PRELU_FAC);

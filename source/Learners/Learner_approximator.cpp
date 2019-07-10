@@ -41,8 +41,8 @@ void Learner_approximator::spawnTrainTasks()
 
   profiler->stop_start("SAMP");
 
-  const Uint nThr = distrib.nThreads, CS =  settings.batchSize / nThr;
-  const Uint batchSize = settings.batchSize, ESpopSize = settings.ESpopSize;
+  const Uint batchSize=settings.batchSize_local, ESpopSize=settings.ESpopSize;
+  const Uint nThr = distrib.nThreads, CS =  batchSize / nThr;
   const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
 
   if(settings.bSampleSequences)

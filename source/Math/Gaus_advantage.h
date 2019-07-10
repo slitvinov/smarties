@@ -39,40 +39,49 @@ struct Gaussian_advantage
   const Gaussian_policy * const policy;
 
   //Normalized quadratic advantage, with own mean
-  Gaussian_advantage(const std::vector<Uint>& starts, const ActionInfo*const aI,
-   const Rvec& out, const Gaussian_policy*const pol) :
-   start_coefs(starts[0]), nA(aI->dim()), nL(compute_nL(aI)), netOutputs(out),
-   coef(extract_coefs(netOutputs,starts[0])),
-   matrix(extract_matrix(netOutputs,starts[0], aI->dim())),
+  Gaussian_advantage(const std::vector<Uint>& starts,
+                     const ActionInfo*const aI,
+                     const Rvec& out, const Gaussian_policy*const pol) :
+   start_coefs(starts[0]), nA(aI->dim()),
+   nL(compute_nL(aI)), netOutputs(out),
+   coef(extract_coefs(netOutputs, starts[0])),
+   matrix(extract_matrix(netOutputs, starts[0], aI->dim())),
    aInfo(aI), policy(pol) {}
 
 private:
-  static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA) {
+
+  static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA)
+  {
     Rvec ret = Rvec(2*nA);
     for(Uint i=0; i<2*nA; ++i)
-      ret[i] = Utilities::unbPosMap_func(net[start +1 +i]);
+      ret[i] = PosDefMapping_f::_eval(net[start +1 +i]);
 
     return ret;
   }
-  static Real extract_coefs(const Rvec net, const Uint start)  {
-    return Utilities::unbPosMap_func(net[start]);
+
+  static Real extract_coefs(const Rvec net, const Uint start)
+  {
+    return PosDefMapping_f::_eval(net[start]);
   }
 
-  void grad_matrix(Rvec& G, const Real err) const {
-    G[start_coefs] *= err * Utilities::unbPosMap_diff(netOutputs[start_coefs]);
-    for (Uint i=0, ind=start_coefs+1; i<2*nA; ++i, ind++)
-       G[ind] *= err * Utilities::unbPosMap_diff(netOutputs[ind]);
+  void grad_matrix(Rvec& G, const Real err) const
+  {
+    G[start_coefs] *= err * PosDefMapping_f::_evalDiff(netOutputs[start_coefs]);
+    for (Uint i=0, ind=start_coefs+1; i<2*nA; ++i, ++ind)
+       G[ind] *= err * PosDefMapping_f::_evalDiff(netOutputs[ind]);
   }
 
 public:
 
-  Real computeAdvantage(const Rvec& act) const {
-    const Real shape = -.5 * diagInvMul(act, matrix, policy->mean);
+  Real computeAdvantage(const Rvec& act) const
+  {
+    const Real shape = - diagInvMul(act, matrix, policy->mean) / 2;
     const Real ratio = coefMixRatio(matrix, policy->variance);
     return coef * ( std::exp(shape) - ratio );
   }
 
-  Real coefMixRatio(const Rvec&A, const Rvec&V) const {
+  Real coefMixRatio(const Rvec&A, const Rvec&V) const
+  {
     Real ret = 1;
     for (Uint i=0; i<nA; ++i)
       ret *= std::sqrt(A[i]/(A[i]+V[i]))/2 +std::sqrt(A[i+nA]/(A[i+nA]+V[i]))/2;
@@ -83,21 +92,21 @@ public:
   {
     assert(a.size()==nA);
 
-    const Real shape = -.5 * diagInvMul(a, matrix, policy->mean);
+    const Real shape = - diagInvMul(a, matrix, policy->mean) / 2;
     const Real orig = std::exp(shape);
     const Real expect = - coefMixRatio(matrix, policy->variance);
     G[start_coefs] += orig + expect;
 
-    for (Uint i=0, ind=start_coefs+1; i<nA; ++i, ind++) {
+    for (Uint i=0, ind=start_coefs+1; i<nA; ++i, ++ind) {
       const Real m = policy->mean[i], p1 = matrix[i], p2 = matrix[i+nA];
-      G[ind]   = a[i]>m ? orig*coef * std::pow((a[i]-m)/p1, 2)/2 : 0;
-      G[ind+nA]= a[i]<m ? orig*coef * std::pow((a[i]-m)/p2, 2)/2 : 0;
+      G[ind]   = a[i]>m ? orig * coef * std::pow((a[i]-m)/p1, 2) / 2 : 0;
+      G[ind+nA]= a[i]<m ? orig * coef * std::pow((a[i]-m)/p2, 2) / 2 : 0;
       const Real S = policy->variance[i];
       // inv of the pertinent coefMixRatio
       const Real F = 2 / (std::sqrt(p1/(p1+S)) + std::sqrt(p2/(p2+S)));
       //the derivatives of std::sqrt(A[i]/(A[i]+V[i])/2
-      const Real diff1 = 0.25* S/std::sqrt(p1 * std::pow(p1+S, 3));
-      const Real diff2 = 0.25* S/std::sqrt(p2 * std::pow(p2+S, 3));
+      const Real diff1 = S / std::sqrt(p1 * std::pow(p1+S, 3)) / 4;
+      const Real diff2 = S / std::sqrt(p2 * std::pow(p2+S, 3)) / 4;
       G[ind]    += F * expect*coef * diff1;
       G[ind+nA] += F * expect*coef * diff2;
     }
@@ -114,7 +123,7 @@ public:
     Real ret = 0;
     for (Uint i=0; i<nA; ++i) {
       const Uint matind = act[i]>mean[i] ? i : i+nA;
-      ret += std::pow(act[i]-mean[i],2)/mat[matind];
+      ret += std::pow(act[i]-mean[i], 2)/mat[matind];
     }
     return ret;
   }

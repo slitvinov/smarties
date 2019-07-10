@@ -9,8 +9,12 @@
 #ifndef smarties_Discrete_policy_h
 #define smarties_Discrete_policy_h
 
-#include "Utils/FunctionUtilities.h"
+#include "Network/Layers/Functions.h"
 //#include <algorithm>
+
+#ifndef PosDefMapping_f
+#define PosDefMapping_f SoftPlus
+#endif
 
 namespace smarties
 {
@@ -36,12 +40,19 @@ struct Discrete_policy
   }
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
-    for(Uint e=0; e<aI->dim(); e++)
+    for(Uint e=0; e<aI->dimDiscrete(); ++e)
     #ifdef EXTRACT_COVAR
-        O.push_back(Utilities::noiseMap_inverse(S*S));
+        O.push_back(PosDefMapping_f::_inv(S*S));
     #else
-        O.push_back(Utilities::noiseMap_inverse(S));
+        O.push_back(PosDefMapping_f::_inv(S));
     #endif
+  }
+
+  static Rvec initial_Stdev(const ActionInfo*const aI, const Real S)
+  {
+    Rvec ret; ret.reserve(aI->dimDiscrete());
+    setInitial_Stdev(aI, ret, S);
+    return ret;
   }
 
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
@@ -61,7 +72,7 @@ struct Discrete_policy
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
     for (Uint j=0; j<nA; ++j)
-      ret[j] = Utilities::unbPosMap_func(netOutputs[start_prob+j]);
+      ret[j] = PosDefMapping_f::_eval(netOutputs[start_prob+j]);
     return ret;
   }
 
@@ -163,8 +174,15 @@ struct Discrete_policy
   void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
-    for (Uint j=0; j<nA; ++j)
-    netGradient[start_prob+j]= grad[j]*Utilities::unbPosMap_diff(netOutputs[start_prob+j]);
+    for (Uint j=0, k=start_prob; j<nA; ++j, ++k)
+      netGradient[k]= grad[j] * PosDefMapping_f::_evalDiff(netOutputs[k]);
+  }
+  Rvec finalize_grad(const Rvec grad) const
+  {
+    Rvec ret(nA);
+    for (Uint j=0, k=start_prob; j<nA; ++j, ++k)
+      ret[j]= grad[j] * PosDefMapping_f::_evalDiff(netOutputs[k]);
+    return ret;
   }
 
   Rvec getProbs() const {
@@ -187,6 +205,7 @@ struct Discrete_policy
   }
 
   void test(const Uint act, const Rvec& beta) const;
+
 };
 
 } // end namespace smarties

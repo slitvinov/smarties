@@ -8,6 +8,16 @@
 
 #include "RACER.h"
 
+#ifndef ADV_QUAD
+//#include "../Math/Mixture_advantage_gaus.h"
+#include "Math/Gaus_advantage.h"
+#else
+//#include "../Math/Mixture_advantage_quad.h"
+#include "Math/Quadratic_advantage.h"
+#endif
+#include "Math/Discrete_advantage.h"
+#include "Math/Zero_advantage.h"
+
 #include "Utils/StatsTracker.h"
 #include "Network/Approximator.h"
 #include "ReplayMemory/Collector.h"

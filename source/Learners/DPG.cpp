@@ -58,11 +58,11 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     const Real dAdv = updateRetrace(S, t, q_curr[0]-v_curr[0], v_curr[0], RHO);
     const Real target = S.Q_RET[t];
   #else
-    Real target = data->scaledReward(S, t+1);
+    Real target = MB.reward(bID, t);
     if (not S.isTerminal(t+1) && not isOff) {
-      actor->forward(bID, t+1, -1); // policy at next step, with tgt weights
+      actor->forward_tgt(bID, t+1); // policy at next step, with tgt weights
       critc->setAddedInputType(NETWORK, bID, t+1, -1);
-      const Rvec v_next = critc->forward(bID, t+1, -1); //target value s_next
+      const Rvec v_next = critc->forward_tgt(bID, t+1); //target value s_next
       target += gamma * v_next[0];
     }
   #endif
@@ -190,8 +190,10 @@ void DPG::setupTasks(TaskQueue& tasks)
     prepareGradient();
     debugL("Search work to do in the Replay Memory");
     processMemoryBuffer(); // find old eps, update avg quantities ...
+    #ifdef DPG_RETRACE_TGT
     debugL("Update Retrace est. for episodes sampled in prev. grad update");
     updateRetraceEstimates();
+    #endif
     debugL("Compute state/rewards stats from the replay memory");
     finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
@@ -216,6 +218,12 @@ void DPG::setupTasks(TaskQueue& tasks)
 DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
+  if(MPICommRank(MPI_COMM_WORLD) == 0) printf(
+  "==========================================================================\n"
+  "                DDPG : Deep Deterministic Policy Gradients                \n"
+  "==========================================================================\n"
+  );
+
   settings.splitLayers = 0; // legacy
   #if 1 // create encoder where only conv layers are shared
     const bool bCreatedEncorder = createEncoder();
@@ -230,11 +238,8 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   );
   actor = networks.back();
   actor->buildFromSettings(nA);
-  #ifdef EXTRACT_COVAR
-    const Real stdParam = Utilities::noiseMap_inverse(explNoise*explNoise);
-  #else
-    const Real stdParam = Utilities::noiseMap_inverse(explNoise);
-  #endif
+  actor->setUseTargetNetworks();
+  const Rvec stdParam = Gaussian_policy::initial_Stdev(&aInfo, explNoise);
   actor->getBuilder().addParamLayer(nA, "Linear", stdParam);
   actor->initializeNetwork();
 
@@ -243,6 +248,7 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   );
   critc = networks.back();
   critc->setAddedInput(NETWORK, nA);
+  critc->setUseTargetNetworks();
   // update settings that are going to be read by critic:
   settings.learnrate *= 10; // DPG wants critic faster than actor
   settings.nnLambda = 1e-4; // also wants L2 penl coef
@@ -252,6 +258,9 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   printf("DPG\n");
 
   trainInfo = new TrainData("DPG", distrib, 1, "| beta | avgW ", 2);
+  #ifdef DPG_RETRACE_TGT
+    computeQretrace = true;
+  #endif
 }
 
 }

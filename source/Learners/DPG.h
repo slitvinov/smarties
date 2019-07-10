@@ -14,8 +14,6 @@
 namespace smarties
 {
 
-struct Gaussian_policy;
-
 class DPG : public Learner_approximator
 {
   const Uint nA = aInfo.dim();

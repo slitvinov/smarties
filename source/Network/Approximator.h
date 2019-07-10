@@ -75,7 +75,7 @@ struct Approximator
     //if(auxInputNet) auxInputNet->load(B, batchID, wghtID);
   }
 
-  void load(const MiniBatch& B, const Agent& agent, const Sint wghtID) const
+  void load(const MiniBatch& B, const Agent& agent, const Sint wghtID=0) const
   {
     assert(agentsContexts.size() > agent.ID);
     AgentContext & C = * agentsContexts[agent.ID].get();
@@ -158,6 +158,14 @@ struct Approximator
     return net->predict(INP, recur, activation, W);
   }
 
+  // forward target network
+  template< typename contextid_t >
+  Rvec forward_tgt(const contextid_t& contextID,
+                   const Uint t, const bool overwrite=false) const
+  {
+    return forward(contextID, t, -1, overwrite);
+  }
+
   // run network for agent's recent step
   Rvec forward(const Agent& agent, const bool overwrite = false) const
   {
@@ -230,6 +238,8 @@ struct Approximator
       for(Uint samp = 0; samp < activations.size(); ++samp)
       {
         const Sint last_error = C.endBackPropStep(samp);
+        if(last_error < 0) continue;
+
         const auto& timeSeries = activations[samp];
         for (Sint i=0; i<last_error; ++i)
           assert(timeSeries[i]->written == true);

@@ -33,20 +33,22 @@ struct Discrete_advantage
    const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->dimDiscrete()), netOutputs(out),
    advantages(extract(out)), policy(pol) {}
 
-  protected:
+protected:
   Rvec extract(const Rvec & v) const
   {
    assert(v.size() >= start_adv + nA);
    return Rvec( &(v[start_adv]), &(v[start_adv +nA]) );
   }
+
   Real expectedAdvantage() const
   {
    Real ret = 0;
-   for (Uint j=0; j<nA; ++j) ret += policy->probs[j]*advantages[j];
+   for (Uint j=0; j<nA; ++j) ret += policy->probs[j] * advantages[j];
    return ret;
   }
 
-  public:
+public:
+
   void grad(const Uint act, const Real Qer, Rvec&netGradient) const
   {
    if(policy not_eq nullptr)
@@ -59,8 +61,8 @@ struct Discrete_advantage
 
   Real computeAdvantage(const Uint action) const
   {
-   if(policy not_eq nullptr)
-     return advantages[action]-expectedAdvantage(); //subtract expectation from advantage of action
+   if(policy not_eq nullptr) //subtract expectation from advantage of action
+     return advantages[action] - expectedAdvantage();
    else return advantages[action];
   }
 
@@ -80,7 +82,7 @@ struct Discrete_advantage
    const Real base = expectedAdvantage();
    Real ret = 0;
    for (Uint j=0; j<nA; ++j)
-     ret += policy->probs[j]*(advantages[j]-base)*(advantages[j]-base);
+     ret += policy->probs[j] * (advantages[j]-base)*(advantages[j]-base);
    return ret;
   }
 
