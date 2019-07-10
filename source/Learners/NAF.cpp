@@ -86,7 +86,7 @@ void NAF::select(Agent& agent)
     Gaussian_policy POL({0, nA}, & aInfo, polvec);
 
     Rvec MU = POL.getVector();
-    const bool bSamplePolicy = settings.explNoise > 0;
+    const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
     //cout << print(MU) << endl;
     Rvec act = POL.finalize(bSamplePolicy, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)

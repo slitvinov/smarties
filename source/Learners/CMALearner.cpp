@@ -27,7 +27,7 @@ computeAction(Agent& agent, const Rvec netOutput) const
 {
   Discrete_policy POL({0}, & aInfo, netOutput);
   Rvec MU = POL.getVector();
-  const bool bSamplePol = settings.explNoise > 0;
+  const bool bSamplePol = settings.explNoise>0 && agent.trackSequence;
   Uint act = POL.finalize(bSamplePol, &generators[nThreads+agent.ID], MU);
   agent.act(act);
   data_get->add_action(agent, MU);
@@ -39,7 +39,7 @@ computeAction(Agent& agent, const Rvec netOutput) const
   Rvec pol = netOutput; // will store representation of policy
   Rvec act = netOutput; // will store action sent to agent
   const Uint nA = aInfo.dim();
-  const bool bSamplePol = settings.explNoise > 0;
+  const bool bSamplePol = settings.explNoise>0 && agent.trackSequence;
   if(bSamplePol)
   {
     assert(pol.size() == 2 * nA);

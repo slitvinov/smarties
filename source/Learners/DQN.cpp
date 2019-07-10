@@ -64,7 +64,7 @@ void DQN::select(Agent& agent)
     #ifdef DQN_USE_POLICY
       Discrete_policy POL({0}, &aInfo, outVec);
       Rvec MU = POL.getVector();
-      const bool bSamplePol = settings.explNoise > 0;
+      const bool bSamplePol = settings.explNoise>0 && agent.trackSequence;
       Uint act = POL.finalize(bSamplePol, &generators[nThreads+agent.ID], MU);
       agent.act(act);
     #else

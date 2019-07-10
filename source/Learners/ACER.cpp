@@ -142,7 +142,7 @@ void ACER::select(Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    const bool bSamplePolicy = settings.explNoise > 0;
+    const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
     auto act = POL.finalize(bSamplePolicy, &generators[nThreads+agent.ID], MU);
     agent.act(act);
     data_get->add_action(agent, MU);
