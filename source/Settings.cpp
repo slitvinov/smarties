@@ -264,7 +264,7 @@ void Settings::initializeOpts (CLI::App & parser)
   parser.add_option("--saveFreq",         saveFreq,         COMMENT_saveFreq);
   parser.add_option("--totNumSteps",      totNumSteps,      COMMENT_totNumSteps);
 
-
+  parser.add_option("--encoderLayerSizes",encoderLayerSizes,COMMENT_encoderLayerSizes);
   parser.add_option("--nnLayerSizes",     nnLayerSizes,     COMMENT_nnLayerSizes);
   parser.add_option("--batchSize",        batchSize,        COMMENT_batchSize);
   parser.add_option("--nnOutputFunc",     nnOutputFunc,     COMMENT_nnOutputFunc);
@@ -328,7 +328,6 @@ void Settings::check()
   }
 
   if(targetDelay<0)  die("targetDelay<0");
-  //if(splitLayers<0)  die("splitLayers<0");
   if(obsPerStep<0)   die("obsPerStep<0");
   if(learnrate>1)    die("learnrate>1");
   if(learnrate<0)    die("learnrate<0");

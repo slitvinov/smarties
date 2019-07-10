@@ -30,9 +30,8 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
 
   if(distrib.learnersOnWorkers && distrib.nOwnedEnvironments) {
     //warn("Creating communicator to send episodes from workers to learners.");
-    if(distrib.master_workers_comm == MPI_COMM_NULL) {
-      warn("learning algorithm entirely hosted on workers"); return;
-    }
+    if(distrib.master_workers_comm == MPI_COMM_NULL) return;
+
     workerComm = MPICommDup(distrib.master_workers_comm);
     // rank>0 (worker) will always send to rank==0 (master)
     workerSize = MPICommSize(workerComm);

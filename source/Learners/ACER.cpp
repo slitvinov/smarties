@@ -211,12 +211,7 @@ ACER::ACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "==========================================================================\n"
   );
 
-  settings.splitLayers = 0; // legacy
-  #if 1 // create encoder where only conv layers are shared
-    const bool bCreatedEncorder = createEncoder();
-  #else // create encoder with most layers are shared
-    const bool bCreatedEncorder = createEncoder(0);
-  #endif
+  const bool bCreatedEncorder = createEncoder();
   assert(networks.size() == bCreatedEncorder? 1 : 0);
   encoder = bCreatedEncorder? networks[0] : nullptr;
 

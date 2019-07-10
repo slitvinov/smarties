@@ -235,6 +235,11 @@ std::string restart = DEFAULT_restart;
 //SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
 ///////////////////////////////////////////////////////////////////////////////
 
+#define COMMENT_encoderLayerSizes "Sizes of non-convolutional encoder layers \
+(LSTM/RNN/FFNN). E.g. '128 128'."
+#define DEFAULT_encoderLayerSizes std::vector<Uint>(0)
+  std::vector<Uint> encoderLayerSizes = DEFAULT_encoderLayerSizes;
+
 #define COMMENT_nnLayerSizes "Sizes of non-convolutional layers \
 (LSTM/RNN/FFNN). E.g. '128 128'."
 #define DEFAULT_nnLayerSizes std::vector<Uint>(0)
@@ -282,16 +287,6 @@ multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
 #define COMMENT_nnBPTTseq "Number of previous steps considered by RNN."
 #define DEFAULT_nnBPTTseq 16
   Uint nnBPTTseq = DEFAULT_nnBPTTseq;
-
-#define COMMENT_splitLayers "DEPRECATED Number of split layers"
-//"For each output required by algorithm (ie. value, policy, std, ...) " \/
-//"how many non-conv layers should be devoted only to one o the outputs. " \/
-//"For example if there 2 FF layers of size Z and Y and this arg is set to 1,"\/
-//" then each of the outputs is connected to a separate layer of size Y. " \/
-//"Each of the Y-size layers are then connected to the first layer of size Z."
-#define DEFAULT_splitLayers 0
-  Uint splitLayers = DEFAULT_splitLayers;
-
 
   ///////////////////////////////////////////////////////////////////////////////
   //SETTINGS THAT ARE NOT READ FROM FILE

@@ -50,18 +50,20 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   const std::type_info& actT = typeid(Action_t);
   const std::type_info& vecT = typeid(Rvec);
   const bool isContinuous = actT.hash_code() == vecT.hash_code();
-
-  settings.splitLayers = 0;
-  createEncoder(0);
-  // should have already created all hidden layers and this vec should be empty:
-  assert(settings.nnLayerSizes.size() == 0);
-  networks[0]->rename("net"); // not preprocessing, is is the main&only net
   std::vector<Uint> nouts = count_outputs(&aInfo);
-
   #ifdef RACER_simpleSigma // variance not dependent on state
     const Uint varianceSize = nouts.back();
     if(isContinuous) nouts.pop_back();
   #endif
+
+  createEncoder();
+  // should have already created all hidden layers and this vec should be empty:
+  assert(networks.size() <= 1);
+  if(networks.size()>0) {
+    networks[0]->rename("net"); // not preprocessing, is is the main&only net
+  } else {
+    networks.push_back(new Approximator("net", settings, distrib, data.get()));
+  }
 
   networks[0]->buildFromSettings(nouts);
   Builder& networkBuilder = networks[0]->getBuilder();

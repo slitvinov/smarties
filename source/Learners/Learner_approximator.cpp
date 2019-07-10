@@ -126,31 +126,16 @@ void Learner_approximator::save()
 // from settings. The last privateLayersNum sizes of nnLayerSizes are not
 // added here because we assume those sizes will parameterize the approximators
 // that take the output of the preprocessor and produce policies,values, etc.
-bool Learner_approximator::createEncoder(Sint privateLayersNum)
+bool Learner_approximator::createEncoder()
 {
-  const Sint totLayersNum = settings.nnLayerSizes.size();
-  // If privateLayersNum defaults to -1, assumed that all are private. Meaning
-  // that each approximator will consists of all nnLayerSizes.
-  if(privateLayersNum<0) privateLayersNum = totLayersNum;
-  if(privateLayersNum>totLayersNum) privateLayersNum = totLayersNum;
-
-  const Uint nPreProcLayers = totLayersNum - privateLayersNum;
-  const std::vector<Uint> origLayers = settings.nnLayerSizes;
-  std::vector<Uint> preprocessingLayers = settings.nnLayerSizes;
-  preprocessingLayers.resize(nPreProcLayers); // take first nPreProcLayers
-
-  // remaining layer sizes in nnLayerSizes will be used by other approximators:
-  settings.nnLayerSizes.clear();
-  for(Sint i=nPreProcLayers; i<totLayersNum; ++i)
-    settings.nnLayerSizes.push_back( origLayers[i] );
-  assert( (Uint) privateLayersNum == settings.nnLayerSizes.size() );
+  const Uint nPreProcLayers = settings.encoderLayerSizes.size();
 
   if ( MDP.conv2dDescriptors.size() == 0 and nPreProcLayers == 0 )
     return false; // no preprocessing
 
   if(networks.size()>0) warn("some network was created before preprocessing");
-  networks.push_back(new Approximator("encoder", settings,distrib, data.get()));
-  networks.back()->buildPreprocessing(preprocessingLayers);
+  networks.push_back(new Approximator("encodr", settings,distrib, data.get()));
+  networks.back()->buildPreprocessing(settings.encoderLayerSizes);
 
   return true;
 }

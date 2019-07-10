@@ -217,39 +217,10 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
       build->addInput(inputSize);
   }
 
-  // User can specify how many layers exist independendlty for each output
-  // of the network. For example, if the settings file specifies 3 layer
-  // sizes and splitLayers=1, the network will have 2 shared bottom Layers
-  // (not counting input layer) and then for each of the outputs a separate
-  // third layer each connected back to the second layer.
-  const Uint nLayers = layerSizes.size();
-  const Uint nsplit = std::min((Uint) settings.splitLayers, nLayers);
-  const Uint firstSplit = nLayers - nsplit;
-
-  for(Uint i=0; i<firstSplit; ++i)
+  for(Uint i=0; i<layerSizes.size(); ++i)
     build->addLayer(layerSizes[i], funcType, false, netType);
 
-  if(nOuts > 0)
-  {
-    if(nsplit)
-    {
-      const Uint lastShared = build->layers.size() - 1;
-      for (Uint i=0; i<outputSizes.size(); ++i)
-      {
-        //`link' specifies how many layers back should layer take input from
-        // use layers.size()-lastShared >=1 to link back to last shared layer
-        const Uint nConnectBack = build->layers.size() - lastShared;
-        build->addLayer(layerSizes[firstSplit], funcType, false,
-                        netType, nConnectBack);
-
-        for (Uint j=firstSplit+1; j<layerSizes.size(); ++j)
-          build->addLayer(layerSizes[j], funcType, false, netType);
-
-        build->addLayer(outputSizes[i], settings.nnOutputFunc, true);
-      }
-    }
-    else build->addLayer(nOuts, settings.nnOutputFunc, true);
-  }
+  if(nOuts > 0) build->addLayer(nOuts, settings.nnOutputFunc, true);
 }
 
 void Approximator::buildPreprocessing(const std::vector<Uint> preprocLayers)

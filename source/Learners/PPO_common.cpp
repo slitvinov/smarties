@@ -31,12 +31,7 @@ void PPO<Policy_t, Action_t>::setupNet()
   const std::type_info & actT = typeid(Action_t), & vecT = typeid(Rvec);
   const bool isContinuous = actT.hash_code() == vecT.hash_code();
 
-  settings.splitLayers = 0; // legacy
-  #if 0 // create encoder where only conv layers are shared
-    const bool bCreatedEncorder = createEncoder();
-  #else // create encoder with most layers are shared
-    const bool bCreatedEncorder = createEncoder(0);
-  #endif
+  const bool bCreatedEncorder = createEncoder();
   assert(networks.size() == bCreatedEncorder? 1 : 0);
   if(bCreatedEncorder) networks[0]->initializeNetwork();
   const Approximator* const encoder = bCreatedEncorder? networks[0] : nullptr;

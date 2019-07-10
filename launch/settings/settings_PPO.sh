@@ -4,7 +4,8 @@ SETTINGS=
 #but, the agent might find better long-term strategies
 SETTINGS+=" --gamma 0.995"
 #size of network layers
-SETTINGS+=" --nnLayerSizes 64 64"
+SETTINGS+=" --nnLayerSizes 64"
+SETTINGS+=" --encoderLayerSizes 64" # shared by policy and value nets
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"

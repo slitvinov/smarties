@@ -22,7 +22,7 @@ class Learner_approximator: public Learner
   std::vector<Approximator*> networks;
 
   void initializeApproximators();
-  bool createEncoder(Sint privateLayersNum = -1);
+  bool createEncoder();
 
   virtual void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const=0;
   void spawnTrainTasks();

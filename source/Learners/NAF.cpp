@@ -41,10 +41,14 @@ NAF::NAF(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "==========================================================================\n"
   ); }
 
-  settings.splitLayers = 0;
-  createEncoder(0);
-  assert(settings.nnLayerSizes.size() == 0);
-  networks[0]->rename("net");
+  createEncoder();
+  assert(networks.size() <= 1);
+  if(networks.size()>0) {
+    networks[0]->rename("net"); // not preprocessing, is is the main&only net
+  } else {
+    networks.push_back(new Approximator("net", settings, distrib, data.get()));
+  }
+
   networks[0]->setUseTargetNetworks();
   const Uint nOutp = 1 + aInfo.dim() + Param_advantage::compute_nL(&aInfo);
   assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);

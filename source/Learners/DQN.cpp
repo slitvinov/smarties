@@ -33,10 +33,13 @@ DQN::DQN(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   "==========================================================================\n"
   ); }
 
-  settings.splitLayers = 0;
-  createEncoder(0);
-  assert(settings.nnLayerSizes.size() == 0);
-  networks[0]->rename("Q");
+  createEncoder();
+  assert(networks.size() <= 1);
+  if(networks.size()>0) {
+    networks[0]->rename("Q"); // not preprocessing, is is the main&only net
+  } else {
+    networks.push_back(new Approximator("Q", settings, distrib, data.get()));
+  }
   networks[0]->setUseTargetNetworks();
   networks[0]->buildFromSettings(nA + 1);
   networks[0]->initializeNetwork();

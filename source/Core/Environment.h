@@ -89,7 +89,8 @@ struct Environment
 
     descriptors.reserve(nDescriptors);
     for(Uint i=descriptors.size(); i<nDescriptors; ++i)
-      descriptors.emplace_back( std::make_unique<MDPdescriptor>() );
+      descriptors.emplace_back( // initialize new descriptor with old
+        std::make_unique<MDPdescriptor>( getDescriptor(0) ) );
   }
 
   #if 0

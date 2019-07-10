@@ -216,10 +216,13 @@ Learner_approximator(MDP_, S_, D_)
   "==========================================================================\n"
   ); }
 
-  settings.splitLayers = 0;
-  createEncoder(0);
-  assert(settings.nnLayerSizes.size() == 0);
-  networks[0]->rename("policy");
+  createEncoder();
+  assert(networks.size() <= 1);
+  if(networks.size()>0) {
+    networks[0]->rename("net"); // not preprocessing, is is the main&only net
+  } else {
+    networks.push_back(new Approximator("net", settings, distrib, data.get()));
+  }
   networks[0]->buildFromSettings(aInfo.dim());
   if(settings.explNoise>0) {
     Rvec stdParam = Gaussian_policy::initial_Stdev(&aInfo, settings.explNoise);
@@ -241,10 +244,13 @@ Learner_approximator(MDP_, S_, D_)
   "==========================================================================\n"
   ); }
 
-  settings.splitLayers = 0;
-  createEncoder(0);
-  assert(settings.nnLayerSizes.size() == 0);
-  networks[0]->rename("policy");
+  createEncoder();
+  assert(networks.size() <= 1);
+  if(networks.size()>0) {
+    networks[0]->rename("net"); // not preprocessing, is is the main&only net
+  } else {
+    networks.push_back(new Approximator("net", settings, distrib, data.get()));
+  }
   networks[0]->buildFromSettings(MDP.maxActionLabel);
   networks[0]->initializeNetwork();
   if(nOwnEnvs == 0) die("CMA learner does not support workerless masters");

@@ -168,8 +168,7 @@ lib: CommunicatorLib.o
 exec: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o rl
 
-#all: lib exec
-all: exec
+all: lib exec
 
 %.o: %.cpp
 	$(MPICXX) $(extra)  $(CPPFLAGS) -c $< -o $@
