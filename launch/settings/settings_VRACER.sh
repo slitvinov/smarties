@@ -27,10 +27,8 @@ SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --clipImpWeight 4"
 
 SETTINGS+=" --penalTol 0.1"
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --ERoldSeqFilter oldest"
 #SETTINGS+=" --dataSamplingAlgo PERseq"
 #network update learning rate

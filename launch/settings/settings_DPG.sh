@@ -46,5 +46,5 @@ SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-#SETTINGS+=" --learnrate 0.00001"
+SETTINGS+=" --epsAnneal 5e-7"
 SETTINGS+=" --learnrate 0.00001"

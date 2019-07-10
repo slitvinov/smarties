@@ -32,18 +32,10 @@ SETTINGS+=" --totNumSteps 50000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
 SETTINGS+=" --clipImpWeight 4"
-
-# Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
-#SETTINGS+=" --epsAnneal 0"
-
 # Here, fraction of far pol samples allowed in memory buffer
 SETTINGS+=" --penalTol 0.1"
-
-#Here is unused. Used for target network soft update
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-#Whether to train based on sampling sequences. Best not to.
-SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --epsAnneal 5e-7"

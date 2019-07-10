@@ -5,9 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.99"
 
 #size of network layers
-SETTINGS+=" --nnl1 32"
-SETTINGS+=" --nnl2 32"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnLayerSizes 32 32"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"
@@ -39,12 +37,7 @@ SETTINGS+=" --clipImpWeight 4"
 
 # Here, fraction of far pol samples allowed in memory buffer
 SETTINGS+=" --penalTol 0.1"
-
-#Here is unused. Used for target network soft update
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
-#Whether to train based on sampling sequences. Best not to.
-SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

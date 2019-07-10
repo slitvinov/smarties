@@ -5,9 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnLayerSizes 128 128"
 
 #subject to changes
 #SETTINGS+=" --nnFunc LRelu"
@@ -32,7 +30,6 @@ SETTINGS+=" --maxTotObsNum 524288"
 SETTINGS+=" --totNumSteps 5000000"
 
 SETTINGS+=" --explNoise 0.2"
-SETTINGS+=" --bSampleSequences 0"
 
 SETTINGS+=" --penalTol 0.1"
 SETTINGS+=" --clipImpWeight 4"

@@ -2,11 +2,10 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99 --samplesFile 1"
+SETTINGS+=" --gamma 0.99"
 SETTINGS+=" --restart ."
 #size of network layers
-SETTINGS+=" --nnl1 32"
-SETTINGS+=" --nnl2 16"
+SETTINGS+=" --nnLayerSizes 32 16"
 
 #subject to changes
 #SETTINGS+=" --nnFunc Tanh"
@@ -27,7 +26,6 @@ SETTINGS+=" --learner ACER"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 0.5"
 #Number of samples before starting gradient steps
-#SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --minTotObsNum 32768"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 65536"
@@ -36,12 +34,10 @@ SETTINGS+=" --totNumSteps 5000000"
 
 #chance of taking random actions
 SETTINGS+=" --explNoise 0.1"
-SETTINGS+=" --bSampleSequences 1"
 
 SETTINGS+=" --clipImpWeight 0"
 SETTINGS+=" --ERoldSeqFilter oldest"
 SETTINGS+=" --penalTol 0"
-SETTINGS+=" --epsAnneal 0"
 
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 12"

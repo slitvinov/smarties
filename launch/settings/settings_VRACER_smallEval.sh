@@ -2,12 +2,10 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.9  --samplesFile 1"
+SETTINGS+=" --gamma 0.9"
 
 #size of network layers
-SETTINGS+=" --nnl1 32"
-SETTINGS+=" --nnl2 32"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnLayerSizes 32 32"
 
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc LRelu"
@@ -29,10 +27,8 @@ SETTINGS+=" --totNumSteps 10"
 SETTINGS+=" --clipImpWeight 4"
 
 SETTINGS+=" --penalTol 0.1"
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --ERoldSeqFilter oldest"
 #SETTINGS+=" --dataSamplingAlgo PERseq"
 #network update learning rate

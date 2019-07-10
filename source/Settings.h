@@ -191,7 +191,7 @@ grad desc step tgt-net does exp averaging."
 
 #define COMMENT_epsAnneal "Annealing rate in grad steps of various \
 learning-algorithm-dependent behaviors."
-#define DEFAULT_epsAnneal 5e-7
+#define DEFAULT_epsAnneal 0
   Real epsAnneal = DEFAULT_epsAnneal;
 
 #define COMMENT_ERoldSeqFilter "Filter algorithm to remove old episodes from \
@@ -206,11 +206,11 @@ Default means oldest for ER and farpolfrac for ReFER"
 
 #define COMMENT_minTotObsNum "Min number of transitions in training buffer \
 before training starts. If unset we use maxTotObsNum."
-#define DEFAULT_minTotObsNum 0
+#define DEFAULT_minTotObsNum 262144
   Uint minTotObsNum = DEFAULT_minTotObsNum;
 
 #define COMMENT_maxTotObsNum "Max number of transitions in training buffer."
-#define DEFAULT_maxTotObsNum 1000000
+#define DEFAULT_maxTotObsNum 262144
   Uint maxTotObsNum = DEFAULT_maxTotObsNum;
 
 #define COMMENT_totNumSteps "Number of gradient steps before end of learning"
@@ -241,7 +241,7 @@ std::string restart = DEFAULT_restart;
   std::vector<Uint> nnLayerSizes = DEFAULT_nnLayerSizes;
 
 #define COMMENT_batchSize "Network training batch size."
-#define DEFAULT_batchSize 128
+#define DEFAULT_batchSize 256
   Uint batchSize = DEFAULT_batchSize;
 
 #define COMMENT_nnOutputFunc "Activation function for output layers."
@@ -271,7 +271,7 @@ environment directly."
 #define COMMENT_outWeightsPrefac "Output weights initialization factor (will \
 be multiplied by default fan-in factor). Picking 1 leads to treating \
 output layers with normal Xavier initialization."
-#define DEFAULT_outWeightsPrefac 1
+#define DEFAULT_outWeightsPrefac 0.1
   Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
 
 #define COMMENT_nnLambda "Penalization factor for network weights. It will be \
