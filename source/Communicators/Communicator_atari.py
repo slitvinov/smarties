@@ -85,6 +85,12 @@ class atariWrapper():
         self.buffer = np.zeros((self.nPool,)+self.obsShape, dtype=np.uint8)
         upprScale, lowrScale = dimState * [255.0], dimState * [0.0]
         self.comm.set_state_scales(upprScale, lowrScale, 0)
+        self.comm.set_num_appended_past_observations(3)
+        # input is image of size 84 * 84 * (1 + 3)
+        self.comm.set_preprocessing_conv2d(84, 84,  4, 32, 8, 4)
+        # then some math to figure out the input dim of next layers
+        self.comm.set_preprocessing_conv2d(20, 20, 32, 64, 4, 2)
+        self.comm.set_preprocessing_conv2d( 9,  9, 64, 64, 3, 1)
 
         self.noop_max = 30
         self.nSkip = 4
