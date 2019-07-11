@@ -22,20 +22,20 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   if(distrib.workerless_masters_comm == MPI_COMM_NULL &&
      distrib.learnersOnWorkers == false) return;
 
-  if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
-    sharingComm = MPICommDup( distrib.workerless_masters_comm);
-    sharingSize = MPICommSize(sharingComm);
-    sharingRank = MPICommRank(sharingComm);
-  }
+  sharingComm = MPICommDup(distrib.workerless_masters_comm);
+  sharingSize = MPICommSize(sharingComm);
+  sharingRank = MPICommRank(sharingComm);
 
-  if(distrib.learnersOnWorkers && distrib.nOwnedEnvironments) {
+  workerComm = MPICommDup(distrib.master_workers_comm);
+  // rank>0 (worker) will always send to rank==0 (master)
+  workerSize = MPICommSize(workerComm);
+  workerRank = MPICommRank(workerComm);
+
+  if(distrib.learnersOnWorkers &&
+     distrib.nOwnedEnvironments &&
+     workerComm not_eq MPI_COMM_NULL)
+  {
     //warn("Creating communicator to send episodes from workers to learners.");
-    if(distrib.master_workers_comm == MPI_COMM_NULL) return;
-
-    workerComm = MPICommDup(distrib.master_workers_comm);
-    // rank>0 (worker) will always send to rank==0 (master)
-    workerSize = MPICommSize(workerComm);
-    workerRank = MPICommRank(workerComm);
     if(workerSize < 2) {
       warn("detected no workers in the wrong spot..."); return;
     }

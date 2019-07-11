@@ -1,11 +1,10 @@
 import numpy as np
-from Communicator import Communicator
+from smarties import Communicator
 from scipy.integrate import ode
 
 class CartPole:
     def __init__(self):
-        self.dt = 4e-4
-        self.nsteps = 50
+        self.dt = 0.02
         self.step=0
         self.u = np.asarray([0, 0, 0, 0])
         self.F=0
@@ -17,10 +16,12 @@ class CartPole:
         self.step = 0
         self.F = 0
         self.t = 0
+    def isFailed(self):
+      return abs(self.u[0])>2.4 or  abs(self.u[2])>np.pi/15
 
     def isOver(self): # is episode over
       #return step>=500 || std::fabs(u.y1)>2.4 #swingup
-      return (self.step>=500 or  abs(self.u[0])>2.4 or  abs(self.u[2])>np.pi/15)
+      return self.step>=500 or self.isFailed()
 
     def isTruncated(self):  # check that cause for termination is time limits
       return (self.step>=500 and abs(self.u[0])<2.4 and abs(self.u[2])<np.pi/15)
@@ -45,9 +46,9 @@ class CartPole:
     def advance(self, action):
         self.F = action[0]
         self.ODE.set_initial_value(self.u, self.t).set_f_params(self.F)
-        self.u = self.ODE.integrate(self.t + self.dt*self.nsteps)
-        self.t = self.t + self.dt*self.nsteps
-        self.step = self.step + self.nsteps
+        self.u = self.ODE.integrate(self.t + self.dt)
+        self.t = self.t + self.dt
+        self.step = self.step + 1
         if self.isOver(): return 1
         else: return 0
 
@@ -62,17 +63,17 @@ class CartPole:
         #double angle = std::fmod(u.y3, 2*M_PI); #swingup
         #angle = angle<0 ? angle+2*M_PI : angle;
         #return fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
-        return 1 -(abs(self.u[2])>np.pi/15 or abs(self.u[0])>2.4 );
+        return 1.0 - 1.0 * self.isFailed();
 
 if __name__ == '__main__':
     # state is x, v, angle, omega, cos(angle), sin(angle), action is Fx
     comm = Communicator(6, 1)
     env = CartPole()
     #Here, the action space is in [-10, 10] and is bounded.
-    comm.set_action_scales(10*np.ones(1), -10*np.ones(1), bounded=True)
+    comm.set_action_scales([10.0], [-10.0], areBounds=True)
     #Agent knows cos and sin of angle, angle itself is hidden
-    bObservable = np.ones(6)
-    bObservable[2] = 0
+    bObservable = 6 * [True]
+    bObservable[2] = False
     comm.set_state_observable(bObservable)
 
     while 1: #train loop, each new episode starts here
@@ -97,7 +98,7 @@ if __name__ == '__main__':
                 # the value of the last state s_T in a truncated ep. is not 0
                 # (the value of a terminal state is zero by definition) but is
                 # the expected on-pol returns from s_T (ie. V^\pi (s_T) )
-                comm.truncateSeq(state, reward);
+                comm.sendLastState(state, reward);
                 break
             elif terminated:  #tell smarties that this is a terminal state
                 comm.sendTermState(state, reward);
