@@ -100,7 +100,7 @@ void PPO<Policy_t, Action_t>::setupTasks(TaskQueue& tasks)
   {
     // conditions to start the initialization task:
     if ( algoSubStepID >= 0 ) return; // we done with init
-    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+    if ( data->readNData() < nHorizon ) return; // not enough data to init
 
     debugL("Initialize Learner");
     initializeLearner();

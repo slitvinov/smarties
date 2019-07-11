@@ -206,7 +206,7 @@ Default means oldest for ER and farpolfrac for ReFER"
 
 #define COMMENT_minTotObsNum "Min number of transitions in training buffer \
 before training starts. If unset we use maxTotObsNum."
-#define DEFAULT_minTotObsNum 262144
+#define DEFAULT_minTotObsNum 0
   Uint minTotObsNum = DEFAULT_minTotObsNum;
 
 #define COMMENT_maxTotObsNum "Max number of transitions in training buffer."
