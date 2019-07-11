@@ -139,6 +139,45 @@ void Communicator::set_state_scales(const std::vector<double> upper,
   ENV.descriptors[agentID]->stateStdDev = diffState;
 }
 
+void Communicator::set_is_partially_observable(const int agentID)
+{
+  if(ENV.bFinalized) {
+    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+  }
+  if(agentID >= (int) ENV.descriptors.size()) {
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+  }
+  ENV.descriptors[agentID]->isPartiallyObservable = true;
+}
+
+void Communicator::set_preprocessing_conv2d(
+  const int input_width, const int input_height, const int input_features,
+  const int kernels_num, const int filters_size, const int stride,
+  const int agentID)
+{
+  // can be made to be more powerful (different sizes in x/y, padding, etc)
+  Conv2D_Descriptor descr;
+  descr.inpFeatures = input_features;
+  descr.inpY        = input_height;
+  descr.inpX        = input_width;
+  descr.outFeatures = kernels_num;
+  descr.filterx     = filters_size;
+  descr.filtery     = filters_size;
+  descr.stridex     = stride;
+  descr.stridey     = stride;
+  descr.paddinx     = 0;
+  descr.paddiny     = 0;
+  descr.outY   = (descr.inpY -descr.filterx +2*descr.paddinx)/descr.stridex + 1;
+  descr.outX   = (descr.inpX -descr.filtery +2*descr.paddiny)/descr.stridey + 1;
+  if(ENV.bFinalized) {
+    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+  }
+  if(agentID >= (int) ENV.descriptors.size()) {
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+  }
+  ENV.descriptors[agentID]->conv2dDescriptors.push_back(descr);
+}
+
 void Communicator::set_num_agents(int _nAgents)
 {
   assert(_nAgents > 0);
@@ -274,7 +313,6 @@ int Communicator::desiredNepisodes() const {
 #ifndef MPI_VERSION
   #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
 #endif
-
 
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
 gen(G()), bTrain(isTraining), worker(W) {}

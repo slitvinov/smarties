@@ -110,5 +110,21 @@ PYBIND11_MODULE(smarties, m)
 
     .def("desiredNepisodes",
          & smarties::Communicator::desiredNepisodes,
-         "Returns the number of state/action steps requested by smarties.");
+         "Returns the number of state/action steps requested by smarties.")
+
+    .def("set_is_partially_observable",
+        & smarties::Communicator::set_is_partially_observable,
+        py::arg("agentID") = 0,
+        "Specify that the decision process of agent # 'agentID' is "
+        "non-Markovian and therefore smarties will use RNN.")
+
+    .def("set_preprocessing_conv2d",
+        & smarties::Communicator::set_preprocessing_conv2d,
+        py::arg("input_width"), py::arg("input_height"), py::arg("input_features"),
+        py::arg("kernels_num"), py::arg("filters_size"), py::arg("stride"),
+        py::arg("agentID") = 0,
+        "Request a convolutional layer in preprocessing of state for "
+        "agent # 'agentID'. This function can be called multiple times to "
+        "add multiple conv2d layers, but sizes (widths, heights, filters) must "
+        "be consistent otherwise it will trigger an abort.");
 }

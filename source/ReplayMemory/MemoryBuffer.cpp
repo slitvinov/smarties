@@ -141,7 +141,8 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     {
       // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
       const Uint nnBPTT = settings.nnBPTTseq;
-      const Uint nRecur = settings.bRecurrent? std::min(nnBPTT, sampleT[b]) : 0;
+      const bool bRecurrent = settings.bRecurrent || MDP.isPartiallyObservable;
+      const Uint nRecur = bRecurrent? std::min(nnBPTT, sampleT[b]) : 0;
       // prepare to compute from step t-reccurrentwindow up to t+1
       // because some methods may require tnext.
       // todo: add option for n-steps ahead
@@ -194,7 +195,8 @@ MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
     const Uint currStep = inProgress->nsteps() - 1;
     // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
     const Uint nnBPTT = settings.nnBPTTseq;
-    const Uint nRecurr = settings.bRecurrent? std::min(nnBPTT, currStep) : 0;
+    const bool bRecurrent = settings.bRecurrent || MDP.isPartiallyObservable;
+    const Uint nRecurr = bRecurrent? std::min(nnBPTT, currStep) : 0;
     // prepare to compute from step t-reccurrentwindow up to t
     ret.begTimeStep[0] = currStep - nRecurr;
     ret.endTimeStep[0] = currStep + 1;

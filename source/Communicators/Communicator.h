@@ -96,6 +96,8 @@ public:
 
   void set_num_agents(int _nAgents);
 
+  void set_is_partially_observable(const int agentID = 0);
+
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ADVANCED METHODS //////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
@@ -105,6 +107,11 @@ public:
   void agents_define_different_MDP();
 
   void disableDataTrackingForAgents(int agentStart, int agentEnd);
+
+  void set_preprocessing_conv2d(
+    const int input_width, const int input_height, const int input_features,
+    const int kernels_num, const int filters_size, const int stride,
+    const int agentID = 0);
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// UTILITY METHODS ///////////////////////////////

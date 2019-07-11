@@ -191,7 +191,6 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
   //build.stackSimple( inputSize, outputSizes );
 
   const Uint nOuts = std::accumulate(outputSizes.begin(), outputSizes.end(), 0);
-  const std::string netType = settings.nnType, funcType = settings.nnFunc;
   const std::string outFuncType = settings.nnOutputFunc;
   const std::vector<Uint>& layerSizes = settings.nnLayerSizes;
 
@@ -216,9 +215,13 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
     } else
       build->addInput(inputSize);
   }
-
+  // if user already asked RNN/LSTM/GRU, follow settings
+  // else if MDP declared that it is partially obs override and use simple RNN
+  const std::string netType =
+    MDP.isPartiallyObservable and settings.bRecurrent == false? "RNN"
+                                                              : settings.nnType;
   for(Uint i=0; i<layerSizes.size(); ++i)
-    build->addLayer(layerSizes[i], funcType, false, netType);
+    build->addLayer(layerSizes[i], settings.nnFunc, false, netType);
 
   if(nOuts > 0) build->addLayer(nOuts, settings.nnOutputFunc, true);
 }
@@ -252,8 +255,13 @@ void Approximator::buildPreprocessing(const std::vector<Uint> preprocLayers)
   }
   else build->addInput( dimS );
 
+  // if user already asked RNN/LSTM/GRU, follow settings
+  // else if MDP declared that it is partially obs override and use simple RNN
+  const std::string netType =
+    MDP.isPartiallyObservable and settings.bRecurrent == false? "RNN"
+                                                              : settings.nnType;
   for (Uint i=0; i<preprocLayers.size(); ++i)
-    build->addLayer(preprocLayers[i], settings.nnFunc, false);
+    build->addLayer(preprocLayers[i], settings.nnFunc, false, netType);
 }
 
 void Approximator::getHeaders(std::ostringstream& buff) const
