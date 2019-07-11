@@ -76,7 +76,14 @@ class atariWrapper():
         return obs[:, :, None].ravel()
 
     def __init__(self):
+        self.noop_max = 30
+        self.nSkip = 4
+        self.nPool = 3
+        self.buffI = 0
+        self.lives = 0
+        self.was_real_done = True
         dimState, dimAction = 84 * 84, 1
+
         self.comm = Communicator(dimState, dimAction, 1) # 1 agent
         self.env = gym.make(sys.argv[1]+'NoFrameskip-v4')
         assert( hasattr(self.env.action_space, 'n') )
@@ -92,26 +99,20 @@ class atariWrapper():
         self.comm.set_preprocessing_conv2d(20, 20, 32, 64, 4, 2)
         self.comm.set_preprocessing_conv2d( 9,  9, 64, 64, 3, 1)
 
-        self.noop_max = 30
-        self.nSkip = 4
-        self.nPool = 3
-        self.buffI = 0
-        self.lives = 0
-        self.was_real_done = True
 
 if __name__ == '__main__':
     print("openAI atari environment: ", sys.argv[1])
-    comm = atariWrapper() # create communicator with smarties
+    env = atariWrapper() # create communicator with smarties
 
     while True: #training loop
-        observation = comm.env_reset()
-        comm.sendInitState(observation) #send initial state
+        observation = env.env_reset()
+        env.comm.sendInitState(observation) #send initial state
 
         while True: # simulation loop
-            buf = comm.recvAction() #receive action from smarties
+            buf = env.comm.recvAction() #receive action from smarties
             #advance the environment
-            observation, reward, done, info = comm.env_step(int(buf[0]))
+            observation, reward, done, info = env.env_step(int(buf[0]))
             if done: #send the observation to smarties
-              comm.sendTermState(observation.ravel().tolist(), reward)
+              env.comm.sendTermState(observation.ravel().tolist(), reward)
               break
-            else: comm.sendState(observation.ravel().tolist(), reward)
+            else: env.comm.sendState(observation.ravel().tolist(), reward)
