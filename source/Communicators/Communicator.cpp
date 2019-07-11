@@ -178,6 +178,18 @@ void Communicator::set_preprocessing_conv2d(
   ENV.descriptors[agentID]->conv2dDescriptors.push_back(descr);
 }
 
+void Communicator::set_num_appended_past_observations(
+  const int n_appended, const int agentID)
+{
+  if(ENV.bFinalized) {
+    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+  }
+  if(agentID >= (int) ENV.descriptors.size()) {
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+  }
+  ENV.descriptors[agentID]->nAppendedObs = n_appended;
+}
+
 void Communicator::set_num_agents(int _nAgents)
 {
   assert(_nAgents > 0);

@@ -112,6 +112,13 @@ PYBIND11_MODULE(smarties, m)
          & smarties::Communicator::desiredNepisodes,
          "Returns the number of state/action steps requested by smarties.")
 
+    .def("set_num_appended_past_observations",
+        & smarties::Communicator::set_num_appended_past_observations,
+        py::arg("n_appended"), py::arg("agentID") = 0,
+        "Specify that the state of agent # 'agentID' should be composed with "
+        "the current observation along with n_appended past ones. "
+        "Like it was done in the Atari Nature paper to avoid using RNN.")
+
     .def("set_is_partially_observable",
         & smarties::Communicator::set_is_partially_observable,
         py::arg("agentID") = 0,
