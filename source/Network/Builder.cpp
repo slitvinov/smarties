@@ -194,7 +194,7 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
         (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20> >
-        (ID, bOut, iLink) );
+        (ID+1, bOut, 1) );
   }
   else
   if (      matchConv2D(descr, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9) ) {
@@ -203,7 +203,7 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
         (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9> >
-        (ID, bOut, iLink) );
+        (ID+1, bOut, 1) );
   }
   else
   if (      matchConv2D(descr,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7) ) {
@@ -212,7 +212,7 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
         (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7> >
-        (ID, bOut, iLink) );
+        (ID+1, bOut, 1) );
   }
   else
     die("Detected undeclared conv2d description. This will be frustrating... "
