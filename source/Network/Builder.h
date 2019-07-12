@@ -48,7 +48,7 @@ public:
   template<typename T>
   void setLastLayersBias(const std::vector<T> init_vals)
   {
-    NNvec init = NNvec(init_vals.begin(), init_vals.end());
+    Rvec init = Rvec(init_vals.begin(), init_vals.end());
     layers.back()->biasInitialValues(init);
   }
 

@@ -123,15 +123,15 @@ void Communicator::set_state_scales(const std::vector<double> upper,
   if(agentID >= (int) ENV.descriptors.size()) {
     printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
   }
-  if(upper.size() not_eq ENV.descriptors[agentID]->dimState or
-     lower.size() not_eq ENV.descriptors[agentID]->dimState ) {
+  const Uint dimS = ENV.descriptors[agentID]->dimState;
+  if(upper.size() not_eq dimS or lower.size() not_eq dimS ) {
     printf("ABORTING: upper/lower size mismatch."); fflush(0); abort();
   }
   // For consistency with action space we ask user for a rough box of state vars
   // but in reality we scale with mean and stdev computed during training.
   // This function serves only as an optional initialization for statistiscs.
-  Rvec meanState(upper.size()), diffState(upper.size());
-  for (Uint i=0; i<upper.size(); ++i) {
+  NNvec meanState(dimS), diffState(dimS);
+  for (Uint i=0; i<dimS; ++i) {
     meanState[i] = (upper[i]+lower[i])/2;
     diffState[i] = std::fabs(upper[i]-lower[i]);
   }

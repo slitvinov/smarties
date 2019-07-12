@@ -26,8 +26,8 @@ private:
   std::vector<nnReal>& invstd = RM->invstd;
   std::vector<nnReal>& mean = RM->mean;
   std::vector<nnReal>& std = RM->std;
-  Real& stddev_reward = RM->stddev_reward;
-  Real& invstd_reward = RM->invstd_reward;
+  nnReal& stddev_reward = RM->stddev_reward;
+  nnReal& invstd_reward = RM->invstd_reward;
 
   Uint nPruned = 0, minInd = 0, nOffPol = 0;
   Real avgDKL =  0;

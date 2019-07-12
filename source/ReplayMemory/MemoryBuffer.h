@@ -44,8 +44,8 @@ class MemoryBuffer
   std::vector<nnReal>& invstd = MDP.stateScale;
   std::vector<nnReal>& mean = MDP.stateMean;
   std::vector<nnReal>& std = MDP.stateStdDev;
-  Real& stddev_reward = MDP.rewardsStdDev;
-  Real& invstd_reward = MDP.rewardsScale;
+  nnReal& stddev_reward = MDP.rewardsStdDev;
+  nnReal& invstd_reward = MDP.rewardsScale;
   const bool bSampleSequences = settings.bSampleSequences;
   const Uint nAppended = MDP.nAppendedObs;
   const Real gamma = settings.gamma;

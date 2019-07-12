@@ -130,14 +130,15 @@ struct Approximator
     NNvec INP;
     if(preprocessing)
     {
-      INP = preprocessing->forward(contextID, t, sampID);
+      const Rvec preprocInp = preprocessing->forward(contextID, t, sampID);
+      INP.insert(INP.end(), preprocInp.begin(), preprocInp.end());
     } else INP = C.getState(t);
 
     if(C.addedInputType(sampID) == NETWORK)
     {
       assert(auxInputNet not_eq nullptr);
-      NNvec addedinp = auxInputNet->forward(contextID, t, sampID);
-      assert(addedinp.size());
+      Rvec addedinp = auxInputNet->forward(contextID, t, sampID);
+      assert(addedinp.size() >= m_auxInputSize);
       addedinp.resize(m_auxInputSize);
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
       //if(!thrID) cout << "relay "<<print(addedinp) << endl;

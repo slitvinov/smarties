@@ -91,7 +91,7 @@ inline T* allocate_dirty(const Uint _size)
 template<typename T = nnReal>
 inline T* allocate_ptr(const Uint _size)
 {
-  T* const ret = allocate_dirty(_size);
+  T* const ret = allocate_dirty<T>(_size);
   memset(ret, 0, roundUpSimd(_size) * sizeof(T) );
   return ret;
 }
@@ -100,7 +100,7 @@ template<typename T = nnReal>
 inline std::vector<T*> allocate_vec(std::vector<Uint> _sizes)
 {
   std::vector<T*> ret(_sizes.size(), nullptr);
-  for(Uint i=0; i<_sizes.size(); ++i) ret[i] = allocate_ptr(_sizes[i]);
+  for(Uint i=0; i<_sizes.size(); ++i) ret[i] = allocate_ptr<T>(_sizes[i]);
   return ret;
 }
 

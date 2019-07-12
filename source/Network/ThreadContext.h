@@ -150,7 +150,7 @@ struct ThreadContext
     assert(batch not_eq nullptr);
     return batch->state(batchIndex, t);
   }
-  const NNvec& getAction(const Uint t) const
+  const Rvec& getAction(const Uint t) const
   {
     assert(batch not_eq nullptr);
     return batch->action(batchIndex, t);
@@ -243,7 +243,7 @@ struct AgentContext
     assert(batch not_eq nullptr);
     return batch->state(0, t);
   }
-  const NNvec& getAction(const Uint t) const
+  const Rvec& getAction(const Uint t) const
   {
     assert(batch not_eq nullptr);
     return batch->action(0, t);

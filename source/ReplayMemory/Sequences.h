@@ -36,7 +36,7 @@ struct Sequence
   std::vector<Real> rewards;
 
   // additional quantities which may be needed by algorithms:
-  Fvec Q_RET, action_adv, state_vals;
+  NNvec Q_RET, action_adv, state_vals;
   //Used for sampling, filtering, and sorting off policy data:
   Fvec SquaredError, offPolicImpW, KullbLeibDiv;
   std::vector<float> priorityImpW;

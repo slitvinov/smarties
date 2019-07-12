@@ -132,12 +132,14 @@ struct Parameters
   void save(const std::string fname) const
   {
     FILE * wFile = fopen((fname+".raw").c_str(), "wb");
-    fwrite(params, sizeof(nnReal), nParams, wFile); fflush(wFile);
-    fclose(wFile);
+    float* const tmp = Utilities::allocate_ptr<float>(nParams);
+    std::copy(params, params + nParams, tmp);
+    fwrite(tmp, sizeof(float), nParams, wFile);
+    fflush(wFile); fclose(wFile); delete tmp;
   }
   int restart(const std::string fname) const
   {
-    FILE * wFile = fopen((fname+".raw").c_str(), "rb");
+    FILE * const wFile = fopen((fname+".raw").c_str(), "rb");
     if(wFile == NULL) {
       printf("Parameters restart file %s not found.\n", (fname+".raw").c_str());
       return 1;
@@ -145,7 +147,9 @@ struct Parameters
       printf("Restarting from file %s.\n", (fname+".raw").c_str());
       fflush(0);
     }
-    size_t wsize = fread(params, sizeof(nnReal), nParams, wFile);
+    float* const tmp = Utilities::allocate_ptr<float>(nParams);
+    size_t wsize = fread(tmp, sizeof(float), nParams, wFile);
+    std::copy(tmp, tmp + nParams, params);
     fclose(wFile);
     if(wsize not_eq nParams)
       _die("Mismatch in restarted file %s; contains:%lu read:%lu.",

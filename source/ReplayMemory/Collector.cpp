@@ -32,13 +32,13 @@ void Collector::add_state(Agent&a)
   if (a.agentStatus == INIT) S->agentID = a.localID;
   else assert(S->agentID == a.localID);
 
-  const std::vector<nnReal> storedState = a.getObservedState<nnReal>();
+  const Fvec storedState = a.getObservedState<Fval>();
   if(a.trackSequence == false)
   {
     // contain only one state and do not add more. to not store rewards either
     // RNNs then become automatically not supported because no time series!
     // (this is accompained by check in approximator)
-    S->states = std::vector<std::vector<nnReal>>{ storedState };
+    S->states  = std::vector<Fvec>{ storedState };
     S->rewards = std::vector<Real>{ (Real)0 };
     S->SquaredError.clear(); S->Q_RET.clear();
     S->offPolicImpW.clear(); S->action_adv.clear();
