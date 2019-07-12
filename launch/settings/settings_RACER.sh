@@ -2,11 +2,10 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995 --samplesFile 1"
+SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnLayerSizes 128 128"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -25,7 +24,7 @@ SETTINGS+=" --explNoise 0.447214"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
-SETTINGS+=" --minTotObsNum 262144"
+SETTINGS+=" --minTotObsNum 524288"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 524288"
 #Number of gradient steps before training ends
@@ -33,18 +32,10 @@ SETTINGS+=" --totNumSteps 50000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
 SETTINGS+=" --clipImpWeight 4"
-
-# Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
-#SETTINGS+=" --epsAnneal 0"
-
 # Here, fraction of far pol samples allowed in memory buffer
 SETTINGS+=" --penalTol 0.1"
-
-#Here is unused. Used for target network soft update
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-#Whether to train based on sampling sequences. Best not to.
-SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --epsAnneal 5e-7"

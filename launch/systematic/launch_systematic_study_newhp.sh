@@ -1,7 +1,7 @@
 function run_cases {
 COMMNAME=Racer
 
-BUFFSIZE="524288"
+BUFFSIZE="262144"
 IMPSAMPR="4"
 
 for RUNTRIAL in "1" "2" "3" "4" "5"; do
@@ -61,8 +61,8 @@ run_cases
 done
 NETLRATE="0.0001" #reset
 
-#for LAYRSIZE in "92" "180"; do
-#run_cases
-#done
-#LAYRSIZE="128" #reset
+for LAYRSIZE in "80" "192"; do
+run_cases
+done
+LAYRSIZE="128" #reset
 

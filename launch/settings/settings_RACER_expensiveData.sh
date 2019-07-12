@@ -2,13 +2,11 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.95 --samplesFile 1"
+SETTINGS+=" --gamma 0.95"
 SETTINGS+=" --restart ."
 
 #size of network layers
-SETTINGS+=" --nnl1 32"
-SETTINGS+=" --nnl2 32"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnLayerSizes 32 32"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"

@@ -4,8 +4,7 @@ SETTINGS=
 #but, the agent might find better long-term strategies
 SETTINGS+=" --gamma 0.995"
 #size of network layers
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnLayerSizes 128 128"
 
 #subject to changes
 #SETTINGS+=" --nnFunc Tanh"
@@ -24,6 +23,7 @@ SETTINGS+=" --learner ACER"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
+#SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --minTotObsNum 131072"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 131072"
@@ -32,10 +32,10 @@ SETTINGS+=" --totNumSteps 5000000"
 
 #chance of taking random actions
 SETTINGS+=" --explNoise 0.447214"
-SETTINGS+=" --bSampleSequences 1"
+SETTINGS+=" --epsAnneal 5e-7"
 
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 12"
+SETTINGS+=" --batchSize 24"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
-SETTINGS+=" --targetDelay 0.005"
+SETTINGS+=" --learnrate 0.00001"
+SETTINGS+=" --targetDelay 0.001"

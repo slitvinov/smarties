@@ -5,8 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.99"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+ETTINGS+=" --nnLayerSizes 128 128"
 
 #subject to changes
 SETTINGS+=" --nnFunc SoftSign"
@@ -30,7 +29,6 @@ SETTINGS+=" --totNumSteps 5000000"
 
 #chance of taking random actions
 SETTINGS+=" --explNoise 0.05"
-SETTINGS+=" --bSampleSequences 0"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps

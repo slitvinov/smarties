@@ -6,14 +6,12 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-EXECNAME=rl
 RUNFOLDER=$1
 ENV=$2
 TASK=$3
-SETTINGSNAME=$4
 
-if [ $# -lt 4 ] ; then
-echo "Usage: ./launch_dmcs.sh RUNFOLDER ENV TASK SETTINGS_PATH (for other optional params see launch_base.sh)"
+if [ $# -lt 3 ] ; then
+echo "Usage: ./launch_dmcs.sh RUNFOLDER ENV TASK (... optional arguments defined in launch_base.sh )"
 exit 1
 fi
 
@@ -31,10 +29,11 @@ python3 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+export INTERNALAPP=false
 
 cp ../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator_dmc.py ${BASEPATH}${RUNFOLDER}/
 
 export DISABLE_MUJOCO_RENDERING=1
-shift 2 # hack because for deepmind we need to args to describe env
+shift 2 # hack because for deepmind we need two args to describe env
 ./launch_base.sh $RUNFOLDER $@

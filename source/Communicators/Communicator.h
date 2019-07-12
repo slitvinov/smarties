@@ -6,162 +6,197 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Communicator_h
+#define smarties_Communicator_h
 
-#include <sstream>
-#include <sys/un.h>
+#include "Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
 
-#include <vector>
-#include <cstring>
 #include <random>
 
-#define envInfo  int
-#define CONT_COMM 0
-#define INIT_COMM 1
-#define TERM_COMM 2
-#define TRNC_COMM 3
-#define FAIL_COMM 4
-#define AGENT_KILLSIGNAL -256
-#define AGENT_TERMSIGNAL  256
+namespace smarties
+{
 
-#if defined(SMARTIES) || defined(SMARTIES_APP)
-#include <mpi.h>
+struct COMM_buffer;
+#ifndef SMARTIES_LIB
+class Worker;
 #endif
-
-#include "Communicator_utils.h"
 
 class Communicator
 {
- protected:
-  // only for MPI-based *applications* eg. flow solvers:
-  int rank_inside_app = -1, rank_learn_pool = -1;
-  // comm to talk to master:
-  int size_inside_app = -1, size_learn_pool = -1;
-  // for MPI-based applications, to split simulations between groups of ranks
-  int workerGroup = -1;
-  // should be named nState/ActionComponents
-  int nStates = -1, nActions = -1;
+public:
+  Communicator(int number_of_agents = 1);
+  Communicator(int stateDim, int actionDim, int number_of_agents = 1);
 
-  // byte size of the messages
-  int size_state = -1, size_action = -1;
-  // bool whether using discrete act options, number of agents per environment
-  int discrete_actions = 0, nAgents=1;
+  //////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// BEGINNER METHODS //////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
-  // number of values contained in action_bounds vector
-  // 2*dimA in case of continuous (high and low per each)
-  // the number of options in a 1-dimensional discrete action problem
-  // if agent must select multiple discrete actions per turn then it should be
-  // prod_i ^dimA dimA_i, where dimA_i is number of options for act component i
-  int discrete_action_values = 0;
-  // communication buffers:
-  double *data_state = nullptr, *data_action = nullptr;
-  bool called_by_app = false, spawner = false;
-  std::vector<std::vector<double>> stored_actions;
-  //internal counters
-  unsigned long seq_id = 0, msg_id = 0, iter = 0;
-  unsigned learner_step_id = 0;
-  std::mt19937 gen;
+  // Send first state of an episode in order to get first action:
+  void sendInitState(const std::vector<double>& state,
+                     const int agentID=0)
+  {
+    return _sendState(agentID, INIT, state, 0);
+  }
 
-  const bool bTrain;
-  const int nEpisodes;
-  bool sentStateActionShape = false;
-  std::vector<double> obs_bounds, obs_inuse, action_options, action_bounds;
+  // Send normal state and reward:
+  void sendState(const std::vector<double>& state,
+                 const double reward,
+                 const int agentID = 0)
+  {
+    return _sendState(agentID, CONT, state, reward);
+  }
 
- public:
-  std::mt19937& getPRNG();
-  bool isTraining();
-  int desiredNepisodes();
-  int getDimS();
-  int getDimA();
-  int getNagents();
-  int nDiscreteAct();
-  std::vector<double>& stateBounds();
-  std::vector<double>& isStateObserved();
-  std::vector<double>& actionOption();
-  std::vector<double>& actionBounds();
+  // Send terminal state/reward: the last step of an episode which ends because
+  // of TERMINATION (e.g. agent cannot continue due to failure or success).
+  void sendTermState(const std::vector<double>& state,
+                    const double reward,
+                    const int agentID = 0)
+  {
+    return _sendState(agentID, TERM, state, reward);
+  }
 
-  void update_state_action_dims(const int sdim, const int adim);
+  // Send truncated state/reward: the last step of an episode which ends because
+  // of TRUNCATION (e.g. agent cannot continue due to time limits). Difference
+  // from TERMINATION is that policy was not direct cause of episode's end.
+  void sendLastState(const std::vector<double>& state,
+                     const double reward,
+                     const int agentID = 0)
+  {
+    return _sendState(agentID, TRNC, state, reward);
+  }
 
-  // called in user's environment to describe control problem
+  // receive action for the latest given state:
+  const std::vector<double>& recvAction(const int agentID = 0) const;
+
+  void set_state_action_dims(const int dimState, const int dimAct,
+                             const int agentID = 0);
+
+  void set_action_scales(const std::vector<double> uppr,
+                         const std::vector<double> lowr,
+                         const bool bound,
+                         const int agentID = 0);
+
   void set_action_scales(const std::vector<double> upper,
-    const std::vector<double> lower, const bool bound = false);
-  void set_action_options(const std::vector<int> options);
-  void set_action_options(const int options);
+                         const std::vector<double> lower,
+                         const std::vector<bool>   bound,
+                         const int agentID = 0);
+
+  void set_action_options(const int options,
+                          const int agentID = 0);
+
+  void set_action_options(const std::vector<int> options,
+                          const int agentID = 0);
+
+  void set_state_observable(const std::vector<bool> observable,
+                            const int agentID = 0);
+
   void set_state_scales(const std::vector<double> upper,
-    const std::vector<double> lower);
-  void set_state_observable(const std::vector<bool> observable);
+                        const std::vector<double> lower,
+                        const int agentID = 0);
 
-  //called by app to interact with smarties
-  void sendState(const int iAgent, const envInfo status,
-    const std::vector<double> state, const double reward);
+  void set_num_agents(int _nAgents);
 
-  // specialized functions:
-  // initial state: the first of an ep. By definition 0 reward (no act done yet)
-  inline void sendInitState(const std::vector<double> state, const int iAgent=0)
-  {
-    return sendState(iAgent, INIT_COMM, state, 0);
-  }
-  // terminal state: the last of a sequence which ends because a TERMINAL state
-  // has been encountered (ie. agent cannot continue due to failure)
-  inline void sendTermState(const std::vector<double> state, const double reward, const int iAgent = 0)
-  {
-    return sendState(iAgent, TERM_COMM, state, reward);
-  }
-  // truncation: usually episode can be over due to time constrains
-  // it differs because the policy was not at fault for ending the episode
-  // meaning that episode could continue following the policy
-  // and that the value of this last state should be the expected on-pol returns
-  inline void truncateSeq(const std::vector<double> state, const double reward, const int iAgent = 0)
-  {
-    return sendState(iAgent, TRNC_COMM, state, reward);
-  }
-  // `normal` state inside the episode
-  inline void sendState(const std::vector<double> state, const double reward, const int iAgent = 0)
-  {
-    return sendState(iAgent, CONT_COMM, state, reward);
-  }
-  // receive action sent by smarties
-  std::vector<double> recvAction(const int iAgent = 0);
+  void set_is_partially_observable(const int agentID = 0);
 
-  void launch();
+  //////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// ADVANCED METHODS //////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
-  Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents = 1);
-  Communicator(int socket, bool spawn, std::mt19937& G, int _bTr, int nEps);
-  virtual ~Communicator();
+  void env_has_distributed_agents();
 
- protected:
-  //App output file descriptor
-  int fd;
-  fpos_t pos;
+  void agents_define_different_MDP();
 
-  //Communication over sockets
-  int socket_id, Socket, ServerSocket;
-  char SOCK_PATH[256];
-  struct sockaddr_un serverAddress, clientAddress;
+  void disableDataTrackingForAgents(int agentStart, int agentEnd);
 
-  void print();
+  void set_preprocessing_conv2d(
+    const int input_width, const int input_height, const int input_features,
+    const int kernels_num, const int filters_size, const int stride,
+    const int agentID = 0);
 
-  void update_rank_size();
+  void set_num_appended_past_observations(const int n_appended,
+                                          const int agentID = 0);
 
-  virtual void launch_forked();
-  void setupClient();
-  void setupServer();
+  //////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// UTILITY METHODS ///////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+  std::mt19937& getPRNG();
+  bool isTraining() const;
+  bool terminateTraining() const;
+  int desiredNepisodes() const;
 
-  void sendStateActionShape();
+  //////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////// DEVELOPER METHODS //////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+protected:
+  bool bEnvDistributedAgents = false;
 
+  Environment ENV;
+  std::vector<std::unique_ptr<Agent>>& agents = ENV.agents;
+  std::vector<std::unique_ptr<COMM_buffer>> BUFF;
 
- #ifdef MPI_VERSION
-    MPI_Request send_request = MPI_REQUEST_NULL;
-    MPI_Request recv_request = MPI_REQUEST_NULL;
+  struct {
+    int server;
+    std::vector<int> clients;
+  } SOCK;
 
-    void workerRecv_MPI();
-    void workerSend_MPI();
+  void synchronizeEnvironments();
+  void initOneCommunicationBuffer();
+  //random number generation:
+  std::mt19937 gen;
+  //internal counters & flags
+  bool bTrain = true;
+  bool bTrainIsOver = false;
+  int nEpisodes = -1;
+  Uint globalTstepCounter = 0;
 
-    MPI_Comm comm_inside_app = MPI_COMM_NULL, comm_learn_pool = MPI_COMM_NULL;
+  //called by app to interact with smarties:
+  void _sendState(const int agentID, const episodeStatus status,
+    const std::vector<double>& state, const double reward);
 
- public:
+  #ifndef SMARTIES_LIB
+  //#ifndef MPI_VERSION
+  //  #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+  //#endif
 
-    Communicator(const int socket, const int state_comp, const int action_comp,
-      const MPI_Comm app, const int number_of_agents);
- #endif
+  public:
+    MPI_Comm getMPIcomm() const { return workers_application_comm; }
+
+  protected:
+    MPI_Comm workers_application_comm = MPI_COMM_SELF;
+    void setMPIcomm(const MPI_Comm& C) { workers_application_comm = C; }
+
+    //access to smarties' internals, available only if app is linked into exec
+    friend class Worker;
+    // ref to worker ensures that if SMARTIES_LIB is not defined we can only
+    // construct a communicator with the protected constructor defined below
+    Worker * const worker = nullptr;
+
+    Communicator(Worker* const, std::mt19937&, bool);
+  #endif
 };
+
+struct COMM_buffer
+{
+  COMM_buffer(const size_t maxSdim, const size_t maxAdim) :
+    maxStateDim(maxSdim), maxActionDim(maxAdim),
+    sizeStateMsg(Agent::computeStateMsgSize(maxSdim)),
+    sizeActionMsg(Agent::computeActionMsgSize(maxAdim)),
+    dataStateBuf (malloc(sizeStateMsg) ), // aligned_alloc(1024...)
+    dataActionBuf(malloc(sizeActionMsg)) { }
+
+  ~COMM_buffer() {
+    assert(dataStateBuf not_eq nullptr && dataActionBuf not_eq nullptr);
+    free(dataActionBuf);
+    free(dataStateBuf);
+  }
+
+  COMM_buffer(const COMM_buffer& c) = delete;
+  COMM_buffer& operator= (const COMM_buffer& s) = delete;
+
+  const size_t maxStateDim, maxActionDim, sizeStateMsg, sizeActionMsg;
+  void * const dataStateBuf;
+  void * const dataActionBuf;
+};
+
+} // end namespace smarties
+#endif // smarties_Communicator_h

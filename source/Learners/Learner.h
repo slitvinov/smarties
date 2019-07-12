@@ -6,124 +6,153 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Learner_h
+#define smarties_Learner_h
 
-#include "MemoryBuffer.h"
-#include "Approximator.h"
+#include "Core/StateAction.h"
+#include "Utils/Profiler.h"
+#include "ReplayMemory/MemoryBuffer.h"
+#include "Utils/StatsTracker.h"
+#include "Utils/ParameterBlob.h"
+#include "Utils/TaskQueue.h"
+#include "Settings.h"
 
-#include <list>
-using namespace std;
+namespace smarties
+{
+
+class MemoryProcessing;
+class DataCoordinator;
+class Collector;
 
 class Learner
 {
 protected:
+  const Uint freqPrint = 1000;
+  DistributionInfo & distrib;
   Settings & settings;
-  Environment * const env;
-  const MPI_Comm mastersComm = settings.mastersComm;
+  MDPdescriptor & MDP;
+  ParameterBlob params;
 
-  const bool bSampleSequences=settings.bSampleSequences, bTrain=settings.bTrain;
-  const Uint totNumSteps, policyVecDim, nAgents, batchSize, nThreads, nWorkers;
-  const Real CmaxPol, ReFtol, learnR, gamma, explNoise, epsAnneal;
-  const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
-  unsigned long nStep = 0;
-  Uint nData_b4Startup = 0;
-  Uint nAddedGradients = 0;
-  mutable Uint nSkipped = 0;
+public:
+  const MPI_Comm learnersComm = distrib.learners_train_comm;
+  const Uint learn_rank = MPICommRank(learnersComm);
+  const Uint learn_size = MPICommSize(learnersComm);
+  const Uint nThreads = distrib.nThreads, nAgents = distrib.nAgents;
 
-  mutable bool updateComplete = false;
-  mutable bool updateToApply = false;
+  const Uint policyVecDim = MDP.policyVecDim;
+  const ActionInfo aInfo = ActionInfo(MDP);
+  const StateInfo  sInfo = StateInfo(MDP);
 
-  const ActionInfo& aInfo = env->aI;
-  const StateInfo&  sInfo = env->sI;
-  std::vector<std::mt19937>& generators = settings.generators;
-  MemoryBuffer* data;
-  Encapsulator* input;
+  // training loop scheduling:
+  const Uint totNumSteps = settings.totNumSteps;
+  const Real obsPerStep_loc = settings.obsPerStep_local;
+  const long nObsB4StartTraining = settings.minTotObsNum_local;
+  long _nObsB4StartTraining = std::numeric_limits<long>::max();
+  const bool bTrain = settings.bTrain;
+
+  // some algorithm hyper-parameters:
+  const Real gamma = settings.gamma;
+  const Real ReFtol = settings.penalTol;
+  const Real CmaxPol = settings.clipImpWeight;
+  const Real epsAnneal = settings.epsAnneal;
+
+  DelayedReductor<long double> ReFER_reduce;
+  const FORGET ERFILTER;
+
+protected:
+  long nDataGatheredB4Startup = std::numeric_limits<long>::max();
+  int algoSubStepID = -1;
+
+  Real alpha = 0.5; // weight between critic and policy
+  Real beta = CmaxPol<=0? 1 : 0.5; // if CmaxPol==0 do naive Exp Replay
+  Real CmaxRet = 1 + CmaxPol;
+  Real CinvRet = 1 / CmaxRet;
+  bool computeQretrace = false;
+
+  std::atomic<long> _nGradSteps{0};
+
+  std::vector<std::mt19937>& generators = distrib.generators;
+
+  const std::unique_ptr<MemoryBuffer> data =
+                         std::make_unique<MemoryBuffer>(MDP, settings, distrib);
+  MemoryProcessing * const data_proc;
+  DataCoordinator * const  data_coord;
+  Collector * const        data_get;
+  const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
+
   TrainData* trainInfo = nullptr;
-  vector<Approximator*> F;
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
 
-  inline bool canSkip() const
-  {
-    Uint _nSkipped;
-    #pragma omp atomic read
-      _nSkipped = nSkipped;
-    // If skipping too many samples return w/o sample to avoid code hanging.
-    // If true smth is wrong. Approximator will print to screen a warning.
-    return _nSkipped < 2*batchSize;
-  }
-
-  inline void resample(const Uint thrID) const // TODO resample sequence
-  {
-    #pragma omp atomic
-    nSkipped++;
-
-    Uint sequence, transition;
-    data->sampleTransition(sequence, transition, thrID);
-    data->Set[sequence]->setSampled(transition);
-    return Train(sequence, transition, thrID);
-  }
-
 public:
-  Profiler* profiler = nullptr;
-  string learner_name;
+  std::string learner_name;
   Uint learnID;
 
-  Learner(Environment*const env, Settings & settings);
+  Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  virtual ~Learner();
 
-  virtual ~Learner() {
-    _dispose_object(profiler);
-    _dispose_object(data);
-  }
-
-  inline void setLearnerName(const string lName, const Uint id) {
+  void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
     data->learnID = id;
     learnID = id;
   }
 
-  inline unsigned iter() const {
-    return nStep;
+  long nLocTimeStepsTrain() const {
+    return data->readNSeen_loc() - nDataGatheredB4Startup;
   }
-  inline unsigned tStepsTrain() const {
-    return data->readNSeen() - nData_b4Startup;
-  }
-  inline unsigned nSeqsEval() const {
-    return data->readNSeenSeq();
-  }
-  inline unsigned nData() const {
+  long locDataSetSize() const {
     return data->readNData();
   }
-  inline Real annealingFactor() const {
-    //number that goes from 1 to 0 with optimizer's steps
-    assert(epsAnneal>1.);
-    if(nStep*epsAnneal >= 1 || !bTrain) return 0;
-    else return 1 - nStep*epsAnneal;
+  long nSeqsEval() const {
+    return data->readNSeenSeq_loc();
+  }
+  long nGradSteps() const {
+    return _nGradSteps.load();
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void TrainBySequences(const Uint seq, const Uint thrID) const = 0;
-  virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
+  virtual void setupTasks(TaskQueue& tasks) = 0;
+  virtual void setupDataCollectionTasks(TaskQueue& tasks);
 
-  virtual void getMetrics(ostringstream& buff) const;
-  virtual void getHeaders(ostringstream& buff) const;
-  //mass-handing of unfinished sequences from master
-  void clearFailedSim(const int agentOne, const int agentEnd);
-  void pushBackEndedSim(const int agentOne, const int agentEnd);
-  bool workerHasUnfinishedSeqs(const int worker) const;
+  virtual void globalGradCounterUpdate();
 
-  //main training loop functions:
-  virtual void spawnTrainTasks_par() = 0;
-  virtual void spawnTrainTasks_seq() = 0;
-  virtual bool bNeedSequentialTrain() = 0;
+  virtual bool blockDataAcquisition() const;
+  virtual bool blockGradientUpdates() const;
 
-  virtual bool lockQueue() const = 0;
-
-  virtual void prepareGradient();
-  virtual void applyGradient();
+  void processMemoryBuffer();
+  void updateRetraceEstimates();
+  void finalizeMemoryProcessing();
   virtual void initializeLearner();
-  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
+
+  virtual void logStats();
+
+  virtual void getMetrics(std::ostringstream& buff) const;
+  virtual void getHeaders(std::ostringstream& buff) const;
+
   virtual void save();
   virtual void restart();
+
+protected:
+  void backPropRetrace(Sequence& S, const Uint t)
+  {
+    if(t == 0) return;
+    const Fval W = S.offPolicImpW[t];
+    const Fval R = data->scaledReward(S, t), G = gamma;
+    const Fval C = W<1 ? W:1, V = S.state_vals[t], A = S.action_adv[t];
+    S.setRetrace(t-1, R + G*V + G*C*(S.Q_RET[t] -A-V) );
+  }
+  Fval updateRetrace(Sequence& S, const Uint t,
+                     const Fval A, const Fval V, const Fval W) const
+  {
+    assert(W >= 0);
+    if(t == 0) return 0;
+    S.setStateValue(t, V); S.setAdvantage(t, A);
+    const Fval oldRet = S.Q_RET[t-1], C = W<1 ? W:1, G = gamma;
+    S.setRetrace(t-1, data->scaledReward(S,t) +G*V + G*C*(S.Q_RET[t] -A-V) );
+    return std::fabs(S.Q_RET[t-1] - oldRet);
+  }
 };
+
+}
+#endif

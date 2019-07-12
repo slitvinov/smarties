@@ -6,48 +6,43 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-#include "Learner_offPolicy.h"
-#include "../Math/Quadratic_advantage.h"
-#include "../Math/Discrete_advantage.h"
+#ifndef smarties_ACER_h
+#define smarties_ACER_h
 
-class ACER : public Learner_offPolicy
+#include "Learner_approximator.h"
+
+namespace smarties
 {
- protected:
-  using Policy_t = Gaussian_policy;
-  using Action_t = Rvec;
-  const Uint nA = Policy_t::compute_nA(&aInfo);
+
+class ACER : public Learner_approximator
+{
+protected:
+  const Uint nA = aInfo.dim();
+  const Real explNoise = settings.explNoise;
   const Real acerTrickPow = 1. / std::sqrt(nA);
   //const Real acerTrickPow = 1. / nA;
   static constexpr Uint nAexpectation = 5;
-  static constexpr Real facExpect = 1./nAexpectation;
-  static constexpr Real alpha = 1.0;
-  //const Real alpha = 0.1;
-  Aggregator* relay = nullptr;
+  Approximator * encoder = nullptr;
+  Approximator * actor = nullptr;
+  Approximator * value = nullptr;
+  Approximator * advtg = nullptr;
 
-  inline Policy_t prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Policy_t pol({0, nA}, &aInfo, out);
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
+  void Train(const MiniBatch& MB, const Uint wID, const Uint bID) const override;
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
-
-  void Train(const Uint seq, const Uint obs, const Uint thrID) const override;
-
-  Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
-    const Policy_t& TGT, const Real ARET, const Real APol,
-    const Action_t& pol_samp) const;
-
- public:
-  void select(Agent& agent) override;
+public:
 
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {
-    return 2*aI->dim;
+    return 2*aI->dim();
   }
 
-  ACER(Environment*const _env, Settings&_set);
-  ~ACER() { }
+  void select(Agent& agent) override;
+  void setupTasks(TaskQueue& tasks) override;
+
+  ACER(MDPdescriptor&, Settings&, DistributionInfo&);
+  ~ACER() override { };
 };
+
+}
+
+#endif // smarties_ACER_h

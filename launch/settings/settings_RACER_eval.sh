@@ -2,12 +2,10 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995 --samplesFile 1"
+SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnLayerSizes 128 128"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"
@@ -40,11 +38,7 @@ SETTINGS+=" --clipImpWeight 2"
 # Here, fraction of far pol samples allowed in memory buffer
 SETTINGS+=" --penalTol 0.1"
 
-#Here is unused. Used for target network soft update
-SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-#Whether to train based on sampling sequences. Best not to.
-SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

@@ -3,63 +3,17 @@ EXECNAME=rl
 RUNFOLDER=$1
 APP=$2
 SETTINGSNAME=$3
-BDAINTMC=0
-if [ $BDAINTMC -eq 1 ] ; then
-CONSTRAINT=mc
-else
-CONSTRAINT=gpu
-fi
 
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
-#BASEPATH="/scratch/snx1600/${MYNAME}/smarties/"
+BASEPATH="${SCRATCH}/smarties/"
+
 mkdir -p ${BASEPATH}${RUNFOLDER}
 ulimit -c unlimited
 
-if [ $# -gt 3 ] ; then
-NSLAVESPERMASTER=$4
-else
-NSLAVESPERMASTER=1 #n tasks per node
-fi
-
-if [ $# -gt 4 ] ; then
-NMASTERS=$5
-else
-if [ $BDAINTMC -eq 1 ] ; then
-#NMASTERS=2 #n master ranks
-NMASTERS=1 #n master ranks
-else
-NMASTERS=1 #n master ranks
-fi
-fi
-if [ $# -gt 5 ] ; then
-NNODES=$6
-else
-NNODES=1 #threads per master
-fi
-
-if [ $# -gt 6 ] ; then
-NTHREADS=$7
-else
-if [ $BDAINTMC -eq 1 ] ; then
-#NTHREADS=18 #n master ranks
-NTHREADS=36 #n master ranks
-else
 NTHREADS=12 #n master ranks
-fi
-fi
-
-
-NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
-NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
-NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
 python3 ../Communicator_gym.py \$1 $APP
-EOF
-
-cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
-Environment exec=../launchSim.sh n=1
 EOF
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
@@ -77,9 +31,10 @@ if [ ! -f settings.sh ];then
     exit -1
 fi
 source settings.sh
-SETTINGS+=" --nMasters ${NMASTERS}"
-SETTINGS+=" --nThreads ${NTHREADS}"
-SETTINGS+=" --ppn ${NTASKPERNODE}"
+SETTINGS+=" --nMasters 1"
+SETTINGS+=" --nWorkers 1"
+SETTINGS+=" --nThreads 12"
+
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
 
@@ -91,22 +46,24 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt
-#SBATCH --nodes=${NNODES}
-#SBATCH --ntasks-per-node=${NTASKPERNODE}
-#SBATCH --constraint=${CONSTRAINT}
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --constraint=gpu
 
-#SBATCH --time=16:00:00
+#SBATCH --time=24:00:00
 # #SBATCH --partition=debug
 # #SBATCH --time=00:30:00
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
 # #SBATCH --mail-type=ALL
 
-export OMP_NUM_THREADS=${NTHREADS}
-export CRAY_CUDA_MPS=1
+export MPICH_MAX_THREAD_SAFETY=multiple
+export OPENBLAS_NUM_THREADS=1
+export OMP_NUM_THREADS=12
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
+export CRAY_CUDA_MPS=1
 
-srun --ntasks ${NPROCESS} --threads-per-core=2 --cpu_bind=sockets --cpus-per-task=${NTHREADS} --ntasks-per-node=${NTASKPERNODE} ./exec ${SETTINGS}
+srun --n 1 --nodes=1 --ntasks-per-node=1 ./exec ${SETTINGS}
 
 EOF
 

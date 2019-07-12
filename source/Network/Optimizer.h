@@ -6,64 +6,97 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-#include "Parameters.h"
-#include <iomanip>
+#ifndef smarties_Optimizer_h
+#define smarties_Optimizer_h
 
+#include "Layers/Parameters.h"
+#include "Settings.h"
+
+namespace smarties
+{
 
 class Optimizer
 {
- protected:
-  const MPI_Comm mastersComm;
-  const Uint learn_size;
-  const Real eta, beta_1, beta_2;
-  Real beta_t_1 = beta_1, beta_t_2 = beta_2;
-  const Parameters * const weights;
-  const Parameters * const tgt_weights;
-  const Parameters * const gradSum;
-  const Parameters * const _1stMom;
-  const Parameters * const _2ndMom;
-  const Parameters * const _2ndMax;
-  vector<std::mt19937>& generators;
-  Uint cntUpdateDelay = 0, totGrads = 0;
-  MPI_Request paramRequest = MPI_REQUEST_NULL;
-  MPI_Request batchRequest = MPI_REQUEST_NULL;
-  //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
-  //const Uint L_eSGD;
-  //nnReal *const _muW_eSGD, *const _muB_eSGD;
+protected:
+  const DistributionInfo& distrib;
+  const Settings & settings;
+  const MPI_Comm learnersComm = MPICommDup(distrib.learners_train_comm);
+  const Uint learn_size = MPICommSize(learnersComm);
+  const Uint learn_rank = MPICommRank(learnersComm);
+  const Uint populationSize = settings.ESpopSize;
+  const Uint nThreads = distrib.nThreads;
 
- public:
+  const std::shared_ptr<Parameters> weights;
+  const std::vector<std::shared_ptr<Parameters>> sampled_weights =
+                                       allocManyParams(weights, populationSize);
+  const std::shared_ptr<Parameters> target_weights = weights->allocateEmptyAlike();
+
+  Uint cntUpdateDelay = 0;
+  std::mutex samples_mutex;
+
+  std::vector<MPI_Request> weightsMPIrequests = std::vector<MPI_Request>(populationSize, MPI_REQUEST_NULL);
+
+public:
   bool bAnnealLearnRate = true;
-  const Real lambda, epsAnneal, tgtUpdateAlpha;
+  const Real eta_init = settings.learnrate;
+  nnReal eta = eta_init;
+  const Uint batchSize = settings.batchSize;
+  const Real lambda = settings.nnLambda;
+  const Real epsAnneal = settings.epsAnneal;
+  const Real tgtUpdateAlpha = settings.targetDelay;
   long unsigned nStep = 0;
 
-  Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT,
-    const Real B1=.9, const Real B2=.999) : mastersComm(S.mastersComm),
-    learn_size(S.learner_size), eta(S.learnrate), beta_1(B1), beta_2(B2),
-    weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
-    _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
-    _2ndMax(W->allocateGrad()), generators(S.generators), lambda(S.nnLambda),
-    epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {
-      //_2ndMom->set(std::sqrt(nnEPS));
-      //_2ndMom->set(1);
-    }
-  //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
-  //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
-  //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
+  Optimizer(const Settings& S, const DistributionInfo& D,
+            const std::shared_ptr<Parameters>& W);
 
-  virtual ~Optimizer() {
-   _dispose_object(gradSum); _dispose_object(_1stMom);
-   _dispose_object(_2ndMom); _dispose_object(_2ndMax);
-  }
+  virtual ~Optimizer();
+  virtual void save(const std::string fname, const bool bBackup) = 0;
+  virtual int restart(const std::string fname) = 0;
 
-  inline void prepare_update(const int batchsize, const vector<Parameters*>& grads) {
-    prepare_update(batchsize, &grads);
-  }
+  virtual void prepare_update(const Rvec&L) = 0;
+  virtual void apply_update() = 0;
 
-  void prepare_update(const int batchsize, const vector<Parameters*>* grads = nullptr);
+  virtual void getMetrics(std::ostringstream& buff) = 0;
+  virtual void getHeaders(std::ostringstream&buff,const std::string nnName) = 0;
+  virtual bool ready2UpdateWeights() = 0;
 
-  void apply_update();
-
-  void save(const string fname, const bool bBackup);
-  int restart(const string fname);
+  const Parameters * getWeights(const Sint weightsIndex);
 };
+
+class AdamOptimizer : public Optimizer
+{
+protected:
+  const Real beta_1, beta_2;
+  Real beta_t_1 = beta_1, beta_t_2 = beta_2;
+  const std::vector<std::shared_ptr<Parameters>> gradients;
+  const std::shared_ptr<Parameters> gradSum = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> _1stMom = weights->allocateEmptyAlike();
+  const std::shared_ptr<Parameters> _2ndMom = weights->allocateEmptyAlike();
+  std::vector<std::mt19937>& generators = distrib.generators;
+  MPI_Request paramRequest = MPI_REQUEST_NULL;
+
+public:
+
+  AdamOptimizer(const Settings& S, const DistributionInfo& D,
+                const std::shared_ptr<Parameters>& W,
+                const std::vector<std::shared_ptr<Parameters>> & G,
+                const Real B1=.9, const Real B2=.999);
+
+  void prepare_update(const Rvec& L) override;
+  bool ready2UpdateWeights() override
+  {
+    if(paramRequest == MPI_REQUEST_NULL) return true;
+    int completed = 0;
+    MPI(Test, &paramRequest, &completed, MPI_STATUS_IGNORE);
+    return completed;
+  }
+  void apply_update() override;
+
+  void save(const std::string fname, const bool bBackup) override;
+  int restart(const std::string fname) override;
+  void getMetrics(std::ostringstream& buff) override;
+  void getHeaders(std::ostringstream& buff, const std::string nnName) override;
+};
+
+} // end namespace smarties
+#endif // smarties_Quadratic_term_h

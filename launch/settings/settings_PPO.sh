@@ -2,19 +2,16 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --samplesFile 1"
 SETTINGS+=" --gamma 0.995"
 #size of network layers
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
-
+SETTINGS+=" --nnLayerSizes 64"
+SETTINGS+=" --encoderLayerSizes 64" # shared by policy and value nets
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc LRelu"
+SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -40,4 +37,4 @@ SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 64"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"

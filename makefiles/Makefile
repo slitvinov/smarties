@@ -1,15 +1,10 @@
-hn ?= $(shell hostname)
-username ?= $(shell whoami)
+SHELL := /bin/bash
+CURPWD := $(shell pwd)
 UNAME_S := $(shell uname -s)
 config ?= prod
 extra ?=
-ifeq ($(INTEL_LICENSE_FILE),)
-compiler ?= gnu
-else
-compiler ?= intel
-endif
 
-CPPFLAGS=-DSMARTIES
+CPPFLAGS=
 LIBS=
 
 ifeq ($(UNAME_S),Darwin)
@@ -38,16 +33,34 @@ ifeq "$(findstring lair,$(shell hostname))" "lair"
 include make.lair
 endif
 
-exp ?= GAUS
-ifeq "$(exp)" "GAUS"
-CPPFLAGS+= -DADV_GAUS
+ifeq "$(MPICXX)" ""
+CPPFLAGS+= -I$(CURPWD)/../extern/build/mpich-3.3/include/
+LIBS+= -L$(CURPWD)/../extern/build/mpich-3.3/lib/
+MPICXX=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
+LD=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
+else
+LD=$(MPICXX)
 endif
-nexp ?= 1
-CPPFLAGS+= -DNEXPERTS=$(nexp)
+
+ifeq "$(shell $(MPICXX) --version | grep -ci 'icpc')" "0"
+ifeq "$(shell $(MPICXX) --version | grep -ci 'llvm')" "0"
+compiler=gnu
+else
+compiler=llvm
+endif
+else
+compiler=intel
+endif
 
 testdiff ?= off
 ifeq "$(testdiff)" "on"
 CPPFLAGS+= -D__CHECK_DIFF
+endif
+
+precision ?= double
+app_precision ?= $(precision)
+ifeq "$(precision)" "single"
+CPPFLAGS+= -DSINGLE_PREC
 endif
 
 app ?= ext_app_test
@@ -55,59 +68,120 @@ app ?= ext_app_test
 ifeq "$(compiler)" "intel"
 include make.icc.flags
 else
+ifeq "$(compiler)" "llvm"
+include make.llvm.flags
+else
 include make.gcc.flags
 endif
+endif
+
+CPPFLAGS+= -I../extern/CLI11/include/
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES= ArgParser.o main.o ObjectFactory.o Sequences.o Scheduler.o \
-		PPO.o ACER.o VRACER.o AtariEnvironment.o Approximator.o Network.o \
-		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o Optimizer.o \
-		Environment.o DQN.o RETPG.o Math_tests.o Communicator_internal.o \
-		Learner.o NAF.o DPG.o RACER.o Communicator.o
+OBJ_FILES = \
+	PPO.o \
+	NAF.o \
+	DPG.o \
+	DQN.o \
+	ACER.o \
+	RACER.o \
+	CMALearner.o \
+	Learner_pytorch.o \
+	Learner_approximator.o \
+	Sequences.o \
+	Learner.o \
+	Sampling.o \
+	Collector.o \
+	Math_tests.o \
+	MemoryBuffer.o \
+	DataCoordinator.o \
+	MemoryProcessing.o \
+	Builder.o \
+	Network.o \
+	Optimizer.o \
+	CMA_Optimizer.o \
+	StatsTracker.o \
+	Communicator.o \
+	Approximator.o \
+	Launcher.o \
+	Settings.o \
+	Profiler.o \
+	Master.o \
+	Worker.o \
+	main.o
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
-.DEFAULT_GOAL := rl
+.DEFAULT_GOAL := all
 
 ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
+
+LIBS+= -L. -lsimulation
+CPPFLAGS+= -I../source
 
 ############### Compile application as static library if needed ###############
 ifneq "$(app)" "ext_app_test"
 
 # let's check if app requires some flag / lib
 ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
+export app_precision $(app_precision)
 include ../apps/$(app)/make.flags
 endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
-lib:
-	make -C ../apps/$(app)/ clean
-	make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
+env:
+	+make -C ../apps/$(app)/ clean
+	+make -C ../apps/$(app)/ CC=$(MPICXX) CXX=$(MPICXX) compiler=$(compiler) \
+	config=$(config) precision=$(app_precision)
 
 else
 
 # app is compiled independently and uses communication through sockets
 # this is just for testing:
-lib: ext_app_test.o
+env: ext_app_test.o
 	ar rs libsimulation.a $^
 
 endif
+###############################################################################
 
-LIBS+= -L. -lsimulation
+###################### Compile Communicator Library ###########################
+PATH_COMM=../source/Communicators/Communicator
+NOWARNP11= -Wno-cast-function-type -Wno-redundant-decls -Wno-deprecated-declarations \
+	-Wno-shadow -Wno-cast-function-type -Wno-missing-declarations -Wno-float-equal
 
-rl: $(OBJ_FILES) lib
-	$(CC) $(OBJ_FILES) $(LIBS) -o $@
+PYBINDINC:=$(shell python3 -m pybind11 --includes) $(NOWARNP11)
+PYBINDSUF:=$(shell python3-config --extension-suffix)
+
+CommunicatorLib.o:
+	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -fPIC -c $(PATH_COMM).cpp -o $@
+
+test: CommunicatorLib.o testempty.o
+	$(LD) $^ -o $@
+
+lib: CommunicatorLib.o
+	$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared $(PYBINDINC) -fPIC \
+		$(PATH_COMM)_pybind11.cpp -o smarties$(PYBINDSUF)
+	ar rs libsmarties.a CommunicatorLib.o
+
+	#$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
+	#	$(PATH_COMM).cpp -o libsmarties.so
+	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
+
+exec: $(OBJ_FILES) env
+	$(LD) $(OBJ_FILES) $(LIBS) -o rl
+
+all: lib exec
 
 %.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(MPICXX) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c -MD $<
+	$(MPICXX) $(extra)  $(CPPFLAGS) -c -MD $<
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o *.so *.s *.d libsimulation.a rl
+	rm -f *.o *.so *.s *.d libsimulation.a libsmarties.* rl

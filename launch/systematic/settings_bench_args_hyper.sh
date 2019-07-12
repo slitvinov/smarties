@@ -20,17 +20,17 @@ SETTINGS+=" --outWeightsPrefac 0.1"
 SETTINGS+=" --bTrain 1"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
-SETTINGS+=" --learner RACER"
+SETTINGS+=" --learner VRACER"
 #SETTINGS+=" --learner DACER"
 
 #SETTINGS+=" --minTotObsNum  32768"
-SETTINGS+=" --minTotObsNum 131072"
+SETTINGS+=" --minTotObsNum 262144"
 SETTINGS+=" --maxTotObsNum ${BUFFSIZE}"
 SETTINGS+=" --clipImpWeight ${IMPSAMPR}"
 
 #chance of taking random actions
-SETTINGS+=" --explNoise 0.5"
-SETTINGS+=" --epsAnneal 0"
+SETTINGS+=" --explNoise  0.4472136"
+SETTINGS+=" --epsAnneal 5e-7"
 SETTINGS+=" --totNumSteps 10000000"
 #SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"

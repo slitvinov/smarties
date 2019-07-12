@@ -1,0 +1,114 @@
+#!/bin/bash -l
+
+#SBATCH --job-name=VRacer_CMA
+#SBATCH --time=24:00:00
+#SBATCH --output=out.%j.%a.o
+#SBATCH --error=out.%j.%a.e
+#SBATCH --constraint=gpu
+# #SBATCH --partition=debug
+
+# #SBATCH --account=ch7
+#SBATCH --account=s658
+# #SBATCH --account=eth2
+
+#SBATCH --array=0-499
+
+# ======START=====
+COMMNAME=VRACER_CMA_002_singleNet
+# Racer initializes stdev. explNoise=0.4472136 means initial covariance is set to 0.2
+SETTINGS=" --gamma 0.995 --nnl1 64 --nnl2 64 --nnFunc SoftSign --learner VRACER --minTotObsNum 262144 --targetDelay 0 --explNoise 0.4472136 --totNumSteps 5000000 --learnrate 0.001 --nMasters 1 --nThreads 12 --outWeightsPrefac 0.01 --epsAnneal 5e-7 "
+
+MYNAME=`whoami`
+#BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+BASEPATH="/scratch/snx1600/${MYNAME}/smarties/"
+
+BUFFSIZE=(262144)
+IMPSAMPR=(4)
+TOLPARAM=(0.1)
+BATCHNUM=(480 240 120 60 36)
+CMAPOPSZ=(960 480 240 120 60)
+EPERSTEP=(1)
+RUNTRIAL=(1 2 3 4 5)
+
+#TASKNAME=(HumanoidStandup-v2 Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Reacher-v2 Swimmer-v2 Hopper-v2 InvertedPendulum-v2 InvertedDoublePendulum-v2)
+#SHORTID=( standu             humanw      spider walker      cheeta         reachr     swimmr     hopper    invpnd              dblpnd)
+#TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Reacher-v2 Swimmer-v2 Hopper-v2 InvertedDoublePendulum-v2)
+#SHORTID=( humanw      spider walker      cheeta         reachr     swimmr     hopper    dblpnd)
+TASKNAME=(Ant-v2 Walker2d-v2 HalfCheetah-v2 Swimmer-v2)
+SHORTID=( spider walker      cheeta         swimmr    )
+
+loads=()
+cases=()
+rundir=()
+appspec=()
+#approximatively sorted by strongest effect on runtime
+for it in `seq 0 ${#TASKNAME[@]}`; do
+
+for b in ${BATCHNUM[@]}; do
+for d in ${TOLPARAM[@]}; do
+for n in ${BUFFSIZE[@]}; do
+for o in ${EPERSTEP[@]}; do
+for c in ${IMPSAMPR[@]}; do
+for w in ${CMAPOPSZ[@]}; do
+for r in ${RUNTRIAL[@]}; do
+
+cases+=("--maxTotObsNum $n --clipImpWeight $c --penalTol $d --batchSize $b --obsPerStep $o --ESpopSize $w ")
+rundir+=("${SHORTID[$it]}_${COMMNAME}_R${c}_N${n}_D${d}_B${b}_W${w}_TRIAL${r}")
+appspec+=("${TASKNAME[$it]}")
+load=$((${b}*${w}))
+loads+=("$load")
+done
+done
+done
+done
+done
+done
+done
+
+done
+
+# for SLURM_ARRAY_TASK_ID in {0..499} ; do
+## stuff that depends on SLURM_ARRAY_TASK_ID
+LOAD=${loads[$SLURM_ARRAY_TASK_ID]}
+RUNFOLDER=${rundir[$SLURM_ARRAY_TASK_ID]}
+RUNSET=${SETTINGS}${cases[$SLURM_ARRAY_TASK_ID]}
+
+mkdir -p ${BASEPATH}${RUNFOLDER}
+cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
+python3 ../Communicator_gym.py \$1 ${appspec[$SLURM_ARRAY_TASK_ID]}
+EOF
+cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
+Environment exec=../launchSim.sh n=1
+EOF
+chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+
+# copy over stuff
+cp ../../makefiles/rl ${BASEPATH}${RUNFOLDER}/exec
+cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
+cp $0             ${BASEPATH}${RUNFOLDER}/launch.sh
+git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
+git diff        > ${BASEPATH}${RUNFOLDER}/gitdiff.log
+
+cd ${BASEPATH}${RUNFOLDER}
+export MPICH_MAX_THREAD_SAFETY=multiple
+export OMP_NUM_THREADS=12
+export OMP_PROC_BIND=TRUE
+export OMP_PLACES=cores
+export CRAY_CUDA_MPS=1
+
+NTASK=1
+if [ $LOAD -gt  14400 ] ; then NTASK=2; fi
+if [ $LOAD -gt  28800 ] ; then NTASK=4; fi
+if [ $LOAD -gt  57600 ] ; then NTASK=8; fi
+if [ $LOAD -gt 115200 ] ; then NTASK=16; fi
+if [ $LOAD -gt 230400 ] ; then NTASK=32; fi
+#echo $NTASK ${RUNSET} $LOAD
+#done
+
+if [ $NTASK -gt 2 ] ; then
+srun --ntasks $NTASK --ntasks-per-node=1 ./exec ${RUNSET}
+fi
+#srun  -n 2 --cpu_bind=map_cpu:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 ./run1 & srun  -n 2 --cpu_bind=map_cpu:18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35 ./run2 & wait
+
+# =====END====

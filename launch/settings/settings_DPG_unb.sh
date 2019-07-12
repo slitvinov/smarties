@@ -5,8 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnLayerSizes 128 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -17,7 +16,6 @@ SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
-SETTINGS+=" --epsAnneal 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
@@ -32,6 +30,7 @@ SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 #SETTINGS+=" --impWeight 4"
+#SETTINGS+=" --epsAnneal 5e-7"
 SETTINGS+=" --clipImpWeight 0"
 SETTINGS+=" --penalTol 0.1"
 
@@ -43,5 +42,4 @@ SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-#SETTINGS+=" --learnrate 0.00001"
 SETTINGS+=" --learnrate 0.00001"

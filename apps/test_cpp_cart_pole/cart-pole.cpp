@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <vector>
 #include <functional>
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #define SWINGUP 0
 using namespace std;
 
@@ -32,7 +32,6 @@ Vec rk46_nl(double t0, double dt, Vec u0, Func&& Diff)
   Vec u(u0);
   double t;
 
-  #pragma unroll
     for (int i=0; i<s; i++)
     {
       t = t0 + dt*c[i];
@@ -46,7 +45,8 @@ struct Vec4
 {
   double y1, y2, y3, y4;
 
-  Vec4(double y1=0, double y2=0, double y3=0, double y4=0) : y1(y1), y2(y2), y3(y3), y4(y4) {};
+  Vec4(double _y1=0, double _y2=0, double _y3=0, double _y4=0) :
+    y1(_y1), y2(_y2), y3(_y3), y4(_y4) {};
 
   Vec4 operator*(double v) const
   {
@@ -119,26 +119,26 @@ struct CartPole
   double getReward()
   {
     #if SWINGUP
-  		double angle = std::fmod(u.y3, 2*M_PI);
-  		angle = angle<0 ? angle+2*M_PI : angle;
-  		return fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
+      double angle = std::fmod(u.y3, 2*M_PI);
+      angle = angle<0 ? angle+2*M_PI : angle;
+      return fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
     #else
-      return -1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
-		#endif
+      //return -1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
+      return 1 - ( std::fabs(u.y3)>M_PI/15 || std::fabs(u.y1)>2.4 );
+    #endif
   }
 
-  Vec4 Diff(Vec4 u, double t)
+  Vec4 Diff(Vec4 _u, double _t)
   {
     Vec4 res;
 
-    const double cosy = std::cos(u.y3);
-    const double siny = std::sin(u.y3);
-    const double w = u.y4;
+    const double cosy = std::cos(_u.y3), siny = std::sin(_u.y3);
+    const double w = _u.y4;
     #if SWINGUP
-			const double fac1 = 1./(mc + mp * siny*siny);
-			const double fac2 = fac1/l;
-			res.y2 = fac1*(F + mp*siny*(l*w*w + g*cosy));
-			res.y4 = fac2*(-F*cosy -mp*l*w*w*cosy*siny -(mc+mp)*g*siny);
+      const double fac1 = 1./(mc + mp * siny*siny);
+      const double fac2 = fac1/l;
+      res.y2 = fac1*(F + mp*siny*(l*w*w + g*cosy));
+      res.y4 = fac2*(-F*cosy -mp*l*w*w*cosy*siny -(mc+mp)*g*siny);
     #else
       const double totMass = mp+mc;
       const double fac2 = l*(4./3. - (mp*cosy*cosy)/totMass);
@@ -146,19 +146,19 @@ struct CartPole
       res.y4 = (g*siny - F1*cosy/totMass)/fac2;
       res.y2 = (F1 - mp*l*res.y4*cosy)/totMass;
     #endif
-    res.y1 = u.y2;
-    res.y3 = u.y4;
+    res.y1 = _u.y2;
+    res.y3 = _u.y4;
     return res;
   }
 };
 
-int main(int argc, const char * argv[])
+int main()
 {
   //communication:
-  const int socket = std::stoi(argv[1]);
-
+printf("in the correct main at least?\n"); fflush(0);
   const int control_vars = 1; // force along x
   const int state_vars = 6;
+  const int n_agents = 1;
   //  - x position
   //  - x velocity
   //  - ang velocity
@@ -167,7 +167,7 @@ int main(int argc, const char * argv[])
   //  - sin(angle)
 
   //socket number is given by RL as first argument of execution
-  Communicator comm(socket, state_vars, control_vars);
+  smarties::Communicator comm(state_vars, control_vars, n_agents);
 
   //OPTIONAL: action bounds
   bool bounded = true;
@@ -200,6 +200,7 @@ int main(int argc, const char * argv[])
 
 
     comm.sendInitState(env.getState()); //send initial state
+    if(comm.terminateTraining()) return 0; // exit program
 
     while (true) //simulation loop
     {
@@ -212,11 +213,11 @@ int main(int argc, const char * argv[])
       double reward = env.getReward();
 
       if(terminated)  //tell smarties that this is a terminal state
-      {
         comm.sendTermState(state, reward);
-        break;
-      }
       else comm.sendState(state, reward);
+
+      if(comm.terminateTraining()) return 0; // exit program
+      if(terminated) break; // go back up to reset
     }
   }
 }

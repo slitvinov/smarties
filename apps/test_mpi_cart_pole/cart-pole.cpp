@@ -14,7 +14,7 @@
 #include <functional>
 
 #include "mpi.h"
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #define SWINGUP 0
 using namespace std;
 
@@ -152,12 +152,11 @@ struct CartPole
 };
 
 int app_main(
-  Communicator*const comm, // communicator with smarties
+  smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,         // mpi_comm that mpi-based apps can use
-  int argc, char**argv,    // arguments read from app's runtime settings file
-  const unsigned numSteps      // number of time steps to run before exit
+  int argc, char**argv    // arguments read from app's runtime settings file
 ) {
-  comm->update_state_action_dims(6, 1);
+  comm->set_state_action_dims(6, 1);
 
   //OPTIONAL: action bounds
   bool bounded = true;
@@ -190,8 +189,8 @@ int app_main(
     //reset environment:
     env.reset(comm->getPRNG()); //comm contains rng with different seed on each rank
 
-
     comm->sendInitState(env.getState()); //send initial state
+    if(comm->terminateTraining()) return 0; // exit program
 
     while (true) //simulation loop
     {
@@ -204,11 +203,11 @@ int app_main(
       double reward = env.getReward();
 
       if(terminated)  //tell smarties that this is a terminal state
-      {
         comm->sendTermState(state, reward);
-        break;
-      }
       else comm->sendState(state, reward);
+
+      if(comm->terminateTraining()) return 0; // exit program
+      if(terminated) break; // go back up to reset
     }
   }
   return 0;

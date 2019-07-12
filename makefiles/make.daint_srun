@@ -1,4 +1,10 @@
-CC=CC
+MPICXX=CC
+LD=CC
+
+#CPPFLAGS+= -static
+#LIBS += -static
+#LIBS += -lstdc++
+
 ifeq ($(INTEL_LICENSE_FILE),)
 LIBS+= -lsci_gnu
 else

@@ -1,3 +1,4 @@
+export INTERNALAPP=false
 
 cp ../apps/test_rnn/launch.sh ${BASEPATH}${RUNFOLDER}/launchSim.sh
 cp ../apps/test_rnn/testApp.py     ${BASEPATH}${RUNFOLDER}/

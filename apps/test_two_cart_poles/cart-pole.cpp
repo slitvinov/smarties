@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <vector>
 #include <functional>
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #define SWINGUP 0
 using namespace std;
 
@@ -152,13 +152,11 @@ struct CartPole
   }
 };
 
-int main(int argc, const char * argv[])
+int main()
 {
-  //communication:
-  const int socket = std::stoi(argv[1]);
-
   const int control_vars = 1; // force along x
   const int state_vars = 6;
+  const int n_agents = 2;
   //  - x position
   //  - x velocity
   //  - ang velocity
@@ -167,7 +165,7 @@ int main(int argc, const char * argv[])
   //  - sin(angle)
 
   //socket number is given by RL as first argument of execution
-  Communicator comm(socket, state_vars, control_vars, 2);
+  smarties::Communicator comm(state_vars, control_vars, n_agents);
 
   //OPTIONAL: action bounds
   bool bounded = true;
@@ -190,6 +188,9 @@ int main(int argc, const char * argv[])
   vector<double> upper_state_bound{ 1,  1,  1,  1,  1,  1};
   vector<double> lower_state_bound{-1, -1, -1, -1, -1, -1};
   comm.set_state_scales(upper_state_bound, lower_state_bound);
+
+  comm.agents_define_different_MDP();
+
   // Here for simplicity we have two environments
   // But real application is to env with two competing/collaborating agents
   CartPole env1, env2;
@@ -197,8 +198,8 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
-    env1.reset(comm.gen); //comm contains rng with different seed on each rank
-    env2.reset(comm.gen); //comm contains rng with different seed on each rank
+    env1.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
+    env2.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
 
     comm.sendInitState(env1.getState(), 0); //send initial state
     comm.sendInitState(env2.getState(), 1); //send initial state
@@ -221,9 +222,9 @@ int main(int argc, const char * argv[])
       if(terminated1 || terminated2)  //tell smarties this is a terminal state
       {
         if(terminated1) comm.sendTermState(state1, reward1, 0);
-        else comm.truncateSeq(state1, reward1, 0);
+        else comm.sendLastState(state1, reward1, 0);
         if(terminated2) comm.sendTermState(state2, reward2, 1);
-        else comm.truncateSeq(state2, reward2, 1);
+        else comm.sendLastState(state2, reward2, 1);
 
         break;
       }
