@@ -22,6 +22,7 @@ TAR="tar --keep-newer-files"
 
 # Flags. By default all are disabled.
 INSTALL_MPICH=
+INSTALL_OBLAS=
 UNKNOWN_ARGUMENT=
 PRINT_EXPORT=
 
@@ -29,23 +30,26 @@ PRINT_EXPORT=
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -a|--all   ) INSTALL_MPICH=1   ; shift ;;
+        -a|--all   ) INSTALL_MPICH=1   ;
+                     INSTALL_OBLAS=1   ; shift ;;
         -e|--export) PRINT_EXPORT=1    ; shift ;;
            --mpich ) INSTALL_MPICH=1   ; shift ;;
+           --blas  ) INSTALL_OBLAS=1   ; shift ;;
          *         ) UNKNOWN_ARGUMENT=1; shift ;;
     esac
 done
 
 
-if [ -z "$INSTALL_MPICH" -a -z "$PRINT_EXPORT" -o -n "$UNKNOWN_ARGUMENT" ]; then
+if [ -z "$INSTALL_MPICH" -a -z "$INSTALL_OBLAS" -a -z "$PRINT_EXPORT" -o -n "$UNKNOWN_ARGUMENT" ]; then
     echo "Usage:
-    ./install_dependencies [-a | --all | [[--mpich]]]
+    ./install_dependencies [-a | --all | [[--mpich]] | [[--blas]] ]
 
 Arguments:
   -a,  --all    - Install all available libraries and tools
   -e,  --export - Print export commands for all libraries and tools
                   (assuming they are installed)
   --mpich       - Install mpich version ${MPICH_VERSION}
+  --blas        - Install serial OpenBLAS
 
 All libraries and tools are installed locally in the extern/ folder.
 Note that this script tries not to redo everything from scratch if run multiple
@@ -65,10 +69,21 @@ if [ -n "$INSTALL_MPICH" ]; then
     cd $SOURCES
 #    $TAR -xzvf mpich-${MPICH_VERSION}.tar.gz
     cd mpich-${MPICH_VERSION}
-    CC=${CC} CXX=${CXX} ./configure --prefix=$INSTALL_PATH/mpich-${MPICH_VERSION}/ \
-                                    --enable-fast=all --enable-fortran=no --enable-threads=multiple 
+    CC=${CC} CXX=${CXX} ./configure \
+      --prefix=$INSTALL_PATH/mpich-${MPICH_VERSION}/ \
+      --enable-fast=all --enable-fortran=no --enable-threads=multiple
     make -j${JOBS}
     make install -j${JOBS}
+    cd $BASEPWD
+fi
+
+if [ -n "$INSTALL_OBLAS" ]; then
+    echo "Installing OpenBLAS..."
+    cd $SOURCES
+    git clone https://github.com/xianyi/OpenBLAS
+    cd OpenBLAS
+    make CC=${CC} FC=${CC} NUM_THREADS=1 USE_THREAD=0 USE_OPENMP=0 -j${JOBS}
+    make PREFIX=$INSTALL_PATH/OpenBLAS/ install
     cd $BASEPWD
 fi
 
@@ -81,4 +96,3 @@ fi
 #if [ -n "$INSTALL_MPICH" -o -n "$PRINT_EXPORT" ]; then
 #    echo "export PATH=$INSTALL_PATH/mpich-${MPICH_VERSION}/bin:\$PATH"
 #fi
-

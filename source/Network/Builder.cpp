@@ -188,20 +188,32 @@ void Builder::addConv2d(const Conv2D_Descriptor& descr, bool bOut, Uint iLink)
   // an if-pattern matching the other ones and refer to the `matchConv2D`
   // function above to interpret the arguments. Useful rule of thumb to remember
   // is: outSize should be : (InSize - FilterSize + 2*Padding)/Stride + 1
-  if (      matchConv2D(descr, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20) )
+  if (      matchConv2D(descr, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20) ) {
+    layers.emplace_back(
+      std::make_unique<Mat2ImLayer<       84,84, 4, 8,8,32, 4,4, 0,0, 20,20> >
+        (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu, 84,84, 4, 8,8,32, 4,4, 0,0, 20,20> >
         (ID, bOut, iLink) );
+  }
   else
-  if (      matchConv2D(descr, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9) )
+  if (      matchConv2D(descr, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9) ) {
+    layers.emplace_back(
+      std::make_unique<Mat2ImLayer<       20,20,32, 4,4,64, 2,2, 0,0,  9, 9> >
+        (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu, 20,20,32, 4,4,64, 2,2, 0,0,  9, 9> >
         (ID, bOut, iLink) );
+  }
   else
-  if (      matchConv2D(descr,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7) )
+  if (      matchConv2D(descr,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7) ) {
+    layers.emplace_back(
+      std::make_unique<Mat2ImLayer<        9, 9,64, 3,3,64, 1,1, 0,0,  7, 7> >
+        (ID, bOut, iLink) );
     layers.emplace_back(
       std::make_unique<Conv2DLayer<LRelu,  9, 9,64, 3,3,64, 1,1, 0,0,  7, 7> >
         (ID, bOut, iLink) );
+  }
   else
     die("Detected undeclared conv2d description. This will be frustrating... "
         "In order to remove dependencies, keep the code low latency, and high "

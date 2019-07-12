@@ -30,10 +30,10 @@ include make.falcon
 endif
 
 ifeq "$(MPICXX)" ""
-CPPFLAGS+= -I$(CURPWD)../extern/build/mpich-3.3/include/
-LIBS+= -L$(CURPWD)../extern/build/mpich-3.3/lib/
-MPICXX=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
-LD=$(CURPWD)../extern/build/mpich-3.3/bin/mpic++
+CPPFLAGS+= -I$(CURPWD)/../extern/build/mpich-3.3/include/
+LIBS+= -L$(CURPWD)/../extern/build/mpich-3.3/lib/
+MPICXX=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
+LD=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
 else
 LD=$(MPICXX)
 endif
