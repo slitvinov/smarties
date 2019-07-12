@@ -34,7 +34,7 @@ struct Conv2DLayer: public Layer
   void requiredParameters(std::vector<Uint>& nWeight,
                           std::vector<Uint>& nBiases ) const override {
     nBiases.push_back(out_size);
-    nWeight.push_back(InC * KnC * KnY * KnX);
+    nWeight.push_back(KnC * InC * KnY * KnX);
   }
   void requiredActivation(std::vector<Uint>& sizes,
                           std::vector<Uint>& bOutputs,
@@ -74,7 +74,7 @@ struct Conv2DLayer: public Layer
   {
     memcpy(curr->X(ID), para->B(ID), out_size * sizeof(nnReal));
     // [KnC][OpY*OpX] = [KnC][InC*KnY*KnX] * [InC*KnY*KnX][OpY*OpX]
-    static constexpr int outRow = KnC, nInner = KnY*KnX*InC, outCol = OpY*OpX;
+    static constexpr int outRow = KnC, nInner = InC*KnY*KnX, outCol = OpY*OpX;
     gemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, outRow, outCol, nInner,
       1, para->W(ID), nInner, curr->Y(ID-link), outCol, 1, curr->X(ID), outCol);
     func::_eval(curr->X(ID), curr->Y(ID), KnC * OpY * OpX);
@@ -91,22 +91,23 @@ struct Conv2DLayer: public Layer
             nnReal* const grad_b = grad->B(ID);
       const nnReal* const suminp = curr->X(ID);
       const nnReal* const outval = curr->Y(ID);
+      #pragma omp simd aligned(deltas,suminp,outval,grad_b : VEC_WIDTH)
       for(int o = 0; o < out_size; ++o) {
         deltas[o] *= func::_evalDiff(suminp[o], outval[o]);
         grad_b[o] += deltas[o];
       }
     }
     {
-      static constexpr int outRow = KnC, outCol = KnY*KnX*InC, nInner = OpY*OpX;
+      static constexpr int outRow = KnC, outCol = InC*KnY*KnX, nInner = OpY*OpX;
       // Compute gradient of error wrt to kernel parameters:
-      // [KnC][InC*KnY*KnX] = [InC*KnY*KnX][OpY*OpX] * ([KnC][OpY*OpX])^T
+      // [KnC][InC*KnY*KnX] = [KnC][OpY*OpX] * ([InC*KnY*KnX][OpY*OpX])^T
       gemm(CblasRowMajor, CblasNoTrans, CblasTrans, outRow, outCol, nInner,
-      1, curr->Y(ID-link), nInner, curr->E(ID), nInner, 1, grad->W(ID), outCol);
+      1, curr->E(ID), nInner, curr->Y(ID-link), nInner, 1, grad->W(ID), outCol);
     }
     {
       // Compute gradient of error wrt to output of previous layer:
       //[InC*KnY*KnX][OpY*OpX] = ([KnC][InC*KnY*KnX])^T [KnC][OpY*OpX]
-      static constexpr int outRow = KnY*KnX*InC, outCol = OpY*OpX, nInner = KnC;
+      static constexpr int outRow = InC*KnY*KnX, outCol = OpY*OpX, nInner = KnC;
       gemm(CblasRowMajor, CblasTrans, CblasNoTrans, outRow, outCol, nInner,
       1, para->W(ID), outRow, curr->E(ID), outCol, 1, curr->E(ID-link), outCol);
     }
@@ -145,7 +146,10 @@ struct Mat2ImLayer: public Layer
   static constexpr int out_size = InC*KnY*KnX*OpY*OpX;
 
   void requiredParameters(std::vector<Uint>& nWeight,
-                          std::vector<Uint>& nBiases ) const override { }
+                          std::vector<Uint>& nBiases ) const override {
+    nBiases.push_back(0);
+    nWeight.push_back(0);
+  }
   void requiredActivation(std::vector<Uint>& sizes,
                           std::vector<Uint>& bOutputs,
                           std::vector<Uint>& bInputs) const override {
