@@ -138,7 +138,7 @@ struct Approximator
     {
       assert(auxInputNet not_eq nullptr);
       Rvec addedinp = auxInputNet->forward(contextID, t, sampID);
-      assert(addedinp.size() >= m_auxInputSize);
+      assert( (Sint) addedinp.size() >= m_auxInputSize);
       addedinp.resize(m_auxInputSize);
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
       //if(!thrID) cout << "relay "<<print(addedinp) << endl;

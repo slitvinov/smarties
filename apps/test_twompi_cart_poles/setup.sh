@@ -1,4 +1,4 @@
-export INTERNALAPP=false
+export INTERNALAPP=true
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../apps/test_twompi_cart_poles

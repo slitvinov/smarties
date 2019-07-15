@@ -168,7 +168,8 @@ int app_main(
   //  - angle
   //  - cos(angle)
   //  - sin(angle)
-  comm.set_state_action_dims(state_vars, control_vars, n_agents);
+  comm.set_state_action_dims(state_vars, control_vars);
+  comm.set_num_agents(n_agents);
 
   //OPTIONAL: action bounds
   bool bounded = true;
@@ -195,8 +196,8 @@ int app_main(
   comm.agents_define_different_MDP();
   // to make it interesting, one agent is partially observed:
   comm.set_is_partially_observable(1);
-  vector<bool> b_observable = {true, false, false, false, true, true};
-  comm.set_state_observable(b_observable, 1);
+  vector<bool> b_observable2 = {true, false, false, false, true, true};
+  comm.set_state_observable(b_observable2, 1);
 
   // Here for simplicity we have two environments
   // But real application is to env with two competing/collaborating agents

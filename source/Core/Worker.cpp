@@ -120,6 +120,29 @@ void Worker::runTraining()
   dataCoordProcess.join();
 }
 
+void Worker::answerStateAction(Agent& agent) const
+{
+  if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
+  // get learning algorithm:
+  Learner& algo = * learners[getLearnerID(agent.localID)].get();
+  //pick next action and ...do a bunch of other stuff with the data:
+  algo.select(agent);
+
+  //static constexpr auto vec2str = Utilities::vec2string<double>;
+  //const int agentStatus = status2int(agent.agentStatus);
+  //_warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
+  //      vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
+  //      agent.reward, vec2str(agent.action,-1).c_str());
+
+  // Some logging and passing around of step id:
+  const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
+  const Uint nSteps = algo.nLocTimeStepsTrain();
+  agent.learnerStepID = factor * nSteps;
+  if(agent.agentStatus >= TERM) // localAgentID, bufferID
+    dumpCumulativeReward(agent, algo.nGradSteps(), nSteps);
+  //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
+}
+
 void Worker::answerStateAction(const Uint bufferID) const
 {
   assert( (Uint) bufferID < COMM->BUFF.size());
@@ -134,26 +157,8 @@ void Worker::answerStateAction(const Uint bufferID) const
   Agent& agent = * agents[agentID].get();
   // unpack state onto agent
   agent.unpackStateMsg(buffer.dataStateBuf);
-  if(agent.agentStatus == FAIL) die("app crashed. TODO: handle");
-  // get learning algorithm:
-  Learner& algo = * learners[getLearnerID(localAgentID)].get();
-  //pick next action and ...do a bunch of other stuff with the data:
-  algo.select(agent);
-
-  //static constexpr auto vec2str = Utilities::vec2string<double>;
-  //const int agentStatus = status2int(agent.agentStatus);
-  //_warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
-  //      vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
-  //      agent.reward, vec2str(agent.action,-1).c_str());
-
-  // Some logging and passing around of step id:
-  const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
-  const Uint nSteps = algo.nLocTimeStepsTrain();
-  agent.learnerStepID = factor * nSteps;
+  answerStateAction(agent);
   agent.packActionMsg(buffer.dataActionBuf);
-  if(agent.agentStatus >= TERM) // localAgentID, bufferID
-    dumpCumulativeReward(agent, algo.nGradSteps(), nSteps);
-  //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
 }
 
 Uint Worker::getLearnerID(const Uint agentIDlocal) const
@@ -321,6 +326,10 @@ void Worker::loopSocketsToMaster()
     Agent::messageLearnerStatus((char*) B.dataActionBuf) = KILL;
     SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, getSocketID(i+1));
   }
+}
+
+void Worker::stepWorkerToMaster(const Uint bufferID) const
+{
 }
 
 void Worker::stepWorkerToMaster(const Uint bufferID) const

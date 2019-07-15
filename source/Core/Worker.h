@@ -33,7 +33,8 @@ public:
 
   // may be called from application:
   void answerStateAction(const Uint bufferID) const;
-  void stepWorkerToMaster(const Uint bufferID = 0) const;
+  void stepWorkerToMaster(const Uint bufferID) const;
+  void stepWorkerToMaster(Agent & agent) const;
 
   virtual void run();
 
