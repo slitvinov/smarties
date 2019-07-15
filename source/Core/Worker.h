@@ -32,8 +32,6 @@ public:
   void loopSocketsToMaster();
 
   // may be called from application:
-  void answerStateAction(const Uint bufferID) const;
-  void stepWorkerToMaster(const Uint bufferID) const;
   void stepWorkerToMaster(Agent & agent) const;
 
   virtual void run();
@@ -66,6 +64,13 @@ protected:
   void dumpCumulativeReward(const Agent&, const Uint k, const Uint t) const;
 
   void answerStateActionCaller(const int bufferID);
+
+  void stepWorkerToMaster(const Uint bufferID) const;
+
+  void answerStateAction(const Uint bufferID) const;
+  void answerStateAction(Agent& agent) const;
+
+  void sendStateRecvAction(const COMM_buffer& BUF) const;
 
   int getSocketID(const Uint worker) const;
   const COMM_buffer& getCommBuffer(const Uint worker) const;

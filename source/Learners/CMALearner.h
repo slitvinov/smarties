@@ -56,5 +56,9 @@ public:
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
 
+template<> Uint CMALearner<Uint>::getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI);
+
 }
 #endif

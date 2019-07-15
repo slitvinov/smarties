@@ -88,5 +88,11 @@ class PPO : public Learner_approximator
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
 
+template<> Uint PPO<Discrete_policy, Uint>::
+getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint PPO<Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI);
+
 }
 #endif

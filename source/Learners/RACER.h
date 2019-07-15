@@ -120,5 +120,17 @@ class RACER : public Learner_approximator
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
 
+template<> Uint
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint
+RACER<Param_advantage, Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint
+RACER<Zero_advantage, Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI);
+
 }
 #endif

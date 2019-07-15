@@ -304,7 +304,7 @@ void Worker::loopSocketsToMaster()
   for(size_t i=0; ; ++i) // infinite loop : communicate until break command
   {
     const int workID = i % nClients, SID = getSocketID(workID+1);
-    const auto& B = getCommBuffer(workID+1);
+    const COMM_buffer& B = getCommBuffer(workID+1);
 
     SOCKET_Test(reqs[workID].completed, reqs[workID]);
 
@@ -328,39 +328,23 @@ void Worker::loopSocketsToMaster()
   }
 }
 
-void Worker::stepWorkerToMaster(const Uint bufferID) const
+void Worker::stepWorkerToMaster(Agent & agent) const
 {
-}
-
-void Worker::stepWorkerToMaster(const Uint bufferID) const
-{
-  assert(master_workers_comm not_eq MPI_COMM_NULL);
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
+  if(learners.size()) // then episode/parameter communication loop
+    return answerStateAction(agent);
 
-  if(learners.size()) return answerStateAction(bufferID);
-
-  const COMM_buffer& BUF = getCommBuffer(bufferID+1);
+  // else state/action communication loop
+  const COMM_buffer& BUF = * COMM->BUFF[agent.ID].get();
   const auto& appCom = COMM->workers_application_comm;
   const int appRank = MPICommRank(appCom), appSize = MPICommSize(appCom);
   if(appSize) assert( COMM->SOCK.clients.size() == 0 );
 
+  agent.packStateMsg(BUF.dataStateBuf);
+
   if (appRank<=0 || COMM->bEnvDistributedAgents)
   {
-    // MPI MSG to master of a single state:
-    MPI_Request send_request, recv_request;
-    MPI_Isend(BUF.dataStateBuf, BUF.sizeStateMsg, MPI_BYTE,
-        0, 78283, master_workers_comm, &send_request);
-    MPI_Request_free(&send_request);
-    // MPI MSG from master of a single action:
-    MPI_Irecv(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE,
-        0, 22846, master_workers_comm, &recv_request);
-    while (1) {
-      int completed = 0;
-      MPI_Test(&recv_request, &completed, MPI_STATUS_IGNORE);
-      if (completed) break;
-      usleep(1); // wait action from master without burning cpu resources
-    }
-
+    sendStateRecvAction(BUF);
     if (not COMM->bEnvDistributedAgents && appSize>1) {
       //Then this is rank 0 of an environment with centralized agents.
       //Broadcast same action to members of the gang:
@@ -373,7 +357,37 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
     //Therefore, recv the action obtained from master:
     MPI_Bcast(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE, 0, appCom);
   }
-  //learner_step_id = (unsigned) BUF.dataActionBuf[0];
+
+  agent.unpackActionMsg(BUF.dataActionBuf);
+}
+
+void Worker::stepWorkerToMaster(const Uint bufferID) const
+{
+  assert(master_workers_comm not_eq MPI_COMM_NULL);
+  assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
+  assert(COMM->SOCK.clients.size()>0 && "this method should be used by "
+         "intermediary workers between socket-apps and mpi-learners");
+  assert(MPICommSize(COMM->workers_application_comm)<=1 && "intermediary "
+         "workers do not support multi-rank apps");
+  sendStateRecvAction( getCommBuffer(bufferID+1) );
+}
+
+void Worker::sendStateRecvAction(const COMM_buffer& BUF) const
+{
+  // MPI MSG to master of a single state:
+  MPI_Request send_request, recv_request;
+  MPI_Isend(BUF.dataStateBuf, BUF.sizeStateMsg, MPI_BYTE,
+      0, 78283, master_workers_comm, &send_request);
+  MPI_Request_free(&send_request);
+  // MPI MSG from master of a single action:
+  MPI_Irecv(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE,
+      0, 22846, master_workers_comm, &recv_request);
+  while (1) {
+    int completed = 0;
+    MPI_Test(&recv_request, &completed, MPI_STATUS_IGNORE);
+    if (completed) break;
+    usleep(1); // wait action from master without burning cpu resources
+  }
 }
 
 int Worker::getSocketID(const Uint worker) const

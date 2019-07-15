@@ -242,14 +242,15 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && (Uint) agentID < agents.size());
   agents[agentID]->update(status, state, reward);
+  assert(agents[agentID]->ID == (Uint) agentID);
 
-#ifndef SMARTIES_LIB
-  if(worker not_eq nullptr)
-  {
-    worker->stepWorkerToMaster( * agents[agentID].get() );
-  }
-  else
-#endif
+  #ifndef SMARTIES_LIB
+    if(worker not_eq nullptr)
+    {
+      worker->stepWorkerToMaster( * agents[agentID].get() );
+    }
+    else
+  #endif
   {
     agents[agentID]->packStateMsg(BUFF[agentID]->dataStateBuf);
     SOCKET_Bsend(BUFF[agentID]->dataStateBuf,
@@ -260,7 +261,6 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
                  SOCK.server);
     agents[agentID]->unpackActionMsg(BUFF[agentID]->dataActionBuf);
   }
-
 
   // we cannot control application. if we received a termination signal we abort
   if(agents[agentID]->learnStatus == KILL) {
