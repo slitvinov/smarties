@@ -242,21 +242,25 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && (Uint) agentID < agents.size());
   agents[agentID]->update(status, state, reward);
-  agents[agentID]->packStateMsg(BUFF[0]->dataStateBuf);
+  agents[agentID]->packStateMsg(BUFF[agentID]->dataStateBuf);
 
 #ifndef SMARTIES_LIB
   if(worker not_eq nullptr)
   {
-    worker->stepWorkerToMaster();
+    worker->stepWorkerToMaster(agentID);
   }
   else
 #endif
   {
-    SOCKET_Bsend(BUFF[0]->dataStateBuf,  BUFF[0]->sizeStateMsg,  SOCK.server);
-    SOCKET_Brecv(BUFF[0]->dataActionBuf, BUFF[0]->sizeActionMsg, SOCK.server);
+    SOCKET_Bsend(BUFF[agentID]->dataStateBuf,
+                 BUFF[agentID]->sizeStateMsg,
+                 SOCK.server);
+    SOCKET_Brecv(BUFF[agentID]->dataActionBuf,
+                 BUFF[agentID]->sizeActionMsg,
+                 SOCK.server);
   }
 
-  agents[agentID]->unpackActionMsg(BUFF[0]->dataActionBuf);
+  agents[agentID]->unpackActionMsg(BUFF[agentID]->dataActionBuf);
 
   // we cannot control application. if we received a termination signal we abort
   if(agents[agentID]->learnStatus == KILL) {
@@ -276,20 +280,22 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-#ifndef SMARTIES_LIB
-  if(worker not_eq nullptr)
+  #ifndef SMARTIES_LIB
+    if(worker not_eq nullptr)
+    {
+      worker->synchronizeEnvironments();
+    }
+    else
+  #endif
   {
-    worker->synchronizeEnvironments();
-  }
-  else
-#endif
-  {
-    // application process only needs one communication buffer:
     initOneCommunicationBuffer();
     const auto sendBufferFunc = [&](void* buffer, size_t size) {
       SOCKET_Bsend(buffer, size, SOCK.server);
     };
     ENV.synchronizeEnvironments(sendBufferFunc);
+
+    // allocate rest of communication buffers:
+    for(size_t i=1; i<agents.size(); ++i) initOneCommunicationBuffer();
   }
   assert(BUFF.size() > 0);
 }

@@ -257,8 +257,7 @@ void Worker::synchronizeEnvironments()
 
   ENV.synchronizeEnvironments(recvBuffer, distrib.nOwnedEnvironments);
 
-  for(Uint i=0; i<distrib.nOwnedEnvironments; ++i)
-    COMM->initOneCommunicationBuffer();
+  for(Uint i=0; i<ENV.nAgents; ++i) COMM->initOneCommunicationBuffer();
 
   // now i know nAgents, might need more generators:
   distrib.finalizePRNG(ENV.nAgents);
