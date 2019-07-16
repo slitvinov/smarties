@@ -332,7 +332,7 @@ void Worker::stepWorkerToMaster(Agent & agent) const
 {
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
   if(learners.size()) // then episode/parameter communication loop
-    return answerStateAction(agent);
+    return answerStateAction(agent); // TODO : bEnvDistributedAgents
 
   // else state/action communication loop
   const COMM_buffer& BUF = * COMM->BUFF[agent.ID].get();

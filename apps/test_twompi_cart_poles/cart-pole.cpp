@@ -203,6 +203,10 @@ int app_main(
   // But real application is to env with two competing/collaborating agents
   CartPole env1, env2;
 
+  // This function is *needed* to send problem description to smarties ensuring
+  // thread safety. if only one thread (e.g. python), then it can be omitted:
+  comm.finalize_problem_description();
+
   while(true) //train loop
   {
     //reset environment:

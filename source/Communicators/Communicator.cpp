@@ -232,10 +232,18 @@ void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
     ENV.bTrainFromAgentData[i] = 0;
 }
 
+void Communicator::finalize_problem_description()
+{
+  if(ENV.bFinalized) {
+    printf("ABORTING: problem description was already finalized."); fflush(0); abort();
+  }
+  synchronizeEnvironments();
+}
+
 void Communicator::_sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward)
 {
-  if ( not ENV.bFinalized ) synchronizeEnvironments();
+  if ( not ENV.bFinalized ) synchronizeEnvironments(); // race condition
   if(bTrainIsOver) {
     printf("ABORTING: App recvd end-of-training signal but did not abort on it's own.\n"); fflush(0); abort();
   }
