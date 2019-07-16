@@ -132,7 +132,7 @@ endif
 CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 env:
-	+make -C ../apps/$(app)/ clean
+	#+make -C ../apps/$(app)/ clean
 	+make -C ../apps/$(app)/ CC=$(MPICXX) CXX=$(MPICXX) compiler=$(compiler) \
 	config=$(config) precision=$(app_precision)
 

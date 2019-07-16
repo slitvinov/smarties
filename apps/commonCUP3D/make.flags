@@ -1,13 +1,4 @@
 ##################################################
-ifneq "$(findstring panda,$(shell hostname))" ""
-LIBS += -L${HDF5_ROOT}/lib -L$(FFTW_ROOT)/lib/
-endif
-ifneq "$(findstring falcon,$(shell hostname))" ""
-LIBS += -L${HDF5_ROOT}/lib -L$(FFTW_ROOT)/lib/
-endif
-##################################################
-
-##################################################
 ifneq "$(findstring eu-, $(shell hostname))" ""
 
 ifneq "$(findstring intel, $(compiler))" ""
@@ -26,7 +17,7 @@ ifneq "$(findstring daint,$(shell hostname))" ""
 ifneq "$(GSL_ROOT_DIR)" ""
 	LIBS += -L$(GSL_ROOT_DIR)/lib
 endif
-LIBS += -lgsl -lgslcblas
+
 CPPFLAGS+= -I/users/novatig/hypre/build/include/
 LIBS+= -L/users/novatig/hypre/build/lib/ -lHYPRE
 
@@ -39,10 +30,30 @@ endif
 endif
 ##################################################
 
-ifeq ($(app_precision), single)
-LIBS += -lfftw3f -lfftw3f_omp
+ifneq ($(FFTW_ROOT),)
+	# OK
+else ifneq ($(FFTW3_ROOT_DIR),)
+        FFTW_ROOT = $(FFTW3_ROOT_DIR)
+else ifneq ($(FFTW_DIR),)
+        FFTW_ROOT = $(FFTW_DIR)/..
 else
-LIBS += -lfftw3 -lfftw3_omp
+        ERROR = "None of the FFTW_ROOT, FFTW_ROOT_DIR or FFTW_DIR environment variables set. Did you forget to `module load`?"
+endif
+LIBS += -L$(FFTW_ROOT)/lib
+
+ifeq ($(app_precision), single)
+LIBS += -lfftw3f_mpi -lfftw3f -lfftw3f_omp
+else
+LIBS += -lfftw3_mpi -lfftw3 -lfftw3_omp
 endif
 
-LIBS+= -lhdf5
+ifneq ($(HDF5_ROOT),)
+	#OK
+else ifneq ($(HDF5ROOT),)
+	HDF5_ROOT = HDF5ROOT
+else
+	ERROR = "Neither HDF5_ROOT nor HDF5ROOT environment variables set. Did you forget to `module load`?"
+endif
+LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
+
+LIBS += -lgsl -lgslcblas 
