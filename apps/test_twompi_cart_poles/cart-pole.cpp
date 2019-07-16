@@ -214,17 +214,14 @@ int app_main(
     env1.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
     env2.reset(comm.getPRNG()); //comm contains rng with different seed on each rank
 
-//    #pragma omp parallel sections
+    #pragma omp parallel sections
     {
-//      #pragma omp section
+      #pragma omp section
       comm.sendInitState(env1.getState(), 0); //send initial state
 
-//      #pragma omp section
+      #pragma omp section
       comm.sendInitState(env2.getState(), 1); //send initial state
     }
-
-    omp_lock_t lck1, lck2;
-    omp_init_lock(&lck1); omp_init_lock(&lck2);
 
     while (true) //simulation loop
     {
@@ -235,50 +232,42 @@ int app_main(
       {
         #pragma omp section
         {
-          omp_set_lock (&lck1);
-
           vector<double> action1 = comm.recvAction(0);
           action1[0] = - action1[0]; // make the two optimal policy different:
           terminated1 = env1.advance(action1);
-          vector<double> state1 = env1.getState();
-          double reward1 = env1.getReward();
-
-          omp_unset_lock (&lck1);
-          omp_set_lock (&lck2);
- 
-          if(terminated1.load() || terminated2.load()) { // end of simulation
-            if(terminated1.load()) comm.sendTermState(state1, reward1, 0);
-            else comm.sendLastState(state1, reward1, 0);
-          } else comm.sendState(state1, reward1, 0);
-
-          omp_unset_lock (&lck2);
         }
 
         #pragma omp section
         {
-          omp_set_lock (&lck2);
-
           vector<double> action2 = comm.recvAction(1);
           terminated2 = env2.advance(action2);
+        }
+
+        #pragma omp barrier
+
+        #pragma omp section
+        {
+          vector<double> state1 = env1.getState();
+          double reward1 = env1.getReward();
+          if(terminated1.load() || terminated2.load()) { // end of simulation
+            if(terminated1.load()) comm.sendTermState(state1, reward1, 0);
+            else comm.sendLastState(state1, reward1, 0);
+          } else comm.sendState(state1, reward1, 0);
+        }
+
+        #pragma omp section
+        {
           vector<double> state2 = env2.getState();
           double reward2 = env2.getReward();
-
-          omp_unset_lock (&lck2);
-          omp_set_lock (&lck1);
-
           if(terminated1.load() || terminated2.load()) { // end of simulation
             if(terminated2.load()) comm.sendTermState(state2, reward2, 1);
             else comm.sendLastState(state2, reward2, 1);
           } else comm.sendState(state2, reward2, 1);
 
-          omp_unset_lock (&lck1);
         }
       }
 
       if(terminated1.load() || terminated2.load()) break;
     }
-
-    omp_destroy_lock(&lck1);
-    omp_destroy_lock(&lck2);
   }
 }

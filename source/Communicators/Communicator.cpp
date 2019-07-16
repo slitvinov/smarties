@@ -249,8 +249,9 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   }
   //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && (Uint) agentID < agents.size());
+  assert(agents[agentID]->localID == (unsigned) agentID);
+  assert(agents[agentID]->ID == (unsigned) agentID);
   agents[agentID]->update(status, state, reward);
-  assert(agents[agentID]->ID == (Uint) agentID);
 
   #ifndef SMARTIES_LIB
     if(worker not_eq nullptr)

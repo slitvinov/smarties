@@ -26,6 +26,7 @@ replay(RM), sharing(C)
 void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
+  assert(MDP.localID == a.localID);
   Sequence* const S = inProgress[a.ID];
 
   // assign or check id of agent generating episode
