@@ -24,6 +24,7 @@ class DataCoordinator
   const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;
 
+  const Uint MDPID = replay->MDP.localID;
   const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;
   std::vector<Sequence*> completed;
@@ -58,8 +59,6 @@ public:
 
   void setupTasks(TaskQueue& tasks);
 
-  void answerWorkersParameterUpdates();
-
   void distributePendingEpisodes();
 
   void mastersRecvEpisodes();
@@ -74,20 +73,21 @@ private:
 
   void IrecvSize(unsigned long& size, const int rank, const MPI_Comm C, MPI_Request&R) const
   {
-    MPI(Irecv, &size, 1, MPI_UNSIGNED_LONG, rank, 99, C, &R);
+    MPI(Irecv, &size, 1, MPI_UNSIGNED_LONG, rank, 37536+MDPID, C, &R);
   }
   void IsendSize(const unsigned long& size, const int rank, const MPI_Comm C, MPI_Request&R) const
   {
-    MPI(Isend, &size, 1, MPI_UNSIGNED_LONG, rank, 99, C, &R);
+    MPI(Isend, &size, 1, MPI_UNSIGNED_LONG, rank, 37536+MDPID, C, &R);
   }
 
   void RecvSeq(Fvec&V, const int rank, const MPI_Comm C) const
   {
-    MPI( Recv, V.data(), V.size(), MPI_Fval, rank, 98, C, MPI_STATUS_IGNORE);
+    MPI( Recv, V.data(), V.size(), MPI_Fval, rank, 737283+MDPID, C,
+         MPI_STATUS_IGNORE);
   }
   void IsendSeq(const Fvec&V, const int rank, const MPI_Comm C, MPI_Request&R) const
   {
-    MPI(Isend, V.data(), V.size(), MPI_Fval, rank, 98, C, &R);
+    MPI(Isend, V.data(), V.size(), MPI_Fval, rank, 737283+MDPID, C, &R);
   }
 
   bool isComplete(MPI_Request& req)

@@ -102,13 +102,6 @@ void DataCoordinator::setupTasks(TaskQueue& tasks)
     if(i not_eq sharingRank)
       IrecvSize(shareRecvSeqSize[i], i, sharingComm, shareRecvSizeReq[i]);
 
-  //if (workerSize > 0)
-  //{
-  //  auto stepSendParams = [&] () {
-  //    answerWorkersParameterUpdates();
-  //  };
-  //  tasks.add(stepSendParams);
-  //}
   if (sharingSize > 0 || workerSize > 0)
   {
     auto stepDistribEps = [&] () {
@@ -123,18 +116,6 @@ void DataCoordinator::setupTasks(TaskQueue& tasks)
     };
     tasks.add(stepReceiveEps);
   }
-}
-
-void DataCoordinator::answerWorkersParameterUpdates()
-{
-  for(Uint i=1; i<workerSize; ++i)
-    if (isComplete(workerReqParamReq[i])) {
-      //_warn("send parameters to rank %lu", i);
-      params.send(i, 0);
-      MPI(Irecv, & workerReqParamFlag[i], 1, MPI_UNSIGNED_LONG, i, 89,
-               workerComm, & workerReqParamReq[i]);
-
-    }
 }
 
 void DataCoordinator::distributePendingEpisodes()
@@ -205,7 +186,8 @@ void DataCoordinator::mastersRecvEpisodes()
                                                       workerRecvSeqSize[i]);
       RecvSeq(EP, i, workerComm);
       int bSendParams = 0;
-      MPI(Recv, &bSendParams, 1, MPI_INT, i, 89, workerComm, MPI_STATUS_IGNORE);
+      MPI(Recv, &bSendParams, 1, MPI_INT, i, 275727+MDPID, workerComm,
+          MPI_STATUS_IGNORE);
 
       nSeenTransitions_loc += nStep - 1; // we do not count init state
       nSeenSequences_loc += 1;
@@ -217,7 +199,7 @@ void DataCoordinator::mastersRecvEpisodes()
         Sequence * const tmp = new Sequence();
         tmp->unpackSequence(EP, sI.dimObs(), aI.dim(), aI.dimPol());
         assert(nStep == tmp->ndata() + 1);
-        //_warn("storing new sequence of size %lu", tmp->ndata());
+        //_warn("%lu storing new sequence of size %lu", MDPID,tmp->ndata());
         replay->pushBackSequence(tmp);
       } else {
         const Uint I = sharingTurn;
@@ -235,7 +217,7 @@ void DataCoordinator::mastersRecvEpisodes()
 
       if(bSendParams) {
         while(allTasksPtr->dataAcquisitionIsLocked()) usleep(1);
-        params.send(i, 0);
+        params.send(i, MDPID);
       }
       if(sharingSize>0) sharingTurn = (sharingTurn+1) % sharingSize; //pick next
     }
@@ -263,18 +245,19 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
       delete tmp;
     #endif
     unsigned long sendSz = sendSq.size();
-    MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 99, workerComm);
-    MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 98, workerComm);
+    MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 37536+MDPID, workerComm);
+    MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 737283+MDPID, workerComm);
     const int intUpdateParams = bUpdateParams;
-    MPI(Send, &intUpdateParams, 1, MPI_INT, 0, 89, workerComm);
+    MPI(Send, &intUpdateParams, 1, MPI_INT, 0, 275727+MDPID, workerComm);
     if(bUpdateParams) {
-      //_warn("sent episode of size %lu and update params", EP->ndata() );
-      params.recv(0);
-    } //else _warn("sent ep of size %lu w/o update params", EP->ndata() );
+      //_warn("%lu sent episode of size %lu and update params", MDPID,EP->ndata() );
+      params.recv(MDPID);
+    } //else _warn("%lu sent ep of size %lu w/o update params", MDPID,EP->ndata() );
     delete EP;
   }
   else // data stays here
   {
+    //_warn("%lu stored episode of size %lu", MDPID,EP->ndata() );
     replay->pushBackSequence(EP);
   }
 }

@@ -18,6 +18,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
   const Uint seq_len = states.size();
   assert(states.size() == actions.size() && states.size() == policies.size());
   const Uint totalSize = Sequence::computeTotalEpisodeSize(dS, dA, dP, seq_len);
+  assert( seq_len == Sequence::computeTotalEpisodeNstep(dS,dA,dP,totalSize) );
   std::vector<Fval> ret(totalSize, 0);
   Fval* buf = ret.data();
 
@@ -89,6 +90,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   const Uint dA, const Uint dP)
 {
   const Uint seq_len = Sequence::computeTotalEpisodeNstep(dS,dA,dP,data.size());
+  assert( data.size() == Sequence::computeTotalEpisodeSize(dS,dA,dP,seq_len) );
   const Fval* buf = data.data();
   assert(states.size() == 0);
   for (Uint i = 0; i<seq_len; ++i) {
@@ -135,11 +137,9 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
   return 0;
 }
 
-inline bool isDifferent(const double& a, const double& b) {
-  return std::fabs(a-b) > std::numeric_limits<double>::epsilon();
-}
-inline bool isDifferent(const float& a, const float& b) {
-  return std::fabs(a-b) > std::numeric_limits<float>::epsilon();
+template<typename T>
+inline bool isDifferent(const T& a, const T& b) {
+  return std::fabs(a-b) > 100*std::numeric_limits<Fval>::epsilon();
 }
 template<typename T>
 inline bool isDifferent(const std::vector<T>& a, const std::vector<T>& b) {
@@ -150,25 +150,25 @@ inline bool isDifferent(const std::vector<T>& a, const std::vector<T>& b) {
 
 bool Sequence::isEqual(const Sequence * const S) const
 {
-  if( isDifferent(S->states      , states      ) ) return false;
-  if( isDifferent(S->actions     , actions     ) ) return false;
-  if( isDifferent(S->policies    , policies    ) ) return false;
-  if( isDifferent(S->rewards     , rewards     ) ) return false;
-  if( isDifferent(S->Q_RET       , Q_RET       ) ) return false;
-  if( isDifferent(S->action_adv  , action_adv  ) ) return false;
-  if( isDifferent(S->state_vals  , state_vals  ) ) return false;
-  if( isDifferent(S->SquaredError, SquaredError) ) return false;
-  if( isDifferent(S->offPolicImpW, offPolicImpW) ) return false;
-  if( isDifferent(S->KullbLeibDiv, KullbLeibDiv) ) return false;
-  if( isDifferent(S->nOffPol     , nOffPol     ) ) return false;
-  if( isDifferent(S->MSE         , MSE         ) ) return false;
-  if( isDifferent(S->sumKLDiv    , sumKLDiv    ) ) return false;
-  if( isDifferent(S->totR        , totR        ) ) return false;
-  if(S->ended        not_eq ended       ) return false;
-  if(S->ID           not_eq ID          ) return false;
-  if(S->just_sampled not_eq just_sampled) return false;
-  if(S->prefix       not_eq prefix      ) return false;
-  if(S->agentID      not_eq agentID     ) return false;
+  if( isDifferent(S->states      , states      ) ) assert(false && "states");
+  if( isDifferent(S->actions     , actions     ) ) assert(false && "actions");
+  if( isDifferent(S->policies    , policies    ) ) assert(false && "policies");
+  if( isDifferent(S->rewards     , rewards     ) ) assert(false && "rewards");
+  if( isDifferent(S->Q_RET       , Q_RET       ) ) assert(false && "Q_RET");
+  if( isDifferent(S->action_adv  , action_adv  ) ) assert(false && "action_adv");
+  if( isDifferent(S->state_vals  , state_vals  ) ) assert(false && "state_vals");
+  if( isDifferent(S->SquaredError, SquaredError) ) assert(false && "SquaredError");
+  if( isDifferent(S->offPolicImpW, offPolicImpW) ) assert(false && "offPolicImpW");
+  if( isDifferent(S->KullbLeibDiv, KullbLeibDiv) ) assert(false && "KullbLeibDiv");
+  if( isDifferent(S->nOffPol     , nOffPol     ) ) assert(false && "nOffPol");
+  if( isDifferent(S->MSE         , MSE         ) ) assert(false && "MSE");
+  if( isDifferent(S->sumKLDiv    , sumKLDiv    ) ) assert(false && "sumKLDiv");
+  if( isDifferent(S->totR        , totR        ) ) assert(false && "totR");
+  if(S->ended        not_eq ended       ) assert(false && "ended");
+  if(S->ID           not_eq ID          ) assert(false && "ID");
+  if(S->just_sampled not_eq just_sampled) assert(false && "just_sampled");
+  if(S->prefix       not_eq prefix      ) assert(false && "prefix");
+  if(S->agentID      not_eq agentID     ) assert(false && "agentID");
   return true;
 }
 

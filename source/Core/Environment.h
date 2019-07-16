@@ -36,6 +36,7 @@ struct Environment
   Environment()
   {
     descriptors.emplace_back( std::make_unique<MDPdescriptor>() );
+    descriptors.back()->localID = descriptors.size() - 1;
   }
 
   void synchronizeEnvironments(
@@ -88,9 +89,11 @@ struct Environment
     if(descriptors.size() > nDescriptors) die("conflicts in problem definition");
 
     descriptors.reserve(nDescriptors);
-    for(Uint i=descriptors.size(); i<nDescriptors; ++i)
+    for(Uint i=descriptors.size(); i<nDescriptors; ++i) {
       descriptors.emplace_back( // initialize new descriptor with old
         std::make_unique<MDPdescriptor>( getDescriptor(0) ) );
+      descriptors.back()->localID = descriptors.size() - 1;
+    }
   }
 
   #if 0

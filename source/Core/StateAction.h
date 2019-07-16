@@ -32,6 +32,8 @@ static inline void sendRecvVectorFunc(
 
 struct MDPdescriptor
 {
+  Uint localID = 0; // ID of agent-int-environment which uses this MDP
+
   // This struct contains all information to fully define the state and action
   // space of an agent. Only source of complication is that this must hold for
   // both discrete and continuous action problems

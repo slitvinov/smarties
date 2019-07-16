@@ -56,6 +56,9 @@ void Master<CommType, Request_t>::run()
 template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::spawnCallsHandlers()
 {
+  // if workers host learning algos then no need to supply actions
+  if(distrib.learnersOnWorkers) return;
+
   #pragma omp parallel num_threads(distrib.nThreads)
   {
     std::vector<Uint> shareWorkers;

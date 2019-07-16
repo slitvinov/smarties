@@ -49,7 +49,7 @@ public:
     dataList.emplace_back(std::make_pair(size, data));
   }
 
-  void recv(const Uint gradStepID) const
+  void recv(const Uint MDP_ID) const
   {
     //if(gradStepID == lastCommGradID)
     //  die("Asked parameter update two times at same gradStep.");
@@ -57,11 +57,11 @@ public:
     // workers always recv params from learner (rank 0)
     for(const auto& data : dataList ) {
       MPI(Recv, data.second, data.first, MPI_NNVALUE_TYPE, 0,
-        72726, comm, MPI_STATUS_IGNORE);
+        72726 + MDP_ID, comm, MPI_STATUS_IGNORE);
     }
   }
 
-  void send(const Uint toRank, const Uint gradStepID)
+  void send(const Uint toRank, const Uint MDP_ID)
   {
     //if(gradStepID == lastCommGradID) return;
     Uint transfID = dataList.size() * toRank;
@@ -78,7 +78,7 @@ public:
       //MPI(Isend, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
       //  72726, comm, & sendReqs[transfID]);
       MPI(Send, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
-        72726, comm);
+        72726 + MDP_ID, comm);
 
       transfID++;
     }

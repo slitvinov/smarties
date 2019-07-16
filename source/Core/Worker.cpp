@@ -66,11 +66,11 @@ void Worker::runTraining()
     }
 
   const auto isTrainingStarted = [&]() {
-    if(not isStarted && learn_rank==0) {
+    if(isStarted==0 && learn_rank==0) {
       const auto nCollected = learners[firstLearnerStart]->locDataSetSize();
       const int currPerc = nCollected * 100./(Real) minNdataB4Train;
-      if(nCollected >= minNdataB4Train) isStarted = true;
-      else if(currPerc > percentageReady+5) {
+      if(nCollected >= minNdataB4Train) isStarted = 1;
+      else if(currPerc >= percentageReady+5) {
        percentageReady = currPerc;
        printf("\rCollected %d%% of data required to begin training. ",currPerc);
        fflush(0);
@@ -130,7 +130,7 @@ void Worker::answerStateAction(Agent& agent) const
 
   //static constexpr auto vec2str = Utilities::vec2string<double>;
   //const int agentStatus = status2int(agent.agentStatus);
-  //_warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agentID, agentStatus,
+  //_warn("Agent %d %d:[%s]>[%s] r:%f a:[%s]", agent.ID, agentStatus,
   //      vec2str(agent.sOld,-1).c_str(), vec2str(agent.state,-1).c_str(),
   //      agent.reward, vec2str(agent.action,-1).c_str());
 
