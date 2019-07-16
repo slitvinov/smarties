@@ -1,6 +1,6 @@
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ../makefiles/ clean
-make -C ../makefiles/ app=commonCUP3D precision=double config=prod accfft=false hdf5=true -j4
+make -C ../makefiles/ app=LES_HIT precision=double config=prod -j4
 fi
 
 NNODEX=${NNODEX:-1}

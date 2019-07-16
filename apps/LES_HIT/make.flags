@@ -1,0 +1,59 @@
+##################################################
+ifneq "$(findstring eu-, $(shell hostname))" ""
+
+ifneq "$(findstring intel, $(compiler))" ""
+#LIBS+= -L/cluster/home/novatig/fftw-3.3.5/build_intel/lib/
+else
+LIBS+= -L/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/
+endif
+
+endif
+##################################################
+
+##################################################
+ifneq "$(findstring daint,$(shell hostname))" ""
+
+#LIBS += $(CRAY_CUDATOOLKIT_POST_LINK_OPTS) # for accfft
+ifneq "$(GSL_ROOT_DIR)" ""
+	LIBS += -L$(GSL_ROOT_DIR)/lib
+endif
+
+CPPFLAGS+= -I/users/novatig/hypre/build/include/
+LIBS+= -L/users/novatig/hypre/build/lib/ -lHYPRE
+
+ifneq ($(HDF5_LIB),)
+	LIBS+= -L$(HDF5_LIB) -lhdf5
+else
+	LIBS+= -lhdf5
+endif
+
+endif
+##################################################
+
+ifneq ($(FFTW_ROOT),)
+	# OK
+else ifneq ($(FFTW3_ROOT_DIR),)
+        FFTW_ROOT = $(FFTW3_ROOT_DIR)
+else ifneq ($(FFTW_DIR),)
+        FFTW_ROOT = $(FFTW_DIR)/..
+else
+        ERROR = "None of the FFTW_ROOT, FFTW_ROOT_DIR or FFTW_DIR environment variables set. Did you forget to `module load`?"
+endif
+LIBS += -L$(FFTW_ROOT)/lib
+
+ifeq ($(app_precision), single)
+LIBS += -lfftw3f_mpi -lfftw3f -lfftw3f_omp
+else
+LIBS += -lfftw3_mpi -lfftw3 -lfftw3_omp
+endif
+
+ifneq ($(HDF5_ROOT),)
+	#OK
+else ifneq ($(HDF5ROOT),)
+	HDF5_ROOT = HDF5ROOT
+else
+	ERROR = "Neither HDF5_ROOT nor HDF5ROOT environment variables set. Did you forget to `module load`?"
+endif
+LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
+
+LIBS += -lgsl -lgslcblas 

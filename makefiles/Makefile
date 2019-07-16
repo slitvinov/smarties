@@ -165,9 +165,9 @@ lib: CommunicatorLib.o
 		$(PATH_COMM)_pybind11.cpp -o smarties$(PYBINDSUF)
 	ar rs libsmarties.a CommunicatorLib.o
 
-	#$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
-	#	$(PATH_COMM).cpp -o libsmarties.so
-	#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
+#$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
+#	$(PATH_COMM).cpp -o libsmarties.so
+#g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
 
 exec: $(OBJ_FILES) env
 	$(LD) $(OBJ_FILES) $(LIBS) -o rl
