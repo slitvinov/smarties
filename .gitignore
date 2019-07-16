@@ -58,6 +58,6 @@ engine_cmaes
 cart-pole
 pp
 terminals.dat
-
+_deprecated*
 
 *.swp
