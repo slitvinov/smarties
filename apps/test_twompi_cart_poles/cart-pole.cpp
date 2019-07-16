@@ -206,6 +206,7 @@ int app_main(
   // This function is *needed* to send problem description to smarties ensuring
   // thread safety. if only one thread (e.g. python), then it can be omitted:
   comm.finalize_problem_description();
+  omp_set_num_threads(2);
 
   while(true) //train loop
   {
@@ -228,27 +229,17 @@ int app_main(
       std::atomic<bool> terminated1{false}, terminated2{false};
       std::atomic<int> ndone{0};
 
-      #pragma omp parallel sections
+      #pragma omp parallel sections num_threads(2)
       {
         #pragma omp section
         {
           vector<double> action1 = comm.recvAction(0);
           action1[0] = - action1[0]; // make the two optimal policy different:
           terminated1 = env1.advance(action1);
-        }
-
-        #pragma omp section
-        {
-          vector<double> action2 = comm.recvAction(1);
-          terminated2 = env2.advance(action2);
-        }
-
-        #pragma omp barrier
-
-        #pragma omp section
-        {
           vector<double> state1 = env1.getState();
           double reward1 = env1.getReward();
+          ++ndone;
+          while(ndone.load() < 2) ;
           if(terminated1.load() || terminated2.load()) { // end of simulation
             if(terminated1.load()) comm.sendTermState(state1, reward1, 0);
             else comm.sendLastState(state1, reward1, 0);
@@ -257,13 +248,16 @@ int app_main(
 
         #pragma omp section
         {
+          vector<double> action2 = comm.recvAction(1);
+          terminated2 = env2.advance(action2);
           vector<double> state2 = env2.getState();
           double reward2 = env2.getReward();
+          ++ndone;
+          while(ndone.load() < 2) ;
           if(terminated1.load() || terminated2.load()) { // end of simulation
             if(terminated2.load()) comm.sendTermState(state2, reward2, 1);
             else comm.sendLastState(state2, reward2, 1);
           } else comm.sendState(state2, reward2, 1);
-
         }
       }
 
