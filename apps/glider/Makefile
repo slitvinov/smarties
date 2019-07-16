@@ -1,11 +1,11 @@
 CXX = g++
 
 smart ?= 1
+train ?= 1
 multdt ?= 1
+costfun ?= 1
 aspectr ?= 0.1
 density ?= 200
-costfun ?= 1
-train ?= 1
 CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun) -DMULT_ACT_DT=$(multdt)
 
 UNAME_S := $(shell uname -s)
