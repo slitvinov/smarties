@@ -95,9 +95,9 @@ if [ ! -x ../makefiles/rl ] ; then
 	echo "../makefiles/rl not found! - exiting"
 	exit 1
 fi
-cp ../makefiles/rl ${BASEPATH}${RUNFOLDER}/rl
-cp $0 ${BASEPATH}${RUNFOLDER}/launch_smarties.sh
-cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
+cp -f ../makefiles/rl ${BASEPATH}${RUNFOLDER}/rl
+cp -f $0 ${BASEPATH}${RUNFOLDER}/launch_smarties.sh
+cp -f ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
