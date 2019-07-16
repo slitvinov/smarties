@@ -5,8 +5,8 @@
 #include <cassert>
 #include <random>
 #include <functional>
-#ifdef __SMARTIES_
-#include "Communicator.h"
+#ifdef USE_SMARTIES
+#include "Communicators/Communicator.h"
 #endif
 
 #ifndef MULT_ACT_DT
@@ -38,7 +38,6 @@
 #else
 #define TERM_REW_FAC 10
 #endif
-using namespace std;
 
 struct Vec7
 {
@@ -163,7 +162,7 @@ struct Glider
       CR  = CR0 *dist(gen);
     #endif
 
-    #ifdef __SMARTIES_ //u,v,w,x,y,a,T
+    #ifdef USE_SMARTIES //u,v,w,x,y,a,T
       #if   RANDOM_START == 1
         _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, inita(gen));
       #elif RANDOM_START == 2
@@ -193,18 +192,18 @@ struct Glider
     const bool hit_bottom =  _s.y <= -50 -slack;
     const bool wrong_xdir = _s.x < -50;
     const bool timeover = time > 5000;
-
     return ( timeover || hit_bottom || wrong_xdir || way_too_far );
   }
 
-  int advance(vector<double> action)
+  int advance(std::vector<double> action)
   {
     updateOldDistanceAndEnergy();
     Torque = action[0];
     info = 0; // i received an action!
     step++;
     for (int i=0; i<nstep; i++) {
-      _s = rk46_nl(time, dt, _s, bind(&Glider::Diff, this, placeholders::_1, placeholders::_2) );
+      _s = rk46_nl(time, dt, _s,
+        std::bind(&Glider::Diff, this, placeholders::_1, placeholders::_2) );
       time += dt;
       if( is_over() ) {
         info = 2;
@@ -214,9 +213,9 @@ struct Glider
     return 0;
   }
 
-  vector<double> getState(std::mt19937& gen)
+  std::vector<double> getState(std::mt19937& gen)
   {
-    vector<double> state(10);
+    std::vector<double> state(10);
     state[0] = _s.u;
     state[1] = _s.v;
     state[2] = _s.w;
@@ -318,11 +317,11 @@ struct Glider
 
   void print(const int ID) const
   {
-      string suff = "trajectory_" + to_string(ID) + ".dat";
-      FILE * f = fopen(suff.c_str(), time==0 ? "w" : "a");
-      fprintf(f,"%e %e %e %e %e %e %e\n",
-              time,_s.u,_s.v,_s.w,_s.x,_s.y,_s.a);//,_s.T,_s.E);
-      fclose(f);
+    std::string suff = "trajectory_" + to_string(ID) + ".dat";
+    FILE * f = fopen(suff.c_str(), time==0 ? "w" : "a");
+    fprintf(f,"%e %e %e %e %e %e %e\n",
+            time,_s.u,_s.v,_s.w,_s.x,_s.y,_s.a);//,_s.T,_s.E);
+    fclose(f);
   }
 
   double getDistance() const
@@ -354,16 +353,15 @@ int main(int argc, const char * argv[])
   std::cout << " with penalization on terminal velocity";
   #endif
   std::cout << "." << std::endl;
-  #ifdef __SMARTIES_
+  #ifdef USE_SMARTIES
     //communication:
-    const int sock = std::stoi(argv[1]);
-    Communicator comm(sock,10,1);
+    smarties::Communicator comm(10, 1);
     std::mt19937& gen = comm.getPRNG();
 
     bool bounded = true;
-    vector<double> upper_action_bound{1}, lower_action_bound{-1};
+    std::vector<double> upper_action_bound{1}, lower_action_bound{-1};
     comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
-    vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
+    std::vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
     //vector<bool> b_observable = {0, 0, 0, 1, 1, 1, 1, 0, 0, 0};
     comm.set_state_observable(b_observable);
   #else
@@ -373,13 +371,13 @@ int main(int argc, const char * argv[])
   //random initial conditions:
   Glider env;
 
-  #ifdef __SMARTIES_
+  #ifdef USE_SMARTIES
   while (true) //train loop
   #endif
   {
     //reset environment:
     env.reset(gen); //comm contains rng with different seed on each rank
-    #ifdef __SMARTIES_
+    #ifdef USE_SMARTIES
       //send initial state:
       comm.sendInitState(env.getState(comm.getPRNG()));
     #else
@@ -388,25 +386,25 @@ int main(int argc, const char * argv[])
 
     while (true) //simulation loop
     {
-      #ifdef __SMARTIES_
-        vector<double> action = comm.recvAction();
+      #ifdef USE_SMARTIES
+        std::vector<double> action = comm.recvAction();
       #else
-        vector<double> action = {0};
+        std::vector<double> action = {0};
       #endif
 
       //advance the simulation:
       bool terminated = env.advance(action);
 
-      vector<double> state = env.getState(gen);
+      std::vector<double> state = env.getState(gen);
       double reward = env.getReward();
 
-      #ifndef __SMARTIES_
+      #ifndef USE_SMARTIES
         std::cout<<env._s.u<<" "<<env._s.v<<" "<<env._s.w<<" "<<env._s.x<<" "<<env._s.y<<" "<<env._s.a<<std::endl;
       #endif
 
       if(terminated)  //tell smarties that this is a terminal state
       {
-        #ifdef __SMARTIES_
+        #ifdef USE_SMARTIES
           comm.sendTermState(state, env.getTerminalReward());
         #endif
         {
@@ -428,7 +426,7 @@ int main(int argc, const char * argv[])
         }
         break;
       }
-      #ifdef __SMARTIES_
+      #ifdef USE_SMARTIES
       else comm.sendState(state, reward);
       #endif
     }

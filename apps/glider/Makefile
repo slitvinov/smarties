@@ -1,6 +1,6 @@
-CC = g++
-smart ?= 1
+CXX = g++
 
+smart ?= 1
 multdt ?= 1
 aspectr ?= 0.1
 density ?= 200
@@ -10,38 +10,29 @@ CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspect
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-LD=g++-8
-CC=g++-8
+LD=g++-9
+CXX=g++-9
 endif
 
-ifeq "$(smart)" "0"
-OBJ_FILES =  glider.o
-else
-CPPFLAGS+= -D__SMARTIES_
-OBJ_FILES = glider.o Communicator.o
+ifeq "$(smart)" "1"
+CPPFLAGS+= -DUSE_SMARTIES
 endif
 
 SRC_DIR = ./
-COM_DIR = ../../source/Communicators/
+COM_DIR = ../../source/
 VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+=-std=c++11 -O2 -Wall -I$(COM_DIR)
+CPPFLAGS+=-std=c++14 -O2 -Wall -I$(COM_DIR)
 
 .DEFAULT_GOAL := glider
 
-glider: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+glider: glider.o
+	$(CXX) $(LIBS) -L../../makefiles/ -o $@ $^ -lsmarties
 
 %.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
-
-#vpath %.cpp $(DIRS)
-#vpath %.h   $(DIRS)
+	$(CXX) $(extra)  $(CPPFLAGS) -MD -c $<
 
 clean:
-	rm -f *.o
-	rm -f *.s
-	rm -f *.d
-	rm -f glider
+	rm -f *.o *.s *.d glider

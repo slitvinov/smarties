@@ -13,19 +13,12 @@ CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
 cart-pole: $(OBJ_FILES)
 	$(CC) -L../../makefiles/ -o $@ $^ -lsmarties
-	#$(CC) -o $@ $^
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
-	
+
 %.d: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
-    
-#vpath %.cpp $(DIRS)
-#vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o
-	rm -f *.s
-	rm -f *.d
-	rm -f rl
+	rm -f *.o *.s *.d rl
