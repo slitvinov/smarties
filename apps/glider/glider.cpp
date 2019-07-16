@@ -203,7 +203,9 @@ struct Glider
     step++;
     for (int i=0; i<nstep; i++) {
       _s = rk46_nl(time, dt, _s,
-        std::bind(&Glider::Diff, this, placeholders::_1, placeholders::_2) );
+        std::bind(&Glider::Diff, this,
+                  std::placeholders::_1,
+                  std::placeholders::_2) );
       time += dt;
       if( is_over() ) {
         info = 2;
@@ -317,7 +319,7 @@ struct Glider
 
   void print(const int ID) const
   {
-    std::string suff = "trajectory_" + to_string(ID) + ".dat";
+    std::string suff = "trajectory_" + std::to_string(ID) + ".dat";
     FILE * f = fopen(suff.c_str(), time==0 ? "w" : "a");
     fprintf(f,"%e %e %e %e %e %e %e\n",
             time,_s.u,_s.v,_s.w,_s.x,_s.y,_s.a);//,_s.T,_s.E);
