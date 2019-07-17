@@ -1,0 +1,4 @@
+1.9797	#tau_integral
+0.2150	#tau_eta
+44.3287	#max_rew with 32 modes
+0.005   #viscosity

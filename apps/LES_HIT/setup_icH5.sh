@@ -26,13 +26,12 @@ fi
 NU=${NU:-0.005}
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-cp ${DIR}/kdeTarget.dat ${BASEPATH}${RUNFOLDER}/
-cp ${DIR}/meanTarget.dat ${BASEPATH}${RUNFOLDER}/
-cp ${DIR}/scaleTarget.dat ${BASEPATH}${RUNFOLDER}/
-
+cp ${DIR}/targetHIT/re60/kdeTarget.dat ${BASEPATH}${RUNFOLDER}/
+cp ${DIR}/targetHIT/re60/meanTarget.dat ${BASEPATH}${RUNFOLDER}/
+cp ${DIR}/targetHIT/re60/scaleTarget.dat ${BASEPATH}${RUNFOLDER}/
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/runArguments00.sh
-./simulation -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -extentx ${EXTENT_x} -dump2D 0 -dump3D 1 -tdump 0.1 -BC_x periodic -BC_y periodic -BC_z periodic -icFromH5 ../$icH5File  -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz ${NNODEZ} -CFL 0.1 -tend 50 -sgs_rl RLSM -compute-dissipation 1 -analysis HIT -tAnalysis 0.1 -spectralForcing 1 -nu ${NU}
+./simulation -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -extentx ${EXTENT_x} -dump2D 0 -dump3D 1 -tdump 0.1 -BC_x periodic -BC_y periodic -BC_z periodic -icFromH5 ../$icH5File  -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz ${NNODEZ} -CFL 0.1 -tend 50 -sgs RLSM -compute-dissipation 1 -analysis HIT -tAnalysis 0.1 -spectralForcing 1 -nu ${NU}
 EOF
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh

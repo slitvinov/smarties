@@ -1,20 +1,16 @@
 #!/usr/bin/env python3.6
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
-from os import listdir
-from os.path import isfile, join
+import glob
 
 from sklearn.neighbors.kde import KernelDensity
 
-def getDataScalar(path, files, nSkip):
+def getDataScalar(files, nSkip):
     nFiles = len(files)
     scalars = [dict() for i in range(nSkip, nFiles)]
 
-    print(len(scalars))
-
     for i in range(nFiles-nSkip):
-        f = open(path+files[i+nSkip], 'r')
+        f = open(files[i+nSkip], 'r')
         line = f.readline()
         for nLine in range(12):
             line = f.readline()
@@ -23,11 +19,11 @@ def getDataScalar(path, files, nSkip):
             scalars[i].update(newKey)
     return scalars
 
-def getDataSpectrum(path, files, nSkip):
+def getDataSpectrum(files, nSkip):
     nFiles = len(files)
     nData = nFiles - nSkip
 
-    modes, energy = np.loadtxt(path+files[nSkip], unpack=True, skiprows=15)
+    modes, energy = np.loadtxt(files[nSkip], unpack=True, skiprows=17)
     nModes = len(modes)
 
     spectrum = np.ndarray(shape=(nData, nModes), dtype=float)
@@ -35,12 +31,12 @@ def getDataSpectrum(path, files, nSkip):
 
 
     for i in range(1, nData):
-        modes, energy = np.loadtxt(path+files[i+nSkip], unpack=True, skiprows=15)
+        modes, energy = np.loadtxt(files[i+nSkip], unpack=True, skiprows=17)
         spectrum[i,:] = energy
 
     return modes, spectrum
 
-def exportTarget(spectrum, modes, scalars, nSample):
+def exportTarget(nu, spectrum, modes, scalars, nSample):
     shape = spectrum.shape
 
     nModes = shape[1]
@@ -56,7 +52,7 @@ def exportTarget(spectrum, modes, scalars, nSample):
             f.write('{:.4f}\t{:0.7e}\t{:0.7e}\n'.format(modes[i], mean[i], std[i]))
 
 
-    maxRew = 0
+    max_rew = 0
     with open('kdeTarget.dat', 'w') as f:
         f.write('{}\t#nSamplePerMode\n\n'.format(nSample))
 
@@ -64,8 +60,8 @@ def exportTarget(spectrum, modes, scalars, nSample):
             f.write('{:.4f}\n'.format(modes[i]))
             e_in = spectrum[:,i].reshape(-1,1)
 
-            mi = 0.8*e_in.min()
-            ma = 1.2*e_in.max()
+            mi = e_in.min()
+            ma = e_in.max()
 
             e_out = np.linspace(mi, ma, num=nSample).reshape(-1,1)
 
@@ -76,14 +72,13 @@ def exportTarget(spectrum, modes, scalars, nSample):
             zz = np.exp(kde.score_samples(e_out))
             zz = np.reshape(nSample*zz/np.sum(zz), e_out.shape)
 
-            if (i<=32):
-                maxRew += max(zz)
+            if (i<32):
+                max_rew += max(zz)
 
             for n in range(nSample):
                 f.write('{:.7e}\t{:.7e}\n'.format(e_out[n][0], zz[n][0]))
             f.write('\n')
 
-    print('max={}'.format(maxRew))
     tau_integral=0
     tau_eta=0
     for i in range(nData):
@@ -96,26 +91,29 @@ def exportTarget(spectrum, modes, scalars, nSample):
     with open('scaleTarget.dat', 'w') as f:
         f.write('{:.4f}\t#tau_integral\n'.format(tau_integral))
         f.write('{:.4f}\t#tau_eta\n'.format(tau_eta))
+        f.write('{:.4f}\t#max_rew with 32 modes\n'.format(max_rew[0]))
+        f.write('{:.4f}\t#viscosity'.format(nu))
 
 
-def main(simdir, nSkip, nSample):
+def main(simdir, nu, nSkip, nSample):
     path = simdir + "/analysis/"
-    files = [f for f in listdir(path) if isfile(join(path, f))]
+    files = glob.glob(path+'spectralAnalysis_*')
     files.sort()
 
     nData = len(files) - nSkip
-    scalars = getDataScalar(path, files, nSkip)
-    modes, spectrum = getDataSpectrum(path, files, nSkip)
+    scalars = getDataScalar(files, nSkip)
+    modes, spectrum = getDataSpectrum(files, nSkip)
 
-    exportTarget(spectrum, modes, scalars, nSample)
+    exportTarget(nu, spectrum, modes, scalars, nSample)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description = "Compute a target file for RL agent from DNS data.")
-  parser.add_argument('simdir', help="Simulation directory containing the 'Analysis' files")
+  parser.add_argument('simdir', help="Simulation directory containing the 'Analysis' folder")
+  parser.add_argument('nu',     help="Viscosity of the simulation.")
   parser.add_argument('nSkip',  help="Skip the n first analysis files.")
   parser.add_argument('nSamp',  help="Nb. of KDE sample")
   args = parser.parse_args()
 
-  main(args.simdir, int(args.nSkip), int(args.nSamp))
+  main(args.simdir, float(args.nu), int(args.nSkip), int(args.nSamp))
 
