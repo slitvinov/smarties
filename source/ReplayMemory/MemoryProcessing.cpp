@@ -137,15 +137,15 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
         const auto badErr = [&](const Fval V, const Fval R) {
             static const Fval EPS = std::numeric_limits<Fval>::epsilon();
             const Fval den = std::max({std::fabs(R), std::fabs(V), EPS});
-            return std::fabs(V - R) / den > 0.01;
+            return std::fabs(V - R) / den > 0.1;
           };
         if( badErr(dbg_sumKLDiv, Set[i]->sumKLDiv) )
-          _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
+          _die("DKL %f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
         if( badErr(dbg_sum_mse, Set[i]->MSE) )
-          _die("%f %f", dbg_sum_mse, Set[i]->MSE);
+          _die("MSE %f %f", dbg_sum_mse, Set[i]->MSE);
         if(settings.epsAnneal <= 0) //else CmaxRho will change in time
           if( badErr(dbg_nOffPol, Set[i]->nOffPol) )
-            _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
+            _die("OFF %f %f", dbg_nOffPol, Set[i]->nOffPol);
       #endif
 
       const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();

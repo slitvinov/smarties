@@ -57,7 +57,7 @@ template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::spawnCallsHandlers()
 {
   // if workers host learning algos then no need to supply actions
-  if(distrib.learnersOnWorkers) return;
+  if(distrib.learnersOnWorkers && distrib.nForkedProcesses2spawn < 1) return;
 
   #pragma omp parallel num_threads(distrib.nThreads)
   {

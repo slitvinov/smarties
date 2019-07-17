@@ -55,8 +55,9 @@ void Collector::add_state(Agent&a)
       bool same = true;
       const std::vector<nnReal> vecSold = a.getObservedOldState<nnReal>();
       const auto memSold = S->states.back();
+      static constexpr Fval fEPS = std::numeric_limits<Fval>::epsilon();
       for (Uint i=0; i<vecSold.size() && same; ++i)
-        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
+        same = same && std::fabs(memSold[i]-vecSold[i]) < 100*fEPS;
       //debugS("Agent %s and %s",
       //  print(vecSold).c_str(), print(memSold).c_str() );
       if (!same) die("Unexpected termination of sequence");
