@@ -277,18 +277,6 @@ void Settings::initializeOpts (CLI::App & parser)
   parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
 }
 
-/* big choices here.
-What should determine distribution of data acquisition?
-Two options:
-1) number of learners that process said data
-2) number of worker that acquire said data
-Main advantage of distributing everything according to workers is that synchronization is easier: stop when enough data.
-Con is that all workers need to know the global number of grad steps
-Also, end up waiting for slowest simulation every time (because each sim wants to do eg 1 time step per grad step).
-Main advantage of distributing according to learners is that synch is centralized: do not give agents actions/parameters unless they can continue to acquire data.
-Problem is what happens for multiple workerless masters?
-*/
-
 void Settings::defineDistributedLearning(DistributionInfo& distrib)
 {
   const MPI_Comm& learnersComm = distrib.learners_train_comm;
