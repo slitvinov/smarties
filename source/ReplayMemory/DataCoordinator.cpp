@@ -253,9 +253,12 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
       delete tmp;
     #endif
     unsigned long sendSz = sendSq.size();
+    const int intUpdateParams = bUpdateParams? 1 : 0;
+
+    // only one thread at the time (per learning algo) can send ep to master
+    std::lock_guard<std::mutex> lock(complete_mutex);
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 37536+MDPID, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 737283+MDPID, workerComm);
-    const int intUpdateParams = bUpdateParams;
     MPI(Send, &intUpdateParams, 1, MPI_INT, 0, 275727+MDPID, workerComm);
     if(bUpdateParams) {
       //_warn("%lu sent episode of size %lu and update params", MDPID,EP->ndata() );
