@@ -19,8 +19,8 @@ SETTINGS+=" --learner VRACER"
 SETTINGS+=" --explNoise 0.1" # avoid negatives
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --minTotObsNum 524288"
-SETTINGS+=" --maxTotObsNum 524288"
+SETTINGS+=" --minTotObsNum 1048576"
+SETTINGS+=" --maxTotObsNum 1048576"
 
 SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --clipImpWeight 4" # strict clipping, was 4, bcz small action space and small RM
