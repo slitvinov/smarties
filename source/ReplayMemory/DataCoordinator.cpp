@@ -255,8 +255,10 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
     unsigned long sendSz = sendSq.size();
     const int intUpdateParams = bUpdateParams? 1 : 0;
 
-    // only one thread at the time (per learning algo) can send ep to master
-    std::lock_guard<std::mutex> lock(complete_mutex);
+    //in theory this lock is unnecessary because all ops here are locking and
+    //master processes one after the other (i.e. other threads will wait)
+    //however, in case of non-multiple thread safety, it will cause deadlock 
+    std::lock_guard<std::mutex> send_ep_lock(complete_mutex);
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 37536+MDPID, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 737283+MDPID, workerComm);
     MPI(Send, &intUpdateParams, 1, MPI_INT, 0, 275727+MDPID, workerComm);
