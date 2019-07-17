@@ -63,7 +63,10 @@ public:
 
   void mastersRecvEpisodes();
 
-  void addComplete(Sequence* const EP, const bool bUpdateParams = true);
+  void addComplete(Sequence* const EP, const bool bUpdateParams);
+
+  bool bRunParameterServer = false;
+  bool bLearnersEpsSharing = false;
 
 private:
 

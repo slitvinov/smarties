@@ -36,9 +36,6 @@ class ParameterBlob
   const DistributionInfo& distrib;
   const MPI_Comm comm = MPICommDup (distrib.master_workers_comm);
   const Uint nWorkers = MPICommSize(comm);
-  //Uint lastCommGradID = 0; // shared initialization
-  std::vector<MPI_Request> sendReqs;
-
   std::vector<dataInfo> dataList;
 
 public:
@@ -51,9 +48,6 @@ public:
 
   void recv(const Uint MDP_ID) const
   {
-    //if(gradStepID == lastCommGradID)
-    //  die("Asked parameter update two times at same gradStep.");
-
     // workers always recv params from learner (rank 0)
     for(const auto& data : dataList ) {
       MPI(Recv, data.second, data.first, MPI_NNVALUE_TYPE, 0,
@@ -63,25 +57,9 @@ public:
 
   void send(const Uint toRank, const Uint MDP_ID)
   {
-    //if(gradStepID == lastCommGradID) return;
-    Uint transfID = dataList.size() * toRank;
-    const Uint endTransID = transfID + dataList.size();
-    if(sendReqs.size() <= endTransID)
-      sendReqs.resize(endTransID, MPI_REQUEST_NULL);
-
-//    for(Uint i=1, k=0; i<nWorkers; ++i) { // 0 is master
     for(const auto& data : dataList )
-    {
-      if(sendReqs[transfID] not_eq MPI_REQUEST_NULL)
-        MPI(Wait, & sendReqs[transfID], MPI_STATUS_IGNORE);
-
-      //MPI(Isend, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
-      //  72726, comm, & sendReqs[transfID]);
       MPI(Send, data.second, data.first, MPI_NNVALUE_TYPE, toRank,
         72726 + MDP_ID, comm);
-
-      transfID++;
-    }
   }
 };
 

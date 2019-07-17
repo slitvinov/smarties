@@ -114,19 +114,34 @@ void Collector::push_back(const int & agentId)
 {
   assert(agentId < (int) inProgress.size());
   const Uint seq_len = inProgress[agentId]->states.size();
-  if( seq_len > 1 ) //at least s0 and sT
+  if( seq_len < 2 ) die("Found episode with no steps"); //at least s0 and sT
+
+  inProgress[agentId]->finalize( nSeenSequences_loc.load() );
+  if( replay->bRequireImportanceSampling() )
+    inProgress[agentId]->priorityImpW = std::vector<float>(seq_len, 1);
+
+  Sequence* const terminatedEP = inProgress[agentId];
+
+  // Now check whether this agent is last of environment to call terminate.
+  // This is only relevant in the case of learners on workers who receive params
+  // from master, therefore bool can be incorrect in all other cases.
+  // Moreover, it only matters if multiple agents in env belong to same learner
+  // To ensure thread safety, we must use mutex and check that this agent is
+  // last to reset the sequence.
+  bool fullEnvironmentReset = true;
+  if(sharing->bRunParameterServer)
   {
-    inProgress[agentId]->finalize( nSeenSequences_loc.load() );
-    if( replay->bRequireImportanceSampling() )
-      inProgress[agentId]->priorityImpW = std::vector<float>(seq_len, 1);
-
-    sharing->addComplete(inProgress[agentId]);
-    nSeenTransitions_loc++;
-    nSeenSequences_loc++;
+    assert(distrib.bIsMaster == false);
+    std::lock_guard<std::mutex> lock(envTerminationCheck);
+    inProgress[agentId] = new Sequence();
+    for(const auto& ep : inProgress)
+      fullEnvironmentReset = fullEnvironmentReset && ep->nsteps()==0;
   }
-  else die("Found episode with no steps");
-
-  inProgress[agentId] = new Sequence();
+  // if all agent handled by this learner have sent a term/last state,
+  // update all the learner's parameters
+  sharing->addComplete(terminatedEP, fullEnvironmentReset);
+  nSeenTransitions_loc++;
+  nSeenSequences_loc++;
 }
 
 Collector::~Collector() {

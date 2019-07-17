@@ -27,7 +27,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   sharingRank = MPICommRank(sharingComm);
 
   workerComm = MPICommDup(distrib.master_workers_comm);
-  // rank>0 (worker) will always send to rank==0 (master)
+  // rank>0 (worker) will always send eps to rank==0 (master)
   workerSize = MPICommSize(workerComm);
   workerRank = MPICommRank(workerComm);
 
@@ -35,6 +35,7 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
      distrib.nOwnedEnvironments &&
      workerComm not_eq MPI_COMM_NULL)
   {
+    bRunParameterServer = true;
     //warn("Creating communicator to send episodes from workers to learners.");
     if(workerSize < 2) {
       warn("detected no workers in the wrong spot..."); return;
@@ -45,16 +46,18 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
       workerRecvSeqSize = std::vector<unsigned long>(workerSize);
       workerReqParamFlag= std::vector<unsigned long>(workerSize);
       workerReqParamReq = std::vector<MPI_Request>(workerSize);
-      //workerRecvSeq = std::vector<Fvec>(workerSize);
     } else {
       if(distrib.bIsMaster) die("impossible");
     }
   } else {
+    //then either workerless or sockets or state/act loop instead of param/eps
     workerSize = 0; workerRank = 0; workerComm = MPI_COMM_NULL;
   }
 
-  if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL) {
+  if(distrib.workerless_masters_comm not_eq MPI_COMM_NULL)
+  {
     warn("Creating communicator for learners without workers to recv episodes from learners with workers.");
+    bLearnersEpsSharing = true;
     sharingTurn = sharingRank; // says that first full episode stays on rank
     shareSendSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
     shareRecvSizeReq = std::vector<MPI_Request>(sharingSize, MPI_REQUEST_NULL);
@@ -62,7 +65,6 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
     shareSendSeqSize = std::vector<unsigned long>(sharingSize);
     shareRecvSeqSize = std::vector<unsigned long>(sharingSize);
     shareSendSeq = std::vector<Fvec>(sharingSize);
-    //shareRecvSeq = std::vector<Fvec>(sharingSize);
   } else {
     sharingTurn = 0; sharingSize = 0; sharingRank = 0; sharingComm = MPI_COMM_NULL;
   }
@@ -78,7 +80,11 @@ DataCoordinator::~DataCoordinator()
 void DataCoordinator::setupTasks(TaskQueue& tasks)
 {
   allTasksPtr = & tasks;
-  if(workerRank > 0) return;
+  if(workerRank > 0) { // then we are worker
+    assert(bLearnersEpsSharing == false);
+    return;
+  }
+  if(bRunParameterServer == false && bLearnersEpsSharing == false) return;
 
   //////////////////////////////////////////////////////////////////////
   // Waiting for workers to request parameters
@@ -127,6 +133,7 @@ void DataCoordinator::distributePendingEpisodes()
     if (sharingTurn == sharingRank) replay->pushBackSequence(EP);
     else
     {
+      assert(bLearnersEpsSharing);
       const Uint I = sharingTurn;
       if(shareSendSizeReq[I] not_eq MPI_REQUEST_NULL)
         MPI(Wait, & shareSendSizeReq[I], MPI_STATUS_IGNORE);
@@ -226,12 +233,13 @@ void DataCoordinator::mastersRecvEpisodes()
 // called externally
 void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
 {
-  if(sharingComm not_eq MPI_COMM_NULL)
+  if(bLearnersEpsSharing)
   {
     std::lock_guard<std::mutex> lock(complete_mutex);
     completed.push_back(EP);
   }
-  else if(workerComm not_eq MPI_COMM_NULL)
+  else
+  if(bRunParameterServer)
   {
     // if we created data structures for worker to send eps to master
     // this better be a worker!

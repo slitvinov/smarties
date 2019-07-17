@@ -33,6 +33,8 @@ private:
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
 
+  std::mutex envTerminationCheck;
+
 public:
   void add_state(Agent&a);
   void add_action(const Agent& a, const Rvec pol);
