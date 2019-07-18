@@ -108,10 +108,6 @@ PYBIND11_MODULE(smarties, m)
          & smarties::Communicator::terminateTraining,
          "Returns true if smarties is requesting application to exit.")
 
-    .def("desiredNepisodes",
-         & smarties::Communicator::desiredNepisodes,
-         "Returns the number of state/action steps requested by smarties.")
-
     .def("set_num_appended_past_observations",
         & smarties::Communicator::set_num_appended_past_observations,
         py::arg("n_appended"), py::arg("agentID") = 0,

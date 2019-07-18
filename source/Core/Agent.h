@@ -232,7 +232,7 @@ struct Agent
     buffCnter = 0;
   }
 
-  void writeData(const int rank, const Rvec mu, const Uint globalTstep) const
+  void writeData(const int rank, const Rvec& mu, const Uint globalTstep) const
   {
     // possible race conditions, avoided by the fact that each worker
     // (and therefore agent) can only be handled by one thread at the time

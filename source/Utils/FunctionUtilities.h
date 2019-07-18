@@ -55,7 +55,7 @@ inline T nnSafeExp(const T val)
   return safeExp<T>(val);
 }
 
-inline std::vector<Uint> count_indices(const std::vector<Uint> outs)
+inline std::vector<Uint> count_indices(const std::vector<Uint>& outs)
 {
   std::vector<Uint> ret(outs.size(), 0); //index 0 is 0
   for(Uint i=1; i<outs.size(); ++i) ret[i] = ret[i-1] + outs[i-1];
@@ -97,7 +97,7 @@ inline T* allocate_ptr(const Uint _size)
 }
 
 template<typename T = nnReal>
-inline std::vector<T*> allocate_vec(std::vector<Uint> _sizes)
+inline std::vector<T*> allocate_vec(const std::vector<Uint>& _sizes)
 {
   std::vector<T*> ret(_sizes.size(), nullptr);
   for(Uint i=0; i<_sizes.size(); ++i) ret[i] = allocate_ptr<T>(_sizes[i]);

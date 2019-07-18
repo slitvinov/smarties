@@ -35,7 +35,7 @@ protected:
 public:
   void initArgumentFileNames();
   void createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom);
-  std::vector<char*> readRunArgLst(const std::string paramfile);
+  std::vector<char*> readRunArgLst(const std::string& paramfile);
 
   void forkApplication(const Uint nThreads, const Uint nOwnWorkers);
   void runApplication(const MPI_Comm envApplication_comm,

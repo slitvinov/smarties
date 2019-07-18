@@ -51,7 +51,7 @@ struct Approximator
 
   Uint nOutputs() const { return net->getnOutputs(); }
   void setNgradSteps(const Uint iter) const { opt->nStep = iter; }
-  void updateGradStats(const std::string base, const Uint iter) const
+  void updateGradStats(const std::string& base, const Uint iter) const
   {
     gradStats->reduce_stats(base+name, iter);
   }
@@ -85,7 +85,7 @@ struct Approximator
   }
 
   template< typename contextid_t, typename val_t>
-  void setAddedInput(const std::vector<val_t> addedInput,
+  void setAddedInput(const std::vector<val_t>& addedInput,
                      const contextid_t& contextID,
                      const Uint t, Sint sampID = 0) const
   {
@@ -95,7 +95,7 @@ struct Approximator
                                                             addedInput.end() );
   }
   template< typename contextid_t>
-  void setAddedInputType(const ADDED_INPUT type,
+  void setAddedInputType(const ADDED_INPUT& type,
                          const contextid_t& contextID,
                          const Uint t, Sint sampID = 0) const
   {
@@ -174,9 +174,9 @@ struct Approximator
     return forward(agent, C.episode()->nsteps() - 1, 0, overwrite);
   }
 
-  void setGradient(      Rvec gradient,
-                   const Uint batchID,
-                   const Uint t, Sint sampID = 0) const
+  void setGradient(const Rvec& gradient,
+                   const Uint  batchID,
+                   const Uint  t, Sint sampID = 0) const
   {
     ThreadContext& C = getContext(batchID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
@@ -191,9 +191,9 @@ struct Approximator
   }
 
   Real& ESloss(const Uint ESweightID = 0) { return losses[ESweightID]; }
-  Rvec oneStepBackProp(const Rvec gradient,
-                       const Uint batchID,
-                       const Uint t, Sint sampID) const
+  Rvec oneStepBackProp(const Rvec& gradient,
+                       const Uint  batchID,
+                       const Uint  t, Sint sampID) const
   {
     assert(auxInputNet && "improperly set up the aux input net");
     assert(auxInputAttachLayer >= 0 && "improperly set up the aux input net");

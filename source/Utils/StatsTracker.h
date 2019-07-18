@@ -69,10 +69,10 @@ struct TrainData
   ~TrainData();
 
   void log(const Real Q, const Real Qerr,
-    const std::vector<Real> polG, const std::vector<Real> penal,
-    std::initializer_list<Real> extra, const int thrID);
+    const std::vector<Real>& polG, const std::vector<Real>& penal,
+    const std::initializer_list<Real>& extra, const int thrID);
   void log(const Real Q, const Real Qerr,
-    std::initializer_list<Real> extra, const int thrID);
+    const std::initializer_list<Real>& extra, const int thrID);
   void log(const Real Q, const Real Qerr, const int thrID);
 
   void getMetrics(std::ostringstream& buff);
@@ -85,8 +85,8 @@ struct TrainData
 
   void trackQ(const Real Q, const Real err, const int thrID);
 
-  void trackPolicy(const std::vector<Real> polG,
-    const std::vector<Real> penal, const int thrID);
+  void trackPolicy(const std::vector<Real>& polG,
+    const std::vector<Real>& penal, const int thrID);
 };
 
 struct StatsTracker
@@ -105,17 +105,17 @@ struct StatsTracker
 
   StatsTracker(const Uint N, const DistributionInfo&);
 
-  void track_vector(const Rvec grad, const Uint thrID) const;
+  void track_vector(const Rvec& grad, const Uint thrID) const;
 
   void advance();
 
   void update();
 
-  void printToFile(const std::string base);
+  void printToFile(const std::string& base);
 
   void finalize(const LDvec&oldM, const LDvec&oldS);
 
-  void reduce_stats(const std::string base, const Uint iter = 0);
+  void reduce_stats(const std::string& base, const Uint iter = 0);
 
 };
 

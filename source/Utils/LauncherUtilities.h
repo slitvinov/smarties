@@ -87,6 +87,7 @@ inline int cp(const char *from, const char *to)
 {
   int saved_errno;
   int fd_to = -1;
+  ssize_t nread = 0;
   int fd_from = open(from, O_RDONLY);
   if (fd_from < 0) return -1;
 
@@ -98,9 +99,11 @@ inline int cp(const char *from, const char *to)
   if (fd_to < 0) goto out_error; // unable to open
 
   char buf[4096];
-  ssize_t nread;
-  while (nread = read(fd_from, buf, sizeof buf), nread > 0)
+  while (1)
   {
+    nread = read(fd_from, buf, sizeof buf);
+    if(nread <= 0) break;
+
     char *out_ptr = buf;
     while (nread > 0)
     {

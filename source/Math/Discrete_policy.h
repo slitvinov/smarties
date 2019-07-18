@@ -58,8 +58,9 @@ struct Discrete_policy
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
-    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->dimDiscrete()), netOutputs(out), unnorm(extract_unnorm()),
-    normalization(compute_norm()), probs(extract_probabilities())
+    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->dimDiscrete()),
+    netOutputs(out), unnorm(extract_unnorm()), normalization(compute_norm()),
+    probs(extract_probabilities())
     {
       //printf("Discrete_policy: %u %u %u %lu %lu %lu %lu\n",
       //start_prob,start_vals,nA,netOutputs.size(),
@@ -171,13 +172,13 @@ struct Discrete_policy
     return ret;
   }
 
-  void finalize_grad(const Rvec grad, Rvec&netGradient) const
+  void finalize_grad(const Rvec& grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0, k=start_prob; j<nA; ++j, ++k)
       netGradient[k]= grad[j] * PosDefMapping_f::_evalDiff(netOutputs[k]);
   }
-  Rvec finalize_grad(const Rvec grad) const
+  Rvec finalize_grad(const Rvec& grad) const
   {
     Rvec ret(nA);
     for (Uint j=0, k=start_prob; j<nA; ++j, ++k)

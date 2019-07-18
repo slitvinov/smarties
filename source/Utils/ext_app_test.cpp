@@ -76,6 +76,7 @@ int app_main(smarties::Communicator*const rlcom,
     }
 
     rlcom->sendTermState(state, 0, 0);
+    if( rlcom->terminateTraining() ) break;
   }
   free(vec);
   return 0;

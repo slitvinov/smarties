@@ -35,9 +35,9 @@ struct Activation
     return ret;
   }
 
-  Activation(const std::vector<Uint> _sizes,
-             const std::vector<Uint> _bOut,
-             const std::vector<Uint> _bInp):
+  Activation(const std::vector<Uint>& _sizes,
+             const std::vector<Uint>& _bOut,
+             const std::vector<Uint>& _bInp):
     nLayers(_sizes.size()), nOutputs(_nOuts(_sizes,_bOut)), nInputs(_nInps(_sizes,_bInp)),
     sizes(_sizes), output(_bOut), input(_bInp),
     suminps(Utilities::allocate_vec(_sizes)),
@@ -55,7 +55,7 @@ struct Activation
   }
 
   template<typename T>
-  void setInput(const std::vector<T> inp) const
+  void setInput(const std::vector<T>& inp) const
   {
     assert( (size_t) nInputs == inp.size());
     for(int j=0; j<nInputs; ++j)
@@ -91,7 +91,7 @@ struct Activation
   }
 
   template<typename T>
-  void setOutputDelta(const std::vector<T> delta) const
+  void setOutputDelta(const std::vector<T>& delta) const
   {
     assert( (size_t) nOutputs == delta.size()); //alternative not supported
     for(int j=0; j<nOutputs; ++j)
@@ -107,7 +107,7 @@ struct Activation
   }
 
   template<typename T>
-  void addOutputDelta(const std::vector<T> delta) const
+  void addOutputDelta(const std::vector<T>& delta) const
   {
     assert( (size_t) nOutputs == delta.size()); //alternative not supported
     int k=0;

@@ -97,8 +97,8 @@ TrainData::TrainData(const std::string _name, const DistributionInfo& distrib,
 TrainData::~TrainData() { }
 
 void TrainData::log(const Real Q, const Real Qerr,
-  const std::vector<Real> polG, const std::vector<Real> penal,
-  std::initializer_list<Real> extra, const int thrID)
+  const std::vector<Real>& polG, const std::vector<Real>& penal,
+  const std::initializer_list<Real>& extra, const int thrID)
 {
   cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
@@ -109,7 +109,7 @@ void TrainData::log(const Real Q, const Real Qerr,
 }
 
 void TrainData::log(const Real Q, const Real Qerr,
-  std::initializer_list<Real> extra, const int thrID)
+  const std::initializer_list<Real>& extra, const int thrID)
 {
   cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
@@ -228,8 +228,8 @@ void TrainData::trackQ(const Real Q, const Real err, const int thrID)
   qVec[thrID][4] = std::max(qVec[thrID][4], static_cast<long double>(Q) );
 }
 
-void TrainData::trackPolicy(const std::vector<Real> polG,
-  const std::vector<Real> penal, const int thrID)
+void TrainData::trackPolicy(const std::vector<Real>& polG,
+  const std::vector<Real>& penal, const int thrID)
 {
   Real tmpPol = 0, tmpPen = 0, tmpPrj = 0;
   for(Uint i=0; i<polG.size(); ++i) {
@@ -251,7 +251,7 @@ StatsTracker::StatsTracker(const Uint N, const DistributionInfo& distrib) :
   instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
 }
 
-void StatsTracker::track_vector(const Rvec grad, const Uint thrID) const
+void StatsTracker::track_vector(const Rvec& grad, const Uint thrID) const
 {
   assert(n_stats==grad.size());
   cntVec[thrID] += 1;
@@ -290,7 +290,7 @@ void StatsTracker::update()
   }
 }
 
-void StatsTracker::printToFile(const std::string base)
+void StatsTracker::printToFile(const std::string& base)
 {
   if(!learn_rank) {
     FILE * pFile;
@@ -323,7 +323,7 @@ void StatsTracker::finalize(const LDvec&oldM, const LDvec&oldS)
   }
 }
 
-void StatsTracker::reduce_stats(const std::string base, const Uint iter)
+void StatsTracker::reduce_stats(const std::string& base, const Uint iter)
 {
   const LDvec oldsum = avg, oldstd = std;
   advance();

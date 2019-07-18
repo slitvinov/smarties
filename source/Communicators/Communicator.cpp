@@ -332,9 +332,6 @@ bool Communicator::isTraining() const {
 bool Communicator::terminateTraining() const {
   return bTrainIsOver;
 }
-int Communicator::desiredNepisodes() const {
-  return nEpisodes;
-}
 
 #ifndef SMARTIES_LIB
 #ifndef MPI_VERSION

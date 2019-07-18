@@ -52,7 +52,7 @@ struct Gaussian_policy
     #endif
   }
 
-  Gaussian_policy(const std::vector<Uint> start,
+  Gaussian_policy(const std::vector<Uint>& start,
                     const ActionInfo*const aI,
                     const Rvec&out) :
     aInfo(aI), start_mean(start[0]),
@@ -273,7 +273,7 @@ public:
     return aInfo->action2scaledAction(sampAct);
   }
 
-  void finalize_grad(const Rvec grad, Rvec& netGradient) const
+  void finalize_grad(const Rvec& grad, Rvec& netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; ++j) {
@@ -293,7 +293,7 @@ public:
     }
   }
 
-  Rvec finalize_grad(const Rvec grad) const
+  Rvec finalize_grad(const Rvec& grad) const
   {
     Rvec ret = grad;
     for (Uint j=0; j<nA; ++j) if( aInfo->isBounded(j) ) {

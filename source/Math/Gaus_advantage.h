@@ -50,7 +50,7 @@ struct Gaussian_advantage
 
 private:
 
-  static Rvec extract_matrix(const Rvec net, const Uint start, const Uint nA)
+  static Rvec extract_matrix(const Rvec& net, const Uint start, const Uint nA)
   {
     Rvec ret = Rvec(2*nA);
     for(Uint i=0; i<2*nA; ++i)
@@ -59,7 +59,7 @@ private:
     return ret;
   }
 
-  static Real extract_coefs(const Rvec net, const Uint start)
+  static Real extract_coefs(const Rvec& net, const Uint start)
   {
     return PosDefMapping_f::_eval(net[start]);
   }

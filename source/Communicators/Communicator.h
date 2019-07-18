@@ -124,7 +124,6 @@ public:
   std::mt19937& getPRNG();
   bool isTraining() const;
   bool terminateTraining() const;
-  int desiredNepisodes() const;
 
   //////////////////////////////////////////////////////////////////////////////
   ///////////////////////////// DEVELOPER METHODS //////////////////////////////
@@ -149,7 +148,7 @@ protected:
   //internal counters & flags
   bool bTrain = true;
   bool bTrainIsOver = false;
-  int nEpisodes = -1;
+  long nRequestedEnvTimeSteps = -1;
   Uint globalTstepCounter = 0;
 
   //called by app to interact with smarties:

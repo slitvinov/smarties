@@ -30,7 +30,8 @@ struct Discrete_advantage
   static void setInitial(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_advantage(const std::vector<Uint>& starts, const ActionInfo*const aI,
-   const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->dimDiscrete()), netOutputs(out),
+   const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI),
+   start_adv(starts[0]), nA(aI->dimDiscrete()), netOutputs(out),
    advantages(extract(out)), policy(pol) {}
 
 protected:

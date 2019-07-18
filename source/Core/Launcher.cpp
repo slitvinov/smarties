@@ -173,7 +173,7 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm envAppCom)
   }
 }
 
-std::vector<char*> Launcher::readRunArgLst(const std::string paramFile)
+std::vector<char*> Launcher::readRunArgLst(const std::string& paramFile)
 {
   std::vector<char*> args;
   if (paramFile == "") {
