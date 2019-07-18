@@ -11,6 +11,7 @@
 
 #define SMARTIES_CORE
 
+#include "mpi.h" // required
 #include "Communicator.h"
 
 // main function call for user's application
