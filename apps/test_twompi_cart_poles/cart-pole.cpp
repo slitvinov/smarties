@@ -13,8 +13,12 @@
 #include <vector>
 #include <atomic>
 #include <functional>
-#include "Communicators/Communicator.h"
+
+#include "mpi.h"
+#include "Communicators/Communicator_MPI.h"
+
 #define SWINGUP 0
+
 using namespace std;
 
 // Julien Berland, Christophe Bogey, Christophe Bailly,
