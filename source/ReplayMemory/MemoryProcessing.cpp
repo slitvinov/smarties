@@ -49,8 +49,9 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
       #pragma omp for schedule(dynamic) nowait
       for(Uint i=0; i<setSize; ++i) {
-        count += Set[i]->ndata();
-        for(Uint j=0; j<Set[i]->ndata(); ++j) {
+        const Uint N = Set[i]->ndata();
+        count += N;
+        for(Uint j=0; j<N; ++j) {
           newstdvr += std::pow(Set[i]->rewards[j+1], 2);
           for(Uint k=0; k<dimS && WS>0; ++k) {
             const long double sk = Set[i]->states[j][k] - mean[k];

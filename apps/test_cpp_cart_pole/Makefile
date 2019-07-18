@@ -1,5 +1,5 @@
 CXX ?= g++
-
+extra ?=
 OBJ_FILES = cart-pole.o
 SRC_DIR = ./
 COM_DIR = ../../source/
@@ -20,13 +20,13 @@ endif
 .DEFAULT_GOAL := cart-pole
 
 cart-pole: $(OBJ_FILES)
-	$(CXX) -L../../makefiles/ -o $@ $^ -lsmarties
+	$(CXX) $(extra) -L../../makefiles/ -o $@ $^ -lsmarties
 
 %.o: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -MD -c $<
+	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
 
 clean:
 	rm -f *.o *.s *.d cart-pole

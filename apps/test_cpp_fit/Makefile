@@ -1,10 +1,12 @@
 CXX ?= g++
 
+extra ?=
 OBJ_FILES = test-fit.o
 SRC_DIR = ./
 COM_DIR = ../../source/
 VPATH := $(SRC_DIR):$(COM_DIR)
 CPPFLAGS+= -std=c++14 -Wall -O2 -I$(COM_DIR)
+#CPPFLAGS+= -std=c++14 -Wall -O0 -g -I$(COM_DIR)
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
@@ -20,13 +22,13 @@ endif
 .DEFAULT_GOAL := test-fit
 
 test-fit: $(OBJ_FILES)
-	$(CXX) -L../../makefiles/ -o $@ $^ -lsmarties
+	$(CXX) $(extra) -L../../makefiles/ -o $@ $^ -lsmarties
 
 %.o: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -MD -c $<
+	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
 
 #vpath %.cpp $(DIRS)
 #vpath %.h   $(DIRS)

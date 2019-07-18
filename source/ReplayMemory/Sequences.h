@@ -61,7 +61,7 @@ struct Sequence
   {
     assert(states.size());
     if(states.size()==0) return 0;
-    return states.size()-1;
+    else return states.size() - 1;
   }
   Uint nsteps() const // total number of time steps observed
   {

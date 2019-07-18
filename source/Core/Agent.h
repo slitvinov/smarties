@@ -123,6 +123,7 @@ struct Agent
     msgPos +=                          sizeof(unsigned) ;
     memcpy(msgPos, &reward,            sizeof(double));
     msgPos +=                          sizeof(double) ;
+    if(state.size())
     memcpy(msgPos,  state.data(),      sizeof(double) * state.size());
     msgPos +=                          sizeof(double) * state.size() ;
   }
@@ -143,7 +144,7 @@ struct Agent
 
     // if timeStepInEpisode==testStepID then agent was told to pack and
     // unpack the same state. happens e.g. if learner == worker
-    if(timeStepInEpisode not_eq testStepID)
+    //if(timeStepInEpisode not_eq testStepID)
     {
       std::swap(sOld, state); //what is stored in state now is sold
       if(agentStatus == INIT) {
@@ -158,6 +159,7 @@ struct Agent
 
     memcpy(&reward,            msgPos, sizeof(double));
     msgPos +=                          sizeof(double) ;
+    if(state.size())
     memcpy( state.data(),      msgPos, sizeof(double) * state.size());
     msgPos +=                          sizeof(double) * state.size() ;
   }

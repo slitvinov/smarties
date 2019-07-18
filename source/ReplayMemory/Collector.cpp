@@ -26,7 +26,7 @@ replay(RM), sharing(C)
 void Collector::add_state(Agent&a)
 {
   assert(a.ID < inProgress.size());
-  assert(MDP.localID == a.localID);
+  assert(replay->MDP.localID == a.localID);
   Sequence* const S = inProgress[a.ID];
 
   // assign or check id of agent generating episode
@@ -136,6 +136,10 @@ void Collector::push_back(const int & agentId)
     inProgress[agentId] = new Sequence();
     for(const auto& ep : inProgress)
       fullEnvironmentReset = fullEnvironmentReset && ep->nsteps()==0;
+  }
+  else // no risk of race cond, also no need for fullEnvironmentReset
+  {
+    inProgress[agentId] = new Sequence();
   }
   // if all agent handled by this learner have sent a term/last state,
   // update all the learner's parameters

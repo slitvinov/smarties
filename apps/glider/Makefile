@@ -1,5 +1,6 @@
 CXX ?= g++
 
+extra ?=
 smart ?= 1
 train ?= 1
 multdt ?= 1
@@ -28,13 +29,13 @@ CPPFLAGS+=-std=c++14 -O2 -Wall -I$(COM_DIR)
 .DEFAULT_GOAL := glider
 
 glider: glider.o
-	$(CXX) $(LIBS) -L../../makefiles/ -o $@ $^ -lsmarties
+	$(CXX) $(extra) $(LIBS) -L../../makefiles/ -o $@ $^ -lsmarties
 
 %.o: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CXX) $(extra)  $(CPPFLAGS) -MD -c $<
+	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
 
 clean:
 	rm -f *.o *.s *.d glider
