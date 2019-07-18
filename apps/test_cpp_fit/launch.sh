@@ -1,1 +1,1 @@
-../cart-pole $1
+../test-fit $1

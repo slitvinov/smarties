@@ -1,4 +1,4 @@
-CC = g++
+CXX ?= g++
 
 OBJ_FILES = cart-pole.o
 SRC_DIR = ./
@@ -9,16 +9,24 @@ CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Darwin)
+ifeq ($(CXX), c++)
+#LD=g++-9
+#CXX=g++-9
+endif
+endif
+
 .DEFAULT_GOAL := cart-pole
 
 cart-pole: $(OBJ_FILES)
-	$(CC) -L../../makefiles/ -o $@ $^ -lsmarties
+	$(CXX) -L../../makefiles/ -o $@ $^ -lsmarties
 
 %.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
+	$(CXX) $(extra)  $(CPPFLAGS) -MD -c $<
 
 clean:
-	rm -f *.o *.s *.d rl
+	rm -f *.o *.s *.d cart-pole

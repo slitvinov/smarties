@@ -34,3 +34,7 @@ CPPFLAGS+= -fmerge-all-constants #-fassociative-math
 CPPFLAGS+= -fvisibility=hidden
 #CPPFLAGS+= -fprofile-use
 CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
+
+
+NOWARNP11= -Wno-cast-function-type -Wno-redundant-decls -Wno-deprecated-declarations \
+	-Wno-shadow -Wno-cast-function-type -Wno-missing-declarations -Wno-float-equal

@@ -9,7 +9,7 @@
 #ifndef smarties_MPIUtilities_h
 #define smarties_MPIUtilities_h
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
 #include <mpi.h>
 #include <omp.h>
 #endif
@@ -41,7 +41,7 @@ inline unsigned MPIworldRank() { return MPICommRank(MPI_COMM_WORLD); }
 
 #else
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
   #error "mpi.h did not define MPI_VERSION"
 #endif
 

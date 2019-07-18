@@ -1,6 +1,8 @@
+# objective of this problem is to guess all state variables
+# by observing roughly half of them
 
 import numpy as np
-from Communicator import Communicator
+from smarties import Communicator
 import time
 
 N = 4  # number of variables
@@ -37,6 +39,6 @@ while(True):
 
       if(step < maxStep): comm.sendState(o, r)
       else:
-        comm.truncateSeq(o, r)
+        comm.sendLastState(o, r)
         break
       step += 1

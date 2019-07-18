@@ -1,4 +1,4 @@
-CXX = g++
+CXX ?= g++
 
 smart ?= 1
 train ?= 1
@@ -9,9 +9,11 @@ density ?= 200
 CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun) -DMULT_ACT_DT=$(multdt)
 
 UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-LD=g++-9
-CXX=g++-9
+ifeq ($(UNAME_S), Darwin)
+ifeq ($(CXX), c++)
+#LD=g++-9
+#CXX=g++-9
+endif
 endif
 
 ifeq "$(smart)" "1"

@@ -1,13 +1,14 @@
+# objective of this problem is to learn simple time
+# dependencies
 
 import numpy as np
-from Communicator import Communicator
+from smarties import Communicator
 import time
 
 N = 1  # number of variables
 sigma = 1
 maxStep = 1000
 
-# comm = Communicator(N/2, N/2, 2)
 comm = Communicator(N, N)
 
 while(True):
@@ -23,6 +24,6 @@ while(True):
 
       if(step < maxStep): comm.sendState(o, r)
       else:
-        comm.truncateSeq(o, r)
+        comm.sendLastState(o, r)
         break
       step += 1

@@ -9,7 +9,7 @@
 #ifndef smarties_Communicator_h
 #define smarties_Communicator_h
 
-#include "Core/Environment.h" // to include after mpi.h if not SMARTIES_LIB
+#include "Core/Environment.h" // to include after mpi.h if SMARTIES_CORE
 
 #include <random>
 
@@ -17,7 +17,7 @@ namespace smarties
 {
 
 struct COMM_buffer;
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
 class Worker;
 #endif
 
@@ -119,6 +119,26 @@ public:
                                           const int agentID = 0);
 
   //////////////////////////////////////////////////////////////////////////////
+  ////////////////////////// OPTIMIZATION INTERFACE ////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+  // conveniency methods for optimization (stateless/timeless) problems
+
+  const std::vector<double>& getOptimizationParameters(const int agentID = 0)
+  {
+    assert(ENV.descriptors[agentID]->dimState == 0 &&
+           "optimization interface only defined for stateless problems");
+    _sendState(agentID, INIT, std::vector<double>(0), 0); // fake initial state
+    return recvAction(agentID);
+  }
+
+  void setOptimizationEvaluation(const Real R, const int agentID = 0)
+  {
+    assert(ENV.descriptors[agentID]->dimState == 0 &&
+           "optimization interface only defined for stateless problems");
+    _sendState(agentID, TERM, std::vector<double>(0), R); // send objective eval
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// UTILITY METHODS ///////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   std::mt19937& getPRNG();
@@ -155,10 +175,10 @@ protected:
   void _sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
-  #ifndef SMARTIES_LIB
-  //#ifndef MPI_VERSION
-  //  #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
-  //#endif
+  #ifdef SMARTIES_CORE
+  #ifndef MPI_VERSION
+    #error "Defined SMARTIES_CORE and not MPI_VERSION"
+  #endif
 
   public:
     MPI_Comm getMPIcomm() const { return workers_application_comm; }
@@ -169,7 +189,7 @@ protected:
 
     //access to smarties' internals, available only if app is linked into exec
     friend class Worker;
-    // ref to worker ensures that if SMARTIES_LIB is not defined we can only
+    // ref to worker ensures that only if SMARTIES_CORE is defined we can
     // construct a communicator with the protected constructor defined below
     Worker * const worker = nullptr;
 

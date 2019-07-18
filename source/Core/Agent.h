@@ -12,7 +12,7 @@
 #include "StateAction.h"
 #include <cstring> // memcpy
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
 #include <atomic>
 #define OUTBUFFSIZE 65536
 #endif
@@ -215,7 +215,7 @@ struct Agent
    return 2*sizeof(unsigned) +sizeof(learnerStatus) + aDim*sizeof(double);
   }
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
   // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};

@@ -54,6 +54,7 @@ out.*.*.[oe]
 policies/*
 runs/
 /apps/glider/glider
+/apps/test_cpp_fit/test-fit
 engine_cmaes
 cart-pole
 pp

@@ -15,7 +15,7 @@
 #include "Layers/Layer_Base.h"
 #include "Layers/Layer_Conv2D.h"
 #include "Layers/Layer_LSTM.h"
-#include "Layers/Layer_MGU.h"
+#include "Layers/Layer_GRU.h"
 
 namespace smarties
 {

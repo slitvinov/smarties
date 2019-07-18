@@ -9,7 +9,7 @@
 #include "Communicator.h"
 #include "Utils/SocketsLib.h"
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
 #include "Core/Worker.h"
 #endif
 
@@ -253,7 +253,7 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   assert(agents[agentID]->ID == (unsigned) agentID);
   agents[agentID]->update(status, state, reward);
 
-  #ifndef SMARTIES_LIB
+  #ifdef SMARTIES_CORE
     if(worker not_eq nullptr)
     {
       worker->stepWorkerToMaster( * agents[agentID].get() );
@@ -289,7 +289,7 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-  #ifndef SMARTIES_LIB
+  #ifdef SMARTIES_CORE
     if(worker not_eq nullptr)
     {
       worker->synchronizeEnvironments();
@@ -333,9 +333,9 @@ bool Communicator::terminateTraining() const {
   return bTrainIsOver;
 }
 
-#ifndef SMARTIES_LIB
+#ifdef SMARTIES_CORE
 #ifndef MPI_VERSION
-  #error "Defined SMARTIES_INTERNAL and not MPI_VERSION"
+  #error "Defined SMARTIES_CORE and not MPI_VERSION"
 #endif
 
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :

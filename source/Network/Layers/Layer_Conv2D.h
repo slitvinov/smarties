@@ -191,15 +191,15 @@ struct Mat2ImLayer: public Layer
     memset(curr->Y(ID), 0, out_size * sizeof(nnReal) );
 
     for (int ic = 0; ic < InC; ++ic)
-      for (int oy = 0; oy < OpY; ++oy) for (int ox = 0; ox < OpX; ++ox)
-        for (int fy = 0; fy < KnY; ++fy) for (int fx = 0; fx < KnX; ++fx) {
-          //starting position along input map for convolution with kernel
-          const int ix = ox*Sx - Px + fx; //index along input map of
-          const int iy = oy*Sy - Py + fy; //the convolution op
-          //padding: skip addition if outside input boundaries
-          if (ix < 0 || ix >= InX || iy < 0 || iy >= InY) continue;
-          OUT[ic][fy][fx][oy][ox] = INP[ic][iy][ix];
-        }
+    for (int oy = 0; oy < OpY; ++oy) for (int fy = 0; fy < KnY; ++fy)
+    for (int ox = 0; ox < OpX; ++ox) for (int fx = 0; fx < KnX; ++fx) {
+      //starting position along input map for convolution with kernel
+      const int ix = ox*Sx - Px + fx; //index along input map of
+      const int iy = oy*Sy - Py + fy; //the convolution op
+      //padding: skip addition if outside input boundaries
+      if (ix < 0 || ix >= InX || iy < 0 || iy >= InY) continue;
+      OUT[ic][fy][fx][oy][ox] = INP[ic][iy][ix];
+    }
   }
 
   void backward(const Activation*const prev,
@@ -212,15 +212,15 @@ struct Mat2ImLayer: public Layer
     const Output & __restrict__ dLdOUT = * (Output*) curr->E(ID);
     // no memset 0 of grad because backward assumed additive
     for (int ic = 0; ic < InC; ++ic) //loop over inp feature maps
-      for (int oy = 0; oy < OpY; ++oy) for (int ox = 0; ox < OpX; ++ox)
-        for (int fy = 0; fy < KnY; ++fy) for (int fx = 0; fx < KnX; ++fx) {
-          //starting position along input map for convolution with kernel
-          const int ix = ox*Sx - Px + fx; //index along input map of
-          const int iy = oy*Sy - Py + fy; //the convolution op
-          //padding: skip addition if outside input boundaries
-          if (ix < 0 || ix >= InX || iy < 0 || iy >= InY) continue;
-          dLdINP[ic][iy][ix] += dLdOUT[ic][fy][fx][oy][ox];
-        }
+    for (int oy = 0; oy < OpY; ++oy) for (int fy = 0; fy < KnY; ++fy)
+    for (int ox = 0; ox < OpX; ++ox) for (int fx = 0; fx < KnX; ++fx) {
+      //starting position along input map for convolution with kernel
+      const int ix = ox*Sx - Px + fx; //index along input map of
+      const int iy = oy*Sy - Py + fy; //the convolution op
+      //padding: skip addition if outside input boundaries
+      if (ix < 0 || ix >= InX || iy < 0 || iy >= InY) continue;
+      dLdINP[ic][iy][ix] += dLdOUT[ic][fy][fx][oy][ox];
+    }
   }
 
   void initialize(std::mt19937& G, const Parameters*const W,
