@@ -222,11 +222,11 @@ struct Agent
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};
 
-  void writeBuffer(const int rank) const
+  void writeBuffer(const char* const logpath, const int rank) const
   {
     if(buffCnter == 0) return;
-    char cpath[256];
-    sprintf(cpath, "agent%03d_rank%02d_obs.raw", ID, rank);
+    char cpath[1024];
+    sprintf(cpath, "%s/agent%03d_rank%02d_obs.raw", logpath, ID, rank);
     FILE * pFile = fopen (cpath, "ab");
 
     fwrite (buf, sizeof(float), buffCnter, pFile);
@@ -234,7 +234,8 @@ struct Agent
     buffCnter = 0;
   }
 
-  void writeData(const int rank, const Rvec& mu, const Uint globalTstep) const
+  void writeData(const char* const logpath, const int rank,
+                 const Rvec& mu, const Uint globalTstep) const
   {
     // possible race conditions, avoided by the fact that each worker
     // (and therefore agent) can only be handled by one thread at the time

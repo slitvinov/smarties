@@ -30,6 +30,7 @@ struct DistributionInfo
   void initialzePRNG();
   void finalizePRNG(const Uint nAgents_local);
 
+  char initial_runDir[1024];
   Uint world_rank;
   Uint world_size;
 
@@ -50,7 +51,6 @@ struct DistributionInfo
   Uint nOwnedEnvironments = 0;
   Uint nOwnedAgentsPerAlgo = 1;
   Uint nForkedProcesses2spawn = 0;
-
   //random number generators (one per thread)
   mutable std::vector<std::mt19937> generators;
 

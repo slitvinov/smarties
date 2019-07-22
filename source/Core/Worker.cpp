@@ -196,8 +196,9 @@ void Worker::dumpCumulativeReward(const Agent& agent,
 {
   if (learnAlgoIter == 0 && bTrain) return;
   const int wrank = MPICommSize(MPI_COMM_WORLD);
-  char path[256];
-  sprintf(path, "agent_%02u_rank%02d_cumulative_rewards.dat", agent.localID, wrank);
+  char path[1024];
+  sprintf(path, "%s/agent_%02u_rank%02d_cumulative_rewards.dat",
+          distrib.initial_runDir, agent.localID, wrank);
 
   std::lock_guard<std::mutex> lock(dump_mutex);
   FILE * pFile = fopen (path, "a");

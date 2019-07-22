@@ -17,6 +17,7 @@ namespace smarties
 Settings::Settings() {  }
 DistributionInfo::DistributionInfo(int argc, char** argv)
 {
+  getcwd(initial_runDir, 1024);
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
   MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   if (threadSafety < MPI_THREAD_SERIALIZED)
