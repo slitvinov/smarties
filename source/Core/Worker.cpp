@@ -194,8 +194,8 @@ bool Worker::learnersBlockingDataAcquisition() const
 void Worker::dumpCumulativeReward(const Agent& agent,
   const Uint learnAlgoIter, const Uint totalAgentTstep) const
 {
-  if (learnAlgoIter == 0 && bTrain) return;
-  const int wrank = MPICommSize(MPI_COMM_WORLD);
+  //if (learnAlgoIter == 0 && bTrain) return;
+  const int wrank = MPICommRank(MPI_COMM_WORLD);
   char path[2048];
   sprintf(path, "%s/agent_%02u_rank%02d_cumulative_rewards.dat",
           distrib.initial_runDir, agent.localID, wrank);
