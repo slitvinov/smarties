@@ -196,7 +196,7 @@ void Worker::dumpCumulativeReward(const Agent& agent,
 {
   if (learnAlgoIter == 0 && bTrain) return;
   const int wrank = MPICommSize(MPI_COMM_WORLD);
-  char path[1024];
+  char path[2048];
   sprintf(path, "%s/agent_%02u_rank%02d_cumulative_rewards.dat",
           distrib.initial_runDir, agent.localID, wrank);
 

@@ -243,7 +243,7 @@ struct Agent
     const Uint writesize = 4 + sInfo.dim() + aInfo.dim() + mu.size();
     if(OUTBUFFSIZE<writesize) die("Increase compile-time OUTBUFFSIZE variable");
     assert( buffCnter % writesize == 0 );
-    if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(rank);
+    if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(logpath, rank);
     Uint ind = buffCnter;
     buf[ind++] = globalTstep + 0.1;
     buf[ind++] = status2int(agentStatus) + 0.1;

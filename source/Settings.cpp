@@ -10,6 +10,7 @@
 #include "Settings.h"
 #include "CLI/CLI.hpp"
 #include <cassert>
+#include <unistd.h>
 
 namespace smarties
 {
