@@ -12,6 +12,7 @@
 #include "ReplayMemory/MemoryProcessing.h"
 #include "ReplayMemory/DataCoordinator.h"
 #include "ReplayMemory/Collector.h"
+#include <unistd.h>
 
 namespace smarties
 {
@@ -240,54 +241,65 @@ void Learner::restart()
 
   data->save("restarted_"+learner_name, 0, false);
 
-  std::ostringstream ss;
-  ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
-  FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
-  if(f == NULL) {
-   _warn("Learner restart file %s not found\n",(learner_name+ss.str()).c_str());
-   return;
-  }
+  {
+    char currDirectory[512];
+    getcwd(currDirectory, 512);
+    chdir(distrib.initial_runDir);
 
-  Uint nSeqs;
-  if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die("");
-  data->setNSeq(nSeqs);
+    std::ostringstream ss;
+    ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
+    FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
 
-  {
-    Uint nObs;
-    if(fread(&nObs, sizeof(Uint),1,f) != 1) die("");
-    data->setNData(nObs);
-  }
-  {
-    Uint tObs;
-    if(fread(&tObs, sizeof(Uint),1,f) != 1) die("");
-    data->setNSeen_loc(tObs);
-  }
-  {
-    Uint tSeqs;
-    if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die("");
-    data->setNSeenSeq_loc(tSeqs);
-  }
-  {
-    long tB4;
-    if(fread(&tB4, sizeof(long), 1, f) != 1) die("");
-    nDataGatheredB4Startup = tB4;
-  }
-  {
-    long int currStep;
-    if(fread(&currStep, sizeof(long int), 1, f) != 1) die("");
-    _nGradSteps = currStep;
-  }
-  if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
-  if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
+    if(f == NULL) {
+      _warn("Learner restart file %s not found\n",
+            (learner_name+ss.str()).c_str());
+      return;
+    }
 
-  for(Uint i = 0; i < nSeqs; ++i) {
-    assert(data->get(i) == nullptr);
-    Sequence* const S = new Sequence();
-    if( S->restart(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
-      _die("Unable to find sequence %u\n", i);
-    data->set(S, i);
+    Uint nSeqs;
+    if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die("");
+    data->setNSeq(nSeqs);
+
+    {
+      Uint nObs;
+      if(fread(&nObs, sizeof(Uint),1,f) != 1) die("");
+      data->setNData(nObs);
+    }
+    {
+      Uint tObs;
+      if(fread(&tObs, sizeof(Uint),1,f) != 1) die("");
+      data->setNSeen_loc(tObs);
+    }
+    {
+      Uint tSeqs;
+      if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die("");
+      data->setNSeenSeq_loc(tSeqs);
+    }
+    {
+      long tB4;
+      if(fread(&tB4, sizeof(long), 1, f) != 1) die("");
+      nDataGatheredB4Startup = tB4;
+    }
+    {
+      long int currStep;
+      if(fread(&currStep, sizeof(long int), 1, f) != 1) die("");
+      _nGradSteps = currStep;
+    }
+    if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
+    if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
+
+    for(Uint i = 0; i < nSeqs; ++i) {
+      assert(data->get(i) == nullptr);
+      Sequence* const S = new Sequence();
+      if( S->restart(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
+        _die("Unable to find sequence %u\n", i);
+      data->set(S, i);
+    }
+
+    chdir(currDirectory);
   }
 }
+
 void Learner::save()
 {
   const Uint currStep = nGradSteps()+1;

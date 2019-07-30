@@ -10,6 +10,7 @@
 #include "Utils/SstreamUtilities.h"
 #include "saruprng.h"
 #include <algorithm>
+#include <unistd.h>
 
 namespace smarties
 {
@@ -184,9 +185,16 @@ void CMA_Optimizer::save(const std::string fname, const bool backup)
 
 int CMA_Optimizer::restart(const std::string fname)
 {
+  char currDirectory[512];
+  getcwd(currDirectory, 512);
+  chdir(distrib.initial_runDir);
+
   pathCov->restart(fname+"_pathCov");
   diagCov->restart(fname+"_diagCov");
-  return weights->restart(fname+"_weights");
+  int ret = weights->restart(fname+"_weights");
+
+  chdir(currDirectory);
+  return ret;
 }
 
 void CMA_Optimizer::getMetrics(std::ostringstream& buff)
