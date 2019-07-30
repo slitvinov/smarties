@@ -58,7 +58,9 @@ NROW = DATA.size // NCOL
 DATA = DATA.reshape(NROW, NCOL)
 
 terminals = np.argwhere(DATA[:,1]>=2.)
-initials  = np.argwhere(abs(DATA[:,1]-1.1)<0.1)
+initials  = np.argwhere(abs(DATA[:,1]-0.1)<0.1)
+print('size of terminals %d, size of initials %d' % (len(terminals), len(initials)))
+
 print("Plot column %d out of %d. Log contains %d time steps from %d episodes." \
       % (ICOL, NCOL, NROW, len(terminals) ) )
 inds = np.arange(0,NROW)
