@@ -98,7 +98,7 @@ void Collector::terminate_seq(Agent&a)
 {
   assert(a.agentStatus >= TERM);
   if(a.trackSequence == false) return; // do not store seq
-  // fill empty action and empty policy:
+  // fill empty action and empty policy: last step of episode never has actions
   const Rvec dummyAct = Rvec(aI.dim(), 0), dummyPol = Rvec(aI.dimPol(), 0);
 
   a.act(dummyAct);

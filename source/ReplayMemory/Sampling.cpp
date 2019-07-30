@@ -94,6 +94,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   }
 }
 void Sample_uniform::prepare(std::atomic<bool>& needs_pass) {
+  std::lock_guard<std::mutex> lock(RM->dataset_mutex);
   const long nSeqs = nSequences();
   for(long i=0, locPrefix=0; i<nSeqs; ++i) {
     Set[i]->prefix = locPrefix;

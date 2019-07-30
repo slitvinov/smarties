@@ -33,6 +33,7 @@ class MemoryBuffer
   const ActionInfo aI = ActionInfo(MDP);
   Uint learnID = 0;
 
+  std::mutex dataset_mutex; // accessed by some samplers
  private:
 
   friend class Sampling;
@@ -54,7 +55,6 @@ class MemoryBuffer
 
   std::vector<Sequence*> Set;
   std::vector<Uint> lastSampledEps;
-  std::mutex dataset_mutex;
 
   // num of samples contained in dataset:
   std::atomic<long> nSequences{0}; // num of episodes
