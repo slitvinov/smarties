@@ -43,7 +43,8 @@ SETTINGS+=" --ERoldSeqFilter oldest"
 SETTINGS+=" --penalTol 0.1"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
-SETTINGS+=" --epsAnneal 5e-7"
+#SETTINGS+=" --epsAnneal 5e-7"
+SETTINGS+=" --epsAnneal 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate

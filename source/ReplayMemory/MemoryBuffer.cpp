@@ -11,6 +11,7 @@
 #include "Utils/FunctionUtilities.h"
 #include <iterator>
 #include <algorithm>
+#include <unistd.h>
 
 namespace smarties
 {
@@ -46,6 +47,10 @@ void MemoryBuffer::save(const std::string base, const Uint nStep, const bool bBa
 
 void MemoryBuffer::restart(const std::string base)
 {
+  char currDirectory[512];
+  getcwd(currDirectory, 512);
+  chdir(distrib.initial_runDir);
+
   {
     FILE * wFile = fopen((base+"scaling.raw").c_str(), "rb");
     if(wFile == NULL) {
@@ -71,6 +76,7 @@ void MemoryBuffer::restart(const std::string base)
     if (size1!=dimS || size2!=dimS || size3!=dimS || size4!=2)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
   }
+  chdir(currDirectory);
 }
 
 void MemoryBuffer::clearAll()
