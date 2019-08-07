@@ -100,13 +100,16 @@ void Communicator::set_state_observable(const std::vector<bool> observable,
                                         const int agentID)
 {
   if(ENV.bFinalized) {
-    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+    printf("ABORTING: cannot edit env description after having sent first state.");
+    fflush(0); abort();
   }
   if(agentID >= (int) ENV.descriptors.size()) {
-    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor.");
+    fflush(0); abort();
   }
   if(observable.size() not_eq ENV.descriptors[agentID]->dimState) {
-    printf("ABORTING: size mismatch when defining observed/hidden state variables."); fflush(0); abort();
+    printf("ABORTING: size mismatch when defining observed/hidden state variables.");
+    fflush(0); abort();
   }
 
   ENV.descriptors[agentID]->bStateVarObserved =
@@ -118,10 +121,12 @@ void Communicator::set_state_scales(const std::vector<double> upper,
                                     const int agentID)
 {
   if(ENV.bFinalized) {
-    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+    printf("ABORTING: cannot edit env description after having sent first state.");
+    fflush(0); abort();
   }
   if(agentID >= (int) ENV.descriptors.size()) {
-    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor.");
+    fflush(0); abort();
   }
   const Uint dimS = ENV.descriptors[agentID]->dimState;
   if(upper.size() not_eq dimS or lower.size() not_eq dimS ) {
@@ -142,10 +147,12 @@ void Communicator::set_state_scales(const std::vector<double> upper,
 void Communicator::set_is_partially_observable(const int agentID)
 {
   if(ENV.bFinalized) {
-    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+    printf("ABORTING: cannot edit env description after having sent first state.");
+    fflush(0); abort();
   }
   if(agentID >= (int) ENV.descriptors.size()) {
-    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor.");
+    fflush(0); abort();
   }
   ENV.descriptors[agentID]->isPartiallyObservable = true;
 }
@@ -182,10 +189,12 @@ void Communicator::set_num_appended_past_observations(
   const int n_appended, const int agentID)
 {
   if(ENV.bFinalized) {
-    printf("ABORTING: cannot edit env description after having sent first state."); fflush(0); abort();
+    printf("ABORTING: cannot edit env description after having sent first state.");
+    fflush(0); abort();
   }
   if(agentID >= (int) ENV.descriptors.size()) {
-    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor."); fflush(0); abort();
+    printf("ABORTING: Attempted to write to uninitialized MDPdescriptor.");
+    fflush(0); abort();
   }
   ENV.descriptors[agentID]->nAppendedObs = n_appended;
 }
@@ -235,7 +244,8 @@ void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
 void Communicator::finalize_problem_description()
 {
   if(ENV.bFinalized) {
-    printf("ABORTING: problem description was already finalized."); fflush(0); abort();
+    printf("ABORTING: problem description was already finalized.");
+    fflush(0); abort();
   }
   synchronizeEnvironments();
 }
@@ -245,7 +255,8 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
 {
   if ( not ENV.bFinalized ) synchronizeEnvironments(); // race condition
   if(bTrainIsOver) {
-    printf("ABORTING: App recvd end-of-training signal but did not abort on it's own.\n"); fflush(0); abort();
+    printf("ABORTING: App recvd end-of-training signal but did not abort on it's own.\n");
+    fflush(0); abort();
   }
   //const auto& MDP = ENV.getDescriptor(agentID);
   assert(agentID>=0 && (Uint) agentID < agents.size());

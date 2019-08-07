@@ -332,34 +332,41 @@ void Worker::loopSocketsToMaster()
 void Worker::stepWorkerToMaster(Agent & agent) const
 {
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
-  if(learners.size()) // then episode/parameter communication loop
-    return answerStateAction(agent); // TODO : bEnvDistributedAgents
-
-  // else state/action communication loop
   const COMM_buffer& BUF = * COMM->BUFF[agent.ID].get();
-  const auto& appCom = COMM->workers_application_comm;
-  const int appRank = MPICommRank(appCom), appSize = MPICommSize(appCom);
-  if(appSize) assert( COMM->SOCK.clients.size() == 0 );
 
-  agent.packStateMsg(BUF.dataStateBuf);
-
-  if (appRank<=0 || COMM->bEnvDistributedAgents)
+  if (appRank<=0 || not COMM->bEnvDistributedAgents)
   {
-    sendStateRecvAction(BUF);
-    if (not COMM->bEnvDistributedAgents && appSize>1) {
+    if(learners.size()) // then episode/parameter communication loop
+    {
+      answerStateAction(agent);
+      // pack action in mpi buffer for bcast if distributed agents
+      if(appSize) agent.packActionMsg(BUF.dataActionBuf);
+    }
+    else                // then state/action comm loop from worker to master
+    {
+      if(appSize) assert( COMM->SOCK.clients.size() == 0 );
+
+      agent.packStateMsg(BUF.dataStateBuf);
+      sendStateRecvAction(BUF); //up to here everything is written on the buffer
+      agent.unpackActionMsg(BUF.dataActionBuf); // copy action onto agent
+    }
+
+    //distributed agents means that each agent exists on multiple computational
+    //processes (i.e. it is distriburted) therefore actions must be communicated
+    if (COMM->bEnvDistributedAgents && appSize>1) {
       //Then this is rank 0 of an environment with centralized agents.
       //Broadcast same action to members of the gang:
       MPI_Bcast(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE, 0, appCom);
     }
   }
-  else // rank_inside_app>0 && not bEnvDistributedAgents
+  else
   {
-    //Else this function was called by rank>0 of an app with centralized agents.
+    assert(COMM->bEnvDistributedAgents);
+    //then this function was called by rank>0 of an app with centralized agents.
     //Therefore, recv the action obtained from master:
     MPI_Bcast(BUF.dataActionBuf, BUF.sizeActionMsg, MPI_BYTE, 0, appCom);
+    agent.unpackActionMsg(BUF.dataActionBuf);
   }
-
-  agent.unpackActionMsg(BUF.dataActionBuf);
 }
 
 void Worker::stepWorkerToMaster(const Uint bufferID) const
