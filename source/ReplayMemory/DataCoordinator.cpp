@@ -19,22 +19,21 @@ DataCoordinator::DataCoordinator(MemoryBuffer*const RM, ParameterBlob & P)
   completed.reserve(distrib.nAgents);
 
   // if all masters have socketed workers, no need for the coordinator
-  if(distrib.workerless_masters_comm == MPI_COMM_NULL &&
-     distrib.learnersOnWorkers == false) return;
+  //if(distrib.workerless_masters_comm == MPI_COMM_NULL &&
+  //   distrib.learnersOnWorkers == false) return;
 
   sharingComm = MPICommDup(distrib.workerless_masters_comm);
   sharingSize = MPICommSize(sharingComm);
   sharingRank = MPICommRank(sharingComm);
 
-  workerComm = MPICommDup(distrib.master_workers_comm);
-  // rank>0 (worker) will always send eps to rank==0 (master)
-  workerSize = MPICommSize(workerComm);
-  workerRank = MPICommRank(workerComm);
-
   if(distrib.learnersOnWorkers &&
      distrib.nOwnedEnvironments &&
-     workerComm not_eq MPI_COMM_NULL)
+     distrib.master_workers_comm not_eq MPI_COMM_NULL)
   {
+    workerComm = MPICommDup(distrib.master_workers_comm);
+    // rank>0 (worker) will always send eps to rank==0 (master)
+    workerSize = MPICommSize(workerComm);
+    workerRank = MPICommRank(workerComm);
     bRunParameterServer = true;
     //warn("Creating communicator to send episodes from workers to learners.");
     if(workerSize < 2) {

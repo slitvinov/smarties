@@ -51,13 +51,19 @@ void Sampling::IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,
 Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
-  if(seq.size() not_eq obs.size()) die(" ");
-
+  assert(seq.size() == obs.size());
+  std::unique_lock<std::mutex> lock(RM->dataset_mutex, std::defer_lock);
+  lock.lock();
+  //std::lock_guard<std::mutex> lock(RM->dataset_mutex);
   const long nSeqs = nSequences(), nData = nTransitions(), nBatch = obs.size();
+  lock.unlock();
+
   #ifndef NDEBUG
+  assert(Set.size() == (size_t) nSeqs);
   for(long i=0, locPrefix=0; i<nSeqs; ++i) {
     assert(Set[i]->prefix == (Uint) locPrefix);
     locPrefix += Set[i]->ndata();
+    if(i+1 == nSeqs) assert(locPrefix == nData);    
   }
   #endif
 
@@ -81,7 +87,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   else
   {
     std::uniform_int_distribution<Uint> distObs(0, nData-1);
-    std::vector<Uint> ret(seq.size());
+    std::vector<Uint> ret(nBatch);
     std::vector<Uint>::iterator it = ret.begin();
     while(it not_eq ret.end())
     {

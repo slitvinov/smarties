@@ -195,10 +195,10 @@ void AdamOptimizer::save(const std::string fname, const bool backup)
 int AdamOptimizer::restart(const std::string fname)
 {
   int ret = 0;
-
   char currDirectory[512];
   getcwd(currDirectory, 512);
   chdir(distrib.initial_runDir);
+
   ret = weights->restart(fname+"_weights");
   if(target_weights) {
     int missing_tgt = target_weights->restart(fname+"_tgt_weights");
@@ -206,10 +206,10 @@ int AdamOptimizer::restart(const std::string fname)
   }
   _1stMom->restart(fname+"_1stMom");
   _2ndMom->restart(fname+"_2ndMom");
+
   chdir(currDirectory);
   return ret;
 }
-
 
 void AdamOptimizer::getMetrics(std::ostringstream& buff)
 {
