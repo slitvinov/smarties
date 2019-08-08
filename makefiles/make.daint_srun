@@ -10,3 +10,4 @@ LIBS+= -lsci_gnu
 else
 LIBS+= -lsci_intel
 endif
+CPPFLAGS+= -DUSE_OPENBLAS

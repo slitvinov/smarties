@@ -1,2 +1,2 @@
 LIBS += -L/usr/local/opt/openblas/lib/ -lopenblas
-CPPFLAGS += -I/usr/local/opt/openblas/include/
+CPPFLAGS += -I/usr/local/opt/openblas/include/ -DUSE_OPENBLAS

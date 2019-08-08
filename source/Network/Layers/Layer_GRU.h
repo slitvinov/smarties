@@ -130,15 +130,27 @@ class MGULayer: public Layer
       deltaC[o] = deltas[o] * (1-forget[o]) * (1-cellst[o]*cellst[o]);
 
     #if 1
-    if(prev not_eq nullptr) {
-      gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1, para->W(ID)
-        +(2*nCells)*nInputs +nCells, 2*nCells, deltaC, 1, 0, tmp, 1);
+
+    if(prev not_eq nullptr)
+    {
+      const nnReal * const WRC = para->W(ID) + (2*nCells)*nInputs + nCells;
+      #ifdef USE_OMPSIMD_BLAS
+        GEMVomp(nCells, nCells, 2*nCells, WRC, deltaC, tmp);
+      #else
+        gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1,
+          WRC, 2*nCells, deltaC, 1, 0, tmp, 1);
+      #endif
+
     } else memset( tmp, 0, nCells*sizeof(nnReal) );
 
     #pragma omp simd aligned(deltaF,prvOut,cellst,deltas,forget,tmp : VEC_WIDTH)
-    for (Uint o=0; o<nCells; ++o)
-      deltaF[o] = ((prvOut[o]-cellst[o])*deltas[o] + tmp[o]*prvOut[o]) *forget[o]*(1-forget[o]);
+    for (Uint o=0; o<nCells; ++o) {
+      deltaF[o] = forget[o]*(1-forget[o]) *
+        ((prvOut[o]-cellst[o])*deltas[o] + tmp[o]*prvOut[o]);
+    }
+
     #else // more compact and readable:
+
       for (Uint o=0; o<nCells; ++o) {
         nnReal dF = (prvOut[o] - cellst[o]) * deltas[o];
         const nnReal*const weight = para->W(ID) +(2*nCells)*(nInputs+o) +nCells;
@@ -146,36 +158,52 @@ class MGULayer: public Layer
           dF += deltaC[k] * prvOut[o] * weight[k];
         deltaF[o] = dF * forget[o] * (1-forget[o]);
       }
+
     #endif
 
     #if 1
+
     if(prev not_eq nullptr) {
       #pragma omp simd aligned(prvErr, forget, deltas, tmp : VEC_WIDTH)
       for(Uint o=0; o<nCells; ++o) prvErr[o] += forget[o]*(deltas[o] + tmp[o]);
 
-      gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1,
-        para->W(ID) +(2*nCells)*nInputs, 2*nCells, deltaF, 1, 1, prvErr, 1);
+      const nnReal * const WRF = para->W(ID) +(2*nCells)*nInputs;
+      #ifdef USE_OMPSIMD_BLAS
+        GEMVomp(nCells, nCells, 2*nCells, WRF, deltaF, prvErr);
+      #else
+        gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1,
+          WRF, 2*nCells, deltaF, 1, 1, prvErr, 1);
+      #endif
+
     }
     free(tmp);
+
     #else // more compact and readable
+
     for (Uint o=0; o<nCells && prev not_eq nullptr; ++o) {
       prvErr[o] += forget[o] * deltas[o];
       const nnReal* const weight = para->W(ID) +(2*nCells)*(nInputs+o);
       for (Uint k = 0; k < nCells; ++k)
         prvErr[o] += deltaF[k]*weight[k] + deltaC[k]*forget[o]*weight[k+nCells];
     }
+
     #endif
 
     if( spanCompInpGrads )
     {
-            nnReal* const errors = curr->E(ID-link);
-      const nnReal* const weight = para->W(ID);
-      gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, nCells, 1,
-        weight + startCompInpGrads*2*nCells,          2*nCells,
-        deltaF, 1, 1, errors + startCompInpGrads, 1);
-      gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, nCells, 1,
-        weight + startCompInpGrads*2*nCells + nCells, 2*nCells,
-        deltaC, 1, 1, errors + startCompInpGrads, 1);
+            nnReal* const errors = curr->E(ID-link) + startCompInpGrads;
+      const nnReal* const WHF = para->W(ID) +startCompInpGrads*2*nCells;
+      const nnReal* const WHC = para->W(ID) +startCompInpGrads*2*nCells +nCells;
+      #ifdef USE_OMPSIMD_BLAS
+        GEMVomp(nCells, spanCompInpGrads, 2*nCells, WHF, deltaF, errors);
+        GEMVomp(nCells, spanCompInpGrads, 2*nCells, WHC, deltaC, errors);
+      #else
+        gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, nCells, 1,
+          WHF, 2*nCells, deltaF, 1, 1, errors, 1);
+        gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, nCells, 1,
+          WHC, 2*nCells, deltaC, 1, 1, errors, 1);
+      #endif
+
     }
 
     if(prev==nullptr) { free(prvOut); }

@@ -6,4 +6,5 @@ LD=mpic++
 #LIBS+= -lmkl_core -lmkl_sequential -lmkl_intel_lp64
 #else
 LIBS+= -lopenblas
+CPPFLAGS+= -DUSE_OPENBLAS
 #endif

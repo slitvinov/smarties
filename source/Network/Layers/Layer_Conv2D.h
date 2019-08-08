@@ -16,6 +16,47 @@ namespace smarties
 
 #define ALIGNSPEC __attribute__(( aligned(VEC_WIDTH) ))
 
+#ifdef USE_OMPSIMD_BLAS
+template<Uint RowA, Uint ColA, Uint RowB, Uint ColB, bool transpA, bool transpB,
+         typename T>
+inline static void GEMMomp(const T * __restrict__ const _A,
+                           const T * __restrict__ const _B,
+                                 T * __restrict__ const _C)
+{
+  static constexpr Uint RowC = transpA ? ColA : RowA;
+  static constexpr Uint ColC = transpB ? RowB : ColB;
+  using TA = ALIGNSPEC T[RowA][ColA]; const TA & __restrict__ A = * (TA *) _A;
+  using TB = ALIGNSPEC T[RowB][ColB]; const TB & __restrict__ B = * (TB *) _B;
+  using TC = ALIGNSPEC T[RowC][ColC];       TC & __restrict__ C = * (TC *) _C;
+
+  if        ( transpA &&  transpB) {
+    assert(RowA == ColB && "inner product size mismatch");
+    for (size_t ca = 0; ca < ColA; ++ca)
+      for (size_t rb = 0; rb < RowB; ++rb)
+        for (size_t in = 0; in < ColB; ++in)
+            C[ca][rb] += A[in][ca] * B[rb][in];
+  } else if (!transpA &&  transpB) {
+    assert(ColA == ColB && "inner product size mismatch");
+    for (size_t ra = 0; ra < RowA; ++ra)
+      for (size_t in = 0; in < ColA; ++in)
+        for (size_t rb = 0; rb < RowB; ++rb)
+            C[ra][rb] += A[ra][in] * B[rb][in];
+  } else if ( transpA && !transpB) {
+    assert(RowA == RowB && "inner product size mismatch");
+    for (size_t ca = 0; ca < ColA; ++ca)
+      for (size_t in = 0; in < RowA; ++in)
+        for (size_t cb = 0; cb < ColB; ++cb)
+            C[ca][cb] += A[in][ca] * B[in][cb];
+  } else if (!transpA && !transpB) {
+    assert(ColA == RowB && "inner product size mismatch");
+    for (size_t ra = 0; ra < RowA; ++ra)
+      for (size_t in = 0; in < ColA; ++in)
+        for (size_t cb = 0; cb < ColB; ++cb)
+            C[ra][cb] += A[ra][in] * B[in][cb];
+  } else assert(false && "impossible");
+}
+#endif
+
 // Im2MatLayer gets as input an image of sizes InX * InY * InC
 // and prepares the output for convolution with a filter of size KnY * KnX * KnC
 // and output an image of size OpY * OpX * KnC
@@ -75,8 +116,13 @@ struct Conv2DLayer: public Layer
     memcpy(curr->X(ID), para->B(ID), out_size * sizeof(nnReal));
     // [KnC][OpY*OpX] = [KnC][InC*KnY*KnX] * [InC*KnY*KnX][OpY*OpX]
     static constexpr int outRow = KnC, nInner = InC*KnY*KnX, outCol = OpY*OpX;
+    #ifdef USE_OMPSIMD_BLAS
+    GEMMomp<outRow, nInner, nInner, outCol, false, false>
+      ( para->W(ID), curr->Y(ID-link), curr->X(ID) );
+    #else
     gemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, outRow, outCol, nInner,
       1, para->W(ID), nInner, curr->Y(ID-link), outCol, 1, curr->X(ID), outCol);
+    #endif
     func::_eval(curr->X(ID), curr->Y(ID), KnC * OpY * OpX);
   }
 
@@ -101,15 +147,25 @@ struct Conv2DLayer: public Layer
       static constexpr int outRow = KnC, outCol = InC*KnY*KnX, nInner = OpY*OpX;
       // Compute gradient of error wrt to kernel parameters:
       // [KnC][InC*KnY*KnX] = [KnC][OpY*OpX] * ([InC*KnY*KnX][OpY*OpX])^T
+      #ifdef USE_OMPSIMD_BLAS
+      GEMMomp<outRow,nInner, outCol, nInner, false, true>
+        ( curr->E(ID), curr->Y(ID-link), grad->W(ID) );
+      #else
       gemm(CblasRowMajor, CblasNoTrans, CblasTrans, outRow, outCol, nInner,
       1, curr->E(ID), nInner, curr->Y(ID-link), nInner, 1, grad->W(ID), outCol);
+      #endif
     }
     {
       // Compute gradient of error wrt to output of previous layer:
       //[InC*KnY*KnX][OpY*OpX] = ([KnC][InC*KnY*KnX])^T [KnC][OpY*OpX]
       static constexpr int outRow = InC*KnY*KnX, outCol = OpY*OpX, nInner = KnC;
+      #ifdef USE_OMPSIMD_BLAS
+      GEMMomp<nInner,outRow, nInner, outCol, true, false>
+        ( para->W(ID), curr->E(ID), curr->E(ID-link) );
+      #else
       gemm(CblasRowMajor, CblasTrans, CblasNoTrans, outRow, outCol, nInner,
       1, para->W(ID), outRow, curr->E(ID), outCol, 1, curr->E(ID-link), outCol);
+      #endif
     }
   }
 

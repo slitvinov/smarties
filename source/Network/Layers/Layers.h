@@ -16,38 +16,51 @@
 #ifndef __STDC_VERSION__ //it should never be defined with g++
 #define __STDC_VERSION__ 0
 #endif
-#ifdef USE_MKL
-#include "mkl_cblas.h"
+
+#ifndef SINGLE_PREC // NETWORK PRECISION
+  #define gemv cblas_dgemv
+  #define gemm cblas_dgemm
 #else
-#include "cblas.h"
+  #define gemv cblas_sgemv
+  #define gemm cblas_sgemm
 #endif
-#include <immintrin.h>
+
+#if   defined(USE_MKL)
+#include "mkl_cblas.h"
+#elif defined(USE_OPENBLAS)
+#include "cblas.h"
+#else
+  #define USE_OMPSIMD_BLAS
+#endif
+//#include <immintrin.h>
 
 namespace smarties
 {
 
-// Base class of all layer types. To insert a new layer type, overwrite all
-// virtual functions.
+#ifdef USE_OMPSIMD_BLAS
 template<typename T>
-static void GEMVomp(const Uint NI, const Uint NO, const Uint S,
-                    const T * __restrict__ const _W,
-                    const T * __restrict__ const _X,
-                          T * __restrict__ const _Y)
+inline static void GEMVomp(const Uint NX, const Uint NY, const Uint S,
+                           const T * __restrict__ const _W,
+                           const T * __restrict__ const _X,
+                                 T * __restrict__ const _Y)
 {
   typedef __attribute__((aligned(VEC_WIDTH))) T alignT;
   static constexpr Uint safelen_ = VEC_WIDTH / sizeof(T);
   const alignT * __restrict__ const W_ = static_cast<const alignT *>(_W);
   const alignT * __restrict__ const X_ = static_cast<const alignT *>(_X);
-  for (Uint o=0; o<NO; ++o)
+  for (Uint o=0; o<NY; ++o)
   {
     const alignT* __restrict__ const W = W_ + S * o;
     T Y = 0;
     #pragma omp simd aligned(X_,W : VEC_WIDTH) safelen(safelen_) reduction(+:Y)
-    for (Uint i=0; i<NI; ++i) Y += W[i] * X_[i];
+    for (Uint i=0; i<NX; ++i) Y += W[i] * X_[i];
     _Y[o] += Y;
   }
 }
+#endif
 
+// Base class of all layer types. To insert a new layer type, overwrite all
+// virtual functions.
 class Layer
 {
  public:
@@ -120,8 +133,9 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
-      #if 0 //def SINGLE_PREC
+      #ifdef USE_OMPSIMD_BLAS
         GEMVomp(NO, NI, NOsimd, weight, deltas, errors);
+        // TODO : THERE IS AN ALIGNMENT ISSUE HERE:
         //GEMVomp(NO, spanCompInpGrads, NOsimd,
         //        weight + startCompInpGrads * NOsimd,
         //        deltas, errors + startCompInpGrads);
@@ -136,7 +150,7 @@ class Layer
     {
             nnReal* const errors = prev->E(ID);
       const nnReal* const weight = para->W(ID) +NOsimd*NI;
-      #if 0 //def SINGLE_PREC
+      #ifdef USE_OMPSIMD_BLAS
         GEMVomp(NO, NR, NOsimd, weight, deltas, errors);
       #else
       gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
