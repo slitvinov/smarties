@@ -40,7 +40,7 @@ void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
-    const int workloadID = i + nOwnWorkers * MPICommSize(MPI_COMM_WORLD);
+    const int workloadID = i + nOwnWorkers * MPICommSize(distrib.world_comm);
     assert(nThreads == (Uint) omp_get_num_threads());
 
     #pragma omp critical

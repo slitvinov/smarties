@@ -16,17 +16,35 @@ namespace smarties
 {
 
 Settings::Settings() {  }
+
 DistributionInfo::DistributionInfo(int argc, char** argv)
 {
   getcwd(initial_runDir, 1024);
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
-  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  world_comm = MPI_COMM_WORLD;
+  MPI_Comm_set_errhandler(world_comm, MPI_ERRORS_RETURN);
   if (threadSafety < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support");
   // this value will determine if we can use asynchronous mpi calls:
   bAsyncMPI = threadSafety >= MPI_THREAD_MULTIPLE;
-  world_size = MPICommSize(MPI_COMM_WORLD);
-  world_rank = MPICommRank(MPI_COMM_WORLD);
+  world_size = MPICommSize(world_comm);
+  world_rank = MPICommRank(world_comm);
+
+  if (not bAsyncMPI and world_rank == 0)
+    printf("MPI implementation does not support MULTIPLE thread safety!\n");
+}
+
+DistributionInfo::DistributionInfo(const MPI_Comm& initialiazed_mpi_comm)
+{
+  getcwd(initial_runDir, 1024);
+  world_comm = initialiazed_mpi_comm;
+  MPI_Query_thread(& threadSafety);
+  if (threadSafety < MPI_THREAD_SERIALIZED)
+    die("The MPI implementation does not have required thread support");
+  // this value will determine if we can use asynchronous mpi calls:
+  bAsyncMPI = threadSafety >= MPI_THREAD_MULTIPLE;
+  world_size = MPICommSize(world_comm);
+  world_rank = MPICommRank(world_comm);
 
   if (not bAsyncMPI and world_rank == 0)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
@@ -50,17 +68,14 @@ void DistributionInfo::initializeOpts(CLI::App & parser)
   parser.add_option("--nThreads",               nThreads,               COMMENT_nThreads);
   parser.add_option("--nMasters",               nMasters,               COMMENT_nMasters);
   parser.add_option("--nWorkers",               nWorkers,               COMMENT_nWorkers);
-  parser.add_option("--logAllSamples",          logAllSamples,          COMMENT_logAllSamples);
-  parser.add_option("--maxTotSeqNum",           maxTotSeqNum,           COMMENT_maxTotSeqNum);
-  parser.add_option("--randSeed",               randSeed,               COMMENT_randSeed);
   parser.add_option("--runInternalApp",         runInternalApp,         COMMENT_runInternalApp);
   parser.add_option("--nStepPappSett",          nStepPappSett,          COMMENT_nStepPappSett);
   parser.add_option("--appSettings",            appSettings,            COMMENT_appSettings);
   parser.add_option("--launchFile",             launchFile,             COMMENT_launchFile);
   parser.add_option("--setupFolder",            setupFolder,            COMMENT_setupFolder);
   parser.add_option("--learnersOnWorkers",      learnersOnWorkers,      COMMENT_learnersOnWorkers);
-  parser.add_option("--fakeMastersRanks",       fakeMastersRanks,       COMMENT_fakeMastersRanks);
   parser.add_option("--workerProcessesPerEnv",  workerProcessesPerEnv,  COMMENT_workerProcessesPerEnv);
+  parser.add_option("--randSeed",               randSeed,               COMMENT_randSeed);
 
 }
 
@@ -144,16 +159,16 @@ void DistributionInfo::figureOutWorkersPattern()
       Uint masterWorkerCommID =
           indxStripedMPISplitting(nMasters, nWorker_processes, world_rank);
 
-      if(fakeMastersRanks) { // overwrite splitting if we have only fake masters
-        bIsMaster = world_rank < nMasters;
-        masterWorkerCommID = 0;
-      }
+      //if(fakeMastersRanks) { // overwrite splitting if we have only fake masters
+      //  bIsMaster = world_rank < nMasters;
+      //  masterWorkerCommID = 0;
+      //}
 
       // TEMPORARY:
       if(nWorker_processes not_eq nWorkers) die("Mismach in number of worker processes. We do not have a way for the master to know how many environments are hosted on its workers");
 
-      MPI_Comm_split(MPI_COMM_WORLD, bIsMaster,          world_rank, & learners_train_comm);
-      MPI_Comm_split(MPI_COMM_WORLD, masterWorkerCommID, world_rank, & master_workers_comm);
+      MPI_Comm_split(world_comm, bIsMaster,          world_rank, & learners_train_comm);
+      MPI_Comm_split(world_comm, masterWorkerCommID, world_rank, & master_workers_comm);
       printf("Process %lu is a %s part of comm %lu.\n",
           world_rank, bIsMaster? "master" : "worker", masterWorkerCommID);
 
@@ -212,7 +227,7 @@ void DistributionInfo::figureOutWorkersPattern()
       nForkedProcesses2spawn = nOwnedEnvironments;
       if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of worker mpi processes.");
       master_workers_comm = MPI_COMM_NULL;
-      learners_train_comm = MPI_COMM_WORLD;
+      learners_train_comm = world_comm;
       if(nWorkers < nMasters) // then i need to share data
            workerless_masters_comm = MPICommDup(learners_train_comm);
       else workerless_masters_comm = MPI_COMM_NULL;
@@ -228,7 +243,7 @@ void DistributionInfo::figureOutWorkersPattern()
     if(not runInternalApp) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
     if(nWorkers not_eq nWorker_processes) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
     nOwnedEnvironments = 1;
-    learners_train_comm  = MPI_COMM_WORLD;
+    learners_train_comm  = world_comm;
     master_workers_comm = MPI_COMM_NULL;
     workerless_masters_comm = MPI_COMM_NULL; // all are workers implies all have data
 
@@ -277,6 +292,8 @@ void Settings::initializeOpts (CLI::App & parser)
   parser.add_option("--outWeightsPrefac", outWeightsPrefac, COMMENT_outWeightsPrefac);
   parser.add_option("--nnLambda",         nnLambda,         COMMENT_nnLambda);
   parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
+
+  parser.add_option("--logAllSamples",    logAllSamples,    COMMENT_logAllSamples);
 }
 
 void Settings::defineDistributedLearning(DistributionInfo& distrib)
@@ -341,7 +358,7 @@ void DistributionInfo::initialzePRNG()
   {
     std::random_device rdev; const Uint rdSeed = rdev();
     randSeed = rdSeed % std::numeric_limits<Uint>::max();
-    MPI_Bcast(&randSeed, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&randSeed, 1, MPI_UNSIGNED_LONG, 0, world_comm);
     if(world_rank==0) printf("Using seed %lu\n", randSeed);
   }
   generators.resize(0);

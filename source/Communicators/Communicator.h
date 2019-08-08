@@ -180,13 +180,7 @@ protected:
     #error "Defined SMARTIES_CORE and not MPI_VERSION"
   #endif
 
-  public:
-    MPI_Comm getMPIcomm() const { return workers_application_comm; }
-
   protected:
-    MPI_Comm workers_application_comm = MPI_COMM_SELF;
-    void setMPIcomm(const MPI_Comm& C) { workers_application_comm = C; }
-
     //access to smarties' internals, available only if app is linked into exec
     friend class Worker;
     // ref to worker ensures that only if SMARTIES_CORE is defined we can

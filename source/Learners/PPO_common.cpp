@@ -163,7 +163,7 @@ template<> PPO<Gaussian_policy, Rvec>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
-  if(MPICommRank(MPI_COMM_WORLD) == 0) printf(
+  if(MPICommRank(distrib.world_comm) == 0) printf(
   "==========================================================================\n"
   "                          Continuous-action PPO                           \n"
   "==========================================================================\n"
@@ -210,7 +210,7 @@ template<> PPO<Discrete_policy, Uint>::
 PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
-  if(MPICommRank(MPI_COMM_WORLD) == 0) printf(
+  if(MPICommRank(distrib.world_comm) == 0) printf(
   "==========================================================================\n"
   "                           Discrete-action PPO                            \n"
   "==========================================================================\n"

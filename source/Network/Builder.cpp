@@ -113,7 +113,7 @@ void Builder::build(const bool isInputNet)
 
   nLayers = layers.size();
   unsigned long lsize = MPICommSize(distrib.learners_train_comm);
-  const MPI_Comm & tmpComm = distrib.learnersOnWorkers ? MPI_COMM_WORLD :
+  const MPI_Comm & tmpComm = distrib.learnersOnWorkers ? distrib.world_comm :
                              distrib.learners_train_comm;
   MPI_Bcast( &lsize, 1, MPI_UNSIGNED_LONG, 0, tmpComm);
 
@@ -125,12 +125,12 @@ void Builder::build(const bool isInputNet)
     l->initialize(gen, weights.get(),
       l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
-  if(MPICommRank(MPI_COMM_WORLD) == 0) {
+  if(MPICommRank(distrib.world_comm) == 0) {
     for(const auto & l : layers) printf( "%s", l->printSpecs().c_str() );
   }
 
   // Make sure that all ranks have the same weights (copy from rank 0)
-  if(distrib.learnersOnWorkers) weights->broadcast(MPI_COMM_WORLD);
+  if(distrib.learnersOnWorkers) weights->broadcast(distrib.world_comm);
   else weights->broadcast(distrib.learners_train_comm);
 
   // Initialize network workspace to check that all is ok

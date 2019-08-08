@@ -46,9 +46,9 @@ protected:
   const MPI_Comm& master_workers_comm = distrib.master_workers_comm;
   const MPI_Comm& workerless_masters_comm = distrib.workerless_masters_comm;
   const MPI_Comm& learners_train_comm = distrib.learners_train_comm;
-  const MPI_Comm& environment_app_comm = distrib.environment_app_comm;
-  const int envRank = MPICommRank(environment_app_comm);
-  const int envSize = MPICommSize(environment_app_comm);
+  const MPI_Comm& envAppComm = distrib.environment_app_comm;
+  const int envMPIrank = MPICommRank(envAppComm);
+  const int envMPIsize = MPICommSize(envAppComm);
 
   std::vector<std::unique_ptr<Learner>> learners;
 

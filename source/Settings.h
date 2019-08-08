@@ -23,7 +23,9 @@ namespace smarties
 struct DistributionInfo
 {
   DistributionInfo(int argc, char** argv);
+  DistributionInfo(const MPI_Comm& initialiazed_mpi_comm);
   ~DistributionInfo();
+
 
   void figureOutWorkersPattern();
   void initializeOpts(CLI::App & parser);
@@ -31,6 +33,7 @@ struct DistributionInfo
   void finalizePRNG(const Uint nAgents_local);
 
   char initial_runDir[1024];
+  MPI_Comm world_comm;
   Uint world_rank;
   Uint world_size;
 
@@ -67,39 +70,20 @@ master rank."
 #define DEFAULT_nWorkers 1
   Uint nWorkers = DEFAULT_nWorkers;
 
-#define COMMENT_logAllSamples "Whether to write files recording all transitions."
-#define DEFAULT_logAllSamples true
-  bool logAllSamples = DEFAULT_logAllSamples;
-
-#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in \
-training buffer"
-#define DEFAULT_maxTotSeqNum 1000
-  Uint maxTotSeqNum = DEFAULT_maxTotSeqNum;
-
-#define COMMENT_randSeed "Random seed."
-#define DEFAULT_randSeed 0
-  Uint randSeed = DEFAULT_randSeed;
-
 #define COMMENT_learnersOnWorkers "Whether to enable hosting learning algos \
 on worker processes such that workers send training data and recv parameters \
 from masters. If false workers only send states and recv actions from masters."
 #define DEFAULT_learnersOnWorkers true
   bool learnersOnWorkers = DEFAULT_learnersOnWorkers;
 
-#define COMMENT_fakeMastersRanks "This options will pack master ranks in the \
-first nMaster processes and put all of them except one to sleep. This is used \
-for environment applications that require MPI but do not support omp threads. \
-In this case we need to create one process per CPU core. To still enable fast \
-training on one node we can create fake processes to fill node 0 and put all \
-except for one to sleep. smarties will behave as if node 0 is the master and \
-all other nodes are workers, with 1 process per CPU core. "
-#define DEFAULT_fakeMastersRanks false
-  bool fakeMastersRanks = DEFAULT_fakeMastersRanks;
-
 #define COMMENT_workerProcessesPerEnv "Number of MPI ranks required by the the env \
 application. It is 1 for serial/shared-memory solvers."
 #define DEFAULT_workerProcessesPerEnv 1
   Uint workerProcessesPerEnv = DEFAULT_workerProcessesPerEnv;
+
+#define COMMENT_randSeed "Random seed."
+#define DEFAULT_randSeed 0
+  Uint randSeed = DEFAULT_randSeed;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT
@@ -230,6 +214,10 @@ checkpoints can be used to evaluate learners, but not yet to restart learning."
 #define COMMENT_restart "Prefix of net save files. If 'none' then no restart."
 #define DEFAULT_restart "none"
 std::string restart = DEFAULT_restart;
+
+#define COMMENT_logAllSamples "Whether to write files recording all transitions."
+#define DEFAULT_logAllSamples true
+  bool logAllSamples = DEFAULT_logAllSamples;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
