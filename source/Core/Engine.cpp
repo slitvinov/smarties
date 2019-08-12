@@ -21,19 +21,19 @@ Engine::Engine(int argc, char** argv)
   distrib = std::make_unique<DistributionInfo>(argc, argv);
 }
 
-Engine::Engine(MPI_Comm initialiazed_mpi_comm)
+Engine::Engine(MPI_Comm mpi_comm, int argc, char** argv)
 {
-  distrib = std::make_unique<DistributionInfo>(initialiazed_mpi_comm);
+  distrib = std::make_unique<DistributionInfo>(mpi_comm, argc, argv);
   // TODO read json
 }
 
-int Engine::parse(int argc, char** argv)
+int Engine::parse()
 {
   CLI::App parser("smarties : distributed reinforcement learning framework");
   settings.initializeOpts(parser);
   distrib->initializeOpts(parser);
   try {
-    parser.parse(argc, argv);
+    parser.parse(distrib->argc, distrib->argv);
   }
   catch (const CLI::ParseError &e) {
     if(distrib->world_rank == 0) return parser.exit(e);
@@ -52,22 +52,42 @@ void Engine::init()
   MPI_Barrier(distrib->world_comm);
 }
 
-void Engine::run()
+void Engine::run(const environment_callback_t & callback)
 {
-  std::shared_ptr<Worker> process;
+  init();
 
   if(distrib->bIsMaster)
   {
-    if(distrib->nForkedProcesses2spawn > 0)
-      process = std::make_shared<MasterSockets>(settings, *distrib.get());
-    else
-      process = std::make_shared<MasterMPI>(settings, *distrib.get());
+    if(distrib->nForkedProcesses2spawn > 0) {
+      MasterSockets process(settings, *distrib.get());
+      process.run(callback);
+    } else {
+      MasterMPI     process(settings, *distrib.get());
+      process.run();
+    }
   }
   else
   {
-    process = std::make_shared<Worker>(settings, *distrib.get());
+    Worker          process(settings, *distrib.get());
+    process.run(callback);
   }
-  process->run();
+}
+
+void Engine::run(const environment_callback_MPI_t & callback)
+{
+  init();
+
+  if(distrib->bIsMaster)
+  {
+    assert(distrib->nForkedProcesses2spawn <= 0);
+    MasterMPI process(settings, *distrib.get());
+    process.run();
+  }
+  else
+  {
+    Worker    process(settings, *distrib.get());
+    process.run(callback);
+  }
 }
 
 }

@@ -34,7 +34,8 @@ public:
   // may be called from application:
   void stepWorkerToMaster(Agent & agent) const;
 
-  virtual void run();
+  void run(const environment_callback_t & callback);
+  void run(const environment_callback_MPI_t & callback);
 
 protected:
   Settings& settings;

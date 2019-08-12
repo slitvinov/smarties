@@ -22,10 +22,12 @@ namespace smarties
 
 struct DistributionInfo
 {
-  DistributionInfo(int argc, char** argv);
-  DistributionInfo(const MPI_Comm& initialiazed_mpi_comm);
+  DistributionInfo(int _argc, char ** _argv);
+  DistributionInfo(const MPI_Comm& mpi_comm, int _argc, char ** _argv);
   ~DistributionInfo();
 
+  int argc;
+  char ** argv;
 
   void figureOutWorkersPattern();
   void initializeOpts(CLI::App & parser);

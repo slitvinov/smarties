@@ -25,22 +25,19 @@ protected:
 
   std::vector<std::string> argsFiles;
   std::vector<Uint> argFilesStepsLimits;
-/*
-  std::mutex& mpi_mutex = S.mpi_mutex;
-  const int bAsync        = S.bAsync;
-  std::vector<MPI_Request> requests =
-                        std::vector<MPI_Request>(nOwnWorkers, MPI_REQUEST_NULL);
-*/
 
-public:
   void initArgumentFileNames();
   void createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom);
   std::vector<char*> readRunArgLst(const std::string& paramfile);
 
-  void forkApplication(const Uint nThreads, const Uint nOwnWorkers);
-  void runApplication(const MPI_Comm envApplication_comm,
-                      const Uint totalNumWorkers,
-                      const Sint thisWorkerGroupID);
+  void launch(const environment_callback_MPI_t & callback,
+              const Uint workLoadID,
+              const MPI_Comm envApplication_comm);
+
+public:
+
+  bool forkApplication( const environment_callback_t & callback );
+  void runApplication( const environment_callback_MPI_t & callback );
 
   Launcher(Worker* const W, DistributionInfo& D, bool isTraining);
 };

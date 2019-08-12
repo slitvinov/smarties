@@ -15,12 +15,37 @@
 
 namespace smarties
 {
-
 struct COMM_buffer;
+class Communicator;
 #ifdef SMARTIES_CORE
-class Worker;
+  class Worker;
+#endif
+}
+
+// main function callback to user's application
+// arguments are: - the communicator with smarties
+//                - (optional) the mpi communicator to use within the app
+//                - argc and argv read from settings file
+
+using environment_callback_t =
+  std::function<void(
+      smarties::Communicator*const smartiesCommunicator,
+      int argc, char**argv
+    )>;
+
+#ifdef SMARTIES_CORE
+
+using environment_callback_MPI_t =
+std::function<void(
+    smarties::Communicator*const smartiesCommunicator,
+    const MPI_Comm mpiCommunicator,
+    int argc, char**argv
+  )>;
+
 #endif
 
+namespace smarties
+{
 class Communicator
 {
 public:

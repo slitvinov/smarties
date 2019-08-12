@@ -9,7 +9,9 @@
 #ifndef smarties_Communicator_MPI_h
 #define smarties_Communicator_MPI_h
 
+#ifndef SMARTIES_CORE
 #define SMARTIES_CORE
+#endif
 
 #include "mpi.h" // required
 #include "Communicator.h"

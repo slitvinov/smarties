@@ -29,8 +29,8 @@ protected:
 
 public:
   Master(Settings& , DistributionInfo& );
-  virtual ~Master() override;
-  void run() override;
+  virtual ~Master() {};
+  void run();
   void spawnCallsHandlers();
 };
 
@@ -58,6 +58,9 @@ public:
 
 public:
   MasterSockets(Settings& settings, DistributionInfo& distribinfo);
+  ~MasterSockets(){}
+
+  void run(const environment_callback_t& callback);
 };
 
 class MasterMPI : public Master<MasterMPI, MPI_Request>
@@ -86,6 +89,8 @@ public:
 
 public:
   MasterMPI(Settings& , DistributionInfo& );
+  ~MasterMPI(){}
+  void run();
 };
 
 }

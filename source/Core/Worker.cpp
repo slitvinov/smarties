@@ -35,20 +35,18 @@ Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
   */
 }
 
-void Worker::run()
+void Worker::run(const environment_callback_t & callback)
 {
-  if(distrib.runInternalApp) // then worker lives inside the application
-  {
-    COMM->runApplication(distrib.environment_app_comm,
-                         distrib.nWorker_processes,
-                         distrib.thisWorkerGroupID);
-  }
-  else
-  {
-    COMM->forkApplication(distrib.nThreads, distrib.nOwnedEnvironments);
+  const bool isChild = COMM->forkApplication(callback);
+  if(not isChild) {
     synchronizeEnvironments();
     loopSocketsToMaster();
   }
+}
+
+void Worker::run(const environment_callback_MPI_t & callback)
+{
+  COMM->runApplication( callback );
 }
 
 void Worker::runTraining()

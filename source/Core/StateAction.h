@@ -14,7 +14,6 @@
 #include <array>
 #include <cmath> // log, exp, ...
 #include <cassert>
-#include <functional>
 
 namespace smarties
 {

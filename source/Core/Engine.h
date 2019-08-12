@@ -10,6 +10,8 @@
 
 #include <memory>
 #include "Settings.h"
+// TODO CLEANUP THE CALLBACK FUNCTION DEFINITION
+#include "Communicators/Communicator_MPI.h"
 
 namespace smarties
 {
@@ -19,13 +21,16 @@ class Engine
   Settings settings; // todo will be vector and ini file parsing
   std::unique_ptr<DistributionInfo> distrib;
 
+  void init();
+
 public:
   Engine(int argc, char** argv);
-  Engine(MPI_Comm initialiazed_mpi_comm);
+  Engine(MPI_Comm initialiazed_mpi_comm, int argc, char** argv);
 
-  void run();
-  void init();
-  int parse(int argc, char** argv);
+  void run(const environment_callback_t & callback);
+  void run(const environment_callback_MPI_t & callback);
+
+  int parse();
 };
 
 } // end namespace smarties

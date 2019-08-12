@@ -17,7 +17,8 @@ namespace smarties
 
 Settings::Settings() {  }
 
-DistributionInfo::DistributionInfo(int argc, char** argv)
+DistributionInfo::DistributionInfo(int _argc, char ** _argv) :
+  argc(_argc), argv(_argv)
 {
   getcwd(initial_runDir, 1024);
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
@@ -34,7 +35,9 @@ DistributionInfo::DistributionInfo(int argc, char** argv)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
 }
 
-DistributionInfo::DistributionInfo(const MPI_Comm& initialiazed_mpi_comm)
+DistributionInfo::DistributionInfo(const MPI_Comm & initialiazed_mpi_comm,
+                                   int _argc, char ** _argv) :
+  argc(_argc), argv(_argv)
 {
   getcwd(initial_runDir, 1024);
   world_comm = initialiazed_mpi_comm;
