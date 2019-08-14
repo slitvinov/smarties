@@ -234,10 +234,10 @@ void Learner::getHeaders(std::ostringstream& buf) const
 
 void Learner::restart()
 {
-  if(settings.restart == "none") return;
+  if(distrib.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  data->restart(settings.restart+"/"+learner_name);
+  data->restart(distrib.restart+"/"+learner_name);
 
   data->save("restarted_"+learner_name, 0, false);
 

@@ -88,7 +88,7 @@ void Collector::add_action(const Agent& a, const Rvec pol)
   if(a.agentStatus not_eq INIT) nSeenTransitions_loc ++;
   inProgress[a.ID]->actions.push_back( a.action );
   inProgress[a.ID]->policies.push_back(pol);
-  if(settings.logAllSamples) // TODO was learner rank
+  if(distrib.logAllSamples) // TODO was learner rank
     a.writeData(distrib.initial_runDir, distrib.world_rank,
                 pol, nSeenTransitions_loc.load());
 }
@@ -105,7 +105,7 @@ void Collector::terminate_seq(Agent&a)
   inProgress[a.ID]->actions.push_back( dummyAct );
   inProgress[a.ID]->policies.push_back( dummyPol );
 
-  if(settings.logAllSamples) // TODO was learner rank
+  if(distrib.logAllSamples) // TODO was learner rank
     a.writeData(distrib.initial_runDir, distrib.world_rank,
                 dummyPol, nSeenTransitions_loc.load());
   push_back(a.ID);

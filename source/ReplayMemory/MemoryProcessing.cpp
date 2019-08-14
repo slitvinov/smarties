@@ -37,7 +37,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   nSeenTransitions = nDataGlobal[1];
   //////////////////////////////////////////////////////////////////////////////
 
-  if(not settings.bTrain) return; //if not training, keep the stored values
+  if(not distrib.bTrain) return; //if not training, keep the stored values
   const Uint setSize = RM->readNSeq(), dimS = MDP.dimStateObserved;
 
   if(WR>0 or WS>0)
