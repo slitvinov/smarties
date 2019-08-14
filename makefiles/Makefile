@@ -127,7 +127,13 @@ Communicator_pybind11.o:
 
 lib: $(OBJ_FILES)
 	mkdir -p ../lib
-	$(MPICXX) -shared $(LDFLAGS) -o ../lib/libsmarties.so $^ $(LIBS)
+	$(MPICXX) -shared -fPIC $(LDFLAGS) -o ../lib/libsmarties.so $^ $(LIBS)
+	@echo "Remember to update the environmental variables to include the smarties library like:"
+	@cd ../include && echo "echo 'export SMARTIES_INCLUDE=`pwd`' >> ~/.bash_profile"
+	@cd ../lib && echo "echo 'export SMARTIES_LIB=`pwd`' >> ~/.bash_profile"
+	@cd ../ && echo "echo 'export SMARTIES_ROOT=`pwd`' >> ~/.bash_profile"
+
+#echo "echo 'export LD_LIBRARY_PATH=\"\$${LD_LIBRARY_PATH}:`pwd`\"' >> ~/.bash_profile"
 
 py11: $(OBJ_FILES) Communicator_pybind11.o
 	mkdir -p ../lib
@@ -137,8 +143,11 @@ py11: $(OBJ_FILES) Communicator_pybind11.o
 #	$(PATH_COMM).cpp -o libsmarties.so
 #g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
 
-exec: $(OBJ_FILES) main.o
-	$(LD) $(LDFLAGS) -o rl main.o $(LIBS) -L../lib/ -lsmarties
+#exec: $(OBJ_FILES) main.o
+#	$(LD) $(LDFLAGS) -o rl main.o $(LIBS) $(OBJ_FILES)
+
+exec: lib main.o
+	$(LD) $(LDFLAGS) -o rl main.o -L../lib/ -lsmarties
 
 all: lib
 

@@ -196,6 +196,8 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
 
   if( build->layers.size() )
   {
+    // cannot have both already built preprocessing net and also build
+    // preprocessing layers below here.
     if(preprocessing)
       die("Preprocessing layers were created for a network type that does not "
           "support being together with preprocessing layers");
@@ -221,7 +223,8 @@ void Approximator::buildFromSettings(const std::vector<Uint> outputSizes)
     MDP.isPartiallyObservable and settings.bRecurrent == false? "RNN"
                                                               : settings.nnType;
   for(Uint i=0; i<layerSizes.size(); ++i)
-    build->addLayer(layerSizes[i], settings.nnFunc, false, netType);
+    if(layerSizes[i] > 0)
+      build->addLayer(layerSizes[i], settings.nnFunc, false, netType);
 
   if(nOuts > 0) build->addLayer(nOuts, settings.nnOutputFunc, true);
 }
@@ -230,6 +233,9 @@ void Approximator::buildPreprocessing(const std::vector<Uint> preprocLayers)
 {
   if(build)
     die("attempted to create preprocessing layers multiple times");
+  if(preprocessing)
+    die("Preprocessing layers were created for a network type that does not "
+        "support being together with preprocessing layers");
 
   build = std::make_unique<Builder>(settings, distrib);
 
@@ -261,7 +267,8 @@ void Approximator::buildPreprocessing(const std::vector<Uint> preprocLayers)
     MDP.isPartiallyObservable and settings.bRecurrent == false? "RNN"
                                                               : settings.nnType;
   for (Uint i=0; i<preprocLayers.size(); ++i)
-    build->addLayer(preprocLayers[i], settings.nnFunc, false, netType);
+    if(preprocLayers[i]>0)
+      build->addLayer(preprocLayers[i], settings.nnFunc, false, netType);
 }
 
 void Approximator::getHeaders(std::ostringstream& buff) const

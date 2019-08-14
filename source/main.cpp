@@ -24,6 +24,6 @@ int main (int argc, char** argv)
   };
   smarties::Engine e(argc, argv);
   if( e.parse() ) return 1;
-  e.run(runTraining);
+  //e.run(runTraining);
   return 0;
 }

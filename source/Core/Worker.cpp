@@ -370,8 +370,7 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
   assert(COMM->SOCK.clients.size()>0 && "this method should be used by "
          "intermediary workers between socket-apps and mpi-learners");
-  assert(MPICommSize(COMM->workers_application_comm)<=1 && "intermediary "
-         "workers do not support multi-rank apps");
+  assert(envMPIsize<=1 && "intermediary workers do not support multirank apps");
   sendStateRecvAction( getCommBuffer(bufferID+1) );
 }
 

@@ -70,6 +70,7 @@ DistributionInfo::~DistributionInfo()
 int DistributionInfo::parse()
 {
   CLI::App parser("smarties : distributed reinforcement learning framework");
+  parser.allow_extras();
 
   parser.add_option("--nThreads", nThreads,
     "Number of threads from threaded training on each master rank."
@@ -131,7 +132,8 @@ int DistributionInfo::parse()
     if(world_rank == 0) {
       parser.exit(e);
       const std::string jsonArgs = Settings::printArgComments();
-      printf("json arguments:\n%s\n", jsonArgs.c_str());
+      printf("\nAlgorithm-specific arguments read from .json files:\n%s\n",
+        jsonArgs.c_str());
       return 1;
     }
     else return 1;

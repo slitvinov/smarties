@@ -42,14 +42,15 @@ namespace smarties
 class Communicator
 {
 public:
-  Communicator(int number_of_agents = 1);
-  Communicator(int stateDim, int actionDim, int number_of_agents = 1);
+  //Communicator(int number_of_agents = 1);
+  //Communicator(int stateDim, int actionDim, int number_of_agents = 1);
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// BEGINNER METHODS //////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
   // Send first state of an episode in order to get first action:
+  __attribute__((visibility("default")))
   void sendInitState(const std::vector<double>& state,
                      const int agentID=0)
   {
@@ -57,6 +58,7 @@ public:
   }
 
   // Send normal state and reward:
+  __attribute__((visibility("default")))
   void sendState(const std::vector<double>& state,
                  const double reward,
                  const int agentID = 0)
@@ -66,6 +68,7 @@ public:
 
   // Send terminal state/reward: the last step of an episode which ends because
   // of TERMINATION (e.g. agent cannot continue due to failure or success).
+  __attribute__((visibility("default")))
   void sendTermState(const std::vector<double>& state,
                     const double reward,
                     const int agentID = 0)
@@ -76,6 +79,7 @@ public:
   // Send truncated state/reward: the last step of an episode which ends because
   // of TRUNCATION (e.g. agent cannot continue due to time limits). Difference
   // from TERMINATION is that policy was not direct cause of episode's end.
+  __attribute__((visibility("default")))
   void sendLastState(const std::vector<double>& state,
                      const double reward,
                      const int agentID = 0)
@@ -84,55 +88,71 @@ public:
   }
 
   // receive action for the latest given state:
+  __attribute__((visibility("default")))
   const std::vector<double>& recvAction(const int agentID = 0) const;
 
+  __attribute__((visibility("default")))
   void set_state_action_dims(const int dimState, const int dimAct,
                              const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_action_scales(const std::vector<double> uppr,
                          const std::vector<double> lowr,
                          const bool bound,
                          const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_action_scales(const std::vector<double> upper,
                          const std::vector<double> lower,
                          const std::vector<bool>   bound,
                          const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_action_options(const int options,
                           const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_action_options(const std::vector<int> options,
                           const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_state_observable(const std::vector<bool> observable,
                             const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_state_scales(const std::vector<double> upper,
                         const std::vector<double> lower,
                         const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_num_agents(int _nAgents);
 
+  __attribute__((visibility("default")))
   void set_is_partially_observable(const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void finalize_problem_description();
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ADVANCED METHODS //////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
+  __attribute__((visibility("default")))
   void env_has_distributed_agents();
 
+  __attribute__((visibility("default")))
   void agents_define_different_MDP();
 
+  __attribute__((visibility("default")))
   void disableDataTrackingForAgents(int agentStart, int agentEnd);
 
+  __attribute__((visibility("default")))
   void set_preprocessing_conv2d(
     const int input_width, const int input_height, const int input_features,
     const int kernels_num, const int filters_size, const int stride,
     const int agentID = 0);
 
+  __attribute__((visibility("default")))
   void set_num_appended_past_observations(const int n_appended,
                                           const int agentID = 0);
 
@@ -141,6 +161,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////
   // conveniency methods for optimization (stateless/timeless) problems
 
+  __attribute__((visibility("default")))
   const std::vector<double>& getOptimizationParameters(const int agentID = 0)
   {
     assert(ENV.descriptors[agentID]->dimState == 0 &&
@@ -149,6 +170,7 @@ public:
     return recvAction(agentID);
   }
 
+  __attribute__((visibility("default")))
   void setOptimizationEvaluation(const Real R, const int agentID = 0)
   {
     assert(ENV.descriptors[agentID]->dimState == 0 &&
@@ -159,8 +181,13 @@ public:
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// UTILITY METHODS ///////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
+  __attribute__((visibility("default")))
   std::mt19937& getPRNG();
+
+  __attribute__((visibility("default")))
   bool isTraining() const;
+
+  __attribute__((visibility("default")))
   bool terminateTraining() const;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -190,10 +217,10 @@ protected:
   Uint globalTstepCounter = 0;
 
   //called by app to interact with smarties:
+  __attribute__((visibility("default")))
   void _sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
-protected:
   //access to smarties' internals, available only if app is linked into exec
   friend class Worker;
 

@@ -1,19 +1,23 @@
-.DEFAULT_GOAL := app
+CXX = mpic++
 
-SMARTIESDIR = ../../source/ #Communicators/
-CPPFLAGS += -std=c++14 -I$(SMARTIESDIR)
-#CPPFLAGS += -fsanitize=undefined -g -O0
-#CPPFLAGS += -g -O0 -fsanitize=address 
-VPATH := $(VPATH):$(SMARTIESDIR)
+#LDFLAGS+= -fopenmp
+LIBS+= -L${SMARTIES_LIB} -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
+CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Wno-unused-parameter
+CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
+CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
-app: cart-pole.o
-	ar rs libsimulation.a $^
-	#$(CC) -shared -c cart-pole.cpp -o app.so -I ../../source/Communicators/
-	cp libsimulation.a ../../makefiles/libsimulation.a
-	#cp app.so ../../makefiles/test_mpi_cart_pole.so
+.DEFAULT_GOAL := cart-pole
 
-clean:
-	rm -f *.o libsimulation.a
+cart-pole: cart-pole.o
+	$(CXX) $(extra) -o $@ $^ ${LIBS}
 
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@
+
+%.d: %.cpp
+	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
+
+clean:
+	rm -f *.o *.s *.d cart-pole
+

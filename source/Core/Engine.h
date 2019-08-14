@@ -22,13 +22,22 @@ class Engine
   void init();
 
 public:
+  __attribute__((visibility("default")))
   Engine(int argc, char** argv);
+
+  __attribute__((visibility("default")))
   Engine(MPI_Comm initialiazed_mpi_comm, int argc, char** argv);
+
+  __attribute__((visibility("default")))
   ~Engine();
 
+  __attribute__((visibility("default")))
   void run(const environment_callback_t & callback);
+
+  __attribute__((visibility("default")))
   void run(const environment_callback_MPI_t & callback);
 
+  __attribute__((visibility("default")))
   int parse();
 };
 

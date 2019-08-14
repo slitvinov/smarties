@@ -12,7 +12,7 @@
 #include <iostream>
 #include <cstdio>
 
-inline void runTraining(smarties::Communicator*const comm, int argc, char**argv)
+inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
 {
   const int control_vars = 1; // force along x
   const int state_vars = 6; // x, y, angvel, angle, cosine, sine
@@ -69,6 +69,6 @@ int main(int argc, char**argv)
 {
   smarties::Engine e(argc, argv);
   if( e.parse() ) return 1;
-  e.run( runTraining );
+  e.run( app_main );
   return 0;
 }

@@ -7,14 +7,14 @@
 //
 
 #include "smarties.h"
-#include "cart-pole.h"
+#include "../cart_pole_cpp/cart-pole.h"
 
 #include <iostream>
 #include <cstdio>
 
 using namespace std;
 
-int app_main(
+inline int app_main(
   smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,         // mpi_comm that mpi-based apps can use
   int argc, char**argv    // arguments read from app's runtime settings file
@@ -73,5 +73,13 @@ int app_main(
       if(terminated) break; // go back up to reset
     }
   }
+  return 0;
+}
+
+int main(int argc, char**argv)
+{
+  smarties::Engine e(argc, argv);
+  if( e.parse() ) return 1;
+  e.run( app_main );
   return 0;
 }

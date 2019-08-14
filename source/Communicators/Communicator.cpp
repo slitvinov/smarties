@@ -13,22 +13,22 @@
 namespace smarties
 {
 
-Communicator::Communicator(int number_of_agents)
-{
-  set_num_agents(number_of_agents);
-  //std::random_device RD;
-  //gen = std::mt19937(RD);
-  SOCK.server = SOCKET_clientConnect();
-}
+//Communicator::Communicator(int number_of_agents)
+//{
+//  set_num_agents(number_of_agents);
+//  //std::random_device RD;
+//  //gen = std::mt19937(RD);
+//  SOCK.server = SOCKET_clientConnect();
+//}
 
-Communicator::Communicator(int stateDim, int actionDim, int number_of_agents)
-{
-  set_num_agents(number_of_agents);
-  set_state_action_dims(stateDim, actionDim);
-  //std::random_device RD;
-  //gen = std::mt19937(RD);
-  SOCK.server = SOCKET_clientConnect();
-}
+//Communicator::Communicator(int stateDim, int actionDim, int number_of_agents)
+//{
+//  set_num_agents(number_of_agents);
+//  set_state_action_dims(stateDim, actionDim);
+//  //std::random_device RD;
+//  //gen = std::mt19937(RD);
+//  SOCK.server = SOCKET_clientConnect();
+//}
 
 void Communicator::set_state_action_dims(const int dimState,
                                          const int dimAct,
