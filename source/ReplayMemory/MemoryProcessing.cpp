@@ -7,7 +7,7 @@
 //
 
 #include "MemoryProcessing.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 #include "Sampling.h"
 #include <algorithm>
 

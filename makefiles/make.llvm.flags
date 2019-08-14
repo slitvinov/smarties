@@ -1,6 +1,6 @@
 
 CPPFLAGS+= -std=c++14 -fopenmp=libomp
-LIBS+= -fopenmp=libomp
+LDFLAGS+= -fopenmp=libomp
 
 # block all the LLVM complaints that I have no control over (libs/extern)
 CPPFLAGS+= -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic \
@@ -12,7 +12,8 @@ CPPFLAGS+= -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic \
   -Wno-cast-align -Wno-implicit-float-conversion -Wno-unused-template \
   -Wno-extra-semi -Wno-float-conversion -Wno-format-nonliteral \
   -Wno-switch-enum -Wno-reserved-id-macro -Wno-weak-template-vtables \
-  -Wno-undefined-func-template
+  -Wno-undefined-func-template -Wno-documentation-unknown-command \
+  -Wno-documentation-pedantic
 
 
 NOWARNP11= -Wno-shadow-field-in-constructor -Wno-documentation-unknown-command \
@@ -26,13 +27,13 @@ endif
 
 ifeq "$(config)" "segf"
 CPPFLAGS+= -g -O0 -fsanitize=address
-LIBS += -fsanitize=address
+LDFLAGS+= -fsanitize=address
 endif
 ifeq "$(config)" "nans"
 CPPFLAGS+= -g -O0 -fsanitize=undefined
-LIBS += -fsanitize=undefined
+LDFLAGS+= -fsanitize=undefined
 endif
 
 ifeq "$(config)" "prod"
-CPPFLAGS += -DNDEBUG -O3
+CPPFLAGS+= -DNDEBUG -O3
 endif

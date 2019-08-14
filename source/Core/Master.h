@@ -10,7 +10,7 @@
 #define smarties_Master_h
 
 #include "Worker.h"
-#include "Utils/SocketsLib.h"
+#include "../Utils/SocketsLib.h"
 #include <thread>
 
 namespace smarties
@@ -28,7 +28,7 @@ protected:
   void waitForStateActionCallers(const std::vector<Uint> givenWorkers);
 
 public:
-  Master(Settings& , DistributionInfo& );
+  Master(DistributionInfo& );
   virtual ~Master() {};
   void run();
   void spawnCallsHandlers();
@@ -56,8 +56,7 @@ public:
     SOCKET_Wait(request);
   }
 
-public:
-  MasterSockets(Settings& settings, DistributionInfo& distribinfo);
+  MasterSockets( DistributionInfo& );
   ~MasterSockets(){}
 
   void run(const environment_callback_t& callback);
@@ -87,9 +86,9 @@ public:
     MPI(Wait, &request, MPI_STATUS_IGNORE);
   }
 
-public:
-  MasterMPI(Settings& , DistributionInfo& );
+  MasterMPI( DistributionInfo& );
   ~MasterMPI(){}
+
   void run();
 };
 

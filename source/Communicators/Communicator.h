@@ -9,17 +9,14 @@
 #ifndef smarties_Communicator_h
 #define smarties_Communicator_h
 
-#include "Core/Environment.h" // to include after mpi.h if SMARTIES_CORE
-
+#include "../Core/Environment.h"
 #include <random>
 
 namespace smarties
 {
 struct COMM_buffer;
 class Communicator;
-#ifdef SMARTIES_CORE
-  class Worker;
-#endif
+class Worker;
 }
 
 // main function callback to user's application
@@ -33,16 +30,12 @@ using environment_callback_t =
       int argc, char**argv
     )>;
 
-#ifdef SMARTIES_CORE
-
 using environment_callback_MPI_t =
 std::function<void(
     smarties::Communicator*const smartiesCommunicator,
     const MPI_Comm mpiCommunicator,
     int argc, char**argv
   )>;
-
-#endif
 
 namespace smarties
 {
@@ -200,20 +193,13 @@ protected:
   void _sendState(const int agentID, const episodeStatus status,
     const std::vector<double>& state, const double reward);
 
-  #ifdef SMARTIES_CORE
-  #ifndef MPI_VERSION
-    #error "Defined SMARTIES_CORE and not MPI_VERSION"
-  #endif
+protected:
+  //access to smarties' internals, available only if app is linked into exec
+  friend class Worker;
 
-  protected:
-    //access to smarties' internals, available only if app is linked into exec
-    friend class Worker;
-    // ref to worker ensures that only if SMARTIES_CORE is defined we can
-    // construct a communicator with the protected constructor defined below
-    Worker * const worker = nullptr;
+  Worker * const worker = nullptr;
 
-    Communicator(Worker* const, std::mt19937&, bool);
-  #endif
+  Communicator(Worker* const, std::mt19937&, bool);
 };
 
 struct COMM_buffer

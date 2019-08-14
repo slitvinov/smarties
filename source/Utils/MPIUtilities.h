@@ -9,15 +9,11 @@
 #ifndef smarties_MPIUtilities_h
 #define smarties_MPIUtilities_h
 
-#ifdef SMARTIES_CORE
 #include <mpi.h>
 #include <omp.h>
-#endif
 
 namespace smarties
 {
-
-#ifdef MPI_VERSION
 
 inline MPI_Comm MPICommDup(const MPI_Comm C) {
   if(C == MPI_COMM_NULL) return MPI_COMM_NULL;
@@ -38,16 +34,6 @@ inline unsigned MPICommRank(const MPI_Comm C) {
   return (unsigned) rank;
 }
 inline unsigned MPIworldRank() { return MPICommRank(MPI_COMM_WORLD); }
-
-#else
-
-#ifdef SMARTIES_CORE
-  #error "mpi.h did not define MPI_VERSION"
-#endif
-
-inline unsigned MPIworldRank() { return 0; }
-
-#endif
 
 #define MPI(NAME, ...)                                   \
 do {                                                     \

@@ -33,14 +33,14 @@ ifeq "$(findstring lair,$(shell hostname))" "lair"
 include make.lair
 endif
 
-ifeq "$(MPICXX)" ""
-CPPFLAGS+= -I$(CURPWD)/../extern/build/mpich-3.3/include/
-LIBS+= -L$(CURPWD)/../extern/build/mpich-3.3/lib/
-MPICXX=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
-LD=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
-else
+#ifeq "$(MPICXX)" ""
+#CPPFLAGS+= -I$(CURPWD)/../extern/build/mpich-3.3/include/
+#LIBS+= -L$(CURPWD)/../extern/build/mpich-3.3/lib/
+#MPICXX=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
+#LD=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
+#else
 LD=$(MPICXX)
-endif
+#endif
 
 ifeq "$(shell $(MPICXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(MPICXX) --version | grep -ci 'llvm')" "0"
@@ -63,8 +63,6 @@ ifeq "$(precision)" "single"
 CPPFLAGS+= -DSINGLE_PREC
 endif
 
-app ?= ext_app_test
-
 ifeq "$(compiler)" "intel"
 include make.icc.flags
 else
@@ -75,9 +73,8 @@ include make.gcc.flags
 endif
 endif
 
-CPPFLAGS+= -I../extern/CLI11/include/
-
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
+
 OBJ_FILES = \
 	PPO.o \
 	NAF.o \
@@ -88,6 +85,7 @@ OBJ_FILES = \
 	CMALearner.o \
 	Learner_pytorch.o \
 	Learner_approximator.o \
+	AlgoFactory.o \
 	Sequences.o \
 	Learner.o \
 	Sampling.o \
@@ -108,76 +106,49 @@ OBJ_FILES = \
 	Profiler.o \
 	Master.o \
 	Worker.o \
-	Engine.o \
-	main.o
+	Engine.o
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
 .DEFAULT_GOAL := all
 
-ifneq "$(MAKECMDGOALS)" "clean"
--include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
-endif
-
-LIBS+= -L. -lsimulation
-CPPFLAGS+= -I../source
-
-############### Compile application as static library if needed ###############
-ifneq "$(app)" "ext_app_test"
-
-# let's check if app requires some flag / lib
-ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
-export app_precision $(app_precision)
-include ../apps/$(app)/make.flags
-endif
-CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
-
-env:
-	#+make -C ../apps/$(app)/ clean
-	+make -C ../apps/$(app)/ CC=$(MPICXX) CXX=$(MPICXX) compiler=$(compiler) \
-	config=$(config) precision=$(app_precision)
-
-else
-
-# app is compiled independently and uses communication through sockets
-# this is just for testing:
-env: ext_app_test.o
-	ar rs libsimulation.a $^
-
-endif
-###############################################################################
-
 ###################### Compile Communicator Library ###########################
-PATH_COMM=../source/Communicators/Communicator
-
 PYBINDINC:=$(shell python3 -m pybind11 --includes) $(NOWARNP11)
 PYBINDSUF:=$(shell python3-config --extension-suffix)
+ifeq ($(UNAME_S),Darwin)
+PYBINDLD= $(LDFLAGS) -undefined dynamic_lookup
+else
+PYBINDLD= $(LDFLAGS)
+endif
 
-CommunicatorLib.o:
-	$(MPICXX) $(CPPFLAGS) -fPIC -c $(PATH_COMM).cpp -o $@
+PATH_COMM_PY11=../source/Communicators/Communicator_pybind11.cpp
+Communicator_pybind11.o:
+	$(MPICXX) $(CPPFLAGS) $(PYBINDINC) -fPIC -c $(PATH_COMM_PY11) -o $@
 
-lib: CommunicatorLib.o
-	$(MPICXX) $(CPPFLAGS) -shared $(PYBINDINC) -fPIC \
-		$(PATH_COMM)_pybind11.cpp -o smarties$(PYBINDSUF)
-	ar rs libsmarties.a CommunicatorLib.o
+lib: $(OBJ_FILES)
+	mkdir -p ../lib
+	$(MPICXX) -shared $(LDFLAGS) -o ../lib/libsmarties.so $^ $(LIBS)
+
+py11: $(OBJ_FILES) Communicator_pybind11.o
+	mkdir -p ../lib
+	$(MPICXX) -shared $(PYBINDLD) -o ../lib/smarties$(PYBINDSUF) $^ $(LIBS)
 
 #$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
 #	$(PATH_COMM).cpp -o libsmarties.so
 #g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o
 
-exec: $(OBJ_FILES) env
-	$(LD) $(OBJ_FILES) $(LIBS) -o rl
+exec: $(OBJ_FILES) main.o
+	$(LD) $(LDFLAGS) -o rl main.o $(LIBS) -L../lib/ -lsmarties
 
-all: lib exec
+all: lib
+
+main.o: ../source/main.cpp
+	$(MPICXX) $(extra) $(CPPFLAGS) -c $< -o $@
 
 %.o: %.cpp
-	$(MPICXX) $(extra) $(CPPFLAGS) -DSMARTIES_CORE -c $< -o $@
-
-%.d: %.cpp
-	$(MPICXX) $(extra) $(CPPFLAGS) -DSMARTIES_CORE -c -MD $<
+	$(MPICXX) $(extra) $(CPPFLAGS) -fPIC -c $< -o $@
 
 vpath %.cpp $(DIRS)
-vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o *.so *.s *.d libsimulation.a libsmarties.* rl
+	rm -f *.o *.so *.s *.d ../lib/lib*

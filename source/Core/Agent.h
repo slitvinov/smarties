@@ -12,10 +12,8 @@
 #include "StateAction.h"
 #include <cstring> // memcpy
 
-#ifdef SMARTIES_CORE
 #include <atomic>
 #define OUTBUFFSIZE 65536
-#endif
 
 namespace smarties
 {
@@ -217,7 +215,6 @@ struct Agent
    return 2*sizeof(unsigned) +sizeof(learnerStatus) + aDim*sizeof(double);
   }
 
-#ifdef SMARTIES_CORE
   // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};
@@ -258,8 +255,6 @@ struct Agent
     buffCnter += writesize;
     assert(buffCnter == ind);
   }
-
-#endif
 
   void checkNanInf() const
   {

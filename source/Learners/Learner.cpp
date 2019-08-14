@@ -7,11 +7,11 @@
 //
 
 #include "Learner.h"
-#include "Utils/FunctionUtilities.h"
-#include "Utils/SstreamUtilities.h"
-#include "ReplayMemory/MemoryProcessing.h"
-#include "ReplayMemory/DataCoordinator.h"
-#include "ReplayMemory/Collector.h"
+#include "../Utils/FunctionUtilities.h"
+#include "../Utils/SstreamUtilities.h"
+#include "../ReplayMemory/MemoryProcessing.h"
+#include "../ReplayMemory/DataCoordinator.h"
+#include "../ReplayMemory/Collector.h"
 #include <unistd.h>
 
 namespace smarties

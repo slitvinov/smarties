@@ -14,13 +14,13 @@
 namespace smarties
 {
 
-MasterSockets::MasterSockets(Settings& S, DistributionInfo& D) :
-Master<MasterSockets, SOCKET_REQ>(S, D) { }
-MasterMPI::MasterMPI(Settings& S, DistributionInfo& D) :
-Master<MasterMPI, MPI_Request>(S, D) { }
+MasterSockets::MasterSockets(DistributionInfo& D) :
+Master<MasterSockets, SOCKET_REQ>(D) { }
+MasterMPI::MasterMPI(DistributionInfo& D) :
+Master<MasterMPI, MPI_Request>(D) { }
 
 template<typename CommType, typename Request_t>
-Master<CommType, Request_t>::Master(Settings&S, DistributionInfo&D) : Worker(S,D) {}
+Master<CommType, Request_t>::Master(DistributionInfo&D) : Worker(D) {}
 
 void MasterSockets::run(const environment_callback_t& callback)
 {
@@ -39,7 +39,7 @@ template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::run()
 {
   synchronizeEnvironments();
-  spawnCallsHandlers();
+  spawnCallsHandlers(); // fills worker_replies threads
   runTraining();
   for(auto& thread : worker_replies) thread.join();
 }

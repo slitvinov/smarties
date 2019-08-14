@@ -8,7 +8,8 @@
 
 #include "Utils/Warnings.h"
 #include "Settings.h"
-#include "CLI/CLI.hpp"
+#include "extern/CLI.hpp"
+#include "extern/json.hpp"
 #include <cassert>
 #include <unistd.h>
 
@@ -66,20 +67,77 @@ DistributionInfo::~DistributionInfo()
   MPI_Finalize();
 }
 
-void DistributionInfo::initializeOpts(CLI::App & parser)
+int DistributionInfo::parse()
 {
-  parser.add_option("--nThreads",               nThreads,               COMMENT_nThreads);
-  parser.add_option("--nMasters",               nMasters,               COMMENT_nMasters);
-  parser.add_option("--nWorkers",               nWorkers,               COMMENT_nWorkers);
-  parser.add_option("--runInternalApp",         runInternalApp,         COMMENT_runInternalApp);
-  parser.add_option("--nStepPappSett",          nStepPappSett,          COMMENT_nStepPappSett);
-  parser.add_option("--appSettings",            appSettings,            COMMENT_appSettings);
-  parser.add_option("--launchFile",             launchFile,             COMMENT_launchFile);
-  parser.add_option("--setupFolder",            setupFolder,            COMMENT_setupFolder);
-  parser.add_option("--learnersOnWorkers",      learnersOnWorkers,      COMMENT_learnersOnWorkers);
-  parser.add_option("--workerProcessesPerEnv",  workerProcessesPerEnv,  COMMENT_workerProcessesPerEnv);
-  parser.add_option("--randSeed",               randSeed,               COMMENT_randSeed);
+  CLI::App parser("smarties : distributed reinforcement learning framework");
 
+  parser.add_option("--nThreads", nThreads,
+    "Number of threads from threaded training on each master rank."
+  );
+  parser.add_option("--nMasters", nMasters,
+    "Number of master ranks (policy-updating ranks)."
+  );
+  parser.add_option("--nWorkers", nWorkers,
+    "Number of environment processes (not necessarily ranks, may be forked)."
+  );
+  parser.add_option("--workerProcessesPerEnv",
+    "Number of MPI ranks required by the the env application. It is 1 for "
+    "serial/shared-memory solvers."
+  );
+
+  parser.add_option("--totNumSteps", totNumSteps,
+    "Total number of time steps before end of learning."
+  );
+  parser.add_option("--randSeed", randSeed, "Random seed." );
+
+  parser.add_option("--nStepPappSett", nStepPappSett,
+    "Number of time steps per appSettings file to use. Must be a list of "
+    "positive numbers separated by semicolons. Last number will be "
+    "overwritten to 0; i.e. last appSettings will be used til termination."
+  );
+  parser.add_option("--appSettings", appSettings,
+    "Name of file containing the command line arguments for user's application."
+  );
+  parser.add_option("--setupFolder", setupFolder,
+    "The contents of this folder are copied over into the folder where the "
+    "simulation is run. It can contain additional files needed to set up "
+    "the simulation such as settings files, configuration files..."
+  );
+  parser.add_option("--restart", restart,
+    "Prefix of net save files. If 'none' then no restart."
+  );
+
+  parser.add_option("--learnersOnWorkers", learnersOnWorkers,
+    "Whether to enable hosting learning algos on worker processes such that "
+    "workers send training data and recv parameters from masters. If false "
+    "workers only send states and recv actions from masters."
+  );
+
+  parser.add_option("--bTrain", bTrain,
+    "Whether training a policy (=1) or evaluating (=0)."
+  );
+  parser.add_option("--logAllSamples", logAllSamples,
+    "Whether to write files recording all transitions."
+  );
+  parser.add_option("--runInternalApp", runInternalApp,
+    "Whether env app is linked as a library and requires smarties processes "
+    "(=1) or we spawn an external process and comm through sockets (=0)."
+  );
+
+  try {
+    parser.parse(argc, argv);
+  }
+  catch (const CLI::ParseError &e) {
+    if(world_rank == 0) {
+      parser.exit(e);
+      const std::string jsonArgs = Settings::printArgComments();
+      printf("json arguments:\n%s\n", jsonArgs.c_str());
+      return 1;
+    }
+    else return 1;
+  }
+  MPI_Barrier(world_comm);
+  return 0;
 }
 
 inline Uint notRoundedSplitting(const Uint nSplitters,
@@ -91,6 +149,7 @@ inline Uint notRoundedSplitting(const Uint nSplitters,
   const Uint splitEnd = std::min((splitterRank+1) * nPerSplitter, nToSplit);
   return splitEnd - splitBeg;
 }
+
 inline Uint indxStripedMPISplitting(const Uint nSplitters,
                                     const Uint nToSplit,
                                     const Uint indexedRank)
@@ -103,6 +162,7 @@ inline Uint indxStripedMPISplitting(const Uint nSplitters,
   }
   assert(false && "logic error"); return 0;
 }
+
 inline Uint rankStripedMPISplitting(const Uint nSplitters,
                                     const Uint nToSplit,
                                     const Uint indexedRank)
@@ -262,41 +322,150 @@ void DistributionInfo::figureOutWorkersPattern()
   }
 }
 
-void Settings::initializeOpts (CLI::App & parser)
+std::string Settings::printArgComments()
 {
-  parser.add_option("--learner",          learner,          COMMENT_learner);
-  parser.add_option("--bTrain",           bTrain,           COMMENT_bTrain);
-  parser.add_option("--restart",          restart,          COMMENT_restart);
-  parser.add_option("--explNoise",        explNoise,        COMMENT_explNoise);
-  parser.add_option("--gamma",            gamma,            COMMENT_gamma);
-  parser.add_option("--lambda",           lambda,           COMMENT_lambda);
-  parser.add_option("--obsPerStep",       obsPerStep,       COMMENT_obsPerStep);
-  parser.add_option("--clipImpWeight",    clipImpWeight,    COMMENT_clipImpWeight);
-  parser.add_option("--penalTol",         penalTol,         COMMENT_penalTol);
-  parser.add_option("--klDivConstraint",  klDivConstraint,  COMMENT_klDivConstraint);
-  parser.add_option("--targetDelay",      targetDelay,      COMMENT_targetDelay);
-  parser.add_option("--epsAnneal",        epsAnneal,        COMMENT_epsAnneal);
-  parser.add_option("--ERoldSeqFilter",   ERoldSeqFilter,   COMMENT_ERoldSeqFilter);
-  parser.add_option("--dataSamplingAlgo", dataSamplingAlgo, COMMENT_dataSamplingAlgo);
-  parser.add_option("--minTotObsNum",     minTotObsNum,     COMMENT_minTotObsNum);
-  parser.add_option("--maxTotObsNum",     maxTotObsNum,     COMMENT_maxTotObsNum);
-  parser.add_option("--bSampleSequences", bSampleSequences, COMMENT_bSampleSequences);
-  parser.add_option("--saveFreq",         saveFreq,         COMMENT_saveFreq);
-  parser.add_option("--totNumSteps",      totNumSteps,      COMMENT_totNumSteps);
+  using json = nlohmann::json;
+  json j;
+  j["learner"] =
+    "Chosen learning algorithm. One of: "
+    "'RACER', 'VRACER', 'PPO', 'DPG', 'ACER', 'NAF', 'DQN', 'CMA'.";
+  //
+  j["explNoise"] =
+    "Noise added to policy. For discrete policies it may be the probability of "
+    "picking a random action (detail depend on learning algo), for continuous "
+    "policies it is the (initial) standard deviation.";
+  //
+  j["gamma"] = "Discount factor.";
+  //
+  j["lambda"] = "Lambda for off-policy return-based estimators.";
+  //
+  j["obsPerStep"] =
+    "Ratio of observed *transitions* to gradient steps. E.g. 0.1 "
+    "means that for every observation learner does 10 gradient steps.";
+  //
+  j["clipImpWeight"] =
+    "Clipping range for off-policy importance weights. Corresponds to: C in "
+    "ReF-ER's Rule 1, epsilon in PPO's pol objective, c in ACER's truncation.";
+  //
+  j["penalTol"] =
+    "Tolerance used for adaptive off-policy penalization methods. "
+    "Currently corresponds only to D in ReF-ER's Rule 2.";
+  //
+  j["klDivConstraint"] =
+    "Constraint on max KL div. Corresponds to: d_targ in PPO's penalization, "
+    "delta in ACER's truncation and bias correction.";
+  //
+  j["targetDelay"] =
+    "Copy delay for Target Nets (TNs). If 0, TNs are disabled. If 'val'>1: "
+    "every 'val' grad steps network's W copied onto TN (like DQN). If 'val'<1: "
+    "every grad step TN updated by exp. averaging with rate 'val' (like DPG).";
+  //
+  j["epsAnneal"] =
+    "Annealing rate for various learning-algorithm-dependent behaviors.";
+  //
+  j["ERoldSeqFilter"] =
+    "Filter algorithm to remove old episodes from memory buffer. Accepts: "
+    "'oldest', 'farpolfrac', 'maxkldiv', 'minerror', or 'default'. Default "
+    "means 'oldest' for ER and 'farpolfrac' for ReFER.";
+  //
+  j["dataSamplingAlgo"] = "Algorithm for sampling the Replay Buffer.";
+  //
+  j["minTotObsNum"] =
+    "Min number of transitions in training buffer before training starts. "
+    "Default minTotObsNum = maxTotObsNum, i.e. fill RM before training starts.";
+  //
+  j["maxTotObsNum"] = "Max number of transitions in training buffer.";
+  //
+  j["saveFreq"] = "Frequency of checkpoints for learner state.";
+  //
+  j["encoderLayerSizes"] =
+    "Sizes of non-convolutional encoder layers (LSTM/RNN/FFNN). E.g. '64 64'.";
+  //
+  j["nnLayerSizes"] =
+    "Sizes of non-convolutional layers (LSTM/RNN/FFNN). E.g. '64 64'.";
+  //
+  j["batchSize"] = "Network training batch size.";
+  //
+  j["nnOutputFunc"] = "Activation function for output layers.";
+  //
+  j["nnFunc"] =
+    "Activation function for non-output layers (which is almost always "
+    "linear) which are built from settings. ('Relu', 'Tanh', 'Sigm', 'PRelu', "
+    "'softSign', 'softPlus', ...)";
+  //
+  j["learnrate"] = "Learning rate.";
+  //
+  j["ESpopSize"] =
+    "Population size for ES algorithm. If unset, or set to <2, we use Adam.";
+  //
+  j["nnType"] =
+    "Type of non-output layers read from settings. (RNN, LSTM, everything else "
+    "maps to FFNN). Conv2D layers need to be built in environment directly.";
+  //
+  j["outWeightsPrefac"] = "Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal Xavier initialization.";
+  //
+  j["nnLambda"] = "Penalization factor for network weights. It will be \
+  multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h";
+  //
+  j["nnBPTTseq"] = "Number of previous steps considered by RNN.";
+  //
+  return j.dump(4);
+}
 
-  parser.add_option("--encoderLayerSizes",encoderLayerSizes,COMMENT_encoderLayerSizes);
-  parser.add_option("--nnLayerSizes",     nnLayerSizes,     COMMENT_nnLayerSizes);
-  parser.add_option("--batchSize",        batchSize,        COMMENT_batchSize);
-  parser.add_option("--nnOutputFunc",     nnOutputFunc,     COMMENT_nnOutputFunc);
-  parser.add_option("--nnFunc",           nnFunc,           COMMENT_nnFunc);
-  parser.add_option("--learnrate",        learnrate,        COMMENT_learnrate);
-  parser.add_option("--ESpopSize",        ESpopSize,        COMMENT_ESpopSize);
-  parser.add_option("--nnType",           nnType,           COMMENT_nnType);
-  parser.add_option("--outWeightsPrefac", outWeightsPrefac, COMMENT_outWeightsPrefac);
-  parser.add_option("--nnLambda",         nnLambda,         COMMENT_nnLambda);
-  parser.add_option("--nnBPTTseq",        nnBPTTseq,        COMMENT_nnBPTTseq);
+void Settings::initializeOpts(std::ifstream & inputStream,
+                              DistributionInfo& distrib)
+{
+  using json = nlohmann::json;
+  json j;
+  // if we actually have a good ifstream, read the json, else will use defaults
+  if( inputStream.is_open() ) inputStream >> j;
 
-  parser.add_option("--logAllSamples",    logAllSamples,    COMMENT_logAllSamples);
+  // LEARNING ALGORITHM
+  if(!j["learner"].empty()) learner = j["learner"];
+  if(!j["ERoldSeqFilter"].empty()) ERoldSeqFilter = j["ERoldSeqFilter"];
+  if(!j["dataSamplingAlgo"].empty()) dataSamplingAlgo = j["dataSamplingAlgo"];
+
+  if(!j["explNoise"].empty()) explNoise = j["explNoise"];
+  if(!j["gamma"].empty()) gamma = j["gamma"];
+  if(!j["lambda"].empty()) lambda = j["lambda"];
+  if(!j["obsPerStep"].empty()) obsPerStep = j["obsPerStep"];
+  if(!j["clipImpWeight"].empty()) clipImpWeight = j["clipImpWeight"];
+  if(!j["penalTol"].empty()) penalTol = j["penalTol"];
+  if(!j["klDivConstraint"].empty()) klDivConstraint = j["klDivConstraint"];
+  if(!j["targetDelay"].empty()) targetDelay = j["targetDelay"];
+  if(!j["epsAnneal"].empty()) epsAnneal = j["epsAnneal"];
+
+  if(!j["minTotObsNum"].empty()) minTotObsNum = j["minTotObsNum"];
+  if(!j["maxTotObsNum"].empty()) maxTotObsNum = j["maxTotObsNum"];
+  if(!j["saveFreq"].empty()) saveFreq = j["saveFreq"];
+
+  // NETWORK APPROXIMATORS
+  if(!j["encoderLayerSizes"].empty()) {
+    const std::vector<int> tmp = j["encoderLayerSizes"];
+    encoderLayerSizes.resize(tmp.size());
+    std::copy(tmp.begin(), tmp.end(), encoderLayerSizes.begin());
+  }
+  if(!j["nnLayerSizes"].empty()) {
+    const std::vector<int> tmp = j["nnLayerSizes"];
+    nnLayerSizes.resize(tmp.size());
+    std::copy(tmp.begin(), tmp.end(), nnLayerSizes.begin());
+  }
+
+  if(!j["batchSize"].empty()) batchSize = j["batchSize"];
+  if(!j["ESpopSize"].empty()) ESpopSize = j["ESpopSize"];
+  if(!j["nnBPTTseq"].empty()) nnBPTTseq = j["nnBPTTseq"];
+
+  if(!j["nnLambda"].empty()) nnLambda = j["nnLambda"];
+  if(!j["learnrate"].empty()) learnrate = j["learnrate"];
+  if(!j["outWeightsPrefac"].empty()) outWeightsPrefac = j["outWeightsPrefac"];
+
+  if(!j["nnOutputFunc"].empty()) nnOutputFunc = j["nnOutputFunc"];
+  if(!j["nnFunc"].empty()) nnFunc = j["nnFunc"];
+  if(!j["nnType"].empty()) nnType = j["nnType"];
+
+  // split read workloads among processes:
+  defineDistributedLearning(distrib);
+  check();
 }
 
 void Settings::defineDistributedLearning(DistributionInfo& distrib)
@@ -330,12 +499,10 @@ void Settings::defineDistributedLearning(DistributionInfo& distrib)
 
 void Settings::check()
 {
-  bRecurrent = nnType=="LSTM" || nnType=="RNN" || nnType == "MGU" || nnType == "GRU";
-
-  if(bTrain == false && restart == "none") {
-   printf("Did not specify path for restart files, assumed current dir.\n");
-   restart = ".";
-  }
+  bRecurrent = nnType == "LSTM" ||
+               nnType == "RNN"  ||
+               nnType == "MGU"  ||
+               nnType == "GRU";
 
   if(targetDelay<0)  die("targetDelay<0");
   if(obsPerStep<0)   die("obsPerStep<0");

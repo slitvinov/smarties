@@ -6,8 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef smarties_AllLearners_h
-#define smarties_AllLearners_h
+#include "AlgoFactory.h"
 
 #include "PPO.h"
 #include "DPG.h"
@@ -20,6 +19,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
 
 namespace smarties
 {
@@ -33,11 +33,43 @@ inline static void printLogfile(std::ostringstream&o, std::string fn, int rank)
   fout.close();
 }
 
-inline std::unique_ptr<Learner> createLearner(
-  MDPdescriptor& MDP, Settings& settings, DistributionInfo& distrib
+inline std::ifstream findSettingsFile(DistributionInfo& D, const Uint ID)
+{
+  char currDirectory[512];
+  getcwd(currDirectory, 512);
+  chdir(D.initial_runDir);
+
+  // TODO: allow user to set name?
+  std::ifstream ret;
+  char settingsName[256];
+  sprintf(settingsName, "settings_%02lu.json", ID);
+  ret.open(settingsName, std::ifstream::in);
+  // if found a json for this learner specifically, then read it
+  if( ret.is_open() ) {
+    chdir(currDirectory);
+    return ret;
+  }
+
+  // else return the default settings name for all settings files:
+  ret.open("settings.json", std::ifstream::in);
+  chdir(currDirectory);
+  return ret;
+}
+
+std::unique_ptr<Learner> createLearner(
+  const Uint learnerID, MDPdescriptor& MDP, DistributionInfo& distrib
 )
 {
+  char lName[256];
+  sprintf(lName, "agent_%02lu", learnerID);
+  if(distrib.world_rank == 0)
+    printf("Creating learning algorithm #%02lu\n", learnerID);
+
   const ActionInfo aInfo = ActionInfo(MDP);
+  Settings settings;
+  std::ifstream ifs = findSettingsFile(distrib, learnerID);
+  settings.initializeOpts(ifs, distrib);
+
   std::unique_ptr<Learner> ret;
   std::ostringstream o;
   o << MDP.dimState << " ";
@@ -88,7 +120,6 @@ inline std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "DDPG" || settings.learner == "DPG")
   {
-    settings.bSampleSequences = false;
     MDP.policyVecDim = 2*MDP.dimAction;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
@@ -100,7 +131,6 @@ inline std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "GAE" || settings.learner == "PPO")
   {
-    settings.bSampleSequences = false;
     if(MDP.bDiscreteActions) {
       using PPO_discrete = PPO<Discrete_policy, Uint>;
       MDP.policyVecDim = PPO_discrete::getnDimPolicy(&aInfo);
@@ -131,7 +161,6 @@ inline std::unique_ptr<Learner> createLearner(
   {
     if(not MDP.bDiscreteActions)
       die("DQN supports only discrete-action problems");
-    settings.bSampleSequences = false;
     o << MDP.maxActionLabel << " " << MDP.maxActionLabel;
     printLogfile(o, "problem_size.log", distrib.world_rank);
     MDP.policyVecDim = MDP.maxActionLabel;
@@ -140,7 +169,6 @@ inline std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "NA" || settings.learner == "NAF")
   {
-    settings.bSampleSequences = false;
     MDP.policyVecDim = 2*MDP.dimAction;
     assert(not MDP.bDiscreteActions);
     o << MDP.dimAction << " " << MDP.policyVecDim;
@@ -178,8 +206,9 @@ inline std::unique_ptr<Learner> createLearner(
   */
   else die("Learning algorithm not recognized");
 
+  ret->setLearnerName(std::string(lName)+"_", learnerID);
+
   return ret;
 }
 
 }
-#endif

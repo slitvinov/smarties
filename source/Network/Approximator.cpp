@@ -9,7 +9,7 @@
 #include "Approximator.h"
 #include "Optimizer.h"
 #include "Network.h"
-#include "Utils/ParameterBlob.h"
+#include "../Utils/ParameterBlob.h"
 
 namespace smarties
 {

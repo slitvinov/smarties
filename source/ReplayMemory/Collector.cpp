@@ -7,7 +7,7 @@
 //
 
 #include "Collector.h"
-#include "Utils/FunctionUtilities.h"
+#include "../Utils/FunctionUtilities.h"
 #include "DataCoordinator.h"
 
 namespace smarties

@@ -7,18 +7,18 @@
 //
 
 #include "Worker.h"
-#include "Learners/AllLearners.h"
-#include "Utils/SocketsLib.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Learners/AlgoFactory.h"
+#include "../Utils/SocketsLib.h"
+#include "../Utils/SstreamUtilities.h"
 #include <fstream>
 
 namespace smarties
 {
 
-Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
+Worker::Worker(DistributionInfo&D) : distrib(D),
   dataTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   algoTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
-  COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
+  COMM( std::make_unique<Launcher>(this, D) ),
   ENV( COMM->ENV ), agents( ENV.agents )
 {
   /*
@@ -80,7 +80,7 @@ void Worker::runTraining()
     // instead of sum of timesteps performed by each agent
     const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
     const long dataCounter = bTrain? L->nLocTimeStepsTrain() : L->nSeqsEval();
-    return dataCounter * factor >= settings.totNumSteps;
+    return dataCounter * factor >= distrib.totNumSteps;
   };
 
 
@@ -277,11 +277,8 @@ void Worker::synchronizeEnvironments()
   learners.reserve(nAlgorithms);
   for(Uint i = 0; i<nAlgorithms; ++i)
   {
-    char lName[256]; sprintf(lName, "agent_%02lu", i);
-    if(distrib.world_rank == 0) printf("Learner: %s\n", lName);
-    learners.emplace_back( createLearner(ENV.getDescriptor(i), settings, distrib) );
+    learners.emplace_back( createLearner(i, ENV.getDescriptor(i), distrib) );
     assert(learners.size() == i+1);
-    learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
     learners[i]->setupTasks(algoTasks);
     learners[i]->setupDataCollectionTasks(dataTasks);

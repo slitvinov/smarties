@@ -7,9 +7,9 @@
 //
 
 #include "Learner_approximator.h"
-#include "Network/Approximator.h"
-#include "Network/Builder.h"
-#include "Utils/ParameterBlob.h"
+#include "../Network/Approximator.h"
+#include "../Network/Builder.h"
+#include "../Utils/ParameterBlob.h"
 #include <chrono>
 
 namespace smarties

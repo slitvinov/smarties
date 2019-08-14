@@ -9,8 +9,8 @@
 #ifndef smarties_Launcher_h
 #define smarties_Launcher_h
 
-#include "Communicators/Communicator.h"
-#include "Settings.h"
+#include "../Communicators/Communicator.h"
+#include "../Settings.h"
 
 namespace smarties
 {
@@ -19,9 +19,6 @@ class Launcher: public Communicator
 {
 protected:
   DistributionInfo& distrib;
-
-  std::string execPath    = distrib.launchFile;
-  std::string setupFolder = distrib.setupFolder;
 
   std::vector<std::string> argsFiles;
   std::vector<Uint> argFilesStepsLimits;
@@ -39,7 +36,7 @@ public:
   bool forkApplication( const environment_callback_t & callback );
   void runApplication( const environment_callback_MPI_t & callback );
 
-  Launcher(Worker* const W, DistributionInfo& D, bool isTraining);
+  Launcher(Worker* const W, DistributionInfo& D);
 };
 
 } // end namespace smarties

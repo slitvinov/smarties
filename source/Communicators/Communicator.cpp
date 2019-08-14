@@ -7,11 +7,8 @@
 //
 
 #include "Communicator.h"
-#include "Utils/SocketsLib.h"
-
-#ifdef SMARTIES_CORE
-#include "Core/Worker.h"
-#endif
+#include "../Utils/SocketsLib.h"
+#include "../Core/Worker.h"
 
 namespace smarties
 {
@@ -264,13 +261,11 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   assert(agents[agentID]->ID == (unsigned) agentID);
   agents[agentID]->update(status, state, reward);
 
-  #ifdef SMARTIES_CORE
-    if(worker not_eq nullptr)
-    {
-      worker->stepWorkerToMaster( * agents[agentID].get() );
-    }
-    else
-  #endif
+  if(worker not_eq nullptr)
+  {
+    worker->stepWorkerToMaster( * agents[agentID].get() );
+  }
+  else
   {
     agents[agentID]->packStateMsg(BUFF[agentID]->dataStateBuf);
     SOCKET_Bsend(BUFF[agentID]->dataStateBuf,
@@ -300,13 +295,11 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-  #ifdef SMARTIES_CORE
-    if(worker not_eq nullptr)
-    {
-      worker->synchronizeEnvironments();
-    }
-    else
-  #endif
+  if(worker not_eq nullptr)
+  {
+    worker->synchronizeEnvironments();
+  }
+  else
   {
     initOneCommunicationBuffer();
     const auto sendBufferFunc = [&](void* buffer, size_t size) {
@@ -344,14 +337,7 @@ bool Communicator::terminateTraining() const {
   return bTrainIsOver;
 }
 
-#ifdef SMARTIES_CORE
-#ifndef MPI_VERSION
-  #error "Defined SMARTIES_CORE and not MPI_VERSION"
-#endif
-
 Communicator::Communicator(Worker*const W, std::mt19937&G, bool isTraining) :
 gen(G()), bTrain(isTraining), worker(W) {}
-
-#endif
 
 }

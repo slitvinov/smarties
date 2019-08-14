@@ -9,8 +9,8 @@
 #ifndef smarties_ParameterBlob_h
 #define smarties_ParameterBlob_h
 
-#include "Utils/Warnings.h"
-#include "Settings.h"
+#include "Warnings.h"
+#include "../Settings.h"
 #include <utility>
 #include <vector>
 

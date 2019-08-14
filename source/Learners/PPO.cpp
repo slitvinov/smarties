@@ -12,15 +12,15 @@
 #define PPO_PENALKL
 #define PPO_CLIPPED
 
-#include "Math/Gaussian_policy.h"
-#include "Math/Discrete_policy.h"
+#include "../Math/Gaussian_policy.h"
+#include "../Math/Discrete_policy.h"
 
-#include "Network/Builder.h"
-#include "Utils/StatsTracker.h"
-#include "Network/Approximator.h"
-#include "ReplayMemory/Collector.h"
-#include "Utils/SstreamUtilities.h"
-#include "ReplayMemory/MemoryProcessing.h"
+#include "../Network/Builder.h"
+#include "../Utils/StatsTracker.h"
+#include "../Network/Approximator.h"
+#include "../ReplayMemory/Collector.h"
+#include "../Utils/SstreamUtilities.h"
+#include "../ReplayMemory/MemoryProcessing.h"
 
 #include "PPO_common.cpp"
 #include "PPO_train.cpp"

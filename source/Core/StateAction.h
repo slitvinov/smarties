@@ -9,8 +9,8 @@
 #ifndef smarties_StateAction_h
 #define smarties_StateAction_h
 
-#include "Utils/Definitions.h"
-#include "Utils/Warnings.h"
+#include "../Utils/Definitions.h"
+#include "../Utils/Warnings.h"
 #include <array>
 #include <cmath> // log, exp, ...
 #include <cassert>

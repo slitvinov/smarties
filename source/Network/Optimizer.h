@@ -10,7 +10,7 @@
 #define smarties_Optimizer_h
 
 #include "Layers/Parameters.h"
-#include "Settings.h"
+#include "../Settings.h"
 
 namespace smarties
 {

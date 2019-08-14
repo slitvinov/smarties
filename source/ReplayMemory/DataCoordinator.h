@@ -10,8 +10,8 @@
 #define smarties_DataCoordinator_h
 
 #include "MemoryBuffer.h"
-#include "Utils/TaskQueue.h"
-#include "Utils/ParameterBlob.h"
+#include "../Utils/TaskQueue.h"
+#include "../Utils/ParameterBlob.h"
 #include <thread>
 
 namespace smarties

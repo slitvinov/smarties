@@ -6,12 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Core/Launcher.h"
-#include "Core/Worker.h"
-#include "Utils/Warnings.h"
-#include "Utils/SocketsLib.h"
-#include "Utils/LauncherUtilities.h"
-#include "Utils/SstreamUtilities.h"
+#include "Launcher.h"
+#include "Worker.h"
+#include "../Utils/Warnings.h"
+#include "../Utils/SocketsLib.h"
+#include "../Utils/LauncherUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 
 #include <omp.h>
 #include <fstream>
@@ -19,8 +19,8 @@
 namespace smarties
 {
 
-Launcher::Launcher(Worker* const W, DistributionInfo& D, bool isTraining) :
-  Communicator(W, D.generators[0], isTraining), distrib(D)
+Launcher::Launcher(Worker* const W, DistributionInfo& D) :
+  Communicator(W, D.generators[0], D.bTrain), distrib(D)
 {
   initArgumentFileNames();
 }
@@ -152,10 +152,10 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm envAppCom)
       if( MPICommRank(envAppCom)<1 ) // app's root sets up dir
       {
         mkdir(newDir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        if(setupFolder not_eq "") //copy any file in the setup dir
+        if(distrib.setupFolder not_eq "") //copy any file in the setup dir
         {
-          if (copy_from_dir(("../"+setupFolder).c_str()) not_eq 0 )
-            _die("Error in copy from dir %s\n", setupFolder.c_str());
+          if (copy_from_dir(("../"+distrib.setupFolder).c_str()) not_eq 0 )
+            _die("Error in copy from dir %s\n", distrib.setupFolder.c_str());
         }
       }
 

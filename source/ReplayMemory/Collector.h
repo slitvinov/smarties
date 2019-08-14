@@ -10,7 +10,7 @@
 #define smarties_Collector_h
 
 #include "MemoryBuffer.h"
-#include "Utils/StatsTracker.h"
+#include "../Utils/StatsTracker.h"
 
 namespace smarties
 {

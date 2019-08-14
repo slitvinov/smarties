@@ -9,8 +9,8 @@
 #ifndef smarties_Sequences_h
 #define smarties_Sequences_h
 
-#include "Utils/Bund.h"
-#include "Utils/Warnings.h"
+#include "../Utils/Bund.h"
+#include "../Utils/Warnings.h"
 #include <cassert>
 #include <mutex>
 

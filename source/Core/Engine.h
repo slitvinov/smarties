@@ -8,24 +8,23 @@
 #ifndef smarties_Engine_h
 #define smarties_Engine_h
 
-#include <memory>
-#include "Settings.h"
-// TODO CLEANUP THE CALLBACK FUNCTION DEFINITION
-#include "Communicators/Communicator_MPI.h"
+#include "../Communicators/Communicator.h"
 
 namespace smarties
 {
 
+struct DistributionInfo;
+
 class Engine
 {
-  Settings settings; // todo will be vector and ini file parsing
-  std::unique_ptr<DistributionInfo> distrib;
+  DistributionInfo * const distrib;
 
   void init();
 
 public:
   Engine(int argc, char** argv);
   Engine(MPI_Comm initialiazed_mpi_comm, int argc, char** argv);
+  ~Engine();
 
   void run(const environment_callback_t & callback);
   void run(const environment_callback_MPI_t & callback);
@@ -34,4 +33,4 @@ public:
 };
 
 } // end namespace smarties
-#endif // smarties_Worker_h
+#endif // smarties_Engine_h

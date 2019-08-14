@@ -9,9 +9,9 @@
 #ifndef smarties_ThreadContext_h
 #define smarties_ThreadContext_h
 
-#include "ReplayMemory/Sequences.h"
-#include "Network/Network.h"
-#include "Core/Agent.h"
+#include "../ReplayMemory/Sequences.h"
+#include "Network.h"
+#include "../Core/Agent.h"
 
 namespace smarties
 {
