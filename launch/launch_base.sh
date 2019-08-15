@@ -6,16 +6,16 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-RUNFOLDER=$1
+RUNNAME=$1
 
 if [ $# -lt 2 ] ; then
-	echo "Usage: ./launch_base.sh RUNFOLDER ENVIRONMENT_APP (SETTINGS_PATH default is 'settings/settings_VRACER.sh' ) (NTHREADS default read from system, but unrealiable on clusters) (NNODES default 1) (NMASTERS default 1) (NWORKERS default 1)"
+	echo "Usage: ./launch_base.sh RUNNAME ENVIRONMENT_APP (SETTINGS_PATH default is 'settings/VRACER.json' ) (NTHREADS default read from system, but unrealiable on clusters) (NNODES default 1) (NMASTERS default 1) (NWORKERS default 1)"
 	exit 1
 fi
 HOST=`hostname`
 
 if [ $# -gt 2 ] ; then export SETTINGSNAME=$3
-else export SETTINGSNAME=settings/settings_VRACER.sh
+else export SETTINGSNAME=../settings/VRACER.json
 fi
 
 ################################################################################
@@ -91,15 +91,16 @@ echo "NWORKERS:"$NWORKERS "NMASTERS:"$NMASTERS "NNODES:"$NNODES "NPROCESSPERNODE
 ################################################################################
 ############################## PREPARE RUNFOLDER ###############################
 ################################################################################
-if [ ! -x ../makefiles/rl ] ; then
-	echo "../makefiles/rl not found! - exiting"
+if [ ! -x ${RUNDIR}/exec ] ; then
+	echo "ABORT: Executable not found! Revise the setup.sh script of your app."
+  echo "It should copy the executable to the run directory, like:"
+  echo "cp ../apps/${APP}/exec \${RUNDIR}/exec"
 	exit 1
 fi
-cp -f ../makefiles/rl ${BASEPATH}${RUNFOLDER}/rl
-cp -f $0 ${BASEPATH}${RUNFOLDER}/launch_smarties.sh
-cp -f ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
-git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
-git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
+cp -f $0 ${RUNDIR}/launch_smarties.sh
+cp -f ${SETTINGSNAME} ${RUNDIR}/settings.json
+git log | head  > ${RUNDIR}/gitlog.log
+git diff > ${RUNDIR}/gitdiff.log
 
 ################################################################################
 ############################### PREPARE HPC ENV ################################
@@ -110,20 +111,16 @@ export MV2_ENABLE_AFFINITY=0 #MVAPICH
 export OMP_NUM_THREADS=${NTHREADS}
 export OPENBLAS_NUM_THREADS=1
 export CRAY_CUDA_MPS=1
-export PATH=`pwd`/../extern/build/mpich-3.3/bin/:$PATH
-export LD_LIBRARY_PATH=`pwd`/../extern/build/mpich-3.3/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_LIB}
+#export PATH=`pwd`/../extern/build/mpich-3.3/bin/:$PATH
+#export LD_LIBRARY_PATH=`pwd`/../extern/build/mpich-3.3/lib/:$LD_LIBRARY_PATH
 ################################################################################
 
-cd ${BASEPATH}${RUNFOLDER}
+cd ${RUNDIR}
 
 ################################################################################
 ############################ READ SMARTIES SETTINGS ############################
 ################################################################################
-SETTINGSNAME=settings.sh
-if [ ! -f $SETTINGSNAME ] ; then
-    echo ${SETTINGSNAME}" not found! - exiting" ; exit -1
-fi
-source $SETTINGSNAME
 if [ -x appSettings.sh ]; then source appSettings.sh ; fi
 SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
@@ -139,14 +136,18 @@ if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ; then
 
 # override trick to run without calling bsub:
 if [ "${RUNLOCAL}" == "true" ] ; then
-mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
+  ./exec ${SETTINGS} | tee out.log
 fi
 
 WCLOCK=${WCLOCK:-24:00}
 # compute the number of CPU CORES to ask euler:
 export NPROCESSORS=$(( ${NNODES} * ${NTHREADS} ))
 
-bsub -n ${NPROCESSORS} -J ${RUNFOLDER} -R "select[model==XeonGold_6150] span[ptile=${NTHREADS}]" -W ${WCLOCK} mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node ./rl ${SETTINGS} | tee out.log
+bsub -n ${NPROCESSORS} -J ${RUNFOLDER} \
+  -R "select[model==XeonGold_6150] span[ptile=${NTHREADS}]" -W ${WCLOCK} \
+  mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
+  ./rl ${SETTINGS} | tee out.log
 
 ################################################################################
 #################################### DAINT #####################################
@@ -163,7 +164,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --account=s929 --job-name="${RUNFOLDER}" --time=${WCLOCK}
 #SBATCH --output=${RUNFOLDER}_out_%j.txt --error=${RUNFOLDER}_err_%j.txt
 #SBATCH --nodes=${NNODES} --constraint=gpu
-srun -n ${NPROCESSES} --nodes=${NNODES}  --ntasks-per-node=${NPROCESSPERNODE} ./rl ${SETTINGS}
+srun -n ${NPROCESSES} --nodes=${NNODES}  --ntasks-per-node=${NPROCESSPERNODE} \
+  ./exec ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch
@@ -171,7 +173,8 @@ sbatch daint_sbatch
 
 else
 
-srun -n ${NPROCESSES} --nodes ${NNODES} --ntasks-per-node ${NPROCESSPERNODE} ./rl ${SETTINGS}
+srun -n ${NPROCESSES} --nodes ${NNODES} --ntasks-per-node ${NPROCESSPERNODE} \
+  ./exec ${SETTINGS}
 
 fi
 
@@ -180,9 +183,11 @@ fi
 ################################################################################
 else
 
-mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
+  ./exec ${SETTINGS} | tee out.log
 #mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
-#valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes --show-reachable=yes \
-#./rl ${SETTINGS}
+#  valgrind --num-callers=100  --tool=memcheck --leak-check=yes \
+#  --track-origins=yes --show-reachable=yes \
+#  ./rl ${SETTINGS}
 
 fi

@@ -69,12 +69,12 @@ void Launcher::launch(const environment_callback_MPI_t & callback,
                       const Uint workLoadID,
                       const MPI_Comm envApplication_comm)
 {
-  const Uint totalNumWorkers = distrib.nWorker_processes;
   const Uint appSize = MPICommSize(envApplication_comm);
   const Uint appRank = MPICommRank(envApplication_comm);
   // app only needs lower level functionalities:
   // ie. send state, recv action, specify state/action spaces properties...
   Communicator* const commptr = static_cast<Communicator*>(this);
+  assert(commptr not_eq nullptr);
 
   while(true)
   {
@@ -86,8 +86,9 @@ void Launcher::launch(const environment_callback_MPI_t & callback,
     for(size_t i=0; i<argsFiles.size(); ++i)
       if(globalTstepCounter >= argFilesStepsLimits[i]) settInd = i;
 
+    assert(argFilesStepsLimits.size() > settInd+1);
     Uint numTstepSett = argFilesStepsLimits[settInd+1] - globalTstepCounter;
-    numTstepSett = numTstepSett * appSize / totalNumWorkers;
+    numTstepSett = numTstepSett * appSize / distrib.nWorkers;
     std::vector<char*> args = readRunArgLst(argsFiles[settInd]);
 
     // process stdout file descriptor, so that we can revert:
@@ -179,7 +180,9 @@ std::vector<char*> Launcher::readRunArgLst(const std::string& paramFile)
   };
 
   // first put argc argv into args:
-  for(int i=0; i<distrib.argc; ++i) addArg ( std::string( distrib.argv[i] ) );
+  for(int i=0; i<distrib.argc; ++i)
+    if(distrib.argv[i] not_eq nullptr)
+      addArg ( std::string( distrib.argv[i] ) );
 
   if (paramFile not_eq "")
   {

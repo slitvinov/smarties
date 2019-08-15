@@ -6,8 +6,8 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-EXECNAME=rl
-RUNFOLDER=$1
+
+RUNNAME=$1
 
 HOST=`hostname`
 if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ; then
@@ -17,4 +17,6 @@ export BASEPATH="${SCRATCH}/smarties/"
 else
 export BASEPATH="../runs/"
 fi
-mkdir -p ${BASEPATH}${RUNFOLDER}
+
+export RUNDIR=${BASEPATH}${RUNNAME}
+mkdir -p ${RUNDIR}

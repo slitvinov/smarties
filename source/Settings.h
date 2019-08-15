@@ -78,6 +78,7 @@ struct DistributionInfo
   bool logAllSamples = true;
   bool runInternalApp = false;
   bool learnersOnWorkers = true;
+  bool forkableApplication = false;
 };
 
 struct Settings

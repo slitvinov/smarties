@@ -29,7 +29,7 @@ class Learner
 protected:
   const Uint freqPrint = 1000;
   DistributionInfo & distrib;
-  Settings & settings;
+  Settings settings;
   MDPdescriptor & MDP;
   ParameterBlob params;
 

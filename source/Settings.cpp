@@ -204,8 +204,27 @@ void DistributionInfo::figureOutWorkersPattern()
   nWorker_processes = world_size - nMasters;
   bool bThereAreMasters = nMasters > 0;
   bool bThereAreWorkerProcesses = nWorker_processes > 0;
-  if(nWorkers < nWorker_processes) {
-    _warn("Overriding user input! Setting nWorkers to %u to have at least one environment process per worker rank", nWorker_processes);
+  //if(bThereAreWorkerProcesses) warn("there are worker processes");
+  //else warn("there are no worker processes");
+  //if(bThereAreMasters) warn("there are master processes");
+  //else warn("there are no master processes");
+  if(not forkableApplication && not bThereAreWorkerProcesses) {
+    die("There are no processes and application needs dedicated processes. "
+        "Run with more mpi processes.");
+  }
+  if(    forkableApplication && not bThereAreWorkerProcesses) {
+    if(world_rank == 0)
+      warn("Master processes to communicate via sockets.");
+  }
+  if(    forkableApplication &&     bThereAreWorkerProcesses) {
+    nWorkers = std::ceil(nWorkers/(Real)nWorker_processes) * nWorker_processes;
+    if(world_rank == 0)
+      _warn("%lu worker ranks will split %lu simulation processes.",
+            nWorker_processes, nWorkers);
+  }
+  if(not forkableApplication &&     bThereAreWorkerProcesses) {
+    if(nWorkers not_eq nWorker_processes)
+      _warn("%lu workers run one environment process each.", nWorker_processes);
     nWorkers = nWorker_processes;
   }
 
@@ -234,6 +253,7 @@ void DistributionInfo::figureOutWorkersPattern()
   // 8) tag of group of mpi ranks running a common distributed environment
   thisWorkerGroupID = -1;
 
+
   if(bThereAreMasters)
   {
     if(bThereAreWorkerProcesses)
@@ -249,24 +269,24 @@ void DistributionInfo::figureOutWorkersPattern()
       //  masterWorkerCommID = 0;
       //}
 
-      // TEMPORARY:
-      if(nWorker_processes not_eq nWorkers) die("Mismach in number of worker processes. We do not have a way for the master to know how many environments are hosted on its workers");
-
-      MPI_Comm_split(world_comm, bIsMaster,          world_rank, & learners_train_comm);
-      MPI_Comm_split(world_comm, masterWorkerCommID, world_rank, & master_workers_comm);
+      MPI_Comm_split(world_comm, bIsMaster,          world_rank,
+                     & learners_train_comm);
+      MPI_Comm_split(world_comm, masterWorkerCommID, world_rank,
+                     & master_workers_comm);
       printf("Process %lu is a %s part of comm %lu.\n",
           world_rank, bIsMaster? "master" : "worker", masterWorkerCommID);
 
       if(bIsMaster)
       {
         nOwnedEnvironments = MPICommSize(master_workers_comm) - 1;
-        _warn("master %lu owns %lu environments\n", world_rank, nOwnedEnvironments);
+        _warn("master %lu owns %lu environments\n",
+              world_rank, nOwnedEnvironments);
         if(nWorker_processes < nMasters)
              workerless_masters_comm = MPICommDup(learners_train_comm);
         else workerless_masters_comm = MPI_COMM_NULL;
         nForkedProcesses2spawn = 0;
 
-        if(runInternalApp) { // unblock creation of environment's mpi communicator
+        if(runInternalApp) { // unblock creation of environment's mpi comm
           MPI_Comm dummy; // no need to free this
           MPI_Comm_split(master_workers_comm, MPI_UNDEFINED, 0, &dummy);
         }
@@ -275,7 +295,8 @@ void DistributionInfo::figureOutWorkersPattern()
       {
         const Uint totalWorkRank = MPICommRank(learners_train_comm);
         assert(MPICommSize(learners_train_comm) == nWorker_processes);
-        nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers, totalWorkRank);
+        nOwnedEnvironments = notRoundedSplitting(nWorker_processes, nWorkers,
+                                                 totalWorkRank);
 
         const Uint innerWorkRank = MPICommRank(master_workers_comm);
         const Uint innerWorkSize = MPICommSize(master_workers_comm);
@@ -290,27 +311,32 @@ void DistributionInfo::figureOutWorkersPattern()
             innerWorkSize-1, workerProcessesPerEnv);
           }
           thisWorkerGroupID = (innerWorkRank-1) / workerProcessesPerEnv;
-          MPI_Comm_split(master_workers_comm, thisWorkerGroupID, innerWorkRank, &environment_app_comm);
+          MPI_Comm_split(master_workers_comm, thisWorkerGroupID, innerWorkRank,
+                         &environment_app_comm);
         } else {
           thisWorkerGroupID = 0;
           nForkedProcesses2spawn = nOwnedEnvironments;
         }
 
-        _warn("worker %lu owns %lu environments, has rank %lu out of %lu. worker ID inside group %d.\n", world_rank, nOwnedEnvironments, innerWorkRank, innerWorkSize, thisWorkerGroupID);
+        _warn("worker %lu owns %lu environments, has rank %lu out of %lu. "
+              "worker ID inside group %d.\n", world_rank, nOwnedEnvironments,
+              innerWorkRank, innerWorkSize, thisWorkerGroupID);
 
         MPI_Comm_free(& learners_train_comm);
         learners_train_comm = MPI_COMM_NULL;
         workerless_masters_comm = MPI_COMM_NULL;
       }
     }
-    else
+    else // there are no worker processes
     {
       bIsMaster = true;
       nOwnedEnvironments = notRoundedSplitting(nMasters, nWorkers, world_rank);
       // should also equal:
       // nWorkers/world_size + ( (nWorkers%world_size) > world_rank );
       nForkedProcesses2spawn = nOwnedEnvironments;
-      if(runInternalApp) die("Cannot have zero worker ranks with an internally linked app: increase the number of worker mpi processes.");
+      if(runInternalApp)
+          die("Cannot have 0 worker ranks with an internally linked app: "
+              "increase the number of worker mpi processes.");
       master_workers_comm = MPI_COMM_NULL;
       learners_train_comm = world_comm;
       if(nWorkers < nMasters) // then i need to share data
@@ -325,12 +351,17 @@ void DistributionInfo::figureOutWorkersPattern()
     bIsMaster = false;
     learnersOnWorkers = true;
     if(nWorker_processes <= 0) die("Error in computation of world_size");
-    if(not runInternalApp) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
-    if(nWorkers not_eq nWorker_processes) die("Detected 0 masters : this only works if each worker also serially runs its own environment.");
+    if(not runInternalApp)
+      die("Detected 0 masters : this only works if each "
+          "worker also serially runs its own environment.");
+    if(nWorkers not_eq nWorker_processes)
+      die("Detected 0 masters : this only works if each worker "
+          "also serially runs its own environment.");
     nOwnedEnvironments = 1;
     learners_train_comm  = world_comm;
     master_workers_comm = MPI_COMM_NULL;
-    workerless_masters_comm = MPI_COMM_NULL; // all are workers implies all have data
+    // all are workers implies all have data:
+    workerless_masters_comm = MPI_COMM_NULL;
 
     const Uint totalWorkRank = MPICommRank(learners_train_comm);
     const Uint totalWorkSize = MPICommSize(learners_train_comm);
@@ -340,7 +371,8 @@ void DistributionInfo::figureOutWorkersPattern()
       totalWorkSize-1, workerProcessesPerEnv);
     }
     thisWorkerGroupID = (totalWorkRank-1) / workerProcessesPerEnv;
-    MPI_Comm_split(learners_train_comm, thisWorkerGroupID, totalWorkRank, &environment_app_comm);
+    MPI_Comm_split(learners_train_comm, thisWorkerGroupID, totalWorkRank,
+                   &environment_app_comm);
   }
 }
 

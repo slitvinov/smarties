@@ -12,7 +12,6 @@
 namespace smarties
 {
 
-inline 
 Engine::Engine(int argc, char** argv) :
   distrib(new DistributionInfo(argc, argv)) { }
 
@@ -94,6 +93,7 @@ void Engine::init()
 
 void Engine::run(const environment_callback_t & callback)
 {
+  distrib->forkableApplication = true;
   init();
 
   if(distrib->bIsMaster)
@@ -115,6 +115,7 @@ void Engine::run(const environment_callback_t & callback)
 
 void Engine::run(const environment_callback_MPI_t & callback)
 {
+  distrib->forkableApplication = false;
   init();
 
   if(distrib->bIsMaster)
