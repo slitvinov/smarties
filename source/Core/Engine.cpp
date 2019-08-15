@@ -12,11 +12,15 @@
 namespace smarties
 {
 
+inline 
 Engine::Engine(int argc, char** argv) :
   distrib(new DistributionInfo(argc, argv)) { }
 
-Engine::Engine(MPI_Comm mpi_comm, int argc, char** argv) :
-  distrib(new DistributionInfo(mpi_comm, argc, argv)) { }
+Engine::Engine(std::vector<std::string> args) :
+  distrib(new DistributionInfo(args)) { }
+
+Engine::Engine(MPI_Comm world, int argc, char** argv) :
+  distrib(new DistributionInfo(world, argc, argv)) {}
 
 Engine::~Engine() {
   assert(distrib not_eq nullptr);

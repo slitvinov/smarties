@@ -20,12 +20,11 @@ struct DistributionInfo;
 
 class Engine
 {
-  DistributionInfo * const distrib;
-
-  void init();
-
 public:
   VISIBLE Engine(int argc, char** argv);
+
+  // designed for pybind11 interface:
+  VISIBLE Engine(std::vector<std::string> args);
 
   VISIBLE Engine(MPI_Comm initialiazed_mpi_comm, int argc, char** argv);
 
@@ -60,6 +59,11 @@ public:
   VISIBLE void setIsLoggingAllData(const bool logAllSamples);
 
   VISIBLE void setAreLearnersOnWorkers(const bool learnersOnWorkers);
+
+private:
+  DistributionInfo * const distrib;
+
+  void init();
 };
 
 #undef VISIBLE

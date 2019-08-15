@@ -21,12 +21,15 @@ namespace smarties
 struct DistributionInfo
 {
   DistributionInfo(int _argc, char ** _argv);
+  DistributionInfo(const std::vector<std::string> & args);
   DistributionInfo(const MPI_Comm& mpi_comm, int _argc, char ** _argv);
   ~DistributionInfo();
 
+  const bool bOwnArgv; // whether argv needs to be deallocated
   int argc;
   char ** argv;
 
+  void commonInit();
   int parse();
 
   void initialzePRNG();

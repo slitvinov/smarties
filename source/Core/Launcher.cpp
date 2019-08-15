@@ -173,7 +173,7 @@ std::vector<char*> Launcher::readRunArgLst(const std::string& paramFile)
   const auto addArg = [&](const std::string & token)
   {
     char *arg = new char[token.size() + 1];
-    copy(token.begin(), token.end(), arg);  // write into char array
+    std::copy(token.begin(), token.end(), arg);  // write into char array
     arg[token.size()] = '\0';
     args.push_back(arg);
   };

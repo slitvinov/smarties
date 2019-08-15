@@ -18,32 +18,46 @@ namespace smarties
 
 Settings::Settings() {  }
 
-DistributionInfo::DistributionInfo(int _argc, char ** _argv) :
-  argc(_argc), argv(_argv)
+DistributionInfo::DistributionInfo(const std::vector<std::string> & args) :
+bOwnArgv(true)
 {
-  getcwd(initial_runDir, 1024);
+  argc = (int) args.size();
+  argv = new char * [argc+1];
+  for(int i=0; i<argc; ++i) {
+    argv[i] = new char[args[i].size() + 1];
+    std::copy(args[i].begin(), args[i].end(), argv[i]);
+    argv[i][args[i].size()] = '\0';
+  }
+  argv[argc] = nullptr;
+
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
   world_comm = MPI_COMM_WORLD;
   MPI_Comm_set_errhandler(world_comm, MPI_ERRORS_RETURN);
-  if (threadSafety < MPI_THREAD_SERIALIZED)
-    die("The MPI implementation does not have required thread support");
-  // this value will determine if we can use asynchronous mpi calls:
-  bAsyncMPI = threadSafety >= MPI_THREAD_MULTIPLE;
-  world_size = MPICommSize(world_comm);
-  world_rank = MPICommRank(world_comm);
+  commonInit();
+}
 
-  if (not bAsyncMPI and world_rank == 0)
-    printf("MPI implementation does not support MULTIPLE thread safety!\n");
-  nThreads = omp_get_max_threads();
+DistributionInfo::DistributionInfo(int _argc, char ** _argv) :
+  bOwnArgv(false), argc(_argc), argv(_argv)
+{
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, & threadSafety);
+  world_comm = MPI_COMM_WORLD;
+  MPI_Comm_set_errhandler(world_comm, MPI_ERRORS_RETURN);
+  commonInit();
 }
 
 DistributionInfo::DistributionInfo(const MPI_Comm & initialiazed_mpi_comm,
                                    int _argc, char ** _argv) :
-  argc(_argc), argv(_argv)
+  bOwnArgv(false), argc(_argc), argv(_argv)
 {
-  getcwd(initial_runDir, 1024);
   world_comm = initialiazed_mpi_comm;
   MPI_Query_thread(& threadSafety);
+  commonInit();
+}
+
+void DistributionInfo::commonInit()
+{
+  getcwd(initial_runDir, 1024);
+
   if (threadSafety < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support");
   // this value will determine if we can use asynchronous mpi calls:
@@ -58,6 +72,10 @@ DistributionInfo::DistributionInfo(const MPI_Comm & initialiazed_mpi_comm,
 
 DistributionInfo::~DistributionInfo()
 {
+  if(bOwnArgv) {
+    for(int i=0; i<argc; ++i) delete [] argv[i];
+    delete [] argv;
+  }
   if(MPI_COMM_NULL not_eq     master_workers_comm)
           MPI_Comm_free(&     master_workers_comm);
   if(MPI_COMM_NULL not_eq workerless_masters_comm)

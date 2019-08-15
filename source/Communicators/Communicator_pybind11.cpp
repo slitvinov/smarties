@@ -3,17 +3,88 @@
 // include entire cpp file to have only one obj file to compile
 // (improves compatibility)
 #include "Communicator.h"
+#include "../Core/Engine.h"
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(smarties, m)
 {
-  py::class_<smarties::Communicator>(m, "Communicator")
+  py::class_<smarties::Engine>(m, "Engine")
+  
+    .def(py::init<std::vector<std::string>> (), py::arg("args"),
+         "Constructor for smarties' deployment engine.")
+/*
+    .def("run", ( void (smarties::Engine::*) (
+            const environment_callback_t &) )
+         & smarties::Engine::run, py::arg("callback"),
+         "Gives control to smarties to train on the task defined by callback.")
 
-    .def(py::init<int, int, int> (),
-      py::arg("state_dim"), py::arg("action_dim"), py::arg("num_of_agents") = 1,
-      "Constructor for the communicator with smarties."
-      "WARNING: will immediately start trying to call the smarties server.")
+    .def("run", ( void (smarties::Engine::*) (
+            const environment_callback_MPI_t &) )
+         & smarties::Engine::run, py::arg("callback"),
+         "Gives control to smarties to train on the task defined by callback.")
+*/
+    .def("parse",
+         & smarties::Engine::parse,
+         "Parses the command line and returns 1 if process should exit.")
+
+    .def("setNthreads",
+         & smarties::Engine::setNthreads, py::arg("nThreads"),
+         "Sets the number of threads that should be employed by each master "
+         "to perform the gradient update steps.")
+
+    .def("setNmasters",
+         & smarties::Engine::setNmasters, py::arg("nMasters"),
+         "Sets the number of master processes.")
+
+    .def("setNworkers",
+         & smarties::Engine::setNworkers, py::arg("nWorkers"),
+         "Sets the number of worker processes.")
+
+    .def("setNworkersPerEnvironment",
+         & smarties::Engine::setNworkersPerEnvironment,
+         py::arg("workerProcessesPerEnv"),
+         "Sets the number of worker processes that should share the MPI_Comm "
+         "given back to the environment function for distributed simulations.")
+
+    .def("setRandSeed",
+         & smarties::Engine::setRandSeed, py::arg("randSeed"),
+         "Overrides the seed for the random number generators.")
+
+    .def("setTotNumTimeSteps",
+         & smarties::Engine::setTotNumTimeSteps, py::arg("totNumSteps"),
+         "Sets the total number of time steps to perform training on.")
+
+    .def("setSimulationArgumentsFilePath",
+         & smarties::Engine::setSimulationArgumentsFilePath,
+         py::arg("appSettings"),
+         "Allows reading line arguments for the environment simulation from a "
+         "file. If set and found, these arguments are added to initial argv.")
+
+    .def("setSimulationSetupFolderPath",
+         & smarties::Engine::setSimulationSetupFolderPath,
+         py::arg("setupFolder"),
+         "Allows having a setup directory whose contents are copied to each "
+         "simulation run directory before entering the callback.")
+
+    .def("setRestartFolderPath",
+         & smarties::Engine::setRestartFolderPath, py::arg("restart"),
+         "Sets the path of the restart files of the RL algorithms.")
+
+    .def("setIsTraining",
+         & smarties::Engine::setIsTraining, py::arg("bTrain"),
+         "Sets whether to run training or evaluating a policy.")
+
+    .def("setIsLoggingAllData",
+         & smarties::Engine::setIsLoggingAllData, py::arg("bLogAllData"),
+         "Sets whether to store all state/action/reward data onto files.")
+
+    .def("setAreLearnersOnWorkers",
+         & smarties::Engine::setAreLearnersOnWorkers,
+         py::arg("bLearnersOnWorkers"),
+         "Sets whether worker ranks host a copy of the learning algorithm.");
+
+  py::class_<smarties::Communicator>(m, "Communicator")
 
     .def("sendInitState",
          & smarties::Communicator::sendInitState,
