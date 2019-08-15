@@ -9,5 +9,5 @@
   "maxTotObsNum": 262144,
   "minTotObsNum": 131072,
   "nnLayerSizes": [512],
-  "obsPerStep": 1,
+  "obsPerStep": 1
 }
