@@ -18,15 +18,61 @@ Engine::Engine(int argc, char** argv) :
 Engine::Engine(MPI_Comm mpi_comm, int argc, char** argv) :
   distrib(new DistributionInfo(mpi_comm, argc, argv)) { }
 
-Engine::~Engine()
-{
+Engine::~Engine() {
   assert(distrib not_eq nullptr);
   delete distrib;
 }
 
-int Engine::parse()
-{
+int Engine::parse() {
   return distrib->parse();
+}
+
+void Engine::setNthreads(const Uint nThreads) {
+  distrib->nThreads = nThreads;
+}
+
+void Engine::setNmasters(const Uint nMasters) {
+  distrib->nMasters = nMasters;
+}
+
+void Engine::setNworkers(const Uint nWorkers) {
+  distrib->nWorkers = nWorkers;
+}
+
+void Engine::setNworkersPerEnvironment(const Uint workerProcessesPerEnv) {
+  distrib->workerProcessesPerEnv = workerProcessesPerEnv;
+}
+
+void Engine::setRandSeed(const Uint randSeed) {
+  distrib->randSeed = randSeed;
+}
+
+void Engine::setTotNumTimeSteps(const Uint totNumSteps) {
+  distrib->totNumSteps = totNumSteps;
+}
+
+void Engine::setSimulationArgumentsFilePath(const std::string& appSettings) {
+  distrib->appSettings = appSettings;
+}
+
+void Engine::setSimulationSetupFolderPath(const std::string& setupFolder) {
+  distrib->setupFolder = setupFolder;
+}
+
+void Engine::setRestartFolderPath(const std::string& restart) {
+  distrib->restart = restart;
+}
+
+void Engine::setIsTraining(const bool bTrain) {
+  distrib->bTrain = bTrain;
+}
+
+void Engine::setIsLoggingAllData(const bool logAllSamples) {
+  distrib->logAllSamples = logAllSamples;
+}
+
+void Engine::setAreLearnersOnWorkers(const bool learnersOnWorkers) {
+  distrib->learnersOnWorkers = learnersOnWorkers;
 }
 
 void Engine::init()

@@ -34,6 +34,7 @@ DistributionInfo::DistributionInfo(int _argc, char ** _argv) :
 
   if (not bAsyncMPI and world_rank == 0)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
+  nThreads = omp_get_max_threads();
 }
 
 DistributionInfo::DistributionInfo(const MPI_Comm & initialiazed_mpi_comm,
@@ -52,6 +53,7 @@ DistributionInfo::DistributionInfo(const MPI_Comm & initialiazed_mpi_comm,
 
   if (not bAsyncMPI and world_rank == 0)
     printf("MPI implementation does not support MULTIPLE thread safety!\n");
+  nThreads = omp_get_max_threads();
 }
 
 DistributionInfo::~DistributionInfo()

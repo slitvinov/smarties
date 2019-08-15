@@ -39,6 +39,9 @@ std::function<void(
 
 namespace smarties
 {
+
+#define VISIBLE __attribute__((visibility("default")))
+
 class Communicator
 {
 public:
@@ -50,28 +53,25 @@ public:
   //////////////////////////////////////////////////////////////////////////////
 
   // Send first state of an episode in order to get first action:
-  __attribute__((visibility("default")))
-  void sendInitState(const std::vector<double>& state,
-                     const int agentID=0)
+  VISIBLE void sendInitState(const std::vector<double>& state,
+                             const int agentID=0)
   {
     return _sendState(agentID, INIT, state, 0);
   }
 
   // Send normal state and reward:
-  __attribute__((visibility("default")))
-  void sendState(const std::vector<double>& state,
-                 const double reward,
-                 const int agentID = 0)
+  VISIBLE void sendState(const std::vector<double>& state,
+                         const double reward,
+                         const int agentID = 0)
   {
     return _sendState(agentID, CONT, state, reward);
   }
 
   // Send terminal state/reward: the last step of an episode which ends because
   // of TERMINATION (e.g. agent cannot continue due to failure or success).
-  __attribute__((visibility("default")))
-  void sendTermState(const std::vector<double>& state,
-                    const double reward,
-                    const int agentID = 0)
+  VISIBLE void sendTermState(const std::vector<double>& state,
+                             const double reward,
+                             const int agentID = 0)
   {
     return _sendState(agentID, TERM, state, reward);
   }
@@ -79,90 +79,73 @@ public:
   // Send truncated state/reward: the last step of an episode which ends because
   // of TRUNCATION (e.g. agent cannot continue due to time limits). Difference
   // from TERMINATION is that policy was not direct cause of episode's end.
-  __attribute__((visibility("default")))
-  void sendLastState(const std::vector<double>& state,
-                     const double reward,
-                     const int agentID = 0)
+  VISIBLE void sendLastState(const std::vector<double>& state,
+                             const double reward,
+                             const int agentID = 0)
   {
     return _sendState(agentID, TRNC, state, reward);
   }
 
   // receive action for the latest given state:
-  __attribute__((visibility("default")))
-  const std::vector<double>& recvAction(const int agentID = 0) const;
+  VISIBLE const std::vector<double>& recvAction(const int agentID = 0) const;
 
-  __attribute__((visibility("default")))
-  void set_state_action_dims(const int dimState, const int dimAct,
-                             const int agentID = 0);
+  VISIBLE void set_state_action_dims(const int dimState,
+                                     const int dimAct,
+                                     const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_action_scales(const std::vector<double> uppr,
-                         const std::vector<double> lowr,
-                         const bool bound,
-                         const int agentID = 0);
+  VISIBLE void set_action_scales(const std::vector<double> uppr,
+                                 const std::vector<double> lowr,
+                                 const bool bound,
+                                 const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_action_scales(const std::vector<double> upper,
-                         const std::vector<double> lower,
-                         const std::vector<bool>   bound,
-                         const int agentID = 0);
+  VISIBLE void set_action_scales(const std::vector<double> upper,
+                                 const std::vector<double> lower,
+                                 const std::vector<bool>   bound,
+                                 const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_action_options(const int options,
-                          const int agentID = 0);
+  VISIBLE void set_action_options(const int options,
+                                  const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_action_options(const std::vector<int> options,
-                          const int agentID = 0);
+  VISIBLE void set_action_options(const std::vector<int> options,
+                                  const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_state_observable(const std::vector<bool> observable,
-                            const int agentID = 0);
+  VISIBLE void set_state_observable(const std::vector<bool> observable,
+                                    const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_state_scales(const std::vector<double> upper,
-                        const std::vector<double> lower,
-                        const int agentID = 0);
+  VISIBLE void set_state_scales(const std::vector<double> upper,
+                                const std::vector<double> lower,
+                                const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_num_agents(int _nAgents);
+  VISIBLE void set_num_agents(int _nAgents);
 
-  __attribute__((visibility("default")))
-  void set_is_partially_observable(const int agentID = 0);
+  VISIBLE void set_is_partially_observable(const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void finalize_problem_description();
+  VISIBLE void finalize_problem_description();
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ADVANCED METHODS //////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  __attribute__((visibility("default")))
-  void env_has_distributed_agents();
+  VISIBLE void env_has_distributed_agents();
 
-  __attribute__((visibility("default")))
-  void agents_define_different_MDP();
+  VISIBLE void agents_define_different_MDP();
 
-  __attribute__((visibility("default")))
-  void disableDataTrackingForAgents(int agentStart, int agentEnd);
+  VISIBLE void disableDataTrackingForAgents(int agentStart, int agentEnd);
 
-  __attribute__((visibility("default")))
-  void set_preprocessing_conv2d(
+  VISIBLE void set_preprocessing_conv2d(
     const int input_width, const int input_height, const int input_features,
     const int kernels_num, const int filters_size, const int stride,
     const int agentID = 0);
 
-  __attribute__((visibility("default")))
-  void set_num_appended_past_observations(const int n_appended,
-                                          const int agentID = 0);
+  VISIBLE void set_num_appended_past_observations(const int n_appended,
+                                                  const int agentID = 0);
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////// OPTIMIZATION INTERFACE ////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   // conveniency methods for optimization (stateless/timeless) problems
 
-  __attribute__((visibility("default")))
-  const std::vector<double>& getOptimizationParameters(const int agentID = 0)
+  VISIBLE const std::vector<double>& getOptimizationParameters(int agentID = 0)
   {
     assert(ENV.descriptors[agentID]->dimState == 0 &&
            "optimization interface only defined for stateless problems");
@@ -170,8 +153,7 @@ public:
     return recvAction(agentID);
   }
 
-  __attribute__((visibility("default")))
-  void setOptimizationEvaluation(const Real R, const int agentID = 0)
+  VISIBLE void setOptimizationEvaluation(const Real R, const int agentID = 0)
   {
     assert(ENV.descriptors[agentID]->dimState == 0 &&
            "optimization interface only defined for stateless problems");
@@ -181,14 +163,11 @@ public:
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// UTILITY METHODS ///////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
-  __attribute__((visibility("default")))
-  std::mt19937& getPRNG();
+  VISIBLE std::mt19937& getPRNG();
 
-  __attribute__((visibility("default")))
-  bool isTraining() const;
+  VISIBLE bool isTraining() const;
 
-  __attribute__((visibility("default")))
-  bool terminateTraining() const;
+  VISIBLE bool terminateTraining() const;
 
   //////////////////////////////////////////////////////////////////////////////
   ///////////////////////////// DEVELOPER METHODS //////////////////////////////
@@ -217,9 +196,10 @@ protected:
   Uint globalTstepCounter = 0;
 
   //called by app to interact with smarties:
-  __attribute__((visibility("default")))
-  void _sendState(const int agentID, const episodeStatus status,
-    const std::vector<double>& state, const double reward);
+  VISIBLE void _sendState(const int agentID,
+                          const episodeStatus status,
+                          const std::vector<double>& state,
+                          const double reward);
 
   //access to smarties' internals, available only if app is linked into exec
   friend class Worker;
@@ -228,6 +208,8 @@ protected:
 
   Communicator(Worker* const, std::mt19937&, bool);
 };
+
+#undef VISIBLE
 
 struct COMM_buffer
 {
