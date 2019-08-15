@@ -47,12 +47,18 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
       #pragma omp critical
       if ( fork() == 0 ) {
         isChild = true;
+        usleep(10); // IDK, wait for parent to create socket file to be sure...
+        SOCK.server = SOCKET_clientConnect();
+        if(SOCK.server == -1) die("Failed to connect to parent process.");
         launch(mpicallback, workloadID, MPI_COMM_SELF);
       } else assert(isChild == false);
     }
   }
 
-  if(not isChild) SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
+  if(not isChild) {
+    warn("entering SOCKET_serverConnect");
+    SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
+  }
   return isChild;
 }
 

@@ -59,7 +59,6 @@ void Master<CommType, Request_t>::spawnCallsHandlers()
     const Uint workerBeg = thrID * workerShare;
     const Uint workerEnd = std::min(nCallingEnvs, (thrID+1)*workerShare);
     for(Uint i=workerBeg; i<workerEnd; ++i) shareWorkers.push_back(i);
-
     #pragma omp critical
     if (shareWorkers.size())
       worker_replies.push_back (

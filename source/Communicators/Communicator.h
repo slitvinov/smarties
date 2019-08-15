@@ -181,7 +181,7 @@ protected:
   std::vector<std::unique_ptr<COMM_buffer>> BUFF;
 
   struct {
-    int server;
+    int server = -1;
     std::vector<int> clients;
   } SOCK;
 

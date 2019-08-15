@@ -261,8 +261,9 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
   assert(agents[agentID]->ID == (unsigned) agentID);
   agents[agentID]->update(status, state, reward);
 
-  if(worker not_eq nullptr)
+  if(SOCK.server == -1)
   {
+    assert(worker not_eq nullptr);
     worker->stepWorkerToMaster( * agents[agentID].get() );
   }
   else
@@ -295,8 +296,9 @@ void Communicator::synchronizeEnvironments()
 {
   if ( ENV.bFinalized ) return;
 
-  if(worker not_eq nullptr)
+  if(SOCK.server == -1)
   {
+    assert(worker not_eq nullptr);
     worker->synchronizeEnvironments();
   }
   else
