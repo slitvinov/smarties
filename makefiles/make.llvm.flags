@@ -13,7 +13,7 @@ CPPFLAGS+= -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic \
   -Wno-extra-semi -Wno-float-conversion -Wno-format-nonliteral \
   -Wno-switch-enum -Wno-reserved-id-macro -Wno-weak-template-vtables \
   -Wno-undefined-func-template -Wno-documentation-unknown-command \
-  -Wno-documentation-pedantic
+  -Wno-documentation-pedantic -Wno-pass-failed=transform-warning
 
 
 NOWARNP11= -Wno-shadow-field-in-constructor -Wno-documentation-unknown-command \
