@@ -374,7 +374,8 @@ std::string Settings::printArgComments()
   //
   j["minTotObsNum"] =
     "Min number of transitions in training buffer before training starts. "
-    "Default minTotObsNum = maxTotObsNum, i.e. fill RM before training starts.";
+    "If minTotObsNum=0, is set equal to maxTotObsNum i.e. fill RM before "
+    "training starts.";
   //
   j["maxTotObsNum"] = "Max number of transitions in training buffer.";
   //

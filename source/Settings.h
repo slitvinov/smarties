@@ -88,7 +88,7 @@ struct Settings
   //////////////////////////////////////////////////////////////////////////////
   //SETTINGS PERTAINING TO LEARNING ALGORITHM
   //////////////////////////////////////////////////////////////////////////////
-  std::string learner = "RACER";
+  std::string learner = "VRACER";
   std::string ERoldSeqFilter = "default";
   std::string dataSamplingAlgo = "uniform";
 
@@ -102,7 +102,7 @@ struct Settings
   Real targetDelay = 0;
   Real epsAnneal = 0;
 
-  Uint minTotObsNum = 0;
+  Uint minTotObsNum = 131072;
   Uint maxTotObsNum = 262144;
   Uint saveFreq = 200000;
 
@@ -110,8 +110,8 @@ struct Settings
   //SETTINGS PERTAINING TO NETWORK
   //////////////////////////////////////////////////////////////////////////////
 
-  std::vector<Uint> encoderLayerSizes = std::vector<Uint>(0);
-  std::vector<Uint> nnLayerSizes = std::vector<Uint>(0);
+  std::vector<Uint> encoderLayerSizes = {{ 0 }};
+  std::vector<Uint> nnLayerSizes = {{ 128, 128 }};
 
   Uint batchSize = 256;
   Uint ESpopSize = 1;
