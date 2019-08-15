@@ -110,8 +110,8 @@ struct Settings
   //SETTINGS PERTAINING TO NETWORK
   //////////////////////////////////////////////////////////////////////////////
 
-  std::vector<Uint> encoderLayerSizes = {{ 0 }};
-  std::vector<Uint> nnLayerSizes = {{ 128, 128 }};
+  std::vector<Uint> encoderLayerSizes = { 0 };
+  std::vector<Uint> nnLayerSizes = { 128, 128 };
 
   Uint batchSize = 256;
   Uint ESpopSize = 1;
