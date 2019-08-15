@@ -1,6 +1,7 @@
 export INTERNALAPP=true
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-rm ../makefiles/libsimulation.a
-make -C ../makefiles/ app=test_mpi_cart_pole -j4
+make -C ${SMARTIES_ROOT}/apps/cart_pole_mpi
 fi
+
+cp ${SMARTIES_ROOT}/apps/cart_pole_mpi/cart-pole ${RUNDIR}/exec
