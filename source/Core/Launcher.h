@@ -27,14 +27,14 @@ protected:
   void createGoRunDir(char* initDir, Uint folderID, MPI_Comm anvAppCom);
   std::vector<char*> readRunArgLst(const std::string& paramfile);
 
-  void launch(const environment_callback_MPI_t & callback,
+  void launch(const environment_callback_t & callback,
               const Uint workLoadID,
               const MPI_Comm envApplication_comm);
 
 public:
 
   bool forkApplication( const environment_callback_t & callback );
-  void runApplication( const environment_callback_MPI_t & callback );
+  void runApplication( const environment_callback_t & callback );
 
   Launcher(Worker* const W, DistributionInfo& D);
 };

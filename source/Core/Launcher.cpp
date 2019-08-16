@@ -29,11 +29,8 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
 {
   const Uint nThreads = distrib.nThreads;
   const Uint nOwnWorkers = distrib.nOwnedEnvironments;
-  const Uint totalNumWorkers = distrib.nWorker_processes;
-  const environment_callback_MPI_t mpicallback = [&](
-    Communicator*const sc, const MPI_Comm mc, int argc, char**argv) {
-    return callback(sc, argc, argv);
-  };
+  const Uint totNumWorkers = distrib.nWorkers;
+  const Uint totNumProcess = MPICommSize(distrib.world_comm);
 
   bool isChild = false;
   #pragma omp parallel num_threads(nThreads)
@@ -41,7 +38,7 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
-    const int workloadID = i +totalNumWorkers * MPICommSize(distrib.world_comm);
+    const int workloadID = i + totNumWorkers * totNumProcess;
     assert(nThreads == (Uint) omp_get_num_threads());
     if( thrID==tgtCPU ) {
       #pragma omp critical
@@ -50,7 +47,7 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
         usleep(10); // IDK, wait for parent to create socket file to be sure...
         SOCK.server = SOCKET_clientConnect();
         if(SOCK.server == -1) die("Failed to connect to parent process.");
-        launch(mpicallback, workloadID, MPI_COMM_SELF);
+        launch(callback, workloadID, MPI_COMM_SELF);
       } else assert(isChild == false);
     }
   }
@@ -62,7 +59,7 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
   return isChild;
 }
 
-void Launcher::runApplication(const environment_callback_MPI_t & callback )
+void Launcher::runApplication(const environment_callback_t & callback )
 {
   const Sint thisWorkerGroupID = distrib.thisWorkerGroupID;
   const MPI_Comm envApplication_comm = distrib.environment_app_comm;
@@ -71,7 +68,7 @@ void Launcher::runApplication(const environment_callback_MPI_t & callback )
   launch(callback, thisWorkerGroupID, envApplication_comm);
 }
 
-void Launcher::launch(const environment_callback_MPI_t & callback,
+void Launcher::launch(const environment_callback_t & callback,
                       const Uint workLoadID,
                       const MPI_Comm envApplication_comm)
 {

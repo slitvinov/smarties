@@ -91,42 +91,60 @@ void Engine::init()
   MPI_Barrier(distrib->world_comm);
 }
 
-void Engine::run(const environment_callback_t & callback)
+void Engine::run(const std::function<void(Communicator*const)> & callback)
 {
   distrib->forkableApplication = true;
-  init();
 
+  const environment_callback_t fullcallback = [&](
+    Communicator*const sc, const MPI_Comm mc, int argc, char**argv) {
+    return callback(sc);
+  };
+
+  run(fullcallback);
+}
+
+void Engine::run(const std::function<void(Communicator*const,
+                                          int, char **      )> & callback)
+{
+  distrib->forkableApplication = true;
+
+  const environment_callback_t fullcallback = [&](
+    Communicator*const sc, const MPI_Comm mc, int argc, char**argv) {
+    return callback(sc, argc, argv);
+  };
+
+  run(fullcallback);
+}
+
+void Engine::run(const std::function<void(Communicator*const,
+                                          MPI_Comm          )> & callback)
+{
+  const environment_callback_t fullcallback = [&](
+    Communicator*const sc, const MPI_Comm mc, int argc, char**argv) {
+    return callback(sc, mc);
+  };
+
+  run(fullcallback);
+}
+
+void Engine::run(const std::function<void(Communicator*const,
+                                          MPI_Comm,
+                                          int, char **      )> & callback)
+{
+  init();
   if(distrib->bIsMaster)
   {
     if(distrib->nForkedProcesses2spawn > 0) {
       MasterSockets process(*distrib);
       process.run(callback);
     } else {
-      MasterMPI     process(*distrib);
+      MasterMPI process(*distrib);
       process.run();
     }
   }
   else
   {
-    Worker          process(*distrib);
-    process.run(callback);
-  }
-}
-
-void Engine::run(const environment_callback_MPI_t & callback)
-{
-  distrib->forkableApplication = false;
-  init();
-
-  if(distrib->bIsMaster)
-  {
-    assert(distrib->nForkedProcesses2spawn <= 0);
-    MasterMPI process(*distrib);
-    process.run();
-  }
-  else
-  {
-    Worker    process(*distrib);
+    Worker process(*distrib);
     process.run(callback);
   }
 }

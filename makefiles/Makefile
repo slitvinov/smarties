@@ -139,6 +139,7 @@ py11: $(OBJ_FILES) Communicator_pybind11.o
 	mkdir -p ../lib
 	$(MPICXX) -shared $(PYBINDLD) -o ../lib/smarties$(PYBINDSUF) $^ $(LIBS)
 
+
 #$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
 #	$(PATH_COMM).cpp -o libsmarties.so
 #g++ -shared -Wl,-soname,$(LIBNAME) -o $(LIBNAME) CommunicatorLib.o

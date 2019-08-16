@@ -7,23 +7,24 @@
 
 namespace py = pybind11;
 
+
 PYBIND11_MODULE(smarties, m)
 {
   py::class_<smarties::Engine>(m, "Engine")
   
     .def(py::init<std::vector<std::string>> (), py::arg("args"),
          "Constructor for smarties' deployment engine.")
-/*
+
     .def("run", ( void (smarties::Engine::*) (
-            const environment_callback_t &) )
+           const std::function<void(smarties::Communicator*const)>&) )
          & smarties::Engine::run, py::arg("callback"),
          "Gives control to smarties to train on the task defined by callback.")
 
     .def("run", ( void (smarties::Engine::*) (
-            const environment_callback_MPI_t &) )
+           const std::function<void(smarties::Communicator*const, MPI_Comm)>&) )
          & smarties::Engine::run, py::arg("callback"),
          "Gives control to smarties to train on the task defined by callback.")
-*/
+
     .def("parse",
          & smarties::Engine::parse,
          "Parses the command line and returns 1 if process should exit.")

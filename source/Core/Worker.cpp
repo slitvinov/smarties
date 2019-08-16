@@ -37,16 +37,15 @@ Worker::Worker(DistributionInfo&D) : distrib(D),
 
 void Worker::run(const environment_callback_t & callback)
 {
-  const bool isChild = COMM->forkApplication(callback);
-  if(not isChild) {
-    synchronizeEnvironments();
-    loopSocketsToMaster();
+  if( distrib.nForkedProcesses2spawn > 0 )
+  {
+    const bool isChild = COMM->forkApplication(callback);
+    if(not isChild) {
+      synchronizeEnvironments();
+      loopSocketsToMaster();
+    }
   }
-}
-
-void Worker::run(const environment_callback_MPI_t & callback)
-{
-  COMM->runApplication( callback );
+  else COMM->runApplication( callback );
 }
 
 void Worker::runTraining()

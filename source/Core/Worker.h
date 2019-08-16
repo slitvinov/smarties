@@ -35,7 +35,6 @@ public:
   void stepWorkerToMaster(Agent & agent) const;
 
   void run(const environment_callback_t & callback);
-  void run(const environment_callback_MPI_t & callback);
 
 protected:
   DistributionInfo& distrib;

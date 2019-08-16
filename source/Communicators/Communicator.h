@@ -21,21 +21,16 @@ class Worker;
 
 // main function callback to user's application
 // arguments are: - the communicator with smarties
-//                - (optional) the mpi communicator to use within the app
+//                - the mpi communicator to use within the app
 //                - argc and argv read from settings file
+// wrappers are created if no mpi comm or if no args are needed
 
 using environment_callback_t =
   std::function<void(
       smarties::Communicator*const smartiesCommunicator,
+      const MPI_Comm mpiCommunicator,
       int argc, char**argv
     )>;
-
-using environment_callback_MPI_t =
-std::function<void(
-    smarties::Communicator*const smartiesCommunicator,
-    const MPI_Comm mpiCommunicator,
-    int argc, char**argv
-  )>;
 
 namespace smarties
 {
