@@ -1,5 +1,4 @@
 #include "cmaes_interface.h"
-#include "Communicator.h"
 #include <math.h>
 #include <random>
 #include <chrono>

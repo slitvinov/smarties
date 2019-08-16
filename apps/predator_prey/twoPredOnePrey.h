@@ -1,19 +1,8 @@
-#include <iostream>
 #include <cmath>
 #include <random>
-#include <cstdio>
 #include <vector>
 #include <array>
 #include <functional>
-#include "Communicator.h"
-
-#define EXTENT 1.0
-#define dt 1.0
-#define SAVEFREQ 2000
-#define STEPFREQ 1
-//#define PERIODIC
-#define COOPERATIVE
-//#define PLOT_TRAJ
 
 #ifdef PLOT_TRAJ
 #include "matplotlibcpp.h"
@@ -66,8 +55,6 @@ class Window
 };
 #endif
 
-using namespace std;
-
 struct Entity
 {
   //const unsigned nQuadrants; // NOTE: not used at the moment. Should we just stick to angles??
@@ -79,22 +66,22 @@ struct Entity
   Entity(std::mt19937& _gen, const unsigned nQ, const double vM)
     : nStates(nQ), maxSpeed(vM), genA(_gen) {}
 
-  array<double, 2> p;
+  std::array<double, 2> p;
   double speed; 
 
   void reset() {
-    uniform_real_distribution<double> distrib(0, EXTENT);
+    std::uniform_real_distribution<double> distrib(0, EXTENT);
     p[0] = distrib(genA);
     p[1] = distrib(genA);
     speed = maxSpeed;
-	isOver = false;
+	  isOver = false;
 	}
 
   bool is_over() {
     return isOver; // TODO add catching condition - EHH??
   }
 
-  void advance(vector<double> act) {
+  void advance(std::vector<double> act) {
     assert(act.size() == 2);
     speed = std::sqrt(act[0]*act[0] + act[1]*act[1]);
 
@@ -146,7 +133,6 @@ struct Entity
   }
 };
 
-
 struct Prey: public Entity
 {
   const double stdNoise; // Only prey assumed to suffer from noise
@@ -155,8 +141,8 @@ struct Prey: public Entity
     : Entity(_gen, _nStates, vM), stdNoise(dN) {}
 
   template<typename T>
-  vector<double> getState(const T& E1, const T& E2) { // wrt enemy E
-    vector<double> state(nStates, 0);
+  std::vector<double> getState(const T& E1, const T& E2) { // wrt enemy E
+    std::vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angEnemy1 = getAngle(E1);
@@ -185,16 +171,16 @@ struct Prey: public Entity
   }
 
   template<typename T>
-  vector<bool> checkTermination(const T& E1, const T& E2) {
-	const double threshold= 0.01*EXTENT;
+  std::vector<bool> checkTermination(const T& E1, const T& E2) {
+	  const double threshold= 0.01*EXTENT;
     const double dist1 = getDistance(E1);
     const double dist2 = getDistance(E2);
-	const bool caught1 = (dist1 < threshold) ? true : false;
-	const bool caught2 = (dist2 < threshold) ? true : false;
-	const vector<bool> gotCaught = {caught1, caught2};
+  	const bool caught1 = (dist1 < threshold) ? true : false;
+  	const bool caught2 = (dist2 < threshold) ? true : false;
+  	const std::vector<bool> gotCaught = {caught1, caught2};
 
-	if(caught1 || caught2) isOver = true; 
-	return gotCaught;
+  	if(caught1 || caught2) isOver = true; 
+  	return gotCaught;
   }
  
 };
@@ -206,8 +192,9 @@ struct Predator: public Entity
     : Entity(_gen, _nStates, vP*vM), velPenalty(vP) {}
 
   template<typename T1, typename T2>
-  vector<double> getState(const T1& _prey, const T2& _pred) const { // wrt enemy (or adversary) E
-    vector<double> state(nStates, 0);
+  std::vector<double> getState(const T1& _prey, const T2& _pred) const
+  { // wrt enemy (or adversary) E
+    std::vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angPrey = getAngle(_prey); // No noisy angle for predator
@@ -231,98 +218,3 @@ struct Predator: public Entity
 #endif
   }
 };
-
-int main(int argc, const char * argv[])
-{
-  //communication:
-  const int socket = std::stoi(argv[1]);
-  const unsigned maxStep = 500;
-  const int control_vars = 2; // 2 components of velocity
-  const int state_vars = 6;   // number of states (self pos[2], enemy cos|sin[theta])
-  const int number_of_agents = 3; // 2 predator, 1 prey
-  //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
-  const double maxSpeed = 0.02 * EXTENT/dt;
-  //socket number is given by RL as first argument of execution
-  Communicator comm(socket, state_vars, control_vars, number_of_agents);
-
-  std::mt19937 &rngPointer =  comm.getPRNG();
- 
-  // predator last arg is how much slower than prey (eg 50%)
-  Predator pred1(rngPointer, state_vars, maxSpeed, 0.5);
-  Predator pred2(rngPointer, state_vars, maxSpeed, 0.5);
-  // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
-  // Prey     prey(comm.gen, state_vars, maxSpeed, 1.0); // The noise was large, the prey didn't run away quickly if preds were far away
-  Prey     prey(rngPointer, state_vars, maxSpeed, 0.0);
-
-#ifdef COOPERATIVE
-  printf("Cooperative predators\n");
-#else
-  printf("Competitive predators\n");
-#endif
-  fflush(NULL);
-
-#ifdef PLOT_TRAJ
-  Window plot;
-#endif
-
-  unsigned sim = 0;
-  while(true) //train loop
-  {
-    //reset environment:
-    pred1.reset();
-    pred2.reset();
-    prey.reset();
-
-    //send initial state
-    comm.sendInitState(pred1.getState(prey,pred2), 0);
-    comm.sendInitState(pred2.getState(prey,pred1), 1);
-    comm.sendInitState(prey.getState(pred1,pred2), 2);
-
-    unsigned step = 0;
-    while (true) //simulation loop
-    {
-      pred1.advance(comm.recvAction(0));
-      pred2.advance(comm.recvAction(1));
-      prey.advance(comm.recvAction(2));
-
-	  vector<bool> gotCaught = prey.checkTermination(pred1,pred2);
-	  if(prey.is_over()){ // Terminate simulation 
-		  // Cooperative hunting - both predators get reward
-		  const double finalReward = 10*EXTENT;
-
-#ifdef COOPERATIVE
-		  comm.sendTermState(pred1.getState(prey,pred2), finalReward, 0);
-		  comm.sendTermState(pred2.getState(prey,pred1), finalReward, 1);
-#else
-		  // Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
-          comm.sendTermState(pred1.getState(prey,pred2), finalReward*gotCaught[0], 0);
-          comm.sendTermState(pred2.getState(prey,pred1), finalReward*gotCaught[1], 1);
-#endif
-		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
-
-		  printf("Sim #%d reporting that prey got its world rocked.\n", sim); fflush(NULL);
-		  sim++; break;
-	  }
-
-#ifdef PLOT_TRAJ
-      plot.update(step, sim, pred1.p, pred2.p, prey.p);
-#endif
-
-      if(step++ < maxStep)
-      {
-        comm.sendState(  pred1.getState(prey,pred2), pred1.getReward(prey,pred2), 0);
-        comm.sendState(  pred2.getState(prey,pred1), pred2.getReward(prey,pred1), 1);
-        comm.sendState(  prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
-      }
-      else
-      {
-        comm.truncateSeq(pred1.getState(prey,pred2), pred1.getReward(prey,pred2), 0);
-        comm.truncateSeq(pred2.getState(prey,pred1), pred2.getReward(prey,pred2), 1);
-        comm.truncateSeq(prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
-        sim++;
-        break;
-      }
-    }
-  }
-  return 0;
-}

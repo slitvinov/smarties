@@ -1,12 +1,8 @@
-
-#include <iostream>
 #include <cmath>
 #include <random>
-#include <cstdio>
 #include <vector>
 #include <array>
 #include <functional>
-#include "Communicator.h"
 
 #define EXTENT 1.0
 #define SAVEFREQ 1000
@@ -54,8 +50,6 @@ class Window
   }
 };
 
-using namespace std;
-
 struct Entity
 {
   const unsigned nQuadrants;
@@ -63,11 +57,11 @@ struct Entity
   Entity(const unsigned nQ, const double vM)
     : nQuadrants(nQ), velMagnitude(vM) {}
 
-  array<double, 2> p;
+  std::array<double, 2> p;
   double actScal;
 
   void reset(std::mt19937& gen) {
-    uniform_real_distribution<double> dist(0, EXTENT);
+    std::uniform_real_distribution<double> dist(0, EXTENT);
     p[0] = dist(gen);
     p[1] = dist(gen);
     actScal = velMagnitude; // so that prey overwrites background
@@ -77,7 +71,7 @@ struct Entity
     return false; // TODO add catching condition
   }
 
-  int advance(vector<double> act) {
+  int advance(std::vector<double> act) {
     assert(act.size() == 2);
     actScal = std::sqrt(act[0]*act[0] + act[1]*act[1]);
     if( actScal > velMagnitude) {
@@ -129,7 +123,6 @@ struct Entity
   }
 };
 
-
 struct Prey: public Entity
 {
   const double stdNoise;
@@ -138,8 +131,8 @@ struct Prey: public Entity
     : Entity(nQ, vM), stdNoise(dN) {}
 
   template<typename T>
-  vector<double> getState(const T& E, std::mt19937& gen) {
-    vector<double> state(4, 0);
+  std::vector<double> getState(const T& E, std::mt19937& gen) {
+    std::vector<double> state(4, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angEnemy = getAngle(E);
@@ -166,8 +159,8 @@ struct Predator: public Entity
     : Entity(nQ, vP*vM), velPenalty(vP) {}
 
   template<typename T>
-  vector<double> getState(const T& E) const {
-    vector<double> state(4, 0);
+  std::vector<double> getState(const T& E) const {
+    std::vector<double> state(4, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angEnemy = getAngle(E);
@@ -181,59 +174,3 @@ struct Predator: public Entity
     return - getDistance(E);
   }
 };
-
-int main(int argc, const char * argv[])
-{
-  //communication:
-  const int socket = std::stoi(argv[1]);
-  const unsigned maxStep = 500;
-  const int control_vars = 2; // 2 components of velocity
-  const int state_vars = 4;   // number of sensor quadrants
-  const int number_of_agents = 2; // predator prey
-  //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
-  const double velScale = 0.02 * EXTENT;
-  //socket number is given by RL as first argument of execution
-  Communicator comm(socket, state_vars, control_vars, number_of_agents);
-
-  // predator additional arg is how much slower than prey (eg 50%)
-  Predator pred(state_vars, velScale, 0.5);
-  // prey arg is observation noise (eg ping of predator is in 1 stdev of noise)
-  Prey     prey(state_vars, velScale, 1.0);
-
-  Window plot;
-
-  unsigned sim = 0;
-  while(true) //train loop
-  {
-    //reset environment:
-    pred.reset(comm.gen); //comm contains rng with different seed on each rank
-    prey.reset(comm.gen); //comm contains rng with different seed on each rank
-
-    //send initial state
-    comm.sendInitState(pred.getState(prey),           0);
-    comm.sendInitState(prey.getState(pred, comm.gen), 1);
-
-    unsigned step = 0;
-    while (true) //simulation loop
-    {
-      pred.advance(comm.recvAction(0));
-      prey.advance(comm.recvAction(1));
-
-      plot.update(step, sim, pred.p[0], pred.p[1], prey.p[0], prey.p[1]);
-
-      if(step++ < maxStep)
-      {
-        comm.sendState(  pred.getState(prey),          pred.getReward(prey), 0);
-        comm.sendState(  prey.getState(pred,comm.gen), prey.getReward(pred), 1);
-      }
-      else
-      {
-        comm.truncateSeq(pred.getState(prey),          pred.getReward(prey), 0);
-        comm.truncateSeq(prey.getState(pred,comm.gen), prey.getReward(pred), 1);
-        sim++;
-        break;
-      }
-    }
-  }
-  return 0;
-}
