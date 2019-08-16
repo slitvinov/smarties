@@ -107,7 +107,7 @@ struct Settings
   Real targetDelay = 0;
   Real epsAnneal = 0;
 
-  Uint minTotObsNum = 131072;
+  Uint minTotObsNum =  65536;
   Uint maxTotObsNum = 262144;
   Uint saveFreq = 200000;
 

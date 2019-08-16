@@ -9,27 +9,25 @@ aspectr ?= 0.1
 density ?= 200
 CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun) -DMULT_ACT_DT=$(multdt)
 
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S), Darwin)
-ifeq ($(CXX), c++)
+#UNAME_S := $(shell uname -s)
+#ifeq ($(UNAME_S), Darwin)
+#ifeq ($(CXX), c++)
 #LD=g++-9
 #CXX=g++-9
-endif
-endif
+#endif
+#endif
 
 ifeq "$(smart)" "1"
 CPPFLAGS+= -DUSE_SMARTIES
 endif
 
-SRC_DIR = ./
-COM_DIR = ../../source/
-VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+=-std=c++14 -O2 -Wall -I$(COM_DIR)
+LIBS+= -L${SMARTIES_LIB} -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
 
 .DEFAULT_GOAL := glider
 
 glider: glider.o
-	$(CXX) $(extra) $(LIBS) -L../../makefiles/ -o $@ $^ -lsmarties
+	$(CXX) $(extra) -o $@ $^ ${LIBS}
 
 %.o: %.cpp
 	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@

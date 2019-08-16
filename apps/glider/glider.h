@@ -5,9 +5,6 @@
 #include <cassert>
 #include <random>
 #include <functional>
-#ifdef USE_SMARTIES
-#include "Communicators/Communicator.h"
-#endif
 
 #ifndef MULT_ACT_DT
 #define MULT_ACT_DT 1
@@ -123,8 +120,8 @@ struct Glider
   const double beta = ASPECTRATIO;
 
   //time stepping
-  const double dt = 5e-4 * MULT_ACT_DT;
-  const int nstep = 1000;
+  const double dt = 5e-3 * MULT_ACT_DT;
+  const int nstep = 100;
   const double DT = dt*nstep;
 
   double Jerk=0, Torque=0, oldDistance=0, oldTorque=0;
@@ -349,92 +346,3 @@ struct Glider
   }
 };
 
-int main(int argc, const char * argv[])
-{
-  std::cout << "Glider with density ratio " << RHORATIO <<
-   " and aspect ratio = " << ASPECTRATIO << ". Instantaneous reward is " <<
-   (INSTREW == 0 ? "mixed" : (INSTREW == 1 ? "time" : "energy"));
-  #ifdef SPEED_PENAL
-  std::cout << " with penalization on terminal velocity";
-  #endif
-  std::cout << "." << std::endl;
-  #ifdef USE_SMARTIES
-    //communication:
-    smarties::Communicator comm(10, 1);
-    std::mt19937& gen = comm.getPRNG();
-
-    bool bounded = true;
-    std::vector<double> upper_action_bound{1}, lower_action_bound{-1};
-    comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
-    std::vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
-    //vector<bool> b_observable = {0, 0, 0, 1, 1, 1, 1, 0, 0, 0};
-    comm.set_state_observable(b_observable);
-  #else
-    std::mt19937 gen(0);
-  #endif
-
-  //random initial conditions:
-  Glider env;
-
-  #ifdef USE_SMARTIES
-  while (true) //train loop
-  #endif
-  {
-    //reset environment:
-    env.reset(gen); //comm contains rng with different seed on each rank
-    #ifdef USE_SMARTIES
-      //send initial state:
-      comm.sendInitState(env.getState(comm.getPRNG()));
-    #else
-      env.set({stod(argv[1]), stod(argv[2]), stod(argv[3]), stod(argv[4]), stod(argv[5]), stod(argv[6])});
-    #endif
-
-    while (true) //simulation loop
-    {
-      #ifdef USE_SMARTIES
-        std::vector<double> action = comm.recvAction();
-      #else
-        std::vector<double> action = {0};
-      #endif
-
-      //advance the simulation:
-      bool terminated = env.advance(action);
-
-      std::vector<double> state = env.getState(gen);
-      double reward = env.getReward();
-
-      #ifndef USE_SMARTIES
-        std::cout<<env._s.u<<" "<<env._s.v<<" "<<env._s.w<<" "<<env._s.x<<" "<<env._s.y<<" "<<env._s.a<<std::endl;
-      #endif
-
-      if(terminated)  //tell smarties that this is a terminal state
-      {
-        #ifdef USE_SMARTIES
-          comm.sendTermState(state, env.getTerminalReward());
-        #endif
-        {
-          env.updateOldDistanceAndEnergy();
-          FILE * pFile = fopen ("terminals.raw", "ab");
-          const int writesize = 9*sizeof(float);
-          float* buf = (float*) malloc(writesize);
-          buf[0] = env.time;
-          buf[1] = env.oldEnergySpent;
-          buf[2] = env._s.x;
-          buf[3] = env._s.y;
-          buf[4] = env._s.a;
-          buf[5] = env._s.u;
-          buf[6] = env._s.v;
-          buf[7] = env._s.w;
-          buf[8] = env.getTerminalReward();
-          fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
-          fflush(pFile); fclose(pFile);  free(buf);
-        }
-        break;
-      }
-      #ifdef USE_SMARTIES
-      else comm.sendState(state, reward);
-      #endif
-    }
-  }
-  return 0;
-}
