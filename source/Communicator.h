@@ -84,6 +84,9 @@ public:
   // receive action for the latest given state:
   VISIBLE const std::vector<double>& recvAction(const int agentID = 0) const;
 
+
+  VISIBLE void set_num_agents(int _nAgents);
+
   VISIBLE void set_state_action_dims(const int dimState,
                                      const int dimAct,
                                      const int agentID = 0);
@@ -110,8 +113,6 @@ public:
   VISIBLE void set_state_scales(const std::vector<double> upper,
                                 const std::vector<double> lower,
                                 const int agentID = 0);
-
-  VISIBLE void set_num_agents(int _nAgents);
 
   VISIBLE void set_is_partially_observable(const int agentID = 0);
 

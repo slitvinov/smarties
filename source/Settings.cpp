@@ -144,8 +144,9 @@ int DistributionInfo::parse()
     "Whether env app is linked as a library and requires smarties processes "
     "(=1) or we spawn an external process and comm through sockets (=0)."
   );
-  parser.add_option("--printAppStdoutToFile", printAppStdoutToFile,
-    "TODO"
+  parser.add_option("--redirectAppStdoutToFile", redirectAppStdoutToFile,
+    "Whether to hide the screen output of the environment simulations from "
+    "the terminal and print it to file."
   );
 
   try {

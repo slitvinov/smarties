@@ -1,18 +1,16 @@
 CC = g++
 
-OBJ_FILES = 	cart-pole.o
-SRC_DIR = ./
-COM_DIR = ../../source/
-VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+= -std=c++14 -Wall -O2 -I$(COM_DIR)
+LIBS+= -L${SMARTIES_LIB} -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
+
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
 .DEFAULT_GOAL := cart-pole
 
-cart-pole: $(OBJ_FILES)
-	$(CC) -L../../makefiles/ -o $@ $^ -lsmarties
+cart-pole: cart-pole.o
+	$(CC) $(extra) -o $@ $^ ${LIBS}
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
@@ -24,7 +22,4 @@ cart-pole: $(OBJ_FILES)
 #vpath %.h   $(DIRS)
 
 clean:
-	rm -f *.o
-	rm -f *.s
-	rm -f *.d
-	rm -f rl
+	rm -f *.o *.s *.d cart-pole

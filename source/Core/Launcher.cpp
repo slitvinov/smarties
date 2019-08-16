@@ -82,7 +82,7 @@ void Launcher::launch(const environment_callback_t & callback,
                       const MPI_Comm envApplication_comm)
 {
   const Uint appSize = MPICommSize(envApplication_comm);
-  //const Uint appRank = MPICommRank(envApplication_comm);
+  const Uint appRank = MPICommRank(envApplication_comm);
   // app only needs lower level functionalities:
   // ie. send state, recv action, specify state/action spaces properties...
   Communicator* const commptr = static_cast<Communicator*>(this);

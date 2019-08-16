@@ -16,7 +16,8 @@ inline int app_main(
   smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,         // mpi_comm that mpi-based apps can use
   int argc, char**argv    // arguments read from app's runtime settings file
-) {
+)
+{
   comm->set_state_action_dims(6, 1);
 
   //OPTIONAL: action bounds
