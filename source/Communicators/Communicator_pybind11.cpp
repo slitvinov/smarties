@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <pybind11/stl.h>
 // include entire cpp file to have only one obj file to compile
 // (improves compatibility)
@@ -16,7 +17,7 @@ PYBIND11_MODULE(smarties, m)
          "Constructor for smarties' deployment engine.")
 
     .def("run", ( void (smarties::Engine::*) (
-           const std::function<void(smarties::Communicator*const)>&) )
+           const std::function<void(smarties::Communicator*const)> & ) )
          & smarties::Engine::run, py::arg("callback"),
          "Gives control to smarties to train on the task defined by callback.")
 

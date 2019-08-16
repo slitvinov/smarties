@@ -40,8 +40,8 @@ namespace smarties
 class Communicator
 {
 public:
-  //Communicator(int number_of_agents = 1);
-  //Communicator(int stateDim, int actionDim, int number_of_agents = 1);
+  Communicator() = delete;
+  Communicator(const Communicator&) = delete;
 
   //////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// BEGINNER METHODS //////////////////////////////
