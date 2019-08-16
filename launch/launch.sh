@@ -16,6 +16,9 @@ fi
 
 source create_rundir.sh
 
+#variable that allows setup.sh to change executable name:
+export EXECNAME=exec
+
 #this must handle all app-side setup (as well as copying the factory)
 if [ -d ${APP} ]; then
 	if [ -x ${APP}/setup.sh ] ; then

@@ -16,15 +16,10 @@ fi
 
 source create_rundir.sh
 
-HOSTNAME=`hostname`
-cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_gym.py $APP
-EOF
-chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 export INTERNALAPP=false
+export EXECNAME="exec.py $APP"
 
-cp ../makefiles/smarties*                      ${BASEPATH}${RUNFOLDER}/
-cp ../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
+cp ../apps/OpenAI_gym/exec.py ${BASEPATH}${RUNFOLDER}/
 
 source launch_base.sh
 

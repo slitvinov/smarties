@@ -121,8 +121,8 @@ else
 PYBINDLD= $(LDFLAGS)
 endif
 
-PATH_COMM_PY11=../source/Communicators/Communicator_pybind11.cpp
-Communicator_pybind11.o:
+PATH_COMM_PY11=../source/smarties_pybind11.cpp
+smarties_pybind11.o:
 	$(MPICXX) $(CPPFLAGS) $(PYBINDINC) -fPIC -c $(PATH_COMM_PY11) -o $@
 
 lib: $(OBJ_FILES)
@@ -135,7 +135,7 @@ lib: $(OBJ_FILES)
 
 #echo "echo 'export LD_LIBRARY_PATH=\"\$${LD_LIBRARY_PATH}:`pwd`\"' >> ~/.bash_profile"
 
-py11: $(OBJ_FILES) Communicator_pybind11.o
+py11: $(OBJ_FILES) smarties_pybind11.o
 	mkdir -p ../lib
 	$(MPICXX) -shared $(PYBINDLD) -o ../lib/smarties$(PYBINDSUF) $^ $(LIBS)
 

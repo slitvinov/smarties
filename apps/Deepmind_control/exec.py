@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 ##
 ##  smarties
 ##  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
@@ -9,8 +9,8 @@
 
 import sys, socket, os, os.path, time, numpy as np
 os.environ['DISABLE_MUJOCO_RENDERING'] = '1'
-from Communicator import Communicator
 from dm_control import suite
+import smarties as rl
 
 if __name__ == '__main__':
     print("DeepMind Control Suite environment: ",

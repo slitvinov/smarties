@@ -3,7 +3,7 @@ CPPFLAGS+= -std=c++14 -fopenmp
 
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Wno-cpp
 CPPFLAGS+= -Woverloaded-virtual -Wwrite-strings -Wmissing-declarations -Wshadow
-CPPFLAGS+= -Wredundant-decls -Wlogical-op -Wfatal-errors
+CPPFLAGS+= -Wredundant-decls -Wlogical-op # -Wfatal-errors
 CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
 #CPPFLAGS+= -Wno-maybe-uninitialized #check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?

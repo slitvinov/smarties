@@ -17,7 +17,7 @@ void runTraining(Communicator*const comm, int argc, char**argv)
 
 int main (int argc, char** argv)
 {
-  environment_callback_MPI_t callback = [] (Communicator*const sc,
+  environment_callback_t callback = [] (Communicator*const sc,
                                             const MPI_Comm mc,
                                             int _argc, char** _argv) {
      for(int i=0; i<_argc; i++) {printf("arg: %s\n",_argv[i]); fflush(0);}

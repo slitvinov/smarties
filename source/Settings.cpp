@@ -144,6 +144,9 @@ int DistributionInfo::parse()
     "Whether env app is linked as a library and requires smarties processes "
     "(=1) or we spawn an external process and comm through sockets (=0)."
   );
+  parser.add_option("--printAppStdoutToFile", printAppStdoutToFile,
+    "TODO"
+  );
 
   try {
     parser.parse(argc, argv);

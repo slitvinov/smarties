@@ -15,7 +15,7 @@ fi
 HOST=`hostname`
 
 if [ $# -gt 2 ] ; then export SETTINGSNAME=$3
-else export SETTINGSNAME=../settings/VRACER.json
+else export SETTINGSNAME=${SMARTIES_ROOT}/settings/VRACER.json
 fi
 
 ################################################################################
@@ -91,12 +91,12 @@ echo "NWORKERS:"$NWORKERS "NMASTERS:"$NMASTERS "NNODES:"$NNODES "NPROCESSPERNODE
 ################################################################################
 ############################## PREPARE RUNFOLDER ###############################
 ################################################################################
-if [ ! -x ${RUNDIR}/exec ] ; then
-	echo "ABORT: Executable not found! Revise the setup.sh script of your app."
-  echo "It should copy the executable to the run directory, like:"
-  echo "cp ../apps/${APP}/exec \${RUNDIR}/exec"
-	exit 1
-fi
+#if [ ! -x ${RUNDIR}/${EXECNAME} ] ; then
+#	echo "ABORT: Executable not found! Revise the setup.sh script of your app."
+#  echo "It should copy the executable to the run directory, like:"
+#  echo "cp ../apps/${APP}/exec \${RUNDIR}/\${EXECNAME}"
+#	exit 1
+#fi
 cp -f $0 ${RUNDIR}/launch_smarties.sh
 cp -f ${SETTINGSNAME} ${RUNDIR}/settings.json
 git log | head  > ${RUNDIR}/gitlog.log
@@ -138,7 +138,7 @@ if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ; then
 # override trick to run without calling bsub:
 if [ "${RUNLOCAL}" == "true" ] ; then
 mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
-  ./exec ${SETTINGS} | tee out.log
+  ./${EXECNAME} ${SETTINGS} | tee out.log
 fi
 
 WCLOCK=${WCLOCK:-24:00}
@@ -148,7 +148,7 @@ export NPROCESSORS=$(( ${NNODES} * ${NTHREADS} ))
 bsub -n ${NPROCESSORS} -J ${RUNFOLDER} \
   -R "select[model==XeonGold_6150] span[ptile=${NTHREADS}]" -W ${WCLOCK} \
   mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
-  ./rl ${SETTINGS} | tee out.log
+  ./${EXECNAME} ${SETTINGS} | tee out.log
 
 ################################################################################
 #################################### DAINT #####################################
@@ -166,7 +166,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --output=${RUNFOLDER}_out_%j.txt --error=${RUNFOLDER}_err_%j.txt
 #SBATCH --nodes=${NNODES} --constraint=gpu
 srun -n ${NPROCESSES} --nodes=${NNODES}  --ntasks-per-node=${NPROCESSPERNODE} \
-  ./exec ${SETTINGS}
+  ./${EXECNAME} ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch
@@ -175,7 +175,7 @@ sbatch daint_sbatch
 else
 
 srun -n ${NPROCESSES} --nodes ${NNODES} --ntasks-per-node ${NPROCESSPERNODE} \
-  ./exec ${SETTINGS}
+  ./${EXECNAME} ${SETTINGS}
 
 fi
 
@@ -185,7 +185,7 @@ fi
 else
 
 mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
-  ./exec ${SETTINGS} | tee out.log
+  ./${EXECNAME} ${SETTINGS} | tee out.log
 #mpirun -n ${NPROCESSES} --map-by ppr:${NPROCESSPERNODE}:node \
 #  valgrind --num-callers=100  --tool=memcheck --leak-check=yes \
 #  --track-origins=yes --show-reachable=yes \

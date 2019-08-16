@@ -3,8 +3,8 @@
 #include <pybind11/stl.h>
 // include entire cpp file to have only one obj file to compile
 // (improves compatibility)
-#include "Communicator.h"
-#include "../Core/Engine.h"
+#include "Communicators/Communicator.h"
+#include "Core/Engine.h"
 
 namespace py = pybind11;
 

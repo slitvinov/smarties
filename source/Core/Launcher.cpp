@@ -33,28 +33,35 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
   const Uint totNumProcess = MPICommSize(distrib.world_comm);
 
   bool isChild = false;
-  #pragma omp parallel num_threads(nThreads)
+  //#pragma omp parallel num_threads(nThreads)
   for(int i = 0; i < (int) nOwnWorkers; ++i)
   {
-    const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
+    //const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
+    const int thrID = 0, thrN = 1;
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
     const int workloadID = i + totNumWorkers * totNumProcess;
-    assert(nThreads == (Uint) omp_get_num_threads());
-    if( thrID==tgtCPU ) {
+    //assert(nThreads == (Uint) omp_get_num_threads());
+    if( thrID==tgtCPU )
       #pragma omp critical
-      if ( fork() == 0 ) {
-        isChild = true;
-        usleep(10); // IDK, wait for parent to create socket file to be sure...
-        SOCK.server = SOCKET_clientConnect();
-        if(SOCK.server == -1) die("Failed to connect to parent process.");
-        launch(callback, workloadID, MPI_COMM_SELF);
-      } else assert(isChild == false);
-    }
+      {
+        const int success = fork();
+        if ( success == -1 ) die("Failed to fork.");
+        if ( success ==  0 ) {
+          isChild = true;
+          usleep(10); // IDK, wait for parent to create socket file to be sure
+          //warn("entering SOCKET_clientConnect");
+          SOCK.server = SOCKET_clientConnect();
+          if(SOCK.server == -1) die("Failed to connect to parent process.");
+          //warn("exiting SOCKET_clientConnect");
+          launch(callback, workloadID, MPI_COMM_SELF);
+        } else assert(isChild == false);
+      }
   }
 
   if(not isChild) {
-    warn("entering SOCKET_serverConnect");
+    //warn("entering SOCKET_serverConnect");
     SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
+    //warn("exiting SOCKET_serverConnect");
   }
   return isChild;
 }
@@ -89,16 +96,16 @@ void Launcher::launch(const environment_callback_t & callback,
     for(size_t i=0; i<argsFiles.size(); ++i)
       if(globalTstepCounter >= argFilesStepsLimits[i]) settInd = i;
 
-    assert(argFilesStepsLimits.size() > settInd+1);
+    assert(argFilesStepsLimits.size() > settInd+1 && distrib.nWorkers > 0);
     Uint numTstepSett = argFilesStepsLimits[settInd+1] - globalTstepCounter;
     numTstepSett = numTstepSett * appSize / distrib.nWorkers;
     std::vector<char*> args = readRunArgLst(argsFiles[settInd]);
 
     // process stdout file descriptor, so that we can revert:
     std::pair<int, fpos_t> currOutputFdescriptor;
-    redirect_stdout_init(currOutputFdescriptor, appRank);
+    //redirect_stdout_init(currOutputFdescriptor, appRank);
     callback(commptr, envApplication_comm, args.size()-1, args.data());
-    redirect_stdout_finalize(currOutputFdescriptor);
+    //redirect_stdout_finalize(currOutputFdescriptor);
 
     for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory
