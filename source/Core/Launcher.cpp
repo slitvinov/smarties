@@ -27,7 +27,7 @@ Launcher::Launcher(Worker* const W, DistributionInfo& D) :
 
 bool Launcher::forkApplication(const environment_callback_t & callback)
 {
-  const Uint nThreads = distrib.nThreads;
+  //const Uint nThreads = distrib.nThreads;
   const Uint nOwnWorkers = distrib.nOwnedEnvironments;
   const Uint totNumWorkers = distrib.nWorkers;
   const Uint totNumProcess = MPICommSize(distrib.world_comm);
@@ -80,7 +80,7 @@ void Launcher::launch(const environment_callback_t & callback,
                       const MPI_Comm envApplication_comm)
 {
   const Uint appSize = MPICommSize(envApplication_comm);
-  const Uint appRank = MPICommRank(envApplication_comm);
+  //const Uint appRank = MPICommRank(envApplication_comm);
   // app only needs lower level functionalities:
   // ie. send state, recv action, specify state/action spaces properties...
   Communicator* const commptr = static_cast<Communicator*>(this);

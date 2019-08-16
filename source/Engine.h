@@ -8,7 +8,7 @@
 #ifndef smarties_Engine_h
 #define smarties_Engine_h
 
-#include "../Communicators/Communicator.h"
+#include "Communicator.h"
 
 
 namespace smarties

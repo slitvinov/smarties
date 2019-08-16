@@ -1,4 +1,4 @@
-#include "Communicators/Communicator_MPI.h"
+#include "Communicator.h"
 #include <vector>
 #include "mpi.h"
 

@@ -9,7 +9,7 @@
 #ifndef smarties_Communicator_h
 #define smarties_Communicator_h
 
-#include "../Core/Environment.h"
+#include "Core/Environment.h"
 #include <random>
 
 namespace smarties

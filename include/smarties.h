@@ -9,7 +9,7 @@
 #ifndef smarties_h
 #define smarties_h
 
-#include "../source/Communicators/Communicator.h"
-#include "../source/Core/Engine.h"
+#include "../source/Communicator.h"
+#include "../source/Engine.h"
 
 #endif // smarties_h

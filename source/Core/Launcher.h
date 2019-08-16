@@ -9,7 +9,7 @@
 #ifndef smarties_Launcher_h
 #define smarties_Launcher_h
 
-#include "../Communicators/Communicator.h"
+#include "../Communicator.h"
 #include "../Settings.h"
 
 namespace smarties

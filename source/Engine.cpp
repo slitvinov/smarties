@@ -7,7 +7,7 @@
 //
 
 #include "Engine.h"
-#include "Master.h"
+#include "Core/Master.h"
 
 namespace smarties
 {
