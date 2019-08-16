@@ -79,7 +79,7 @@ struct DistributionInfo
   bool runInternalApp = false;
   bool learnersOnWorkers = true;
   bool forkableApplication = false;
-  bool printAppStdoutToFile = true;
+  bool redirectAppStdoutToFile = true;
 };
 
 struct Settings

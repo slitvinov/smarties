@@ -33,6 +33,8 @@ bool Launcher::forkApplication(const environment_callback_t & callback)
   const Uint totNumProcess = MPICommSize(distrib.world_comm);
 
   bool isChild = false;
+  // TODO: reinstate the omp thread stuff for mpi implementations that do
+  // process binding by default, avoiding pybind11 breaking.
   //#pragma omp parallel num_threads(nThreads)
   for(int i = 0; i < (int) nOwnWorkers; ++i)
   {
@@ -103,9 +105,13 @@ void Launcher::launch(const environment_callback_t & callback,
 
     // process stdout file descriptor, so that we can revert:
     std::pair<int, fpos_t> currOutputFdescriptor;
-    //redirect_stdout_init(currOutputFdescriptor, appRank);
+    if(distrib.redirectAppStdoutToFile)
+      redirect_stdout_init(currOutputFdescriptor, appRank);
+
     callback(commptr, envApplication_comm, args.size()-1, args.data());
-    //redirect_stdout_finalize(currOutputFdescriptor);
+
+    if(distrib.redirectAppStdoutToFile)
+      redirect_stdout_finalize(currOutputFdescriptor);
 
     for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory
