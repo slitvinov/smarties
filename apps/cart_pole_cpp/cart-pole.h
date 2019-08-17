@@ -105,15 +105,18 @@ struct CartPole
     return 0;
   }
 
-	std::vector<double> getState()
+	std::vector<double> getState(const int size = 6)
 	{
-    std::vector<double> state(6);
+    assert(size == 4 || size == 6);
+    std::vector<double> state(size);
 		state[0] = u.y1;
 		state[1] = u.y2;
 		state[2] = u.y4;
 		state[3] = u.y3;
-		state[4] = std::cos(u.y3);
-		state[5] = std::sin(u.y3);
+    if(size == 6) {
+      state[4] = std::cos(u.y3);
+      state[5] = std::sin(u.y3);
+    }
 		return state;
 	}
 

@@ -18,19 +18,19 @@ inline int app_main(
   comm->set_state_action_dims(6, 1);
   const std::vector<double> upper_action_bound{10}, lower_action_bound{-10};
   comm->set_action_scales(upper_action_bound, lower_action_bound, true);
-  const std::vector<double> upper_state_bound{ 1,  1,  1,  1,  1,  1};
-  const std::vector<double> lower_state_bound{-1, -1, -1, -1, -1, -1};
-  comm->set_state_scales(upper_state_bound, lower_state_bound);
 
+  // All information about the MDP before calling agents_define_different_MDP()
+  // is copied over to all agents.
   comm->agents_define_different_MDP();
 
+  // state vars :                        x    vx  angvel  ang   cos    sine
   const std::vector<bool> bObservable1{true, true, true, false, true, true};
   comm->set_state_observable(bObservable1, 0);
   // one agent is partially observed: linear and angular vels are hidden
   const std::vector<bool> bObservable2{true, false, false, false, true, true};
   comm->set_state_observable(bObservable2, 1);
   comm->set_is_partially_observable(1);
-  // Moreover agent 1 will have inverted controls relative to agent 0
+  // Moreover, agent 0 will have inverted controls relative to agent 1
 
   // Here for simplicity we have two environments
   // But real application is one env with competing/collaborating agents
@@ -66,7 +66,6 @@ inline int app_main(
         else comm->sendLastState(state1, reward1, 0);
         if(terminated2) comm->sendTermState(state2, reward2, 1);
         else comm->sendLastState(state2, reward2, 1);
-
         break;
       }
       else

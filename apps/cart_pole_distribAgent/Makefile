@@ -1,8 +1,10 @@
 CXX = mpic++
 
+
 #LDFLAGS+= -fopenmp
 LIBS+= -L${SMARTIES_LIB} -lsmarties
 CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
+#CPPFLAGS+= -std=c++14 -Wall -g -O0 -I${SMARTIES_INCLUDE}
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Wno-unused-parameter
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
@@ -20,4 +22,3 @@ cart-pole: cart-pole.o
 
 clean:
 	rm -f *.o *.s *.d cart-pole
-
