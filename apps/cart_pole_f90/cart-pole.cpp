@@ -12,25 +12,6 @@
 //=============================================================================
 
 
-extern "C" void rlcomm_set_state_observable(
-    void* opaque_ptr_to_class,
-    bool *observable,
-    int array_len
-) {
-  std::vector<bool> observable_vec;
-
-  // Cast to Communicator (class)
-  Communicator *ptr_to_class = static_cast<Communicator*>(opaque_ptr_to_class);
-  // Assign the vector
-  observable_vec.assign(observable, observable+array_len);
-
-  // Call the public member function
-  ptr_to_class->set_state_observable(observable_vec);
-}
-
-//=============================================================================
-
-
 //=============================================================================
 // Entry point into fortran code.  Fortran defines this.
 extern "C" void fortran_app_main(const void* rlcomm, const int f_mpicomm);

@@ -20,8 +20,9 @@ inline int app_main(
   int argc, char**argv    // arguments read from app's runtime settings file
 )
 {
-  const int myRank = smarties::MPICommRank(mpicom);
-  const int simSize = smarties::MPICommSize(mpicom);
+  int myRank, simSize;
+  MPI_Comm_rank(mpicom, & myRank);
+  MPI_Comm_size(mpicom, & simSize);
   assert(simSize==NCARTS && myRank<NCARTS); // app runs with NCARTS ranks
 
   // This options says that the agent themselves are distributed.

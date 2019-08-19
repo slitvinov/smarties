@@ -2,10 +2,10 @@
 # by observing roughly half of them
 
 import numpy as np
-from smarties import Communicator
+import smarties as rl
 import time
 
-N = 4  # number of variables
+N = 8  # number of variables
 F = 8  # forcing
 dt = 0.01
 maxStep = 1000
@@ -19,22 +19,19 @@ def Lorenz96(x):
   d = d + F # add the forcing term
   return d # return the state derivatives
 
-# comm = Communicator(N/2, N/2, 2)
-comm = Communicator(N, N, 2)
+def app_main(comm):
+  comm.set_state_action_dims(N//2, N//2)
 
-while(True):
-    s = F*np.ones(N) # initial state (equilibrium)
-    s = np.random.normal(1, 0.01, N) #perturb
-    # o = s[0::2] #observation
-    o = s #observation
+  while(True):
+    s = np.random.normal(F, 0.1, N) # equilibrium (s=F) + perturbation
+    o = s[0::2] # observation
     comm.sendInitState(o)
     step = 0
 
     while (True):
+      p = comm.recvAction() # RL has to predict next observation
       s = s + dt * Lorenz96(s)
-      # o = s[0::2]
-      o = s #observation
-      p = comm.recvAction()
+      o = s[0::2]           # observation is half of state variables
       r = - np.sum((p-o)**2)
 
       if(step < maxStep): comm.sendState(o, r)
@@ -42,3 +39,8 @@ while(True):
         comm.sendLastState(o, r)
         break
       step += 1
+
+if __name__ == '__main__':
+  e = rl.Engine(sys.argv)
+  if( e.parse() ): exit()
+  e.run( app_main )

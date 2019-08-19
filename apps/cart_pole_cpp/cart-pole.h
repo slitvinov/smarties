@@ -65,7 +65,7 @@ struct CartPole
   const double g = 9.81;
   const double dt = 4e-4;
   const int nsteps = 50;
-  int info=1, step=0;
+  int step=0;
   Vec4 u;
   double F=0, t=0;
 
@@ -77,8 +77,9 @@ struct CartPole
 	    std::uniform_real_distribution<double> dist(-0.05,0.05);
 		#endif
 		u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
-		F = t = step = 0;
-		info = 1;
+    step = 0;
+		F = 0;
+    t = 0;
 	}
 
   bool is_over()
