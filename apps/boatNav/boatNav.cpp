@@ -5,7 +5,7 @@
 #include <vector>
 #include <array>
 #include <functional>
-#include "Communicator.h"
+#include "smarties.h"
 #include "odeSolve.h"
 
 #define dt 1.0e-2
@@ -197,10 +197,8 @@ struct USV: public Entity
  
 };
 
-
-int main(int argc, const char * argv[])
+inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
 {
-
   const int control_vars = 2; // 2 components of thrust
   const int state_vars = 6;   // number of states
   const int number_of_agents = 1;
@@ -210,16 +208,14 @@ int main(int argc, const char * argv[])
   bool commNow=false;
   const double magnifyAction = 1.0;
 
-  //communication:
-  const int socket = std::stoi(argv[1]);
-  //socket number is given by RL as first argument of execution
-  Communicator	comm(socket, state_vars, control_vars, number_of_agents);
-  std::mt19937	&rngPointer =  comm.getPRNG();
+  comm->set_num_agents(number_of_agents);
+  comm->set_state_action_dims(state_vars, control_vars);
+  std::mt19937	&rngPointer =  comm->getPRNG();
 
   //OPTIONAL: action bounds
   const bool bounded = true;
   vector<double> upper_action_bound{200,200}, lower_action_bound{0,0}; // only positive motor control
-  comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
+  comm->set_action_scales(upper_action_bound, lower_action_bound, bounded);
 
   // Path start and end
   const double xPathStart[2] = {0,0};
@@ -234,7 +230,7 @@ int main(int argc, const char * argv[])
     boat.reset();
 
     //send initial state
-    comm.sendInitState(boat.getState(), 0);
+    comm->sendInitState(boat.getState(), 0);
 
     unsigned step = 0;
     while (true) //simulation loop
@@ -249,7 +245,7 @@ int main(int argc, const char * argv[])
 
 	    //Continue previous action, or query from controller
 	    if(commNow){
-		    actions = comm.recvAction(0);
+		    actions = comm->recvAction(0);
 	    }else{
 		    actions[0] = thrustL.back()/magnifyAction;
 		    actions[1] = thrustR.back()/magnifyAction;
@@ -272,10 +268,10 @@ int main(int argc, const char * argv[])
 			    const double negativeReward = -1000*positiveReward; // superpunitive, otherwise boat was commiting hara-kiri by hitting the side wall, to avoid negative trail-traversing reward
 
 			    if(boat.abortSim){
-				    comm.sendTermState(boat.getState(), negativeReward, 0);
+				    comm->sendTermState(boat.getState(), negativeReward, 0);
 				    printf("Sim #%d reporting that boat got lost.\n", sim+1); fflush(NULL);
 			    } else {
-				    comm.sendTermState(boat.getState(), positiveReward, 0);
+				    comm->sendTermState(boat.getState(), positiveReward, 0);
 				    printf("Sim #%d reporting that boat reached safe harbor.\n", sim+1); fflush(NULL);
 			    }
 			    sim++; break;
@@ -283,11 +279,11 @@ int main(int argc, const char * argv[])
 
 		    if(step < maxStep)
 		    {
-			    comm.sendState(boat.getState(), boat.getReward(), 0);
+			    comm->sendState(boat.getState(), boat.getReward(), 0);
 		    }
 		    else
 		    {
-			    comm.truncateSeq(boat.getState(), boat.getReward(), 0);
+			    comm->sendLastState(boat.getState(), boat.getReward(), 0);
 			    sim++;
 			    break;
 		    }
@@ -302,5 +298,12 @@ int main(int argc, const char * argv[])
     fclose(temp);
 
   }
+}
+
+int main(int argc, char**argv)
+{
+  smarties::Engine e(argc, argv);
+  if( e.parse() ) return 1;
+  e.run( app_main );
   return 0;
 }
