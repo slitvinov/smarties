@@ -15,22 +15,22 @@ module class_cartPole
 
   implicit none
   private
-  real,    parameter :: pi = 3.1415926535897931d0
-  logical, parameter :: SWINGUP=.false.
-  real,    parameter :: mp = 0.1
-  real,    parameter :: mc = 1.
-  real,    parameter :: l  = 0.5
-  real,    parameter :: g  = 9.81
-  integer, parameter :: STATE_SIZE = 6
+  double precision, parameter :: pi = 3.1415926535897931d0
+  logical,          parameter :: SWINGUP=.false.
+  double precision, parameter :: mp = 0.1
+  double precision, parameter :: mc = 1.
+  double precision, parameter :: l  = 0.5
+  double precision, parameter :: g  = 9.81
+  integer,          parameter :: STATE_SIZE = 6
 
 
   type, public :: cartPole
     ! Main class containing the simulation data and procedures
-    real :: dt = 4e-4
+    double precision :: dt = 4e-4
     integer :: nsteps = 50
     integer :: step = 0
-    real, dimension(4) :: u
-    real :: F=0, t=0
+    double precision, dimension(4) :: u
+    double precision :: F=0, t=0
     !
     contains
       procedure :: reset     => reset
@@ -96,7 +96,7 @@ contains
 
   function getState(this) result(state) ! get the full state (with additional values)
     class(cartPole), intent(in) :: this
-    real, dimension(STATE_SIZE) :: state
+    double precision, dimension(STATE_SIZE) :: state
     !
     state(1:4) = this%u
     state(5)   = cos(this%u(3))
@@ -106,8 +106,8 @@ contains
 
   function getReward(this) result(reward) ! assign a reward associated with the current state
     class(cartPole), intent(in) :: this
-    real :: angle
-    real :: reward
+    double precision :: angle
+    double precision :: reward
     reward = 0
     !
     if (SWINGUP) then
@@ -121,18 +121,18 @@ contains
 
 
   function rk46_nl(t0, dt, F, u0) result(u) ! time discretization
-    real, intent(in) :: t0, dt, F
-    real, dimension(4), intent(in) :: u0
-    real, dimension(4) :: u
+    double precision, intent(in) :: t0, dt, F
+    double precision, dimension(4), intent(in) :: u0
+    double precision, dimension(4) :: u
     integer :: i
-    real :: t
-    real, dimension(4) :: w=0
+    double precision :: t
+    double precision, dimension(4) :: w=0
     integer, parameter :: s = 6
-    real, dimension(6), parameter :: a = (/0.000000000000, -0.737101392796, -1.634740794341, &
+    double precision, dimension(6), parameter :: a = (/0.000000000000, -0.737101392796, -1.634740794341, &
         -0.744739003780, -1.469897351522, -2.813971388035/)
-    real, dimension(6), parameter :: b = (/0.032918605146,  0.823256998200,  0.381530948900, &
+    double precision, dimension(6), parameter :: b = (/0.032918605146,  0.823256998200,  0.381530948900, &
          0.200092213184,  1.718581042715,  0.270000000000/)
-    real, dimension(6), parameter :: c = (/0.000000000000,  0.032918605146,  0.249351723343, &
+    double precision, dimension(6), parameter :: c = (/0.000000000000,  0.032918605146,  0.249351723343, &
          0.466911705055,  0.582030414044,  0.847252983783/)
     !
     u = u0
@@ -145,13 +145,13 @@ contains
 
 
   function Diff(u, t, F) result(res) ! part of time discretization
-    real, dimension(4), intent(in) :: u
-    real, intent(in) :: t, F
-    real, dimension(4) :: res
+    double precision, dimension(4), intent(in) :: u
+    double precision, intent(in) :: t, F
+    double precision, dimension(4) :: res
     !
-    real :: cosy, siny, w
+    double precision :: cosy, siny, w
     !
-    real :: fac1, fac2, totMass, F1
+    double precision :: fac1, fac2, totMass, F1
     !
     res = 0
     cosy = cos(u(3))
