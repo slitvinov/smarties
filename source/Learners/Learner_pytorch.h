@@ -10,7 +10,7 @@
 #define smarties_Learner_pytorch_h
 
 #include "Learner.h"
-#include "Utils/ParameterBlob.h"
+#include "../Utils/ParameterBlob.h"
 
 namespace smarties
 {

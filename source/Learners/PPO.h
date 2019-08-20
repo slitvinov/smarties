@@ -10,7 +10,7 @@
 #define smarties_PPO_h
 
 #include "Learner_approximator.h"
-#include "Utils/FunctionUtilities.h"
+#include "../Utils/FunctionUtilities.h"
 
 namespace smarties
 {

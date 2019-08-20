@@ -8,12 +8,12 @@
 
 #include "ACER.h"
 
-#include "Network/Builder.h"
-#include "Utils/StatsTracker.h"
-#include "Network/Approximator.h"
-#include "Math/Gaussian_policy.h"
-#include "ReplayMemory/Collector.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Network/Builder.h"
+#include "../Utils/StatsTracker.h"
+#include "../Network/Approximator.h"
+#include "../Math/Gaussian_policy.h"
+#include "../ReplayMemory/Collector.h"
+#include "../Utils/SstreamUtilities.h"
 
 #define SEQ_CUTOFF 200
 

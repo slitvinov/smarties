@@ -9,7 +9,7 @@
 #ifndef smarties_Discrete_policy_h
 #define smarties_Discrete_policy_h
 
-#include "Network/Layers/Functions.h"
+#include "../Network/Layers/Functions.h"
 //#include <algorithm>
 
 #ifndef PosDefMapping_f

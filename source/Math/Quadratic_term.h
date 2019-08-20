@@ -9,7 +9,7 @@
 #ifndef smarties_Quadratic_term_h
 #define smarties_Quadratic_term_h
 
-#include "Network/Layers/Functions.h"
+#include "../Network/Layers/Functions.h"
 
 #ifndef PosDefMapping_f
 #define PosDefMapping_f SoftPlus

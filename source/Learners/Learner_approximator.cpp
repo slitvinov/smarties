@@ -7,9 +7,9 @@
 //
 
 #include "Learner_approximator.h"
-#include "Network/Approximator.h"
-#include "Network/Builder.h"
-#include "Utils/ParameterBlob.h"
+#include "../Network/Approximator.h"
+#include "../Network/Builder.h"
+#include "../Utils/ParameterBlob.h"
 #include <chrono>
 
 namespace smarties
@@ -99,11 +99,13 @@ void Learner_approximator::getHeaders(std::ostringstream& buf) const
 
 void Learner_approximator::restart()
 {
-  if(settings.restart == "none") return;
+  if(distrib.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  for(const auto & net : networks) net->restart(settings.restart+"/"+learner_name);
-  for(const auto & net : networks) net->save("restarted_"+learner_name, false);
+  for(const auto & net : networks) {
+    net->restart(distrib.restart+"/"+learner_name);
+    net->save("restarted_"+learner_name, false);
+  }
 
   Learner::restart();
 

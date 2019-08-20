@@ -7,18 +7,18 @@
 //
 
 #include "Worker.h"
-#include "Learners/AllLearners.h"
-#include "Utils/SocketsLib.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Learners/AlgoFactory.h"
+#include "../Utils/SocketsLib.h"
+#include "../Utils/SstreamUtilities.h"
 #include <fstream>
 
 namespace smarties
 {
 
-Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
+Worker::Worker(DistributionInfo&D) : distrib(D),
   dataTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   algoTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
-  COMM( std::make_unique<Launcher>(this, D, S.bTrain) ),
+  COMM( std::make_unique<Launcher>(this, D) ),
   ENV( COMM->ENV ), agents( ENV.agents )
 {
   /*
@@ -35,20 +35,17 @@ Worker::Worker(Settings&S, DistributionInfo&D) : settings(S), distrib(D),
   */
 }
 
-void Worker::run()
+void Worker::run(const environment_callback_t & callback)
 {
-  if(distrib.runInternalApp) // then worker lives inside the application
+  if( distrib.nForkedProcesses2spawn > 0 )
   {
-    COMM->runApplication(distrib.environment_app_comm,
-                         distrib.nWorker_processes,
-                         distrib.thisWorkerGroupID);
+    const bool isChild = COMM->forkApplication(callback);
+    if(not isChild) {
+      synchronizeEnvironments();
+      loopSocketsToMaster();
+    }
   }
-  else
-  {
-    COMM->forkApplication(distrib.nThreads, distrib.nOwnedEnvironments);
-    synchronizeEnvironments();
-    loopSocketsToMaster();
-  }
+  else COMM->runApplication( callback );
 }
 
 void Worker::runTraining()
@@ -82,7 +79,7 @@ void Worker::runTraining()
     // instead of sum of timesteps performed by each agent
     const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
     const long dataCounter = bTrain? L->nLocTimeStepsTrain() : L->nSeqsEval();
-    return dataCounter * factor >= settings.totNumSteps;
+    return dataCounter * factor >= distrib.totNumSteps;
   };
 
 
@@ -279,11 +276,8 @@ void Worker::synchronizeEnvironments()
   learners.reserve(nAlgorithms);
   for(Uint i = 0; i<nAlgorithms; ++i)
   {
-    char lName[256]; sprintf(lName, "agent_%02lu", i);
-    if(distrib.world_rank == 0) printf("Learner: %s\n", lName);
-    learners.emplace_back( createLearner(ENV.getDescriptor(i), settings, distrib) );
+    learners.emplace_back( createLearner(i, ENV.getDescriptor(i), distrib) );
     assert(learners.size() == i+1);
-    learners[i]->setLearnerName(std::string(lName)+"_", i);
     learners[i]->restart();
     learners[i]->setupTasks(algoTasks);
     learners[i]->setupDataCollectionTasks(dataTasks);
@@ -375,8 +369,7 @@ void Worker::stepWorkerToMaster(const Uint bufferID) const
   assert(MPICommRank(master_workers_comm) > 0 || learners.size()>0);
   assert(COMM->SOCK.clients.size()>0 && "this method should be used by "
          "intermediary workers between socket-apps and mpi-learners");
-  assert(MPICommSize(COMM->workers_application_comm)<=1 && "intermediary "
-         "workers do not support multi-rank apps");
+  assert(envMPIsize<=1 && "intermediary workers do not support multirank apps");
   sendStateRecvAction( getCommBuffer(bufferID+1) );
 }
 

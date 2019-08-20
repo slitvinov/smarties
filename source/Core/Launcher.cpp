@@ -6,101 +6,112 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Core/Launcher.h"
-#include "Core/Worker.h"
-#include "Utils/Warnings.h"
-#include "Utils/SocketsLib.h"
-#include "Utils/LauncherUtilities.h"
-#include "Utils/SstreamUtilities.h"
+#include "Launcher.h"
+#include "Worker.h"
+#include "../Utils/Warnings.h"
+#include "../Utils/SocketsLib.h"
+#include "../Utils/LauncherUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 
 #include <omp.h>
 #include <fstream>
 
-// main function call for user's application
-// arguments are: - the communicator with smarties
-//                - the mpi communicator to use within the app
-//                - argc and argv read from settings file
-int app_main(smarties::Communicator*const smartiesCommunicator,
-             const MPI_Comm mpiCommunicator,
-             int argc, char**argv);
-
 namespace smarties
 {
 
-Launcher::Launcher(Worker* const W, DistributionInfo& D, bool isTraining) :
-  Communicator(W, D.generators[0], isTraining), distrib(D)
+Launcher::Launcher(Worker* const W, DistributionInfo& D) :
+  Communicator(W, D.generators[0], D.bTrain), distrib(D)
 {
   initArgumentFileNames();
 }
 
-void Launcher::forkApplication(const Uint nThreads, const Uint nOwnWorkers)
+bool Launcher::forkApplication(const environment_callback_t & callback)
 {
-  #pragma omp parallel num_threads(nThreads)
+  //const Uint nThreads = distrib.nThreads;
+  const Uint nOwnWorkers = distrib.nOwnedEnvironments;
+  const Uint totNumWorkers = distrib.nWorkers;
+  const Uint totNumProcess = MPICommSize(distrib.world_comm);
+
+  bool isChild = false;
+  // TODO: reinstate the omp thread stuff for mpi implementations that do
+  // process binding by default, avoiding pybind11 breaking.
+  //#pragma omp parallel num_threads(nThreads)
   for(int i = 0; i < (int) nOwnWorkers; ++i)
   {
-    const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
+    //const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
+    const int thrID = 0, thrN = 1;
     const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
-    const int workloadID = i + nOwnWorkers * MPICommSize(distrib.world_comm);
-    assert(nThreads == (Uint) omp_get_num_threads());
-
-    #pragma omp critical
-    if ( ( thrID==tgtCPU ) && ( fork() == 0 ) )
-    {
-      char currDirectory[512];
-      createGoRunDir(currDirectory, workloadID, MPI_COMM_SELF);
-
-      //App output file descriptor:
-      std::pair<int, fpos_t> currOutputFdescriptor;
-      redirect_stdout_init(currOutputFdescriptor, workloadID);
-      // TODO ARGS!
-      const std::string exec = "../" + execPath; // TODO : TEST currDirectory
-      _warn("About to exec %s.... \n", exec.c_str());
-      const int res = execlp(exec.c_str(), exec.c_str(), NULL);
-
-      redirect_stdout_finalize(currOutputFdescriptor);
-      //int res = execvp(*largv, largv);
-      if(res < 0)
-        _warn("Unable to exec file '%s'!"
-              "Make sure it exists and it is executable.\n", exec.c_str());
-      die("Client application returned. Aborting...");
-    }
+    const int workloadID = i + totNumWorkers * totNumProcess;
+    //assert(nThreads == (Uint) omp_get_num_threads());
+    if( thrID==tgtCPU )
+      #pragma omp critical
+      {
+        const int success = fork();
+        if ( success == -1 ) die("Failed to fork.");
+        if ( success ==  0 ) {
+          isChild = true;
+          usleep(10); // IDK, wait for parent to create socket file to be sure
+          //warn("entering SOCKET_clientConnect");
+          SOCK.server = SOCKET_clientConnect();
+          if(SOCK.server == -1) die("Failed to connect to parent process.");
+          //warn("exiting SOCKET_clientConnect");
+          launch(callback, workloadID, MPI_COMM_SELF);
+        } else assert(isChild == false);
+      }
   }
 
-  SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
+  if(not isChild) {
+    //warn("entering SOCKET_serverConnect");
+    SOCKET_serverConnect(nOwnWorkers, SOCK.clients);
+    //warn("exiting SOCKET_serverConnect");
+  }
+  return isChild;
 }
 
-void Launcher::runApplication(const MPI_Comm envApplication_comm,
-                              const Uint totalNumWorkers,
-                              const Sint thisWorkerGroupID )
+void Launcher::runApplication(const environment_callback_t & callback )
 {
+  const Sint thisWorkerGroupID = distrib.thisWorkerGroupID;
+  const MPI_Comm envApplication_comm = distrib.environment_app_comm;
   if(thisWorkerGroupID<0) die("Error in setup of envApplication_comm");
   assert(envApplication_comm not_eq MPI_COMM_NULL);
-  const Uint appRank = MPICommRank(envApplication_comm);
+  launch(callback, thisWorkerGroupID, envApplication_comm);
+}
+
+void Launcher::launch(const environment_callback_t & callback,
+                      const Uint workLoadID,
+                      const MPI_Comm envApplication_comm)
+{
   const Uint appSize = MPICommSize(envApplication_comm);
+  const Uint appRank = MPICommRank(envApplication_comm);
   // app only needs lower level functionalities:
   // ie. send state, recv action, specify state/action spaces properties...
   Communicator* const commptr = static_cast<Communicator*>(this);
+  assert(commptr not_eq nullptr);
 
   while(true)
   {
     char currDirectory[512];
-    createGoRunDir(currDirectory, thisWorkerGroupID, envApplication_comm);
+    // create dedicated directory for the process:
+    createGoRunDir(currDirectory, workLoadID, envApplication_comm);
 
     Uint settInd = 0;
     for(size_t i=0; i<argsFiles.size(); ++i)
       if(globalTstepCounter >= argFilesStepsLimits[i]) settInd = i;
 
+    assert(argFilesStepsLimits.size() > settInd+1 && distrib.nWorkers > 0);
     Uint numTstepSett = argFilesStepsLimits[settInd+1] - globalTstepCounter;
-    numTstepSett = numTstepSett * appSize / totalNumWorkers;
+    numTstepSett = numTstepSett * appSize / distrib.nWorkers;
     std::vector<char*> args = readRunArgLst(argsFiles[settInd]);
 
-    //App output file descriptor:
+    // process stdout file descriptor, so that we can revert:
     std::pair<int, fpos_t> currOutputFdescriptor;
-    redirect_stdout_init(currOutputFdescriptor, appRank);
+    if(distrib.redirectAppStdoutToFile)
+      redirect_stdout_init(currOutputFdescriptor, appRank);
 
-    app_main(commptr, envApplication_comm, args.size()-1, args.data());
+    callback(commptr, envApplication_comm, args.size()-1, args.data());
 
-    redirect_stdout_finalize(currOutputFdescriptor);
+    if(distrib.redirectAppStdoutToFile)
+      redirect_stdout_finalize(currOutputFdescriptor);
 
     for(size_t i = 0; i < args.size()-1; ++i) delete[] args[i];
     chdir(currDirectory);  // go to original directory
@@ -158,10 +169,10 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm envAppCom)
       if( MPICommRank(envAppCom)<1 ) // app's root sets up dir
       {
         mkdir(newDir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        if(setupFolder not_eq "") //copy any file in the setup dir
+        if(distrib.setupFolder not_eq "") //copy any file in the setup dir
         {
-          if (copy_from_dir(("../"+setupFolder).c_str()) not_eq 0 )
-            _die("Error in copy from dir %s\n", setupFolder.c_str());
+          if (copy_from_dir(("../"+distrib.setupFolder).c_str()) not_eq 0 )
+            _die("Error in copy from dir %s\n", distrib.setupFolder.c_str());
         }
       }
 
@@ -176,40 +187,50 @@ void Launcher::createGoRunDir(char* initDir, Uint folderID, MPI_Comm envAppCom)
 std::vector<char*> Launcher::readRunArgLst(const std::string& paramFile)
 {
   std::vector<char*> args;
-  if (paramFile == "") {
-    warn("empty parameter file path");
-    args.push_back(0);
-    return args;
-  }
-  std::ifstream t( ("../"+paramFile).c_str() );
-  std::string linestr((std::istreambuf_iterator<char>(t)),
-                       std::istreambuf_iterator<char>());
-  if(linestr.size() == 0) die("did not find parameter file");
-  std::istringstream iss(linestr); // params file is read into iss
-  std::string token;
-  while(iss >> token)
+  const auto addArg = [&](const std::string & token)
   {
-    // If one runs an executable and provides an argument like ./exec 'foo bar'
-    // then `foo bar' is put in its entirety in argv[1]. However, when we ask
-    // user to write a settingsfile, apostrophes are read as characters, not as
-    // special symbols, therefore we must do the following workaround to put
-    // anything that is written between parenteses in a single argv entry.
-    if(token[0]=='\'')
-    {
-      token.erase(0, 1); // remove apostrophe ( should have been read as \' )
-      std::string continuation;
-      while(token.back() not_eq '\'') { // if match apostrophe, we are done
-        if(!(iss >> continuation)) die("missing matching apostrophe");
-        token += " " + continuation; // add next line to argv entry
-      }
-      token.erase(token.end()-1, token.end()); // remove trailing apostrophe
-    }
     char *arg = new char[token.size() + 1];
-    copy(token.begin(), token.end(), arg);  // write into char array
+    std::copy(token.begin(), token.end(), arg);  // write into char array
     arg[token.size()] = '\0';
     args.push_back(arg);
+  };
+
+  // first put argc argv into args:
+  for(int i=0; i<distrib.argc; ++i)
+    if(distrib.argv[i] not_eq nullptr)
+      addArg ( std::string( distrib.argv[i] ) );
+
+  if (paramFile not_eq "")
+  {
+    std::ifstream t( ("../"+paramFile).c_str() );
+    std::string linestr((std::istreambuf_iterator<char>(t)),
+                         std::istreambuf_iterator<char>());
+    if(linestr.size() == 0) die("did not find parameter file");
+    std::istringstream iss(linestr); // params file is read into iss
+    std::string token;
+    while(iss >> token)
+    {
+      // If one runs an executable and provides a runarg like ./exec 'foo bar'
+      // then `foo bar' is put in its entirety in argv[1]. However, when we ask
+      // user to write a settingsfile, apostrophes are read as characters, not
+      // special symbols, therefore we must do the following workaround to put
+      // anything that is written between parenteses in a single argv entry.
+      if(token[0]=='\'')
+      {
+        token.erase(0, 1); // remove apostrophe ( should have been read as \' )
+        std::string continuation;
+        while(token.back() not_eq '\'') { // if match apostrophe, we are done
+          if(!(iss >> continuation)) die("missing matching apostrophe");
+          token += " " + continuation; // add next line to argv entry
+        }
+        token.erase(token.end()-1, token.end()); // remove trailing apostrophe
+      }
+
+      addArg ( token );
+    }
   }
-  args.push_back(0); // push back nullptr as last entry
+
+  args.push_back(nullptr); // push back nullptr as last entry
   return args; // remember to deallocate it!
 }
 

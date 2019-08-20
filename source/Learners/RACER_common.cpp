@@ -5,8 +5,8 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#include "Network/Builder.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Network/Builder.h"
+#include "../Utils/SstreamUtilities.h"
 
 namespace smarties
 {

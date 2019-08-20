@@ -6,7 +6,6 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-EXECNAME=rl
 RUNFOLDER=$1
 APP=$2 # NoFrameskip-v4 will be added  at the end of the task name
 
@@ -17,14 +16,9 @@ fi
 
 source create_rundir.sh
 
-HOSTNAME=`hostname`
-cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_atari.py $APP
-EOF
-chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 export INTERNALAPP=false
+export EXECNAME="exec.py $APP"
 
-cp ../makefiles/smarties*                        ${BASEPATH}${RUNFOLDER}/
-cp ../source/Communicators/Communicator_atari.py ${BASEPATH}${RUNFOLDER}/
+cp ../apps/OpenAI_gym_atari/exec.py ${BASEPATH}${RUNFOLDER}/
 
 source launch_base.sh

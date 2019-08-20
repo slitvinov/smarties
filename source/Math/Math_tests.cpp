@@ -6,11 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Learners/AllLearners.h"
-#include "Math/Discrete_advantage.h"
-#include "Math/Gaussian_policy.h"
-#include "Math/Quadratic_advantage.h"
-#include "Math/Gaus_advantage.h"
+#include "../Learners/AlgoFactory.h"
+#include "Discrete_advantage.h"
+#include "Gaussian_policy.h"
+#include "Quadratic_advantage.h"
+#include "Gaus_advantage.h"
 #include <fstream>
 
 namespace smarties

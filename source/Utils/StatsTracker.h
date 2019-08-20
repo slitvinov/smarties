@@ -10,7 +10,7 @@
 #define smarties_StatsTracker_h
 
 #include "ThreadSafeVec.h"
-#include "Settings.h"
+#include "../Settings.h"
 
 #include <mutex>
 

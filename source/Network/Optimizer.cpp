@@ -7,7 +7,7 @@
 //
 
 #include "Optimizer.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 #include "saruprng.h"
 #include <unistd.h>
 

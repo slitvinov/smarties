@@ -10,8 +10,8 @@
 #define smarties_MemoryBuffer_h
 
 #include "Sequences.h"
-#include "Core/Agent.h"
-#include "Settings.h"
+#include "../Core/Agent.h"
+#include "../Settings.h"
 #include <memory>
 #include <atomic>
 #include <mutex>

@@ -9,7 +9,7 @@
 #ifndef smarties_Gaussian_policy_h
 #define smarties_Gaussian_policy_h
 
-#include "Network/Layers/Functions.h"
+#include "../Network/Layers/Functions.h"
 
 #ifndef PosDefMapping_f
 #define PosDefMapping_f SoftPlus

@@ -7,12 +7,12 @@
 //
 #include "DPG.h"
 
-#include "Network/Builder.h"
-#include "Utils/StatsTracker.h"
-#include "Math/Gaussian_policy.h"
-#include "Network/Approximator.h"
-#include "ReplayMemory/Collector.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Network/Builder.h"
+#include "../Utils/StatsTracker.h"
+#include "../Math/Gaussian_policy.h"
+#include "../Network/Approximator.h"
+#include "../ReplayMemory/Collector.h"
+#include "../Utils/SstreamUtilities.h"
 
 //#define DKL_filter
 namespace smarties

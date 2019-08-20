@@ -146,7 +146,7 @@ inline int SOCKET_Bsend(const void* const buffer,
 inline int SOCKET_clientConnect()
 {
   // Specify the socket
-  char SOCK_PATH[] = "../smarties_AFUNIX_socket_FD";
+  char SOCK_PATH[] = "smarties_AFUNIX_socket_FD";
 
   int serverAddr;
   if( ( serverAddr = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 )

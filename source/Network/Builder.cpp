@@ -11,7 +11,7 @@
 #include "CMA_Optimizer.h"
 #include "Optimizer.h"
 #include "Network.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 #include "Layers/Layer_Base.h"
 #include "Layers/Layer_Conv2D.h"
 #include "Layers/Layer_LSTM.h"

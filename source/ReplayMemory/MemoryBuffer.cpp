@@ -8,7 +8,7 @@
 
 #include "MemoryBuffer.h"
 #include "Sampling.h"
-#include "Utils/FunctionUtilities.h"
+#include "../Utils/FunctionUtilities.h"
 #include <iterator>
 #include <algorithm>
 #include <unistd.h>
@@ -17,8 +17,8 @@ namespace smarties
 {
 
 MemoryBuffer::MemoryBuffer(MDPdescriptor&M_, Settings&S_, DistributionInfo&D_):
- MDP(M_), settings(S_), distrib(D_),
- sampler( MemoryBuffer::prepareSampler(this, S_, D_) )
+  MDP(M_), settings(S_), distrib(D_),
+  sampler( MemoryBuffer::prepareSampler(this, S_, D_) )
 {
   Set.reserve(settings.maxTotObsNum);
 }
@@ -119,6 +119,7 @@ Uint MemoryBuffer::clearOffPol(const Real C, const Real tol)
 MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
                                         const Uint stepID)
 {
+  assert(sampler);
   std::vector<Uint> sampleEID(batchSize), sampleT(batchSize);
   sampler->sample(sampleEID, sampleT);
   assert( batchSize == sampleEID.size() && batchSize == sampleT.size() );
@@ -186,6 +187,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
 
 bool MemoryBuffer::bRequireImportanceSampling() const
 {
+  assert(sampler);
   return sampler->requireImportanceWeights();
 }
 
@@ -235,6 +237,7 @@ void MemoryBuffer::removeSequence(const Uint ind)
   Set.pop_back();
   assert(nSequences == (long) Set.size());
 }
+
 void MemoryBuffer::pushBackSequence(Sequence*const seq)
 {
   std::lock_guard<std::mutex> lock(dataset_mutex);
@@ -251,10 +254,9 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 
 void MemoryBuffer::initialize()
 {
-  {
-  // All sequences obtained before this point should share the same time stamp
-  std::lock_guard<std::mutex> lock(dataset_mutex);
-  for(Uint i=0;i<Set.size();++i) Set[i]->ID = nSeenSequences.load();
+  { // All seqs obtained before this point should share the same time stamp
+    std::lock_guard<std::mutex> lock(dataset_mutex);
+    for(Uint i=0;i<Set.size();++i) Set[i]->ID = nSeenSequences.load();
   } // free mutex for sampler
   needs_pass = true;
   sampler->prepare(needs_pass);
@@ -278,7 +280,9 @@ void MemoryBuffer::checkNData()
   #endif
 }
 
-std::unique_ptr<Sampling> MemoryBuffer::prepareSampler(MemoryBuffer* const R, Settings&S_, DistributionInfo&D_)
+std::unique_ptr<Sampling> MemoryBuffer::prepareSampler(MemoryBuffer* const R,
+                                                       Settings & S_,
+                                                       DistributionInfo & D_)
 {
   std::unique_ptr<Sampling> ret = nullptr;
 

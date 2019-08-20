@@ -11,8 +11,8 @@
 
 #include "Builder.h"
 #include "ThreadContext.h"
-#include "Utils/StatsTracker.h"
-#include "ReplayMemory/MemoryBuffer.h"
+#include "../Utils/StatsTracker.h"
+#include "../ReplayMemory/MemoryBuffer.h"
 
 namespace smarties
 {

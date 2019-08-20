@@ -14,43 +14,34 @@
 namespace smarties
 {
 
-MasterSockets::MasterSockets(Settings& S, DistributionInfo& D) :
-Master<MasterSockets, SOCKET_REQ>(S, D) { }
-MasterMPI::MasterMPI(Settings& S, DistributionInfo& D) :
-Master<MasterMPI, MPI_Request>(S, D) { }
+MasterSockets::MasterSockets(DistributionInfo& D) :
+Master<MasterSockets, SOCKET_REQ>(D) { }
+MasterMPI::MasterMPI(DistributionInfo& D) :
+Master<MasterMPI, MPI_Request>(D) { }
 
 template<typename CommType, typename Request_t>
-Master<CommType, Request_t>::Master(Settings&S, DistributionInfo&D) : Worker(S,D) {}
+Master<CommType, Request_t>::Master(DistributionInfo&D) : Worker(D) {}
 
-template<typename CommType, typename Request_t>
-Master<CommType, Request_t>::~Master()
+void MasterSockets::run(const environment_callback_t& callback)
 {
-  for(auto& thread : worker_replies) thread.join();
+  assert(distrib.nForkedProcesses2spawn > 0);
+  COMM->forkApplication(callback);
+
+  Master<MasterSockets, SOCKET_REQ>::run();
 }
 
-/*
-Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
-  Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
+void MasterMPI::run()
 {
-  if(nWorkers_own*nPerRank != static_cast<int>(agents.size()))
-    die("Mismatch in master's nWorkers nPerRank nAgents.");
-
-  worker_replies.reserve(nWorkers_own);
-  //the following Irecv will be sent after sending the action
-  for(int i=1; i<=nWorkers_own; ++i) comm->recvBuffer(i);
-
-  for(const auto& L : learners) L->setupTasks(tasks);
+  Master<MasterMPI, MPI_Request>::run();
 }
-*/
 
 template<typename CommType, typename Request_t>
 void Master<CommType, Request_t>::run()
 {
-  if(distrib.nForkedProcesses2spawn > 0)
-    COMM->forkApplication(distrib.nThreads, distrib.nOwnedEnvironments);
   synchronizeEnvironments();
-  spawnCallsHandlers();
+  spawnCallsHandlers(); // fills worker_replies threads
   runTraining();
+  for(auto& thread : worker_replies) thread.join();
 }
 
 template<typename CommType, typename Request_t>
@@ -68,7 +59,6 @@ void Master<CommType, Request_t>::spawnCallsHandlers()
     const Uint workerBeg = thrID * workerShare;
     const Uint workerEnd = std::min(nCallingEnvs, (thrID+1)*workerShare);
     for(Uint i=workerBeg; i<workerEnd; ++i) shareWorkers.push_back(i);
-
     #pragma omp critical
     if (shareWorkers.size())
       worker_replies.push_back (

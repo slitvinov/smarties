@@ -27,11 +27,7 @@ static constexpr Debug_level level = WARNINGS;
 
 static inline void flushAll() { fflush(stdout); fflush(stderr); fflush(0); }
 
-#ifdef MPI_VERSION
 static inline void abortAll() { MPI_Abort(MPI_COMM_WORLD, 1); }
-#else
-[[noreturn]] static inline void abortAll() { abort(); }
-#endif
 
 #define SMARTIES_LOCKCOMM std::lock_guard<std::mutex> wlock(smarties::Warnings::warn_mutex)
 

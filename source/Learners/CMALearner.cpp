@@ -7,15 +7,15 @@
 //
 
 #include "CMALearner.h"
-#include "Utils/StatsTracker.h"
-#include "ReplayMemory/Collector.h"
-#include "ReplayMemory/MemoryProcessing.h"
+#include "../Utils/StatsTracker.h"
+#include "../ReplayMemory/Collector.h"
+#include "../ReplayMemory/MemoryProcessing.h"
 #ifdef EXTRACT_COVAR
 #undef EXTRACT_COVAR
 #endif
-#include "Math/Gaussian_policy.h"
-#include "Math/Discrete_policy.h"
-#include "Network/Approximator.h"
+#include "../Math/Gaussian_policy.h"
+#include "../Math/Discrete_policy.h"
+#include "../Network/Approximator.h"
 
 #include <unistd.h> // usleep
 

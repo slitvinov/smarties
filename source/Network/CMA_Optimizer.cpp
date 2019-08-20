@@ -7,7 +7,7 @@
 //
 
 #include "CMA_Optimizer.h"
-#include "Utils/SstreamUtilities.h"
+#include "../Utils/SstreamUtilities.h"
 #include "saruprng.h"
 #include <algorithm>
 #include <unistd.h>

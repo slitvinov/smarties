@@ -7,17 +7,17 @@
 //
 
 #include "DQN.h"
-#include "Utils/StatsTracker.h"
-#include "Network/Approximator.h"
-#include "ReplayMemory/Collector.h"
-#include "Utils/FunctionUtilities.h"
+#include "../Utils/StatsTracker.h"
+#include "../Network/Approximator.h"
+#include "../ReplayMemory/Collector.h"
+#include "../Utils/FunctionUtilities.h"
 
 #define DQN_USE_POLICY
 
 #ifdef DQN_USE_POLICY
 // use discrete policy but override positive definite mapping
 #define PosDefMapping_f Exp
-#include "Math/Discrete_policy.h"
+#include "../Math/Discrete_policy.h"
 #endif
 
 namespace smarties

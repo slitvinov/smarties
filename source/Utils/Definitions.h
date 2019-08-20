@@ -13,6 +13,7 @@
 #include <array>
 #include <limits>
 #include <cstddef>
+#include <functional>
 
 namespace smarties
 {

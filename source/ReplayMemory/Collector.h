@@ -10,7 +10,7 @@
 #define smarties_Collector_h
 
 #include "MemoryBuffer.h"
-#include "Utils/StatsTracker.h"
+#include "../Utils/StatsTracker.h"
 
 namespace smarties
 {
@@ -23,7 +23,7 @@ private:
   MemoryBuffer * const replay;
   DataCoordinator * const sharing;
   //const MDPdescriptor & MDP = replay->MDP;
-  const Settings & settings = replay->settings;
+  //const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;
   //const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;

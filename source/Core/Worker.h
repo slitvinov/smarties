@@ -9,12 +9,12 @@
 #ifndef smarties_Worker_h
 #define smarties_Worker_h
 
-#include "Utils/ParameterBlob.h"
-#include "Utils/TaskQueue.h"
-#include "Core/Environment.h"
-#include "Core/Launcher.h"
-#include "Learners/Learner.h"
-#include "Settings.h"
+#include "../Utils/ParameterBlob.h"
+#include "../Utils/TaskQueue.h"
+#include "Environment.h"
+#include "Launcher.h"
+#include "../Learners/Learner.h"
+#include "../Settings.h"
 #include <thread>
 
 namespace smarties
@@ -23,7 +23,7 @@ namespace smarties
 class Worker
 {
 public:
-  Worker(Settings& settings, DistributionInfo& distribinfo);
+  Worker(DistributionInfo& distribinfo);
   virtual ~Worker() {}
 
   void synchronizeEnvironments();
@@ -34,10 +34,9 @@ public:
   // may be called from application:
   void stepWorkerToMaster(Agent & agent) const;
 
-  virtual void run();
+  void run(const environment_callback_t & callback);
 
 protected:
-  Settings& settings;
   DistributionInfo& distrib;
   TaskQueue dataTasks, algoTasks;
 
@@ -56,7 +55,7 @@ protected:
   const std::vector<std::unique_ptr<Agent>>& agents;
 
   const Uint nCallingEnvs = distrib.nOwnedEnvironments;
-  const int bTrain = settings.bTrain;
+  const int bTrain = distrib.bTrain;
 
   // avoid race conditions in writing cumulative rewards file:
   mutable std::mutex dump_mutex;

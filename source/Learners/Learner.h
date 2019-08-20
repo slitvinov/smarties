@@ -9,13 +9,13 @@
 #ifndef smarties_Learner_h
 #define smarties_Learner_h
 
-#include "Core/StateAction.h"
-#include "Utils/Profiler.h"
-#include "ReplayMemory/MemoryBuffer.h"
-#include "Utils/StatsTracker.h"
-#include "Utils/ParameterBlob.h"
-#include "Utils/TaskQueue.h"
-#include "Settings.h"
+#include "../Core/StateAction.h"
+#include "../Utils/Profiler.h"
+#include "../ReplayMemory/MemoryBuffer.h"
+#include "../Utils/StatsTracker.h"
+#include "../Utils/ParameterBlob.h"
+#include "../Utils/TaskQueue.h"
+#include "../Settings.h"
 
 namespace smarties
 {
@@ -29,7 +29,7 @@ class Learner
 protected:
   const Uint freqPrint = 1000;
   DistributionInfo & distrib;
-  Settings & settings;
+  Settings settings;
   MDPdescriptor & MDP;
   ParameterBlob params;
 
@@ -44,11 +44,10 @@ public:
   const StateInfo  sInfo = StateInfo(MDP);
 
   // training loop scheduling:
-  const Uint totNumSteps = settings.totNumSteps;
   const Real obsPerStep_loc = settings.obsPerStep_local;
   const long nObsB4StartTraining = settings.minTotObsNum_local;
   long _nObsB4StartTraining = std::numeric_limits<long>::max();
-  const bool bTrain = settings.bTrain;
+  const bool bTrain = distrib.bTrain;
 
   // some algorithm hyper-parameters:
   const Real gamma = settings.gamma;

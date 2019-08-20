@@ -7,7 +7,7 @@
 //
 
 #include "DataCoordinator.h"
-#include "Utils/FunctionUtilities.h"
+#include "../Utils/FunctionUtilities.h"
 #include <unistd.h>
 
 namespace smarties
@@ -256,7 +256,7 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
 
     //in theory this lock is unnecessary because all ops here are locking and
     //master processes one after the other (i.e. other threads will wait)
-    //however, in case of non-multiple thread safety, it will cause deadlock 
+    //however, in case of non-multiple thread safety, it will cause deadlock
     std::lock_guard<std::mutex> send_ep_lock(complete_mutex);
     MPI(Send, &sendSz, 1, MPI_UNSIGNED_LONG, 0, 37536+MDPID, workerComm);
     MPI(Send, sendSq.data(), sendSz, MPI_Fval, 0, 737283+MDPID, workerComm);
