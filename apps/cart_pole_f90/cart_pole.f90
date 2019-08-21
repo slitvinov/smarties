@@ -1,19 +1,22 @@
+!==============================================================================
 !
-!  cart_pole.f90
-!  cart-pole
+! cart_pole.f90
+! Part of the cart_pole_f90 example.
+! 
 !
-!  Created by Jacopo Canton on 31/01/19
-!  Copyright (c) 2019 Jacopo Canton. All rights reserved.
+! This file contains the environment (cart pole) definitions in Fortran.
+! The module 'cart_pole' defines the environment and the simulation
+! parameters.
 !
-!  This file contains the cart pole test case for Smarties in Fortran.
-!   - The module `class_cartPole`, defines the environment and the
-!   simulation parameters.
+! Copyright (c) 2019 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+! Distributed under the terms of the MIT license.
 !
 !==============================================================================
 
-module class_cartPole
+module cart_pole
 
   implicit none
+
   private
   double precision, parameter :: pi = 3.1415926535897931d0
   logical,          parameter :: SWINGUP=.false.
@@ -138,15 +141,15 @@ contains
     u = u0
     do i = 1, s
       t = t0 + dt*c(i)
-      w = w*a(i) + Diff(u, t, F)*dt
+      w = w*a(i) + Diff(u, F)*dt
       u = u + w*b(i)
     end do
   end function rk46_nl
 
 
-  function Diff(u, t, F) result(res) ! part of time discretization
+  function Diff(u, F) result(res) ! part of time discretization
     double precision, dimension(4), intent(in) :: u
-    double precision, intent(in) :: t, F
+    double precision, intent(in) :: F
     double precision, dimension(4) :: res
     !
     double precision :: cosy, siny, w
@@ -174,6 +177,6 @@ contains
   end function
 
 
-end module class_cartPole
+end module cart_pole
 
 !==============================================================================

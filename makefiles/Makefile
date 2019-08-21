@@ -106,7 +106,8 @@ OBJ_FILES = \
 	Profiler.o \
 	Master.o \
 	Worker.o \
-	Engine.o
+	Engine.o \
+	smarties_extern.o
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
