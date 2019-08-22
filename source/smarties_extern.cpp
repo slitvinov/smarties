@@ -19,8 +19,7 @@
 
 
 //=============================================================================
-#include "Communicator.h"
-#include <vector>
+#include "../include/smarties_extern.h"
 
 //=============================================================================
 extern "C" void smarties_sendInitState(void*const ptr2comm,
@@ -173,5 +172,4 @@ extern "C" void smarties_set_num_appended_past_observations(void*const ptr2comm,
     n_appended, agentID);
 }
 
-// TODO DISCUSS PRNG, RETURN VALUES
 //=============================================================================

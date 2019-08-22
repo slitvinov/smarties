@@ -129,7 +129,7 @@ smarties_pybind11.o:
 lib: $(OBJ_FILES)
 	mkdir -p ../lib
 	$(MPICXX) -shared -fPIC $(LDFLAGS) -o ../lib/libsmarties.so $^ $(LIBS)
-	@echo "Remember to update the environmental variables to include the smarties library like:"
+	@echo "Remember to update the environment variables to include the smarties library like:"
 	@cd ../include && echo "echo 'export SMARTIES_INCLUDE=`pwd`' >> ~/.bash_profile"
 	@cd ../lib && echo "echo 'export SMARTIES_LIB=`pwd`' >> ~/.bash_profile"
 	@cd ../ && echo "echo 'export SMARTIES_ROOT=`pwd`' >> ~/.bash_profile"
