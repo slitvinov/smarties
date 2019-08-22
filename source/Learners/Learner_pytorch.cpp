@@ -8,26 +8,27 @@
 
 #include "Learner_pytorch.h"
 #include <chrono>
+#include "../ReplayMemory/Collector.h"
 
 // PYBIND
-#include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
-#include <pybind11/stl_bind.h>
-#include <pybind11/numpy.h>
+// #include <pybind11/pybind11.h>
+// #include <pybind11/embed.h>
+// #include <pybind11/stl_bind.h>
+// #include <pybind11/numpy.h>
 
 #include <iostream>
 
-namespace py = pybind11;
-using namespace py::literals;
+// namespace py = pybind11;
+// using namespace py::literals;
 
 namespace smarties
 {
 
-struct PybindSequence
-{
-    std::vector<double> states;
-    std::vector<double> actions;
-};
+// struct PybindSequence
+// {
+//     std::vector<double> states;
+//     std::vector<double> actions;
+// };
 
 //   // std::vector<std::vector<memReal>> states;
 //   // std::vector<std::vector<Real>> actions;
@@ -54,55 +55,55 @@ struct PybindSequence
 
 
 
-PYBIND11_MAKE_OPAQUE(std::vector<double>);  // <--- Do not convert to lists.
-// PYBIND11_MAKE_OPAQUE(std::vector<std::vector<double>>);  // <--- Do not convert to lists.
-PYBIND11_MAKE_OPAQUE(std::vector<Sequence*>);   // <--- Works even without this, because bind_vector is used, but keep it just in case.
+// PYBIND11_MAKE_OPAQUE(std::vector<double>);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector<std::vector<double>>);  // <--- Do not convert to lists.
+// PYBIND11_MAKE_OPAQUE(std::vector<Sequence*>);   // <--- Works even without this, because bind_vector is used, but keep it just in case.
 
-PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
-    py::class_<Sequence>(m, "Sequence")
-        .def(pybind11::init<>())  // <--- If you want to create Sequence object from Python.
-        .def_readwrite("states", &Sequence::states)  // <--- Expose member variables.
-        .def_readwrite("actions", &Sequence::actions)  // <--- Expose member variables.
-        .def_readwrite("policies", &Sequence::policies)  // <--- Expose member variables.
-        .def_readwrite("rewards", &Sequence::rewards);  // <--- Expose member variables.
+// PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
+//     py::class_<Sequence>(m, "Sequence")
+//         .def(pybind11::init<>())  // <--- If you want to create Sequence object from Python.
+//         .def_readwrite("states", &Sequence::states)  // <--- Expose member variables.
+//         .def_readwrite("actions", &Sequence::actions)  // <--- Expose member variables.
+//         .def_readwrite("policies", &Sequence::policies)  // <--- Expose member variables.
+//         .def_readwrite("rewards", &Sequence::rewards);  // <--- Expose member variables.
 
-    // Bind vectors without conversion to lists, but keep list interface (e.g. `append` instead of `push_back`).
-    py::bind_vector<std::vector<double>>(m, "VectorDouble");
-    py::bind_vector<std::vector<Sequence*>>(m, "VectorSequenceptr");
-    py::bind_vector<std::vector<std::vector<double>>>(m, "VectorVectorDouble");
-}
+//     // Bind vectors without conversion to lists, but keep list interface (e.g. `append` instead of `push_back`).
+//     py::bind_vector<std::vector<double>>(m, "VectorDouble");
+//     py::bind_vector<std::vector<Sequence*>>(m, "VectorSequenceptr");
+//     py::bind_vector<std::vector<std::vector<double>>>(m, "VectorVectorDouble");
+// }
 
 
-py::scoped_interpreter guard{};
+// py::scoped_interpreter guard{};
 
 // Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
 
 Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_)
 {
-  std::cout << "STARTING NEW LEARNER." << std::endl;
+  // std::cout << "STARTING NEW LEARNER." << std::endl;
 
-  std::cout << "Initializing pytorch scope..." << std::endl;
+  // std::cout << "Initializing pytorch scope..." << std::endl;
 
-  py::module sys = py::module::import("sys");
-  std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
-  py::print(sys.attr("path").attr("insert")(0,path));
+  // py::module sys = py::module::import("sys");
+  // std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
+  // py::print(sys.attr("path").attr("insert")(0,path));
 
-  auto module = py::module::import("mlp_module");
-  // py::print(module);
-  auto Net = module.attr("MLP");
+  // auto module = py::module::import("mlp_module");
+  // // py::print(module);
+  // auto Net = module.attr("MLP");
 
-  std::cout << "state dimension: " << sInfo.dimUsed << std::endl;
+  // std::cout << "state dimension: " << sInfo.dimUsed << std::endl;
 
-  int input_dim = sInfo.dimUsed;
-  int L1 = 10;
-  int L2 = 10;
-  // Outputing the value function, the mean action and the standard deviation of the action
-  int output_dim = 1 + aInfo.dim + aInfo.dim;
+  // int input_dim = sInfo.dimUsed;
+  // int L1 = 10;
+  // int L2 = 10;
+  // // Outputing the value function, the mean action and the standard deviation of the action
+  // int output_dim = 1 + aInfo.dim + aInfo.dim;
 
-  auto net = Net(input_dim, L1, L2, output_dim);
-  Nets.emplace_back(Net(input_dim, L1, L2, output_dim));
-  Nets[0] = net;
-  std::cout << "NEW LEARNER STARTED." << std::endl;
+  // auto net = Net(input_dim, L1, L2, output_dim);
+  // Nets.emplace_back(Net(input_dim, L1, L2, output_dim));
+  // Nets[0] = net;
+  // std::cout << "NEW LEARNER STARTED." << std::endl;
 
   // py::print(Net);
   // Nets.push_back(Net())
@@ -133,253 +134,292 @@ Learner_pytorch::~Learner_pytorch() {
   // _dispose_object(input);
 }
 
-void Learner_pytorch::setupTasks(TaskQueue& tasks) {
+
+void Learner_pytorch::setupTasks(TaskQueue& tasks)
+{
   std::cout << "PYTORCH SETTING UP TASKS..." << std::endl;
 
   // If not training (e.g. evaluate policy)
-  if(not bTrain ) return;
+  if( not bTrain ) return;
+
   // ALGORITHM DESCRIPTION
   algoSubStepID = -1; // pre initialization
-  // Initializing a pipeline (one algorithmic step)
+  auto stepInit = [&]()
   {
-    // Define a condition to initialize
-    auto condInit = [&]() {
-      if ( algoSubStepID>=0 ) return false;
-      return data->readNData() >= nObsB4StartTraining;
-    };
-    auto stepInit = [&]() {
-      debugL("Initialize Learner");
-      initializeLearner();
-      algoSubStepID = 0;
-    };
-    tasks.add(condInit, stepInit);
-  }
+    // conditions to start the initialization task:
+    if ( algoSubStepID >= 0 ) return; // we done with init
+    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
 
+    debugL("Initialize Learner");
+    initializeLearner();
+    algoSubStepID = 0;
+  };
+  tasks.add(stepInit);
+
+  auto stepMain = [&]()
   {
-    auto condMain = [&](){
-      if (algoSubStepID != 0) return false;
-      else return unblockGradientUpdates();
-    };
-    auto stepMain = [&]() {
-      debugL("Sample the replay memory and compute the gradients");
-      spawnTrainTasks();
+    // conditions to begin the update-compute task
+    if ( algoSubStepID not_eq 0 ) return; // some other op is in progress
+    if ( blockGradientUpdates() ) return; // waiting for enough data
 
-      debugL("Search work to do in the Replay Memory");
-      processMemoryBuffer(); // find old eps, update avg quantities ...
+    debugL("Sample the replay memory and compute the gradients");
+    spawnTrainTasks();
+    // debugL("Gather gradient estimates from each thread and Learner MPI rank");
+    // prepareGradient();
+    debugL("Search work to do in the Replay Memory");
+    processMemoryBuffer(); // find old eps, update avg quantities ...
+    debugL("Update Retrace est. for episodes sampled in prev. grad update");
+    updateRetraceEstimates();
+    debugL("Compute state/rewards stats from the replay memory");
+    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
+    logStats();
+    algoSubStepID = 1;
+  };
+  tasks.add(stepMain);
 
-      debugL("Update Retrace est. for episodes sampled in prev. grad update");
-      updateRetraceEstimates();
-
-      debugL("Compute state/rewards stats from the replay memory");
-      finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
-
-      algoSubStepID = 1;
-    };
-    tasks.add(condMain, stepMain);
-  }
   // these are all the tasks I can do before the optimizer does an allreduce
+  auto stepComplete = [&]()
   {
-    auto condComplete = [&]() {
-      if(algoSubStepID != 1) return false;
-      return true;
-    };
-    auto stepComplete = [&]() {
-      algoSubStepID = 0; // rinse and repeat
-      globalGradCounterUpdate(); // step ++
-    };
-    tasks.add(condComplete, stepComplete);
-  }
+    if ( algoSubStepID not_eq 1 ) return;
+    // if ( networks[0]->ready2ApplyUpdate() == false ) return;
+
+    // debugL("Apply SGD update after reduction of gradients");
+    // applyGradient();
+    algoSubStepID = 0; // rinse and repeat
+    globalGradCounterUpdate(); // step ++
+  };
+  tasks.add(stepComplete);
+
   std::cout << "PYTORCH TASKS ALL SET UP..." << std::endl;
   std::cout << "Data: " << data->readNSeq() << std::endl;
 }
 
+
+
 void Learner_pytorch::spawnTrainTasks()
 {
-
   std::cout << "SPAWNING TRAINING TASKS. " << std::endl;
   std::cout << "Number of sequences: " << data->readNSeq() << std::endl;
-  if(bSampleSequences && data->readNSeq() < batchSize)
+
+  if(settings.bSampleSequences && data->readNSeq() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
   profiler->stop_start("SAMP");
 
-  std::vector<Uint> samp_seq = std::vector<Uint>(batchSize, -1);
-  std::vector<Uint> samp_obs = std::vector<Uint>(batchSize, -1);
-  data->sample(samp_seq, samp_obs);
+  const Uint nThr = distrib.nThreads, CS =  batchSize / nThr;
+  const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
 
-  for(Uint i=0; i<batchSize && bSampleSequences; i++)
-    assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
-
-  for(Uint i=0; i<batchSize; i++){
-    Sequence* const S = data->get(samp_seq[i]);
-    std::vector<memReal> state = S->states[samp_obs[i]];
-    std::vector<Real> action = S->actions[samp_obs[i]];
-    std::vector<Real> policy = S->policies[samp_obs[i]];
-    Real reward = S->rewards[samp_obs[i]];
-
-    std::cout << "STATE:: " << std::endl;
-    std::cout << "state SIZE: " << state.size() << std::endl;
-    std::cout << "action SIZE: " << action.size() << std::endl;
-    std::cout << "policy SIZE: " << policy.size() << std::endl;
-    std::cout << "reward: " << reward << std::endl;
-
-
-
-    // py::print(state[0]);
-    // py::print(state[1]);
-    // py::print(state[2]);
-    // py::print(state[3]);
-    // py::print(state[4]);
-    // py::print(state[5]);
-    // py::print(state[6]);
-
-
-  // int input_dim = 2;
-  // auto input = torch.attr("randn")(input_dim);
-  // py::print(input);
-  // py::print(input.attr("size")());
-
-  // auto output = net.attr("forward")(input);
-  // py::print(output);
-  // py::print(output.attr("size")());
-
-
-
-    // std::cout << "OUTPUT:: " << std::endl;
-    // py::print(state[0]);
+  if(settings.bSampleSequences)
+  {
+    // #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
+    for (Uint wID=0; wID<ESpopSize; ++wID)
+    {
+      std::cout << "PYTORCH: READING AN EPISODE!" << std::endl;
+      // std::cout << MB.episodes[0]->states[0] << std::endl;
+    }
+    // for (Uint bID=0; bID<batchSize; ++bID) {
+      // for (const auto & net : networks ) net->load(MB, bID, wID);
+      // Train(MB, wID, bID);
+      // // backprop, from last net to first for dependencies in gradients:
+      // for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);
+    // }
   }
 
+
+  // std::vector<Uint> samp_seq = std::vector<Uint>(batchSize, -1);
+  // std::vector<Uint> samp_obs = std::vector<Uint>(batchSize, -1);
+  // data->sample(samp_seq, samp_obs);
+
+  // for(Uint i=0; i<batchSize && bSampleSequences; i++)
+  //   assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
+
+  // for(Uint i=0; i<batchSize; i++)
+  // {
+  //   Sequence* const S = data->get(samp_seq[i]);
+  //   std::vector<memReal> state = S->states[samp_obs[i]];
+  //   std::vector<Real> action = S->actions[samp_obs[i]];
+  //   std::vector<Real> policy = S->policies[samp_obs[i]];
+  //   Real reward = S->rewards[samp_obs[i]];
+
+  //   std::cout << "STATE:: " << std::endl;
+  //   std::cout << "state SIZE: " << state.size() << std::endl;
+  //   std::cout << "action SIZE: " << action.size() << std::endl;
+  //   std::cout << "policy SIZE: " << policy.size() << std::endl;
+  //   std::cout << "reward: " << reward << std::endl;
+
+  //   // py::print(state[0]);
+  //   // py::print(state[1]);
+  //   // py::print(state[2]);
+
+  // // int input_dim = 2;
+  // // auto input = torch.attr("randn")(input_dim);
+  // // py::print(input);
+  // // py::print(input.attr("size")());
+
+  // // auto output = net.attr("forward")(input);
+  // // py::print(output);
+  // // py::print(output.attr("size")());
+  //   // std::cout << "OUTPUT:: " << std::endl;
+  //   // py::print(state[0]);
+  // }
+
 }
+
 
 void Learner_pytorch::select(Agent& agent)
 {
   // Sequence* const traj = data_get->get(agent.ID);
-  Sequence* traj = data_get->get(agent.ID);
+  // Sequence* traj = data_get->get(agent.ID);
+
   data_get->add_state(agent);
+  Sequence& EP = * data_get->get(agent.ID);
 
-  if( agent.Status < TERM_COMM )
+  // data_get->add_state(agent);
+  // const Approximator* const NET = networks[0];
+  // Sequence& EP = * data_get->get(agent.ID);
+  // const MiniBatch MB = data->agentToMinibatch(&EP);
+  // NET->load(MB, agent, 0);
+
+  if( agent.agentStatus < TERM ) // not end of sequence
   {
-    std::vector<Sequence*> seqVec;
-    seqVec.push_back(traj);
+    // //Compute policy and value on most recent element of the sequence.
+    // const Rvec output = NET->forward(agent);
+    // auto pol = prepare_policy<Policy_t>(output);
+    // Rvec mu = pol.getVector(); // vector-form current policy for storage
 
-    if(seqVec[0]->actions.size() == 0)
-    {
-      std::cout << "PYTORCH: No action taken, selecting DONE 222 !" << std::endl;
-      Rvec fakeAction = Rvec(aInfo.dim, 0);
-      Rvec mu(policyVecDim, 0);
-      agent.act(fakeAction);
-      data_get->add_action(agent, mu);
-      py::print("DONE 2!");
-      std::cout << "DONE 222 !" << std::endl;
+    // // if explNoise is 0, we just act according to policy
+    // // since explNoise is initial value of diagonal std vectors
+    // // this should only be used for evaluating a learned policy
+    // const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
+    // auto act = pol.finalize(bSamplePolicy, &generators[nThreads+agent.ID], mu);
+    // const auto adv = prepare_advantage<Advantage_t>(output, &pol);
+    // const Real advantage = adv.computeAdvantage(pol.sampAct);
+    // EP.action_adv.push_back(advantage);
+    // EP.state_vals.push_back(output[VsID]);
+    // agent.act(act);
+    // data_get->add_action(agent, mu);
 
-    }
+    // std::vector<Sequence*> seqVec;
+    // seqVec.push_back(traj);
 
-    std::cout << "TRY THIS: " << std::endl;
-    std::cout << seqVec.size() << std::endl;
-    std::cout << seqVec[0]->states.size() << std::endl;
-    std::cout << seqVec[0]->actions.size() << std::endl;
-    std::cout << seqVec[0]->states[0].size() << std::endl;
-    std::cout << seqVec[0]->actions[0].size() << std::endl;
-    // std::cout << seqVec[0]->actions[0][0] << std::endl;
-    std::cout << "WORKED: " << std::endl;
+    // if(seqVec[0]->actions.size() == 0)
+    // {
+    //   std::cout << "PYTORCH: No action taken, selecting DONE 222 !" << std::endl;
+    //   Rvec fakeAction = Rvec(aInfo.dim, 0);
+    //   Rvec mu(policyVecDim, 0);
+    //   agent.act(fakeAction);
+    //   data_get->add_action(agent, mu);
+    //   py::print("DONE 2!");
+    //   std::cout << "DONE 222 !" << std::endl;
 
+    // }
 
-
-
-
-
-
-    py::print("PYTORCH: Agent selecting action!");
-
-    // std::vector<memReal> state = traj->states[0];
-    // std::cout << "State[0] = " << state[0] << std::endl;
-    // std::cout << "state.size() = " << state.size() << std::endl;
-    // std::cout << "traj->states[0][0] = " << traj->states[0][0] << std::endl;
-    // std::cout << "traj->states[0].size() = " << traj->states[0].size() << std::endl;
-    // std::cout << "traj->actions[0].size() = " << traj->actions[0].size() << std::endl;
+    // std::cout << "TRY THIS: " << std::endl;
+    // std::cout << seqVec.size() << std::endl;
+    // std::cout << seqVec[0]->states.size() << std::endl;
+    // std::cout << seqVec[0]->actions.size() << std::endl;
+    // std::cout << seqVec[0]->states[0].size() << std::endl;
+    // std::cout << seqVec[0]->actions[0].size() << std::endl;
+    // // std::cout << seqVec[0]->actions[0][0] << std::endl;
+    // std::cout << "WORKED: " << std::endl;
 
 
-    py::print("PYTORCH: TRYING TO FEED NET");
 
-    // auto torch = py::module::import("torch");
 
-    // auto input = torch.attr("randn")(sInfo.dimUsed);
-    // auto action = Nets[0].attr("forward")(input);
 
-    // auto action = Nets[0].attr("forward")(state);
 
-    py::module::import("pybind11_embed");  // <--- Important!
 
-    {
-    // PybindSequence s1;
-    // s1.states.push_back(1.0);
-    // s1.states.push_back(2.0);
-    // s1.states.push_back(3.0);
-    // s1.states.push_back(4.0);
-    // s1.states.push_back(5.0);
-    // PybindSequence s2;
-    // s2.states.push_back(11.0);
-    // s2.states.push_back(12.0);
-    // s2.states.push_back(13.0);
-    // s2.states.push_back(14.0);
-    // s2.states.push_back(15.0);
+    // py::print("PYTORCH: Agent selecting action!");
 
-    // s1.actions.push_back(0.0);
-    // s1.actions.push_back(0.0);
-    // s1.actions.push_back(0.0);
+    // // std::vector<memReal> state = traj->states[0];
+    // // std::cout << "State[0] = " << state[0] << std::endl;
+    // // std::cout << "state.size() = " << state.size() << std::endl;
+    // // std::cout << "traj->states[0][0] = " << traj->states[0][0] << std::endl;
+    // // std::cout << "traj->states[0].size() = " << traj->states[0].size() << std::endl;
+    // // std::cout << "traj->actions[0].size() = " << traj->actions[0].size() << std::endl;
 
-    // s2.actions.push_back(0.0);
-    // s2.actions.push_back(0.0);
-    // s2.actions.push_back(0.0);
 
-    // std::vector<PybindSequence*> seqVec;
-    // seqVec.push_back(&s1);
-    // seqVec.push_back(&s2);
+    // py::print("PYTORCH: TRYING TO FEED NET");
 
-    // std::reference_wrapper<std::vector<PybindSequence*>> seqVec_ref{seqVec};
+    // // auto torch = py::module::import("torch");
+
+    // // auto input = torch.attr("randn")(sInfo.dimUsed);
+    // // auto action = Nets[0].attr("forward")(input);
+
+    // // auto action = Nets[0].attr("forward")(state);
+
+    // py::module::import("pybind11_embed");  // <--- Important!
+
+    // {
+    // // PybindSequence s1;
+    // // s1.states.push_back(1.0);
+    // // s1.states.push_back(2.0);
+    // // s1.states.push_back(3.0);
+    // // s1.states.push_back(4.0);
+    // // s1.states.push_back(5.0);
+    // // PybindSequence s2;
+    // // s2.states.push_back(11.0);
+    // // s2.states.push_back(12.0);
+    // // s2.states.push_back(13.0);
+    // // s2.states.push_back(14.0);
+    // // s2.states.push_back(15.0);
+
+    // // s1.actions.push_back(0.0);
+    // // s1.actions.push_back(0.0);
+    // // s1.actions.push_back(0.0);
+
+    // // s2.actions.push_back(0.0);
+    // // s2.actions.push_back(0.0);
+    // // s2.actions.push_back(0.0);
+
+    // // std::vector<PybindSequence*> seqVec;
+    // // seqVec.push_back(&s1);
+    // // seqVec.push_back(&s2);
+
+    // // std::reference_wrapper<std::vector<PybindSequence*>> seqVec_ref{seqVec};
+    // // bool policyType = 1;
+
+    // // // auto locals = py::dict("var1"_a=seqVec_ref, "var2"_a=seqVec_ref);
+    // // auto locals = py::dict("seqVec"_a=seqVec_ref, "policyType"_a=policyType);
+
+
+    // // py::print("PROP1:");
+    // // // std::vector<double> temp(input_dim);
+    // // auto output = Nets[0].attr("forward")(locals);
+
+
+    // // py::print("DID IT MODIFY THE C++ ?:");
+    // // std::cout << s1.states[0] << std::endl;
+
+    // // py::print("s1.actions:");
+    // // std::cout << s1.actions[0] << std::endl;
+    // // std::cout << s1.actions[1] << std::endl;
+    // // std::cout << s1.actions[2] << std::endl;
+    // // py::print("OUTPUT:");
+    // // // std::cout << output << std::endl;
+
+
+
+    // std::reference_wrapper<std::vector<Sequence*>> seqVec_ref{seqVec};
     // bool policyType = 1;
 
     // // auto locals = py::dict("var1"_a=seqVec_ref, "var2"_a=seqVec_ref);
     // auto locals = py::dict("seqVec"_a=seqVec_ref, "policyType"_a=policyType);
 
 
-    // py::print("PROP1:");
+    // // py::print("PROP1:");
     // // std::vector<double> temp(input_dim);
-    // auto output = Nets[0].attr("forward")(locals);
+    // // auto output = Nets[0].attr("forward")(locals);
 
 
-    // py::print("DID IT MODIFY THE C++ ?:");
-    // std::cout << s1.states[0] << std::endl;
-
-    // py::print("s1.actions:");
-    // std::cout << s1.actions[0] << std::endl;
-    // std::cout << s1.actions[1] << std::endl;
-    // std::cout << s1.actions[2] << std::endl;
-    // py::print("OUTPUT:");
-    // // std::cout << output << std::endl;
+    // // py::print("DID IT MODIFY THE C++ ?:");
+    // // std::cout << s1.states[0] << std::endl;
 
 
-
-    std::reference_wrapper<std::vector<Sequence*>> seqVec_ref{seqVec};
-    bool policyType = 1;
-
-    // auto locals = py::dict("var1"_a=seqVec_ref, "var2"_a=seqVec_ref);
-    auto locals = py::dict("seqVec"_a=seqVec_ref, "policyType"_a=policyType);
+    // }
 
 
-    // py::print("PROP1:");
-    // std::vector<double> temp(input_dim);
-    // auto output = Nets[0].attr("forward")(locals);
-
-
-    // py::print("DID IT MODIFY THE C++ ?:");
-    // std::cout << s1.states[0] << std::endl;
-
-
-    }
-
-
-    py::print("PYTORCH: PROPAGATION TEST FINISHED.");
+    // py::print("PYTORCH: PROPAGATION TEST FINISHED.");
 
 
 
@@ -469,21 +509,22 @@ void Learner_pytorch::select(Agent& agent)
     // py::print("ACTION SELECTED !");
 
 
-    Rvec fakeAction = Rvec(aInfo.dim, 0);
-    Rvec mu(policyVecDim, 0);
+    Rvec fakeAction = Rvec(aInfo.dim(), 0);
+    Rvec mu(aInfo.dimPol(), 0);
     agent.act(fakeAction);
     data_get->add_action(agent, mu);
-    py::print("DONE 2!");
-    std::cout << "DONE 222 !" << std::endl;
+    // py::print("PYTORCH: DONE SELECTING ACTION!");
+    // std::cout << "PYTORCH: DONE SELECTING ACTION!" << std::endl;
 
   // delete action;
 
-  } else
+  }else
   {
     data_get->terminate_seq(agent);
   }
-  std::cout << "EXITING 222 !" << std::endl;
-  py::print("EXITING 2!");
+
+  // std::cout << "EXITING 222 !" << std::endl;
+  // py::print("EXITING 2!");
 
 }
 
