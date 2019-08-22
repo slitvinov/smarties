@@ -23,6 +23,7 @@ Master::Master(Communicator_internal* const _c, const std::vector<Learner*> _l,
   //the following Irecv will be sent after sending the action
   for(int i=1; i<=nWorkers_own; i++) comm->recvBuffer(i);
 
+  std::cout << "SETTING UP TASKS..." << std::endl;
   for(const auto& L : learners) L->setupTasks(tasks);
 }
 
@@ -51,6 +52,7 @@ void Master::run()
       firstLearnerStart = i;
     }
   }
+
   const auto isTrainingStarted = [&]() {
     if(not isStarted && learn_rank==0) {
       const auto nCollected = learners[firstLearnerStart]->locDataSetSize();
@@ -63,6 +65,7 @@ void Master::run()
       }
     }
   };
+
   const auto isTrainingOver = [&](const Learner* const L) {
     // if agents share learning algo, return number of turns performed by env
     // instead of sum of timesteps performed by each agent
@@ -81,6 +84,7 @@ void Master::run()
     for(const auto& L : learners) over = over && isTrainingOver(L);
     if (over) break;
   }
+
 }
 
 void Master::processWorker(const std::vector<int> workers)
@@ -121,6 +125,7 @@ void Master::processAgent(const int worker)
   agents[agent]->update(recv_status, recv_state, reward);
   //pick next action and ...do a bunch of other stuff with the data:
   learner->select(*agents[agent]);
+  std::cout << "EXITING ..." <<std::endl;
 
   debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
     agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),

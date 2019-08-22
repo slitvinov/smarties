@@ -28,17 +28,23 @@ class Learner_pytorch: public Learner
  
   void spawnTrainTasks();
   // auto Nets;
-  pybind11::object * Nets;
+  // pybind11::object Nets;
+  // pybind11::object * Nets;
+  // std::vector<pybind11::object*> Nets;
+  std::vector<pybind11::object> Nets;
 
  public:
   Learner_pytorch(Environment*const env, Settings & settings);
 
-  void select(Agent& ) override {}
-  void setupTasks(TaskQueue&) override {}
+  void select(Agent& ) override;
+  void setupTasks(TaskQueue& tasks) override;
   virtual ~Learner_pytorch();
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;
   virtual void save() override;
   virtual void restart() override;
+
 };
+
+

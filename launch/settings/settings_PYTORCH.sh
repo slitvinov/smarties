@@ -22,8 +22,8 @@ SETTINGS+=" --learner PYTORCH"
 SETTINGS+=" --explNoise 0.447214"
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --minTotObsNum 262144"
-SETTINGS+=" --maxTotObsNum 262144"
+SETTINGS+=" --minTotObsNum 16384"
+SETTINGS+=" --maxTotObsNum 16384"
 
 SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --clipImpWeight 4"

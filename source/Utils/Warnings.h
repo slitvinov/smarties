@@ -17,9 +17,9 @@ namespace ErrorHandling
   static std::mutex warn_mutex;
   enum Debug_level { SILENT, WARNINGS, SCHEDULER, ENVIRONMENT, NETWORK, COMMUNICATOR, LEARNERS, TRANSITIONS };
 
-  static constexpr Debug_level level = WARNINGS;
-  //static constexpr Debug_level level = LEARNERS;
-  //static constexpr Debug_level level = SCHEDULER;
+  // static constexpr Debug_level level = WARNINGS;
+  // static constexpr Debug_level level = LEARNERS;
+  static constexpr Debug_level level = SCHEDULER;
 
 //#define PR_ERR(fd,a,...) fprintf(fd,a,__func__,__FILE__,__LINE__,##__VA_ARGS__);
 #define FLUSHALL fflush(stdout); fflush(stderr); fflush(0);

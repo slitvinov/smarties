@@ -25,6 +25,7 @@ Learner_approximator::Learner_approximator(Environment*const E, Settings&S): Lea
   if(not bSampleSequences && nObsB4StartTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 }
+
 Learner_approximator::~Learner_approximator() {
   _dispose_object(input);
 }

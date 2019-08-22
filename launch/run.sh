@@ -24,10 +24,23 @@ if [ -x appSettings.sh ]; then
   source appSettings.sh
 fi
 
+NTHREADS=1
+NPROCESS=2
+
 SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
 
+echo "NTHREADS"
+echo ${NTHREADS}
+
 env > environment.log
 mpirun -n ${NPROCESS} ./rl ${SETTINGS} | tee out.log
+#gdb --args ./rl ${SETTINGS}
+
+
+
+
+
+
