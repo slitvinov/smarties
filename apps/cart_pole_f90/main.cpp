@@ -25,7 +25,7 @@ extern "C" void app_main(const void* smarties_comm, const int f_mpicomm);
 
 //------------------------------------------------------------------------------
 // Interface to the Fortran app_main
-int app_main_interface(
+inline int app_main_interface(
   smarties::Communicator*const smarties_comm, // communicator with Smarties
   MPI_Comm c_mpicomm,   // mpi_comm that mpi-based apps can use (C handle)
   int argc, char**argv  // arguments read from app's runtime settings file
