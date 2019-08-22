@@ -149,7 +149,7 @@ py11: $(OBJ_FILES) smarties_pybind11.o
 exec: lib main.o
 	$(LD) $(LDFLAGS) -o rl main.o -L../lib/ -lsmarties
 
-all: lib
+all: lib py11
 
 main.o: ../source/main.cpp
 	$(MPICXX) $(extra) $(CPPFLAGS) -c $< -o $@
