@@ -2,11 +2,11 @@
 !
 ! cart_pole.f90
 ! Part of the cart_pole_f90 example.
-! 
 !
 ! This file contains the environment (cart pole) definitions in Fortran.
 ! The module 'cart_pole' defines the environment and the simulation
 ! parameters.
+!
 !
 ! Copyright (c) 2019 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
 ! Distributed under the terms of the MIT license.

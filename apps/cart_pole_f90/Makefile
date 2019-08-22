@@ -1,7 +1,7 @@
 F90 = mpif90
-CXX = mpic++ #g++
+CXX = mpic++
 
-F90FLAGS+= -Wall -Wextra -Wconversion -pedantic -g -O0 #-O2
+F90FLAGS+= -Wall -Wextra -Wconversion -pedantic -O2 #-g -O0
 LIBS+= -lgfortran -lmpifort
 
 #LDFLAGS+= -fopenmp

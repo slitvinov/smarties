@@ -6,19 +6,21 @@
 ! This file contains the 'app_main' function, called by Smarties, where the
 ! training takes place.
 !
-!
 ! For clarity:
 !
 ! C++     Interface        Fortran
 ! double  real(c_double)   double precision = real*8 = real(kind=8)
 ! bool    logical(c_bool)  logical
+! int     integer(c_int)   integer
+! *       type(c_ptr)      Fortran does not really like explicit pointers
+!
+!
+! Copyright (c) 2019 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+! Distributed under the terms of the MIT license.
 !
 !==============================================================================
 
-
-!==============================================================================
-! Module containing 'app_main'
-module fortran_smarties
+module app_main_module
   
   implicit none
 
@@ -29,7 +31,7 @@ module fortran_smarties
   integer, parameter :: STATE_SIZE  = 6
 
   ! 'app_main' is called from the outside (by the interface function
-  ! 'app_main_interface')
+  ! 'app_main_interface' located in 'main.cpp')
   public app_main
 
 contains
@@ -134,4 +136,4 @@ contains
 
   end function app_main
 
-end module fortran_smarties
+end module app_main_module

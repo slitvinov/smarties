@@ -1,4 +1,4 @@
-export INTERNALAPP=false
+export INTERNALAPP=true
 
 if [[ "${SKIPMAKE}" != "true" ]] ; then
 make -C ${SMARTIES_ROOT}/apps/cart_pole_f90

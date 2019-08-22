@@ -1,24 +1,29 @@
 !==============================================================================
 !
-!  smarties.f90
+! smarties.f90
 !
-!  This module, usable by any Fortran code with 'use smarties' in the preamble,
-!  defines the interfaces to the C/C++ functions, which are located in
-!  'source/smarties_extern.cpp'.
+! This module, usable by any Fortran code with 'use smarties' in the preamble,
+! defines the interfaces to the C/C++ functions, which are located in
+! 'source/smarties_extern.cpp'.
 !
-!  ****************************************************************************
-!  ********** There should be no need to modify any of the following **********
-!  *** If any of the following is edited, the corresponding C/C++ function ****
-!  *** located in 'source/smarties_extern.cpp' should be edited accordingly ***
-!  ****************************************************************************
+! Interfaces can also be created for functions that take different kinds of
+! variables (with the same name) as arguments.  Two interfaces of this kind are
+! implemented for 'smarties_set_action_scales' and
+! 'smarties_set_action_options'.  Take a look at these as examples if you need
+! to create more.
 !
-!  Copyright (c) 2019 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
-!  Distributed under the terms of the MIT license.
+! *****************************************************************************
+! ********** There should be no need to modify any of the functions ***********
+! **** If any of the following is edited, the corresponding C/C++ function ****
+! *** located in 'source/smarties_extern.cpp' should be edited accordingly ****
+! *****************************************************************************
+!
+!
+! Copyright (c) 2019 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+! Distributed under the terms of the MIT license.
 !
 !==============================================================================
 
-
-!==============================================================================
 module smarties
 
   implicit none
@@ -130,7 +135,7 @@ module smarties
       integer(c_int),  intent(in), value :: action_dim
       integer(c_int),  intent(in), optional :: agentID
     end subroutine smarties_set_action_scales_default
-
+    !
     subroutine smarties_set_action_scales_pointer( &
         ptr2comm, upper_act_bound, lower_act_bound, &
         bounded, action_dim, agentID) &
@@ -157,7 +162,7 @@ module smarties
       integer(c_int),  intent(in), value :: num_options
       integer(c_int),  intent(in), optional :: agentID
     end subroutine smarties_set_action_options_default
-
+    !
     subroutine smarties_set_action_options_dim( &
         ptr2comm, num_options, action_dim, agentID) &
         bind(c, name='smarties_set_action_options_dim')
@@ -277,11 +282,4 @@ module smarties
     end subroutine smarties_set_num_appended_past_observations
   end interface
 
-  contains
-    subroutine dummy_sub()
-        implicit none
-        write(*,*) "Please leave me alone."
-    end subroutine dummy_sub
-
 end module smarties
-!==============================================================================
