@@ -124,10 +124,10 @@ void DataCoordinator::mastersRecvEpisodes()
   {
     int completed = 0;
     const int tag = 737283+MDPID;
-    MPI(Iprobe, MPI_ANY_SOURCE, tag, C, &completed, &S);
+    MPI_Iprobe(MPI_ANY_SOURCE, tag, C, &completed, &S);
     if(completed) {
       int count = 0, source = S.MPI_SOURCE;
-      MPI_Get_count(& status, MPI_Fval, & count);
+      MPI(Get_count, & status, MPI_Fval, & count);
       Fvec EP(count, (Fval)0);
       MPI(Recv, EP.data(), EP.size(), MPI_Fval, source, tag, C, &S);
       assert(EP.size());
@@ -135,11 +135,14 @@ void DataCoordinator::mastersRecvEpisodes()
     } else return Fvec();
   };
 
-  const Fvec sharedEP = recvEp(sharingComm, status);
-  if(sharedEP.size()) {
-    Sequence * const tmp = new Sequence();
-    tmp->unpackSequence(sharedEP, sI.dimObs(), aI.dim(), aI.dimPol());
-    replay->pushBackSequence(tmp);
+  if(sharingComm == MPI_COMM_NULL)
+  {
+    const Fvec sharedEP = recvEp(sharingComm, status);
+    if(sharedEP.size()) {
+      Sequence * const tmp = new Sequence();
+      tmp->unpackSequence(sharedEP, sI.dimObs(), aI.dim(), aI.dimPol());
+      replay->pushBackSequence(tmp);
+    }
   }
   /*{ // IS THIS NEEDED???
     if( sharingReq[source] not_eq MPI_REQUEST_NULL) {
@@ -153,6 +156,8 @@ void DataCoordinator::mastersRecvEpisodes()
   // if all learners are locking data acquisition we do not recv eps from worker
   // such that they wait for updated parameters before gathering more data
   if(allTasksPtr->dataAcquisitionIsLocked()) return;
+
+  if(workerComm == MPI_COMM_NULL) return;
 
   const Fvec workersEP = recvEp(workerComm, status);
   if(workersEP.size())
@@ -182,7 +187,7 @@ void DataCoordinator::mastersRecvEpisodes()
     int bSendParams = 0;
     const int tag = 275727+MDPID, dest = status.MPI_SOURCE;
     MPI(Recv, &bSendParams, 1, MPI_INT, dest, tag, workerComm, &status);
-    
+
     if(bSendParams) {
       while(allTasksPtr->dataAcquisitionIsLocked()) usleep(1);
       params.send(dest, MDPID);

@@ -55,7 +55,7 @@ extern "C" void smarties_recvAction(void*const ptr2comm,
 {
   const std::vector<double> avec =
     static_cast<smarties::Communicator*>(ptr2comm)->recvAction(agentID);
-  assert(action_dim == static_cast<int>(avec));
+  assert(action_dim == static_cast<int>(avec.size()));
   std::copy(avec.begin(), avec.end(), A);
 }
 //=============================================================================
