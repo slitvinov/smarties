@@ -5,9 +5,9 @@ F90FLAGS+= -Wall -Wextra -Wconversion -pedantic -O2 #-g -O0
 LIBS+= -lgfortran -lmpifort
 
 #LDFLAGS+= -fopenmp
-LIBS+= -L${SMARTIES_LIB} -lsmarties
-CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
-#CPPFLAGS+= -std=c++14 -Wall -g -O0 -I${SMARTIES_INCLUDE}
+LIBS+= -L${SMARTIES_ROOT}/lib -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_ROOT}/include
+#CPPFLAGS+= -std=c++14 -Wall -g -O0 -I${SMARTIES_ROOT}/include
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Wno-unused-parameter
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
@@ -20,7 +20,7 @@ all: post-build
 
 pre-build:
 ifeq (,$(wildcard ./smarties.f90))
-	ln -s $(SMARTIES_INCLUDE)/smarties.f90
+	ln -s $(SMARTIES_ROOT)/include/smarties.f90
 endif
 
 post-build: main-build

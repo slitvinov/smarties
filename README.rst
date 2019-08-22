@@ -117,8 +117,8 @@ For compilation, the following flags should be set in order for the compiler to 
 
 .. code:: shell
 
-    LDFLAGS="-L${SMARTIES_LIB} -lsmarties"
-    CPPFLAGS="-I${SMARTIES_INCLUDE}"
+    LDFLAGS="-L${SMARTIES_ROOT}/lib -lsmarties"
+    CPPFLAGS="-I${SMARTIES_ROOT}/include"
 
 
 Python  
