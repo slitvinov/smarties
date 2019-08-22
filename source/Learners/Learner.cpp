@@ -7,9 +7,30 @@
 //
 
 #include "Learner.h"
-#include <chrono>
+#include "../Utils/FunctionUtilities.h"
+#include "../Utils/SstreamUtilities.h"
+#include "../ReplayMemory/MemoryProcessing.h"
+#include "../ReplayMemory/DataCoordinator.h"
+#include "../ReplayMemory/Collector.h"
+#include <unistd.h>
 
-Learner::Learner(Environment*const E, Settings&S): settings(S), env(E) {}
+namespace smarties
+{
+
+Learner::Learner(MDPdescriptor& MD, Settings& S, DistributionInfo& D):
+  distrib(D), settings(S), MDP(MD), params(D), ReFER_reduce(D, LDvec{0.,1.}),
+  ERFILTER(MemoryProcessing::readERfilterAlgo(S.ERoldSeqFilter, CmaxPol>0)),
+  data_proc( new MemoryProcessing( data.get() ) ),
+  data_coord( new DataCoordinator( data.get(), params ) ),
+  data_get ( new Collector       ( data.get(), data_coord ) ) {}
+
+Learner::~Learner()
+{
+  if(trainInfo not_eq nullptr) delete trainInfo;
+  delete data_proc;
+  delete data_get;
+  delete data_coord;
+}
 
 void Learner::initializeLearner()
 {
@@ -22,15 +43,15 @@ void Learner::initializeLearner()
     warn("Skipping initialization for restartd learner.");
     return;
   }
-  // shift counters after initial data is gathered
-  nDataGatheredB4Startup = data->readNSeen_loc();
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
   data_proc->updateRewardsStats(1, 1, true);
+  // shift counters after initial data is gathered and sync is concluded
+  nDataGatheredB4Startup = data->readNSeen_loc();
+  _nObsB4StartTraining = nObsB4StartTraining;
   //data_proc->updateRewardsStats(1, 1e-3, true);
-  if( learn_rank == 0 )
-    std::cout << "Initial reward std " << 1/data->scaledReward(1) << std::endl;
+  if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
 
   data->initialize();
 
@@ -42,9 +63,10 @@ void Learner::initializeLearner()
   // placed here because on 1st step we just computed first rewards statistics
   const Uint setSize = data->readNSeq();
   #pragma omp parallel for schedule(dynamic, 1)
-  for(Uint i=0; i<setSize; i++)
-    for(Uint j=data->get(i)->ndata(); j>0; j--)
-      backPropRetrace(data->get(i),j);
+  for(Uint i=0; i<setSize; ++i) {
+    Sequence& SEQ = * data->get(i);
+    for(Uint j = SEQ.ndata(); j>0; --j) backPropRetrace(SEQ, j);
+  }
 }
 
 void Learner::processMemoryBuffer()
@@ -55,7 +77,7 @@ void Learner::processMemoryBuffer()
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
 
-  CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
+  CmaxRet = 1 + Utilities::annealRate(CmaxPol, currStep, epsAnneal);
   CinvRet = 1 / CmaxRet;
   if(CmaxRet<=1 and CmaxPol>0)
     die("Either run lasted too long or epsAnneal is wrong.");
@@ -81,16 +103,16 @@ void Learner::processMemoryBuffer()
 void Learner::updateRetraceEstimates()
 {
   profiler->stop_start("QRET");
-  const std::vector<Uint>& sampled = data->listSampled();
+  const std::vector<Uint>& sampled = data->lastSampledEpisodes();
   const Uint setSize = sampled.size();
   #pragma omp parallel for schedule(dynamic, 1)
-  for(Uint i = 0; i < setSize; i++) {
-    Sequence * const S = data->get(sampled[i]);
-    assert(std::fabs(S->Q_RET[S->ndata()]) < 1e-16);
-    assert(std::fabs(S->action_adv[S->ndata()]) < 1e-16);
-    if( S->isTerminal(S->ndata()) )
-      assert(std::fabs(S->state_vals[S->ndata()]) < 1e-16);
-    for(int j=S->just_sampled-1; j>0; j--) backPropRetrace(S, j);
+  for(Uint i = 0; i < setSize; ++i) {
+    Sequence& SEQ = * data->get(sampled[i]);
+    assert(std::fabs(SEQ.Q_RET[SEQ.ndata()]) < 1e-16);
+    assert(std::fabs(SEQ.action_adv[SEQ.ndata()]) < 1e-16);
+    if( SEQ.isTerminal(SEQ.ndata()) )
+      assert(std::fabs(SEQ.state_vals[SEQ.ndata()]) < 1e-16);
+    for(Sint j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
   }
 }
 
@@ -108,7 +130,10 @@ void Learner::finalizeMemoryProcessing()
 bool Learner::blockDataAcquisition() const
 {
   //if there is not enough data for training, need more data
-  if( data->readNData() < nObsB4StartTraining ) return false;
+  //_warn("readNSeen:%ld nData:%ld nDataGatheredB4Start:%ld gradSteps:%ld obsPerStep:%f",
+  //data->readNSeen_loc(), data->readNData(), nDataGatheredB4Startup, _nGradSteps.load(), obsPerStep_loc);
+
+  if( data->readNData() < _nObsB4StartTraining ) return false;
 
   // block data if we have observed too many observations
   // here we add one to concurrently gather data and compute gradients
@@ -116,12 +141,18 @@ bool Learner::blockDataAcquisition() const
   return nLocTimeStepsTrain() > (nGradSteps()+1) * obsPerStep_loc;
 }
 
-bool Learner::unblockGradientUpdates() const
+bool Learner::blockGradientUpdates() const
 {
+  //_warn("readNSeen:%ld nDataGatheredB4Start:%ld gradSteps:%ld obsPerStep:%f",
+  //data->readNSeen_loc(), nDataGatheredB4Startup, _nGradSteps.load(), obsPerStep_loc);
   // almost the same of the function before
-  if( data->readNData() < nObsB4StartTraining ) return false;
   // 'freeze if there is too little data for the current gradient step'
-  return nLocTimeStepsTrain() >= nGradSteps() * obsPerStep_loc;
+  return nLocTimeStepsTrain() < nGradSteps() * obsPerStep_loc;
+}
+
+void Learner::setupDataCollectionTasks(TaskQueue& tasks)
+{
+  data_coord->setupTasks(tasks);
 }
 
 void Learner::logStats()
@@ -129,7 +160,7 @@ void Learner::logStats()
   const Uint currStep = nGradSteps()+1;
   if(currStep%(freqPrint*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
-    std::cout << profiler->printStatAndReset() << std::endl;
+    printf("%s\n", profiler->printStatAndReset().c_str() );
     save();
   }
 
@@ -179,12 +210,12 @@ void Learner::processStats()
       fprintf(fout, "ID #/T   %s\n", head.str().c_str());
   }
   #ifdef PRINT_ALL_RANKS
-    printf("%01d-%01d %05u%s\n",
+    printf("%01lu-%01lu %05u%s\n",
       learn_rank, learnID, currStep/freqPrint, buf.str().c_str());
   #else
-    printf("%02d %05u%s\n", learnID, currStep/freqPrint, buf.str().c_str());
+    printf("%02lu %05lu%s\n", learnID, currStep/freqPrint, buf.str().c_str());
   #endif
-  fprintf(fout, "%02d %05u%s\n", learnID,currStep/freqPrint,buf.str().c_str());
+  fprintf(fout,"%02lu %05lu%s\n", learnID,currStep/freqPrint,buf.str().c_str());
   fclose(fout);
   fflush(0);
 }
@@ -192,7 +223,8 @@ void Learner::processStats()
 void Learner::getMetrics(std::ostringstream& buf) const
 {
   if(not computeQretrace) return;
-  real2SS(buf, alpha, 6, 1); real2SS(buf, beta, 6, 1);
+  Utilities::real2SS(buf, alpha, 6, 1);
+  Utilities::real2SS(buf, beta, 6, 1);
 }
 void Learner::getHeaders(std::ostringstream& buf) const
 {
@@ -202,61 +234,72 @@ void Learner::getHeaders(std::ostringstream& buf) const
 
 void Learner::restart()
 {
-  if(settings.restart == "none") return;
+  if(distrib.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  data->restart(settings.restart+"/"+learner_name);
+  data->restart(distrib.restart+"/"+learner_name);
 
   data->save("restarted_"+learner_name, 0, false);
 
-  std::ostringstream ss;
-  ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
-  FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
-  if(f == NULL) {
-   _warn("Learner restart file %s not found\n",(learner_name+ss.str()).c_str());
-   return;
-  }
+  {
+    char currDirectory[512];
+    getcwd(currDirectory, 512);
+    chdir(distrib.initial_runDir);
 
-  Uint nSeqs;
-  if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die("");
-  data->setNSeq(nSeqs);
+    std::ostringstream ss;
+    ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
+    FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
 
-  {
-    Uint nObs;
-    if(fread(&nObs, sizeof(Uint),1,f) != 1) die("");
-    data->setNData(nObs);
-  }
-  {
-    Uint tObs;
-    if(fread(&tObs, sizeof(Uint),1,f) != 1) die("");
-    data->setNSeen_loc(tObs);
-  }
-  {
-    Uint tSeqs;
-    if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die("");
-    data->setNSeenSeq_loc(tSeqs);
-  }
-  {
-    long tB4;
-    if(fread(&tB4, sizeof(long), 1, f) != 1) die("");
-    nDataGatheredB4Startup = tB4;
-  }
-  {
-    long int currStep;
-    if(fread(&currStep, sizeof(long int), 1, f) != 1) die("");
-    _nGradSteps = currStep;
-  }
-  if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
-  if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
+    if(f == NULL) {
+      _warn("Learner restart file %s not found\n",
+            (learner_name+ss.str()).c_str());
+      return;
+    }
 
-  for(Uint i = 0; i < nSeqs; i++) {
-    assert(data->get(i) == nullptr);
-    Sequence* const S = new Sequence();
-    if( S->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
-      _die("Unable to find sequence %u\n", i);
-    data->set(S, i);
+    Uint nSeqs;
+    if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die("");
+    data->setNSeq(nSeqs);
+
+    {
+      Uint nObs;
+      if(fread(&nObs, sizeof(Uint),1,f) != 1) die("");
+      data->setNData(nObs);
+    }
+    {
+      Uint tObs;
+      if(fread(&tObs, sizeof(Uint),1,f) != 1) die("");
+      data->setNSeen_loc(tObs);
+    }
+    {
+      Uint tSeqs;
+      if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die("");
+      data->setNSeenSeq_loc(tSeqs);
+    }
+    {
+      long tB4;
+      if(fread(&tB4, sizeof(long), 1, f) != 1) die("");
+      nDataGatheredB4Startup = tB4;
+    }
+    {
+      long int currStep;
+      if(fread(&currStep, sizeof(long int), 1, f) != 1) die("");
+      _nGradSteps = currStep;
+    }
+    if(fread(&beta, sizeof(Real), 1, f) != 1) die("");
+    if(fread(&CmaxRet, sizeof(Real), 1, f) != 1) die("");
+
+    for(Uint i = 0; i < nSeqs; ++i) {
+      assert(data->get(i) == nullptr);
+      Sequence* const S = new Sequence();
+      if( S->restart(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
+        _die("Unable to find sequence %u\n", i);
+      data->set(S, i);
+    }
+
+    chdir(currDirectory);
   }
 }
+
 void Learner::save()
 {
   const Uint currStep = nGradSteps()+1;
@@ -283,6 +326,8 @@ void Learner::save()
   fwrite(&beta, sizeof(Real), 1, f);
   fwrite(&CmaxRet, sizeof(Real), 1, f);
 
-  for(Uint i = 0; i <nSeqs; i++)
-    data->get(i)->save(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim);
+  for(Uint i = 0; i <nSeqs; ++i)
+    data->get(i)->save(f, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol() );
+}
+
 }

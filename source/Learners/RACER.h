@@ -6,25 +6,35 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_RACER_h
+#define smarties_RACER_h
+
 #include "Learner_approximator.h"
+#include "../Utils/FunctionUtilities.h"
 
-class Discrete_policy;
-class Gaussian_policy;
+namespace smarties
+{
 
-template<Uint nExperts>
-class Gaussian_mixture;
+struct Discrete_policy;
+struct Gaussian_policy;
 
-class Discrete_advantage;
-#ifdef ADV_GAUS
+//template<Uint nExperts>
+//class Gaussian_mixture;
+
+struct Discrete_advantage;
+#ifndef ADV_QUAD
 #define Param_advantage Gaussian_advantage
 #else
 #define Param_advantage Quadratic_advantage
 #endif
-class Param_advantage;
+struct Param_advantage;
+struct Zero_advantage;
 
-template<Uint nExperts>
-class Mixture_advantage;
+//#ifndef NEXPERTS
+//#define NEXPERTS 1
+//#endif
+//template<Uint nExperts>
+//class Mixture_advantage;
 
 #define RACER_simpleSigma
 #define RACER_singleNet
@@ -33,9 +43,7 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_approximator
 {
   template<typename _pol_t>
-  inline _pol_t prepare_policy( const Rvec& O,
-                                const Rvec ACT=Rvec(),
-                                const Rvec MU=Rvec()) const
+  _pol_t prepare_policy(const Rvec& O, const Rvec ACT=Rvec(), const Rvec MU=Rvec()) const
   {
     _pol_t pol(pol_start, &aInfo, O);
     if(ACT.size()) {
@@ -46,8 +54,7 @@ class RACER : public Learner_approximator
   }
 
   template<typename _adv_t, typename _pol_t>
-  inline _adv_t prepare_advantage( const Rvec& out,
-                                   const _pol_t*const pol) const
+  _adv_t prepare_advantage(const Rvec& out, const _pol_t*const pol) const
   {
     return _adv_t(adv_start, &aInfo, out, pol);
   }
@@ -64,23 +71,28 @@ class RACER : public Learner_approximator
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
   const std::vector<Uint> net_outputs;
-  const std::vector<Uint> net_indices = count_indices(net_outputs);
+  const std::vector<Uint> net_indices = Utilities::count_indices(net_outputs);
   const std::vector<Uint> pol_start, adv_start;
   const Uint VsID = net_indices[0];
 
   // used in case of temporally correlated noise
+  const Uint batchSize = settings.batchSize, ESpopSize = settings.ESpopSize;
   std::vector<Rvec> OrUhState = std::vector<Rvec>( nAgents, Rvec(nA, 0) );
+  mutable std::vector<Rvec> rhos=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> dkls=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
+  mutable std::vector<Rvec> advs=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
 
-  void TrainBySequences(const Uint seq, const Uint wID,
-    const Uint bID, const Uint tID) const override;
+  void prepareCMALoss();
 
-  void Train(const Uint seq, const Uint samp, const Uint wID,
-    const Uint bID, const Uint tID) const override;
+  //void TrainBySequences(const Uint seq, const Uint wID,
+  //  const Uint bID, const Uint tID) const override;
 
-  Rvec compute(Sequence*const traj, const Uint samp,
+  void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const override;
+
+  Rvec compute(Sequence& S, const Uint samp,
     const Rvec& outVec, const Policy_t& POL, const Uint thrID) const;
 
-  Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
+  Rvec offPolCorrUpdate(Sequence& S, const Uint t,
     const Rvec output, const Policy_t& pol, const Uint thrID) const;
 
   Rvec policyGradient(const Rvec& MU, const Policy_t& POL,
@@ -100,11 +112,25 @@ class RACER : public Learner_approximator
   static std::vector<Uint> count_adv_starts(const ActionInfo*const aI);
   void setupNet();
  public:
-  RACER(Environment*const _env, Settings& _set);
-  ~RACER() { }
+  RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
   void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };
+
+template<> Uint
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint
+RACER<Param_advantage, Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI);
+
+template<> Uint
+RACER<Zero_advantage, Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI);
+
+}
+#endif

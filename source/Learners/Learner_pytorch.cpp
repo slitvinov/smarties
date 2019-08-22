@@ -20,7 +20,8 @@
 namespace py = pybind11;
 using namespace py::literals;
 
-
+namespace smarties
+{
 
 struct PybindSequence
 {
@@ -53,9 +54,6 @@ struct PybindSequence
 
 
 
-
-
-
 PYBIND11_MAKE_OPAQUE(std::vector<double>);  // <--- Do not convert to lists.
 // PYBIND11_MAKE_OPAQUE(std::vector<std::vector<double>>);  // <--- Do not convert to lists.
 PYBIND11_MAKE_OPAQUE(std::vector<Sequence*>);   // <--- Works even without this, because bind_vector is used, but keep it just in case.
@@ -77,7 +75,9 @@ PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
 
 py::scoped_interpreter guard{};
 
-Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
+// Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
+
+Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_)
 {
   std::cout << "STARTING NEW LEARNER." << std::endl;
 
@@ -195,6 +195,7 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks) {
 
 void Learner_pytorch::spawnTrainTasks()
 {
+
   std::cout << "SPAWNING TRAINING TASKS. " << std::endl;
   std::cout << "Number of sequences: " << data->readNSeq() << std::endl;
   if(bSampleSequences && data->readNSeq() < batchSize)
@@ -483,6 +484,7 @@ void Learner_pytorch::select(Agent& agent)
   }
   std::cout << "EXITING 222 !" << std::endl;
   py::print("EXITING 2!");
+
 }
 
 void Learner_pytorch::getMetrics(std::ostringstream& buf) const
@@ -523,4 +525,4 @@ void Learner_pytorch::save()
   Learner::save();
 }
 
-
+}

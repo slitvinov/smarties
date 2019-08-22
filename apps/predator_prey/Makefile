@@ -1,13 +1,14 @@
 CC = g++
 
-#OBJ_FILES = pp.o Communicator.o
-OBJ_FILES = twoPredOnePrey.o Communicator.o
-SRC_DIR = ./
-COM_DIR = ../../source/Communicators/
-VPATH := $(SRC_DIR):$(COM_DIR)
-#CPPFLAGS+=-std=c++11 -Wall -O0 -I$(COM_DIR)
-CPPFLAGS+=-std=c++11 -Wall -O2 -I$(COM_DIR)
+LIBS+= -L${SMARTIES_LIB} -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
 
+onepred ?= false
+ifneq "$(onepred)" "false"
+OBJ_FILES = pp.o
+else
+OBJ_FILES = twoPredOnePrey.o
+endif
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
@@ -20,16 +21,11 @@ else
 CPPFLAGS+= -I/usr/include/python2.7
 LIBS += -lpython2.7
 endif
-#-I/usr/local/Cellar/python/3.6.1/Frameworks/Python.framework/Versions/3.6/include/python3.6m/
-#LIBS = -L/usr/local/Cellar/python/3.6.1/Frameworks/Python.framework/Versions/3.6/lib/python3.6/config-3.6m-darwin/ -lpython3.6m
-
-#CPPFLAGS+= -fsanitize=address
-#LIBS += -fsanitize=address
 
 .DEFAULT_GOAL := pp
 
 pp: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+	$(CC) $(extra) $(LIBS) $^ -o $@
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@

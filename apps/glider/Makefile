@@ -1,47 +1,39 @@
-CC = g++
-smart ?= 1
+CXX ?= g++
 
+extra ?=
+smart ?= 1
+train ?= 1
 multdt ?= 1
+costfun ?= 1
 aspectr ?= 0.1
 density ?= 200
-costfun ?= 1
-train ?= 1
 CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun) -DMULT_ACT_DT=$(multdt)
 
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-LD=g++-8
-CC=g++-8
+#UNAME_S := $(shell uname -s)
+#ifeq ($(UNAME_S), Darwin)
+#ifeq ($(CXX), c++)
+#LD=g++-9
+#CXX=g++-9
+#endif
+#endif
+
+ifeq "$(smart)" "1"
+CPPFLAGS+= -DUSE_SMARTIES
 endif
 
-ifeq "$(smart)" "0"
-OBJ_FILES =  glider.o
-else
-CPPFLAGS+= -D__SMARTIES_
-OBJ_FILES = glider.o Communicator.o
-endif
-
-SRC_DIR = ./
-COM_DIR = ../../source/Communicators/
-VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+=-std=c++11 -O2 -Wall -I$(COM_DIR)
+LIBS+= -L${SMARTIES_LIB} -lsmarties
+CPPFLAGS+= -std=c++14 -Wall -O2 -I${SMARTIES_INCLUDE}
 
 .DEFAULT_GOAL := glider
 
-glider: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+glider: glider.o
+	$(CXX) $(extra) -o $@ $^ ${LIBS}
 
 %.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(extra) $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
-
-#vpath %.cpp $(DIRS)
-#vpath %.h   $(DIRS)
+	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
 
 clean:
-	rm -f *.o
-	rm -f *.s
-	rm -f *.d
-	rm -f glider
+	rm -f *.o *.s *.d glider

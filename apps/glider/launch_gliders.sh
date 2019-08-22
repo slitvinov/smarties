@@ -1,15 +1,15 @@
 
-for ASPECT in "0.01" "0.03" "0.1" "0.3" "1"; do
-for DRATIO in "10" "50" "200" "500" "1000"; do
+for ASPECT in "0.025" "0.050" "0.100" "0.200" "0.400"; do
+for DRATIO in "25" "50" "100" "200" "400" "800"; do
 for REWARD in "1" "2"; do
 
 make -C ../apps/glider clean
 make -C ../apps/glider aspectr=${ASPECT} density=${DRATIO} costfun=${REWARD}
 
-POSTFIX=${RATIO}_R${ASPECT}_C${REWARD}
-echo $POSTFIX
-
-./launch.sh glider_dt05_beta_${ASPECT}_rho_${DRATIO}_cost_${REWARD} 24 1 glider settings/settings_POAC.sh none 24
+PRRATIO=`printf "%03d" $DRATIO`
+echo glider_dt05_alpha${ASPECT}_rho${PRRATIO}_cost${REWARD}
+#./launch.sh glider_dacer_dt05_alpha${ASPECT}_rho${PRRATIO}_cost${REWARD} 12 glider settings/settings_DACER_safe.sh
+./launch.sh train06_dt05_alpha${ASPECT}_rho${PRRATIO}_cost${REWARD} 12 glider settings/settings_POAC_safe.sh
 
 done
 done

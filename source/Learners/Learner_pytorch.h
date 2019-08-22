@@ -6,8 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef smarties_Learner_pytorch_h
+#define smarties_Learner_pytorch_h
+
 #include "Learner.h"
+#include "../Utils/ParameterBlob.h"
+
+namespace smarties
+{
 
 namespace pybind11
 {
@@ -19,13 +25,13 @@ class Learner_pytorch: public Learner
  public:
   const bool bSampleSequences = settings.bSampleSequences;
   // hyper-parameters:
-  const Uint batchSize = settings.batchSize_loc;
+  const Uint batchSize = settings.batchSize_local;
   const Uint ESpopSize = settings.ESpopSize;
   const Real learnR = settings.learnrate;
   const Real explNoise = settings.explNoise;
 
  protected:
- 
+
   void spawnTrainTasks();
   // auto Nets;
   // pybind11::object Nets;
@@ -34,11 +40,11 @@ class Learner_pytorch: public Learner
   std::vector<pybind11::object> Nets;
 
  public:
-  Learner_pytorch(Environment*const env, Settings & settings);
+  Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
-  void select(Agent& ) override;
-  void setupTasks(TaskQueue& tasks) override;
-  virtual ~Learner_pytorch();
+  void select(Agent& ) override {}
+  void setupTasks(TaskQueue& tasks) override {}
+  virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;
@@ -47,4 +53,5 @@ class Learner_pytorch: public Learner
 
 };
 
-
+}
+#endif
