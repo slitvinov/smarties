@@ -164,15 +164,16 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks)
 
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
-    // debugL("Gather gradient estimates from each thread and Learner MPI rank");
-    // prepareGradient();
-    debugL("Search work to do in the Replay Memory");
-    processMemoryBuffer(); // find old eps, update avg quantities ...
-    debugL("Update Retrace est. for episodes sampled in prev. grad update");
-    updateRetraceEstimates();
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
+    // // debugL("Gather gradient estimates from each thread and Learner MPI rank");
+    // // prepareGradient();
+    // debugL("Search work to do in the Replay Memory");
+    // processMemoryBuffer(); // find old eps, update avg quantities ...
+    // debugL("Update Retrace est. for episodes sampled in prev. grad update");
+    // updateRetraceEstimates();
+    // debugL("Compute state/rewards stats from the replay memory");
+    // finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
+    
     algoSubStepID = 1;
   };
   tasks.add(stepMain);
@@ -191,15 +192,15 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks)
   tasks.add(stepComplete);
 
   std::cout << "PYTORCH TASKS ALL SET UP..." << std::endl;
-  std::cout << "Data: " << data->readNSeq() << std::endl;
+  std::cout << "PYTORCH: Data: " << data->readNSeq() << std::endl;
 }
 
 
 
 void Learner_pytorch::spawnTrainTasks()
 {
-  std::cout << "SPAWNING TRAINING TASKS. " << std::endl;
-  std::cout << "Number of sequences: " << data->readNSeq() << std::endl;
+  std::cout << "PYTORCH: SPAWNING TRAINING TASKS. " << std::endl;
+  std::cout << "PYTORCH: Number of sequences: " << data->readNSeq() << std::endl;
 
   if(settings.bSampleSequences && data->readNSeq() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");

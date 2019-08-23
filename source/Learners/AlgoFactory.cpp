@@ -76,6 +76,7 @@ std::unique_ptr<Learner> createLearner(
 
   if (settings.learner == "PYTORCH")
   {
+    settings.bSampleSequences = true;
     ret = std::make_unique<Learner_pytorch>(MDP, settings, distrib);
   }
   else
