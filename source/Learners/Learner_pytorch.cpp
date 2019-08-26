@@ -11,29 +11,85 @@
 #include "../ReplayMemory/Collector.h"
 
 // PYBIND
-// #include <pybind11/pybind11.h>
-// #include <pybind11/embed.h>
-// #include <pybind11/stl_bind.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
+#include <vector>
 // #include <pybind11/numpy.h>
 
 #include <iostream>
 
-// namespace py = pybind11;
-// using namespace py::literals;
+
+struct PybindMiniBatch
+{
+  std::vector<int> example;
+
+  // std::vector< std::vector< std::vector <double> > > S;  // state
+  // episodes | time steps | dimensionality
+  // std::vector< std::vector< NNvec > > S;  // state
+  // std::vector< std::vector< Rvec* > > A;  // action pointer
+  // std::vector< std::vector< Rvec* > > MU; // behavior pointer
+  // std::vector< std::vector< Real  > > R;  // reward
+  // std::vector< std::vector< nnReal> > W;  // importance sampling
+};
+
+PYBIND11_MAKE_OPAQUE(std::vector<int>);
+// PYBIND11_MAKE_OPAQUE(std::vector<PybindMiniBatch*>);
+
+
+namespace py = pybind11;
+using namespace py::literals;
 
 namespace smarties
 {
 
-// struct PybindSequence
-// {
-//     std::vector<double> states;
-//     std::vector<double> actions;
-// };
 
-//   // std::vector<std::vector<memReal>> states;
-//   // std::vector<std::vector<Real>> actions;
-//   // std::vector<std::vector<Real>> policies;
-//   // std::vector<Real> rewards;
+PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
+    py::class_<PybindMiniBatch>(m, "PybindMiniBatch")
+        .def(py::init<>())  // <--- If you want to create PybindMiniBatch object from Python.
+        .def_readwrite("example", &PybindMiniBatch::example); // <--- Expose member variables.
+
+    // Bind vectors without conversion to lists, but keep list interface (e.g. `append` instead of `push_back`).
+    py::bind_vector<std::vector<int>>(m, "VectorInt");
+    py::bind_vector<std::vector<PybindMiniBatch*>>(m, "PybindMiniBatchPointer");
+}
+
+
+
+
+
+// PYBIND11_MAKE_OPAQUE(std::vector<double>);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector<double> >);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< std::vector<double> > >);  // <--- Do not convert to lists.
+
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< NNvec > >);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< Rvec* > >);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< Real > >);  // <--- Do not convert to lists.
+// // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< nnReal > >);  // <--- Do not convert to lists.
+// PYBIND11_MAKE_OPAQUE(std::vector<PybindMiniBatch*>);   // <--- Works even without this, because bind_vector is used, but keep it just in case.
+
+// PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
+//     py::class_<PybindMiniBatch>(m, "PybindMiniBatch")
+//         .def(py::init<>())  // <--- If you want to create PybindMiniBatch object from Python.
+//         .def_readwrite("S", &PybindMiniBatch::S);
+//         // .def_readwrite("S", &PybindMiniBatch::S)  // <--- Expose member variables.
+//         // .def_readwrite("A", &PybindMiniBatch::A)  // <--- Expose member variables.
+//         // .def_readwrite("MU", &PybindMiniBatch::MU)  // <--- Expose member variables.
+//         // .def_readwrite("R", &PybindMiniBatch::R)  // <--- Expose member variables.
+//         // .def_readwrite("W", &PybindMiniBatch::W);  // <--- Expose member variables.
+
+//     // Bind vectors without conversion to lists, but keep list interface (e.g. `append` instead of `push_back`).
+//     py::bind_vector<std::vector<double>>(m, "VectorVectorVectorDouble");
+//     // py::bind_vector<std::vector< std::vector< std::vector<double> > > >(m, "VectorVectorVectorDouble");
+//     // py::bind_vector<std::vector< std::vector< NNvec > > >(m, "VectorVectorNNvec");
+//     // py::bind_vector<std::vector< std::vector< Real > > >(m, "VectorVectorReal");
+//     // py::bind_vector<std::vector< std::vector< nnReal > > >(m, "VectorVectornnReal");
+//     // py::bind_vector<std::vector< std::vector< Rvec* > > >(m, "VectorVectornnRvecPointer");
+
+//     py::bind_vector<std::vector<PybindMiniBatch*>>(m, "VectorPybindMiniBatch");
+// }
+
 
 
 
@@ -50,8 +106,6 @@ namespace smarties
 //     py::bind_vector<std::vector<double>>(m, "VectorDouble");
 //     py::bind_vector<std::vector<PybindSequence*>>(m, "VectorSequenceptr");
 // }
-
-
 
 
 
@@ -74,59 +128,39 @@ namespace smarties
 // }
 
 
-// py::scoped_interpreter guard{};
-
-// Learner_pytorch::Learner_pytorch(Environment*const E, Settings&S): Learner(E, S)
+py::scoped_interpreter guard{};
 
 Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_): Learner(MDP_, S_, D_)
 {
-  // std::cout << "STARTING NEW LEARNER." << std::endl;
+  std::cout << "PYTORCH: STARTING NEW LEARNER." << std::endl;
+  std::cout << "PYTORCH: Initializing pytorch scope..." << std::endl;
 
-  // std::cout << "Initializing pytorch scope..." << std::endl;
+  py::module sys = py::module::import("sys");
+  std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
+  py::print(sys.attr("path").attr("insert")(0,path));
+  auto module = py::module::import("mlp_module");
+  auto Net = module.attr("MLP");
 
-  // py::module sys = py::module::import("sys");
-  // std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
-  // py::print(sys.attr("path").attr("insert")(0,path));
+  std::cout << "PYTORCH: MDP_.dimStateObserved= " << MDP_.dimStateObserved << std::endl;
 
-  // auto module = py::module::import("mlp_module");
-  // // py::print(module);
-  // auto Net = module.attr("MLP");
+  int input_dim = MDP_.dimStateObserved ;
+  int L1 = 10;
+  int L2 = 10;
+  // Outputing the mean action and the standard deviation of the action (possibly also the value function)
+  int output_dim = 2*MDP_.dimAction;
+  std::cout << "PYTORCH: Output dimension=" << output_dim << std::endl;
 
-  // std::cout << "state dimension: " << sInfo.dimUsed << std::endl;
+  auto net = Net(input_dim, L1, L2, output_dim);
+  Nets.emplace_back(Net(input_dim, L1, L2, output_dim));
+  Nets[0] = net;
+  std::cout << "PYTORCH: NEW LEARNER STARTED." << std::endl;
 
-  // int input_dim = sInfo.dimUsed;
-  // int L1 = 10;
-  // int L2 = 10;
-  // // Outputing the value function, the mean action and the standard deviation of the action
-  // int output_dim = 1 + aInfo.dim + aInfo.dim;
 
-  // auto net = Net(input_dim, L1, L2, output_dim);
-  // Nets.emplace_back(Net(input_dim, L1, L2, output_dim));
-  // Nets[0] = net;
-  // std::cout << "NEW LEARNER STARTED." << std::endl;
-
-  // py::print(Net);
-  // Nets.push_back(Net())
-
-  // auto net = Net();
-  // auto net = Net();
-  // Nets = &net;
-  // Nets = new auto Net();
-  // Nets.push_back(new Net());
-
-  // auto torch = py::module::import("torch");
-
-  // auto input = torch.attr("randn")(input_dim);
-  // py::print(input);
-  // py::print(input.attr("size")());
-  // auto output = net.attr("forward")(input);
-  // auto output = Nets.attr("forward")(input);
-  // auto output = Nets[0].attr("forward")(input);
-  // py::print(output);
-  // py::print(output.attr("size")());
-
-  // Nets = new  Net() ;
-  // Nets = &net;
+  std::cout << "PYTORCH: PROPAGATING THROUGH THE LEARNER." << std::endl;
+  auto torch = py::module::import("torch");
+  auto input = torch.attr("randn")(input_dim);
+  auto output = Nets[0].attr("forwardVector")(input);
+  std::cout << "PYTORCH: PROPAGATION WORKED!" << std::endl;
 
 }
 
@@ -137,7 +171,7 @@ Learner_pytorch::~Learner_pytorch() {
 
 void Learner_pytorch::setupTasks(TaskQueue& tasks)
 {
-  std::cout << "PYTORCH SETTING UP TASKS..." << std::endl;
+  std::cout << "PYTORCH: SETTING UP TASKS..." << std::endl;
 
   // If not training (e.g. evaluate policy)
   if( not bTrain ) return;
@@ -191,7 +225,7 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks)
   };
   tasks.add(stepComplete);
 
-  std::cout << "PYTORCH TASKS ALL SET UP..." << std::endl;
+  std::cout << "PYTORCH: TASKS ALL SET UP..." << std::endl;
   std::cout << "PYTORCH: Data: " << data->readNSeq() << std::endl;
 }
 
@@ -199,8 +233,8 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks)
 
 void Learner_pytorch::spawnTrainTasks()
 {
-  std::cout << "PYTORCH: SPAWNING TRAINING TASKS. " << std::endl;
-  std::cout << "PYTORCH: Number of sequences: " << data->readNSeq() << std::endl;
+  // std::cout << "PYTORCH: SPAWNING TRAINING TASKS. " << std::endl;
+  // std::cout << "PYTORCH: Number of sequences: " << data->readNSeq() << std::endl;
 
   if(settings.bSampleSequences && data->readNSeq() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
@@ -210,12 +244,14 @@ void Learner_pytorch::spawnTrainTasks()
   const Uint nThr = distrib.nThreads, CS =  batchSize / nThr;
   const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
 
+  // std::cout << "MB.episodes.size()=" << MB.episodes.size() << std::endl;
+
   if(settings.bSampleSequences)
   {
     // #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
     for (Uint wID=0; wID<ESpopSize; ++wID)
     {
-      std::cout << "PYTORCH: READING AN EPISODE!" << std::endl;
+      // std::cout << "PYTORCH: READING AN EPISODE!" << std::endl;
       // std::cout << MB.episodes[0]->states[0] << std::endl;
     }
     // for (Uint bID=0; bID<batchSize; ++bID) {
@@ -269,20 +305,105 @@ void Learner_pytorch::spawnTrainTasks()
 
 void Learner_pytorch::select(Agent& agent)
 {
+  std::cout << "PYTORCH: AGENT SELECTING ACTION!" << std::endl;
   // Sequence* const traj = data_get->get(agent.ID);
   // Sequence* traj = data_get->get(agent.ID);
 
   data_get->add_state(agent);
   Sequence& EP = * data_get->get(agent.ID);
 
-  // data_get->add_state(agent);
-  // const Approximator* const NET = networks[0];
-  // Sequence& EP = * data_get->get(agent.ID);
-  // const MiniBatch MB = data->agentToMinibatch(&EP);
+  const MiniBatch MB = data->agentToMinibatch(&EP);
   // NET->load(MB, agent, 0);
+
+  std::cout << "MB.episodes.size()=" << MB.episodes.size() << std::endl;
+  std::cout << "MB.S[0].size()=" << MB.S[0].size() << std::endl;
+  std::cout << "MB.A[0].size()=" << MB.A[0].size() << std::endl;
+  std::cout << "MB.MU[0].size()=" << MB.MU[0].size() << std::endl;
+  std::cout << "MB.R[0].size()=" << MB.R[0].size() << std::endl;
+  std::cout << "MB.W[0].size()=" << MB.W[0].size() << std::endl;
 
   if( agent.agentStatus < TERM ) // not end of sequence
   {
+    // IMPORTANT !
+    std::cout << "PYTORCH: IMPORTING THE EMBEDDER!" << std::endl;
+    py::module::import("pybind11_embed");
+
+    PybindMiniBatch pybindMB;
+    std::vector<int> vec;
+    vec.push_back(0);
+    vec.push_back(1);
+    vec.push_back(2);
+    vec.push_back(3);
+    pybindMB.example = vec;
+    std::cout << "pybindMB.example.size()=" << pybindMB.example.size() << std::endl;
+
+    std::cout << "PYTORCH: 1" << std::endl;
+    std::cout << pybindMB.example[2] << std::endl;
+
+    std::vector<PybindMiniBatch*> vectorMiniBatch;
+    std::reference_wrapper<std::vector<PybindMiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
+    vectorMiniBatch.push_back(&pybindMB);
+    std::cout << "PYTORCH: 2" << std::endl;
+
+    bool policyType = 1;
+    // auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "policyType"_a=policyType);
+    auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref);
+
+    std::cout << "PYTORCH: 3" << std::endl;
+
+    std::cout << "PYTORCH: SELECTING ACTION FROM THE NET" << std::endl;
+    // auto output = Nets[0].attr("forward")(locals);
+
+    std::cout << "PYTORCH: ACTION SELECTED!" << std::endl;
+
+
+
+
+    // PybindMiniBatch pybindMB;
+    // pybindMB.S = MB.S;
+    // // pybindMB.A = MB.A;
+    // // pybindMB.MU = MB.MU;
+    // // pybindMB.R = MB.R;
+    // // pybindMB.W = MB.W;
+
+    // std::vector<PybindMiniBatch*> miniBatch;
+    // std::reference_wrapper<std::vector<PybindMiniBatch*>> miniBatch_ref{miniBatch};
+    // miniBatch.push_back(&pybindMB);
+
+    // bool policyType = 1;
+    // auto locals = py::dict("miniBatch"_a=miniBatch_ref, "policyType"_a=policyType);
+
+
+    // std::vector<PybindSequence*> seqVec;
+    // seqVec.push_back(&s1);
+    // seqVec.push_back(&s2);
+
+    // std::reference_wrapper<std::vector<PybindSequence*>> seqVec_ref{seqVec};
+    // bool policyType = 1;
+
+    // // auto locals = py::dict("var1"_a=seqVec_ref, "var2"_a=seqVec_ref);
+    // auto locals = py::dict("seqVec"_a=seqVec_ref, "policyType"_a=policyType);
+
+
+    // py::print("PROP1:");
+    // // std::vector<double> temp(input_dim);
+    // auto output = Nets[0].attr("forward")(locals);
+
+
+    // py::print("DID IT MODIFY THE C++ ?:");
+    // std::cout << s1.states[0] << std::endl;
+
+    // py::print("s1.actions:");
+    // std::cout << s1.actions[0] << std::endl;
+    // std::cout << s1.actions[1] << std::endl;
+    // std::cout << s1.actions[2] << std::endl;
+    // py::print("OUTPUT:");
+    // // std::cout << output << std::endl;
+
+
+
+
+
     // //Compute policy and value on most recent element of the sequence.
     // const Rvec output = NET->forward(agent);
     // auto pol = prepare_policy<Policy_t>(output);
@@ -523,9 +644,6 @@ void Learner_pytorch::select(Agent& agent)
   {
     data_get->terminate_seq(agent);
   }
-
-  // std::cout << "EXITING 222 !" << std::endl;
-  // py::print("EXITING 2!");
 
 }
 

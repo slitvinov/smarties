@@ -7,7 +7,7 @@
   "gamma": 0.99,
   "learnrate": 0.0001,
   "maxTotObsNum": 16384,
-  "minTotObsNum": 16384,
+  "minTotObsNum": 12384,
   "nnLayerSizes": [64, 64],
   "targetDelay": 0.001
 }

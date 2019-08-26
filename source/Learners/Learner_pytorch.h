@@ -11,6 +11,7 @@
 
 #include "Learner.h"
 #include "../Utils/ParameterBlob.h"
+#include <pybind11/pybind11.h>
 
 namespace smarties
 {
@@ -30,6 +31,7 @@ class Learner_pytorch: public Learner
   const Real learnR = settings.learnrate;
   const Real explNoise = settings.explNoise;
 
+
  protected:
 
   void spawnTrainTasks();
@@ -37,8 +39,8 @@ class Learner_pytorch: public Learner
   // pybind11::object Nets;
   // pybind11::object * Nets;
   // std::vector<pybind11::object*> Nets;
-  // std::vector<pybind11::object> Nets;
   // std::vector<Approximator*> networks;
+  std::vector<pybind11::object> Nets;
 
  public:
   Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
