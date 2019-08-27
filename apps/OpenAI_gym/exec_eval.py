@@ -81,10 +81,11 @@ def app_main(comm):
     while True: # simulation loop
       action = getAction(comm, env) #receive action from smarties
       observation, reward, done, info = env.step(action)
-      if t>0 : env.env.viewer_setup()
+      #if t>0 : env.env.viewer_setup()
       img = env.render(mode='rgb_array')
       img = plt.imshow(img)
       fig.savefig('sim%02d_frame%04d.png' % (sim, t))
+      env.close()
       t = t + 1
       if done == True and t >= env._max_episode_steps:
         comm.sendLastState(observation, reward)
