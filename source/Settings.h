@@ -67,7 +67,7 @@ struct DistributionInfo
   Uint nWorkers = 1;
   Uint workerProcessesPerEnv = 1;
   Uint randSeed = 0;
-  Uint totNumSteps = 10000000; // total number of env time steps
+  Uint totNumSteps = 100000000; // total number of env time steps
 
   std::string nStepPappSett = "0";
   std::string appSettings = "";
@@ -97,7 +97,7 @@ struct Settings
   std::string ERoldSeqFilter = "default";
   std::string dataSamplingAlgo = "uniform";
 
-  Real explNoise = std::sqrt(0.2);
+  Real explNoise = std::sqrt(0.4);
   Real gamma = 0.995;
   Real lambda = 0.95;
   Real obsPerStep = 1;
