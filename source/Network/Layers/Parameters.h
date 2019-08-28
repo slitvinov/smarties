@@ -129,14 +129,19 @@ struct Parameters
     for(Uint j=0; j<nParams; ++j) params[j] = val;
   }
 
-  void save(const std::string fname) const
+  void save(const std::string fname, const bool isBackup = false) const
   {
-    FILE * wFile = fopen((fname+".raw").c_str(), "wb");
+    // if not backup, first write to a temporary file for safety
+    const std::string name = fname + ".raw", backname = fname + "_backup.raw";
+    FILE * wFile = fopen((isBackup? name : backname).c_str(), "wb");
     float* const tmp = Utilities::allocate_ptr<float>(nParams);
     std::copy(params, params + nParams, tmp);
     fwrite(tmp, sizeof(float), nParams, wFile);
     fflush(wFile); fclose(wFile); free(tmp);
+
+    if(not isBackup) Utilities::copyFile(backname, name);
   }
+
   int restart(const std::string fname) const
   {
     FILE * const wFile = fopen((fname+".raw").c_str(), "rb");
