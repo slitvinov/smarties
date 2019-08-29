@@ -16,11 +16,6 @@
 namespace smarties
 {
 
-// namespace pybind11
-// {
-//   class object;
-// }
-
 class Learner_pytorch: public Learner
 {
  public:
@@ -35,16 +30,16 @@ class Learner_pytorch: public Learner
  protected:
 
   void spawnTrainTasks();
-  // auto Nets;
-  // pybind11::object Nets;
-  // pybind11::object * Nets;
-  // std::vector<pybind11::object*> Nets;
-  // std::vector<Approximator*> networks;
   std::vector<pybind11::object> Nets;
 
  public:
   Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
+  static Uint getnDimPolicy(const ActionInfo*const aI)
+  {
+    return 2*aI->dim();
+  }
+  
   void select(Agent& ) override;
   void setupTasks(TaskQueue& tasks) override;
   virtual ~Learner_pytorch() override;

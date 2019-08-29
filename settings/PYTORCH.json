@@ -8,6 +8,6 @@
   "learnrate": 0.0001,
   "maxTotObsNum": 16384,
   "minTotObsNum": 12384,
-  "nnLayerSizes": [64, 64],
+  "nnLayerSizes": [32, 32],
   "targetDelay": 0.001
 }
