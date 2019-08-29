@@ -149,7 +149,7 @@ class BaseLayer: public Layer
       for(Uint o=0; o<nNeurons; ++o)
         *(tmp++) = (float) weight[o + nOut_simd * i];
     for (Uint n=0; n<nNeurons; ++n) *(tmp++) = (float) bias[n];
-    return nNeurons * (bRecurrent? nInputs + nNeurons : nInputs);
+    return nNeurons * (nInputs + bRecurrent*nNeurons + 1);
   }
   size_t restart(const Parameters * const para,
                       const float * tmp) const override
