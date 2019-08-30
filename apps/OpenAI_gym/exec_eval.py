@@ -7,11 +7,10 @@
 ##  Created by Guido Novati (novatig@ethz.ch).
 ##
 
-import gym, sys, os, numpy as np
-#from gym import wrappers
+import gym, sys, os, numpy as np, cv2
+from gym import wrappers
 os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
 import smarties as rl
-from HumanoidWrapper import HumanoidWrapper
 
 def getAction(comm, env):
   buf = comm.recvAction()
@@ -25,10 +24,7 @@ def getAction(comm, env):
   else: assert(False)
   return action
 
-def setupSmartiesCommon(comm, task):
-  env = gym.make(task)
-
-  ## setup MDP properties:
+def setupSmarties(comm, env):
   # first figure out dimensionality of state
   dimState = 1
   if hasattr(env.observation_space, 'shape'):
@@ -69,23 +65,27 @@ def setupSmartiesCommon(comm, task):
     comm.set_action_scales(upprScale, lowrScale, isBounded, 0)
   else: assert(False)
 
-  return env
 
 def app_main(comm):
-  task = sys.argv[1]
-  print("openAI environment: ", task)
-  if task == 'Humanoid-v2' or task == 'HumanoidStandup-v2':
-    env = HumanoidWrapper(comm, task)
-  else:
-    env = setupSmartiesCommon(comm, task)
-
+  import matplotlib.pyplot as plt
+  print("openAI environment: ", sys.argv[1])
+  env = gym.make(sys.argv[1])
+  setupSmarties(comm, env) # create communicator with smarties
+  sim = 0
+  fig = plt.figure()
   while True: #training loop
     observation = env.reset()
     t = 0
+    sim = sim + 1
     comm.sendInitState(observation)
     while True: # simulation loop
       action = getAction(comm, env) #receive action from smarties
       observation, reward, done, info = env.step(action)
+      #if t>0 : env.env.viewer_setup()
+      img = env.render(mode='rgb_array')
+      img = plt.imshow(img)
+      fig.savefig('sim%02d_frame%04d.png' % (sim, t))
+      env.close()
       t = t + 1
       if done == True and t >= env._max_episode_steps:
         comm.sendLastState(observation, reward)
@@ -97,4 +97,6 @@ def app_main(comm):
 if __name__ == '__main__':
   e = rl.Engine(sys.argv)
   if( e.parse() ): exit()
+  e.setIsTraining(False)
+  e.setRestartFolderPath('.')
   e.run( app_main )
