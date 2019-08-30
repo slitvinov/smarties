@@ -114,9 +114,9 @@ void Learner_approximator::restart()
 
 void Learner_approximator::save()
 {
-  const Uint currStep = nGradSteps()+1;
-  const Real freqSave = freqPrint * PRFL_DMPFRQ;
-  const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
+  //const Uint currStep = nGradSteps()+1;
+  //const Real freqSave = freqPrint * PRFL_DMPFRQ;
+  //const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = false; // currStep % freqBackup == 0;
   for(const auto & net : networks) net->save(learner_name, bBackup);
 
