@@ -49,3 +49,9 @@ class HumanoidWrapper():
     observation, reward, done, info = self.env.step(action)
     return observation[INDS], reward, done, info
 
+  def render(self, mode):
+    return self.env.render(mode=mode)
+
+  def close(self):
+    return self.env.close()
+

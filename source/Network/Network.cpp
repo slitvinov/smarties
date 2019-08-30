@@ -146,7 +146,7 @@ int Network::restart(const Parameters * const W,
     _die("Mismatch in restarted file %s; contains:%lu read:%lu.",
       fname.c_str(), wsize, totWritten);
   fclose(wFile); free(buf);
-  
+
   return 0;
 }
 #if 0

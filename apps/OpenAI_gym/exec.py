@@ -8,7 +8,6 @@
 ##
 
 import gym, sys, os, numpy as np
-#from gym import wrappers
 os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
 import smarties as rl
 from HumanoidWrapper import HumanoidWrapper
@@ -19,7 +18,7 @@ def getAction(comm, env):
     action = int(buf[0])
   elif hasattr(env.action_space, 'spaces'):
     action = [int(buf[0])]
-    for i in range(1, comm.nActions): action = action+[int(buf[i])]
+    for i in range(1, comm.nActions): action = action + [int(buf[i])]
   elif hasattr(env.action_space, 'shape'):
     action = buf
   else: assert(False)

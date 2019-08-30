@@ -282,8 +282,6 @@ void Approximator::getMetrics(std::ostringstream& buff) const
 
 void Approximator::save(const std::string base, const bool bBackup)
 {
-  //using NetSaveF_t = std::function<void(const Parameters*const,
-  //                                      const std::string, const bool)>;
   const auto F = [&](const Parameters*const W,
                            const std::string fname, const bool bBack) {
     net->save(W, fname, bBack);
@@ -293,8 +291,6 @@ void Approximator::save(const std::string base, const bool bBackup)
 }
 void Approximator::restart(const std::string base)
 {
-  //using NetLoadF_t = std::function<int(const Parameters*const,
-  //                                     const std::string)>;
   const auto F = [&](const Parameters*const W, const std::string fname) {
     return net->restart(W, fname);
   };
