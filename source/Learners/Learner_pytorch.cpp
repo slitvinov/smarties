@@ -23,13 +23,16 @@
 namespace py = pybind11;
 using namespace py::literals;
 
+// PYBIND11_MAKE_OPAQUE(smarties::Uint);
+// PYBIND11_MAKE_OPAQUE(std::vector<smarties::Uint>);
+
 PYBIND11_MAKE_OPAQUE(smarties::NNvec);
 PYBIND11_MAKE_OPAQUE(std::vector< smarties::NNvec >);
 PYBIND11_MAKE_OPAQUE(std::vector< std::vector< smarties::NNvec > >);
 PYBIND11_MAKE_OPAQUE(std::vector< std::vector< smarties::Rvec* > >);
 // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< smarties::Real > >);
 // PYBIND11_MAKE_OPAQUE(std::vector< std::vector< smarties::nnReal > >);  // <--- Do not convert to lists.
-PYBIND11_MAKE_OPAQUE(std::vector<smarties::MiniBatch*>);
+PYBIND11_MAKE_OPAQUE(std::vector<const smarties::MiniBatch*>);
 
 namespace smarties
 {
@@ -37,11 +40,16 @@ namespace smarties
 PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
     py::class_<MiniBatch>(m, "MiniBatch")
         // .def(py::init<>())
+        .def_readonly("begTimeStep", &MiniBatch::begTimeStep)
+        .def_readonly("endTimeStep", &MiniBatch::endTimeStep)
+        .def_readonly("sampledTimeStep", &MiniBatch::sampledTimeStep)
         .def_readwrite("S", &MiniBatch::S)
         .def_readwrite("A", &MiniBatch::A)
         .def_readwrite("MU", &MiniBatch::MU)
         .def_readwrite("R", &MiniBatch::R)
         .def_readwrite("W", &MiniBatch::W);
+
+    // py::bind_vector<std::vector<Uint>>(m, "VectorUint");
 
     py::bind_vector<NNvec>(m, "NNvec");
     py::bind_vector<std::vector<NNvec>>(m, "VectorNNvec");
@@ -49,7 +57,7 @@ PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
     // py::bind_vector<std::vector<std::vector<Real>>>(m, "VectorVectorReal");
     // py::bind_vector<std::vector< std::vector< nnReal > > >(m, "VectorVectornnReal");
     py::bind_vector<std::vector< std::vector< Rvec* > > >(m, "VectorVectorRvecPointer");
-    py::bind_vector<std::vector<MiniBatch*>>(m, "VectorMiniBatch");
+    py::bind_vector<std::vector<const MiniBatch*>>(m, "VectorMiniBatch");
 }
 
 
@@ -68,13 +76,15 @@ Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, Distribution
 
   int input_dim = MDP_.dimStateObserved;
   int time_steps = 1;
-  int output_dim = aInfo.dimPol();
+  // V-RACER outputing the value function, mean and std.
+  int output_dim = 1 + aInfo.dim();
+  int sigma_dim = aInfo.dim();
 
   // Outputing the mean action and the standard deviation of the action (possibly also the value function)
   std::cout << "PYTORCH: Output dimension (aInfo.dimPol())=" << output_dim << std::endl;
 
-  auto net = Net(time_steps, input_dim, S_.nnLayerSizes, output_dim);
-  Nets.emplace_back(Net(time_steps, input_dim, S_.nnLayerSizes, output_dim));
+  auto net = Net(time_steps, input_dim, S_.nnLayerSizes, output_dim, sigma_dim);
+  Nets.emplace_back(Net(time_steps, input_dim, S_.nnLayerSizes, output_dim, sigma_dim));
   Nets[0] = net;
   std::cout << "PYTORCH: NEW LEARNER STARTED." << std::endl;
 
@@ -156,9 +166,6 @@ void Learner_pytorch::setupTasks(TaskQueue& tasks)
 
 void Learner_pytorch::spawnTrainTasks()
 {
-  // std::cout << "PYTORCH: SPAWNING TRAINING TASKS. " << std::endl;
-  // std::cout << "PYTORCH: Number of sequences: " << data->readNSeq() << std::endl;
-
   if(settings.bSampleSequences && data->readNSeq() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
@@ -167,211 +174,68 @@ void Learner_pytorch::spawnTrainTasks()
   const Uint nThr = distrib.nThreads, CS =  batchSize / nThr;
   const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
 
-  // std::cout << "MB.episodes.size()=" << MB.episodes.size() << std::endl;
+  // IMPORTANT !
+  py::module::import("pybind11_embed");
 
-  if(settings.bSampleSequences)
-  {
-    // #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
-    for (Uint wID=0; wID<ESpopSize; ++wID)
-    {
-      // std::cout << "PYTORCH: READING AN EPISODE!" << std::endl;
-      // std::cout << MB.episodes[0]->states[0] << std::endl;
+  std::vector<const MiniBatch*> vectorMiniBatch;
+  vectorMiniBatch.push_back(&MB);
+  std::reference_wrapper<std::vector<const MiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
+  auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "CmaxRet"_a=CmaxRet, "CinvRet"_a=CinvRet);
+
+  // UPDATING RETRACE ESTIMATES
+  for (Uint bID=0; bID<batchSize; ++bID) {
+    Sequence& S = MB.getEpisode(bID);
+    const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+    //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
+    if( S.isTruncated(t+1) ) {
+      assert( t+1 == S.ndata() );
+
+      // const Rvec nxt = NET.forward(bID, t+1);
+      Fval fval = 0.0;
+      // std::reference_wrapper<double> fval_ref{fval};
+      std::cout << "BEFORE: FVAL IS " << fval << std::endl;
+      auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "bID"_a=bID, "t"_a=t+1, "fval"_a=fval);
+      auto output = Nets[0].attr("forwardBatchId")(locals);
+      std::cout << "AFTER: FVAL IS " << fval << std::endl;
+
+      // updateRetrace(S, t+1, 0, nxt[VsID], 0);
     }
-    // for (Uint bID=0; bID<batchSize; ++bID) {
-      // for (const auto & net : networks ) net->load(MB, bID, wID);
-      // Train(MB, wID, bID);
-      // // backprop, from last net to first for dependencies in gradients:
-      // for (const auto & net : Utilities::reverse(networks) ) net->backProp(bID);
-    // }
   }
-
-
-  // std::vector<Uint> samp_seq = std::vector<Uint>(batchSize, -1);
-  // std::vector<Uint> samp_obs = std::vector<Uint>(batchSize, -1);
-  // data->sample(samp_seq, samp_obs);
-
-  // for(Uint i=0; i<batchSize && bSampleSequences; i++)
-  //   assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
-
-  // for(Uint i=0; i<batchSize; i++)
-  // {
-  //   Sequence* const S = data->get(samp_seq[i]);
-  //   std::vector<memReal> state = S->states[samp_obs[i]];
-  //   std::vector<Real> action = S->actions[samp_obs[i]];
-  //   std::vector<Real> policy = S->policies[samp_obs[i]];
-  //   Real reward = S->rewards[samp_obs[i]];
-
-  //   std::cout << "STATE:: " << std::endl;
-  //   std::cout << "state SIZE: " << state.size() << std::endl;
-  //   std::cout << "action SIZE: " << action.size() << std::endl;
-  //   std::cout << "policy SIZE: " << policy.size() << std::endl;
-  //   std::cout << "reward: " << reward << std::endl;
-
-  //   // py::print(state[0]);
-  //   // py::print(state[1]);
-  //   // py::print(state[2]);
-
-  // // int input_dim = 2;
-  // // auto input = torch.attr("randn")(input_dim);
-  // // py::print(input);
-  // // py::print(input.attr("size")());
-
-  // // auto output = net.attr("forward")(input);
-  // // py::print(output);
-  // // py::print(output.attr("size")());
-  //   // std::cout << "OUTPUT:: " << std::endl;
-  //   // py::print(state[0]);
-  // }
-
+  auto output = Nets[0].attr("trainOnBatch")(locals);
+  std::cout << "CALLED ! " << std::endl;
 }
 
 
 void Learner_pytorch::select(Agent& agent)
 {
-  std::cout << "PYTORCH: AGENT SELECTING ACTION!" << std::endl;
+  // std::cout << "PYTORCH: AGENT SELECTING ACTION!" << std::endl;
 
   data_get->add_state(agent);
   Sequence& EP = * data_get->get(agent.ID);
 
-  MiniBatch MB = data->agentToMinibatch(&EP);
-
-  std::cout << "MB.episodes.size()=" << MB.episodes.size() << std::endl;
-  std::cout << "MB.S[0].size()=" << MB.S[0].size() << std::endl;
-  std::cout << "MB.A[0].size()=" << MB.A[0].size() << std::endl;
-  std::cout << "MB.MU[0].size()=" << MB.MU[0].size() << std::endl;
-  std::cout << "MB.R[0].size()=" << MB.R[0].size() << std::endl;
-  std::cout << "MB.W[0].size()=" << MB.W[0].size() << std::endl;
+  const MiniBatch MB = data->agentToMinibatch(&EP);
 
   if( agent.agentStatus < TERM ) // not end of sequence
   {
     // IMPORTANT !
-    std::cout << "PYTORCH: IMPORTING THE EMBEDDER!" << std::endl;
     py::module::import("pybind11_embed");
-
-    std::vector<MiniBatch*> vectorMiniBatch;
-
-    vectorMiniBatch.push_back(&MB);
-
-    std::reference_wrapper<std::vector<MiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
 
     // Initializing action to be taken with zeros
     Rvec action = Rvec(aInfo.dim(), 0);
     // Initializing mu to be taken with zeros
     Rvec mu = Rvec(aInfo.dimPol(), 0);
 
+    std::vector<const MiniBatch*> vectorMiniBatch;
+    vectorMiniBatch.push_back(&MB);
+    std::reference_wrapper<std::vector<const MiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
     std::reference_wrapper<Rvec> action_ref{action};
     std::reference_wrapper<Rvec> mu_ref{mu};
 
-
     auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "action"_a=action_ref, "mu"_a=mu_ref);
-    // {
-      auto output = Nets[0].attr("forwardCPPDict")(locals);
-      // py::gil_scoped_release();
-    // }
-
-    std::cout << "### OUPUT GOOD. ###" << std::endl;
+    auto output = Nets[0].attr("selectAction")(locals);
 
     agent.act(action);
     data_get->add_action(agent, mu);
-
-    std::cout << "### NEXT ###" << std::endl;
-
-
-// {
-//     auto action = Nets[0].attr("forward")(py::array(state.size(), state.data()));
-//     py::print(action.attr("data"));
-//     py::print(action.attr("__dir__")());
-//     py::gil_scoped_release();
-// }
-
-      // py::print("BRACKE");
-
-
-
-  // int input_dim = sInfo.dimUsed;
-  // auto input = torch.attr("randn")(input_dim);
-  // py::print(input);
-  // py::print(input.attr("size")());
-  // auto output = Nets[0].attr("forward")(input);
-  // py::print(output);
-  // py::print(output.attr("size")());
-
-
-
-
-    // auto action = Nets[0].attr("forward")(py::list(state.size(), state.data()));
-
-    // py::print(py::module::import("pybind11").attr("__version__"));
-    // py::print(py::module::import("pybind11").attr("__file__"));
-
-    // py::print("ARAASASA");
-    // auto temp = py::array(state.size(), state.data());
-    // auto action = Nets[0].attr("forward")(temp);
-    // py::print("NET FEEDED 1!");
-
-  // py::print(action);
-
-  // auto input = torch.attr("randn")(sInfo.dimUsed);
-  // py::print(input);
-  // py::print(input.attr("size")());
-  // auto output = Nets[0].attr("forward")(input);
-  // py::print(output);
-
-  // std::vector<Real> temp(sInfo.dimUsed);
-  // auto output = Nets[0].attr("forward")(py::array(temp.size(), temp.data()));
-
-  // py::print(output);
-  // py::print(output.attr("size")());
-
-  // auto g = output.attr("detach")();
-  // py::print(g);
-  // auto g2 = g.attr("numpy")();
-  // py::print(g2);
-
-
-
-    // Nets[0].attr("forward")(py::array(state.size(), state.data()));
-
-    // auto action = Nets[0].attr("forward")(state);
-
-    // py::print("NET FEEDED 2!");
-
-    // py::print(action);
-
-    // std::cout << "action" << action[0] << std::endl;
-    // py::print(action[0]);
-
-    // std::cout << "SELECTING ACTION:" << std::endl;
-    // std::cout << "ACTION SIZE:" << aInfo.dim << std::endl;
-    // std::cout << "policyVecDim:" << policyVecDim << std::endl;
-
-    // auto torch = py::module::import("torch");
-//  \hat{V}(s_t) = V(s_t) + \rho(s_t, a_t) * (r_{t+1} + gamma V(s_{t-1}) - V(s_t) )
-    // auto state = agent.getState()
-    // std::cout << "state.sInfo.dimUsed:" << state.sInfo.dimUsed << std::endl;
-    // std::cout << "state.vals[0]:" << state.vals[0] << std::endl;
-
-
-    // auto input = torch.attr("randn")(sInfo.dimUsed);
-    // py::print(input);
-    // py::print(input.attr("size")());
-
-    // auto output = Nets[0].attr("forward")(input);
-    // py::print(output);
-    // py::print(output.attr("size")());
-
-    // py::print("ACTION SELECTED !");
-
-
-    // Rvec fakeAction = Rvec(aInfo.dim(), 0);
-    // Rvec mu(aInfo.dimPol(), 0);
-    // agent.act(fakeAction);
-    // data_get->add_action(agent, mu);
-
-    // py::print("PYTORCH: DONE SELECTING ACTION!");
-    // std::cout << "PYTORCH: DONE SELECTING ACTION!" << std::endl;
-
-  // delete action;
 
   }else
   {

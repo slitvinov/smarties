@@ -78,7 +78,6 @@ std::unique_ptr<Learner> createLearner(
   {
     MDP.policyVecDim = Learner_pytorch::getnDimPolicy(&aInfo);
     o << MDP.dimAction << " " << MDP.policyVecDim;
-    settings.bSampleSequences = true;
     printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = std::make_unique<Learner_pytorch>(MDP, settings, distrib);
   }
