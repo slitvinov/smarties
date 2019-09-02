@@ -196,6 +196,7 @@ The applications that are already included are:
 
 - ``apps/Deepmind_control``: code to run the Deepmind Control Suite control problems
 
+- ``apps/CUP2D_2fish``: and similarly named applications require `CubismUP 2D <https://github.com/novatig/CubismUP_2D>`_.
 
 Examples of solved problems
 ---------------------------
