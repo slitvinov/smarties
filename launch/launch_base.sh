@@ -132,6 +132,7 @@ export OPENBLAS_NUM_THREADS=1
 export CRAY_CUDA_MPS=1
 export PYTHONPATH=${PYTHONPATH}:${SMARTIES_ROOT}/lib
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib
+export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib
 #export PATH=`pwd`/../extern/build/mpich-3.3/bin/:$PATH
 #export LD_LIBRARY_PATH=`pwd`/../extern/build/mpich-3.3/lib/:$LD_LIBRARY_PATH
 ################################################################################
