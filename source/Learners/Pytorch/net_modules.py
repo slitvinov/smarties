@@ -6,7 +6,7 @@ import numpy as np
 
 torch.set_default_tensor_type(torch.DoubleTensor)
 
-PRINT_OUTPUT=False
+PRINT_OUTPUT=True
 
 # USEFULL COMMANDS:
 # import pybind11
