@@ -9,7 +9,7 @@
 #ifndef smarties_ThreadContext_h
 #define smarties_ThreadContext_h
 
-#include "../ReplayMemory/Sequences.h"
+#include "../ReplayMemory/MiniBatch.h"
 #include "Network.h"
 #include "../Core/Agent.h"
 

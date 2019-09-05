@@ -77,7 +77,7 @@ OBJ_FILES = \
 	Learner_pytorch.o \
 	Learner_approximator.o \
 	AlgoFactory.o \
-	Sequences.o \
+	Sequence.o \
 	Learner.o \
 	Sampling.o \
 	Collector.o \
