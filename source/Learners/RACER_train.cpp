@@ -13,7 +13,6 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
 Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  Sequence& S = MB.getEpisode(bID);
   const Approximator& NET = * networks[0]; // racer always uses only one net
   const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
 
@@ -24,20 +23,46 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   if( S.isTruncated(t+1) ) {
     assert( t+1 == S.ndata() );
     const Rvec nxt = NET.forward(bID, t+1);
-    updateRetrace(S, t+1, 0, nxt[VsID], 0);
+    MB.updateRetrace(bID, t+1, 0, nxt[VsID], 0);
   }
 
-  const auto P = prepare_policy<Policy_t>(O, MB.action(bID,t), MB.mu(bID,t));
-  // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = S.isFarPolicy(t, P.sampImpWeight, CmaxRet, CinvRet);
-
   if(thrID==0) profiler->stop_start("CMP");
-  Rvec grad;
-  if(isOff) grad = offPolCorrUpdate(S, t, O, P, thrID);
-  else grad = compute(S, t, O, P, thrID);
+
+  const auto POL = prepare_policy<Policy_t>(O, MB.action(bID,t), MB.mu(bID,t));
+  const Real rho = POL.sampImpWeight, dkl = POL.sampKLdiv;
+  // check whether importance weight is in 1/Cmax < c < Cmax
+  const bool isFarPol = isFarPolicy(rho, CmaxRet, CinvRet);
+
+  const auto ADV = prepare_advantage<Advantage_t>(O, &POL);
+  const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = O[VsID];
+  // shift retrace-advantage with current V(s) estimate:
+  const Real A_RET = MB.Q_RET(bID, t) - V_cur;
+  const Real Ver = std::min((Real)1, rho) * (A_RET-A_cur);
+  // all these min(CmaxRet,rho_cur) have no effect with ReFer enabled
+  const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
+  const Real deltaQRET = MB.updateRetrace(bID, t, A_cur, V_cur, rho);
+  //if(!thrID) cout<<dkl<<" s "<<print(S.states[samp])
+  //  <<" pol "<<print(POL.getVector())<<" mu "<<MU)
+  //  <<" act: "<<print(S.actions[samp])<<" pg: "<<print(polG)
+  //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<endl;
+  //prepare Q with off policy corrections for next step:
+
+  // compute the gradient:
+  const Real referBeta = isFarPol? 0 : beta; // if far-policy only penalization
+  Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
+  gradient[VsID] = referBeta * Ver;
+  const Rvec polGrad = policyGradient(MB.mu(bID,t), POL, ADV, A_RET, thrID);
+  const Rvec penalGrad  = POL.div_kl_grad(MB.mu(bID,t), -1);
+  const Rvec totPolGrad = Utilities::weightSum2Grads(polG, penalG, referBeta);
+  POL.finalize_grad(totPolGrad, gradient);
+  ADV.grad(POL.sampAct, referBeta * Aer, gradient);
+  MB.setMseDklImpw(bID, t, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
+
+  // logging for diagnostics:
+  trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {deltaQRET,rho}, thrID);
 
   if(thrID==0)  profiler->stop_start("BCK");
-  NET.setGradient(grad, bID, t); // place gradient onto output layer
+  NET.setGradient(gradient, bID, t); // place gradient onto output layer
 }
 
 /*
@@ -73,57 +98,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   F[0]->gradient(thrID);  // backprop
 }
 */
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-Rvec RACER<Advantage_t, Policy_t, Action_t>::
-compute(Sequence& S, const Uint samp, const Rvec& outVec,
-        const Policy_t& POL, const Uint thrID) const
-{
-  const auto ADV = prepare_advantage<Advantage_t>(outVec, &POL);
-  const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
-  // shift retrace-advantage with current V(s) estimate:
-  const Real A_RET = S.Q_RET[samp] - V_cur;
-  const Real rho = POL.sampImpWeight, dkl = POL.sampKLdiv;
-  const Real Ver = std::min((Real)1, rho) * (A_RET-A_cur);
-  // all these min(CmaxRet,rho_cur) have no effect with ReFer enabled
-  const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
-  const Rvec polG = policyGradient(S.policies[samp], POL, ADV, A_RET, thrID);
-  const Rvec penalG  = POL.div_kl_grad(S.policies[samp], -1);
-  //if(!thrID) cout<<dkl<<" s "<<print(S.states[samp])
-  //  <<" pol "<<print(POL.getVector())<<" mu "<<MU)
-  //  <<" act: "<<print(S.actions[samp])<<" pg: "<<print(polG)
-  //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<endl;
-  //prepare Q with off policy corrections for next step:
-  const Real dAdv = updateRetrace(S, samp, A_cur, V_cur, rho);
-  // compute the gradient:
-  Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
-  gradient[VsID] = beta * Ver;
-  POL.finalize_grad(Utilities::weightSum2Grads(polG, penalG, beta), gradient);
-  ADV.grad(POL.sampAct, beta * Aer, gradient);
-  S.setMseDklImpw(samp, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
-  // logging for diagnostics:
-  trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {dAdv,rho}, thrID);
-  return gradient;
-}
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-Rvec RACER<Advantage_t, Policy_t, Action_t>::
-offPolCorrUpdate(Sequence& S, const Uint t, const Rvec output,
-  const Policy_t& pol, const Uint thrID) const
-{
-  const auto adv = prepare_advantage<Advantage_t>(output, &pol);
-  const Real A_cur = adv.computeAdvantage(pol.sampAct);
-  // shift retrace-advantage with current V(s) estimate:
-  const Real A_RET = S.Q_RET[t] - output[VsID];
-  const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
-  updateRetrace(S, t, A_cur, output[VsID], pol.sampImpWeight);
-  S.setMseDklImpw(t, Ver*Ver,pol.sampKLdiv,pol.sampImpWeight, CmaxRet,CinvRet);
-  const Rvec pg = pol.div_kl_grad(S.policies[t], beta-1);
-  // only non zero gradient is policy penalization
-  Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
-  pol.finalize_grad(pg, gradient);
-  return gradient;
-}
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 Rvec RACER<Advantage_t, Policy_t, Action_t>::

@@ -83,7 +83,8 @@ select(Agent& agent)
     //within Retrace, we use the Q_RET vector to write the Adv retrace values
     EP.Q_RET.resize(N, 0);
     EP.offPolicImpW.resize(N, 1);
-    for(Uint i=EP.ndata(); i>0; --i) backPropRetrace(EP, i);
+    for(Uint i=EP.ndata(); i>0; --i)
+        EP.propagateRetrace(i, gamma, data->scaledReward(EP, i));
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);

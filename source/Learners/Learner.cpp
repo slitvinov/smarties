@@ -62,10 +62,12 @@ void Learner::initializeLearner()
   debugL("Rescale Retrace est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   const Uint setSize = data->readNSeq();
+  const Fval G = gamma;
   #pragma omp parallel for schedule(dynamic, 1)
   for(Uint i=0; i<setSize; ++i) {
     Sequence& SEQ = * data->get(i);
-    for(Uint j = SEQ.ndata(); j>0; --j) backPropRetrace(SEQ, j);
+    for(Uint j = SEQ.ndata(); j>0; --j)
+        SEQ.propagateRetrace(j, G, data->scaledReward(SEQ, t));
   }
 }
 
@@ -112,7 +114,8 @@ void Learner::updateRetraceEstimates()
     assert(std::fabs(SEQ.action_adv[SEQ.ndata()]) < 1e-16);
     if( SEQ.isTerminal(SEQ.ndata()) )
       assert(std::fabs(SEQ.state_vals[SEQ.ndata()]) < 1e-16);
-    for(Sint j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
+    for(Sint j = SEQ.just_sampled-1; j>0; --j)
+        SEQ.propagateRetrace(j, G, data->scaledReward(SEQ, t));
   }
 }
 

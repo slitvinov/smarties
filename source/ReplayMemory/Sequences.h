@@ -17,6 +17,24 @@
 namespace smarties
 {
 
+inline bool isFarPolicyPPO(const Fval W, const Fval C)
+{
+  assert(C<1) ;
+  const bool isOff = W > (Fval)1 + C || W < (Fval)1 - C;
+  return isOff;
+}
+inline bool isFarPolicy(const Fval W, const Fval C, const Fval invC)
+{
+  const bool isOff = W > C || W < invC;
+  // If C<=1 assume we never filter far policy samples
+  return C > (Fval)1 && isOff;
+}
+inline bool distFarPolicy(const Fval D, const Fval target)
+{
+  // If target<=0 assume we never filter far policy samples
+  return target>0 && D > target;
+}
+
 struct Sequence
 {
   Sequence()
@@ -115,39 +133,6 @@ struct Sequence
     assert( t < state_vals.size() );
     state_vals[t] = V;
   }
-  void setMseDklImpw(const Uint t, const Fval E, const Fval D,
-    const Fval W, const Fval C, const Fval invC)
-  {
-    const bool wasOff = offPolicImpW[t] > C || offPolicImpW[t] < invC;
-    const bool isOff = W > C || W < invC;
-    {
-      std::lock_guard<std::mutex> lock(seq_mutex);
-      sumKLDiv = sumKLDiv - KullbLeibDiv[t] + D;
-      MSE = MSE - SquaredError[t] + E;
-      nOffPol = nOffPol - wasOff + isOff;
-    }
-    SquaredError[t] = E;
-    KullbLeibDiv[t] = D;
-    offPolicImpW[t] = W;
-  }
-
-  bool isFarPolicyPPO(const Uint t, const Fval W, const Fval C) const
-  {
-    assert(C<1) ;
-    const bool isOff = W > (Fval)1 + C || W < (Fval)1 - C;
-    return isOff;
-  }
-  bool isFarPolicy(const Uint t, const Fval W,
-    const Fval C, const Fval invC) const {
-    const bool isOff = W > C || W < invC;
-    // If C<=1 assume we never filter far policy samples
-    return C > (Fval)1 && isOff;
-  }
-  bool distFarPolicy(const Uint t,const Fval D,const Fval target) const
-  {
-    // If target<=0 assume we never filter far policy samples
-    return target>0 && D > target;
-  }
 
   void finalize(const Uint index)
   {
@@ -188,12 +173,21 @@ struct Sequence
     assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
     return nStep;
   }
+
+  void propagateRetrace(const Uint t, const Fval gamma, const Fval R)
+  {
+    if(t == 0) return;
+    const Fval V = state_vals[t], A = action_adv[t];
+    const Fval clipW = offPolicImpW[t]<1 ? offPolicImpW[t] : 1;
+    Q_RET[t-1] = R + gamma * V + gamma * clipW * (Q_RET[t] - A - V);
+  }
 };
 
 struct MiniBatch
 {
   const Uint size;
-  MiniBatch(const Uint _size) : size(_size)
+  const Fval gamma;
+  MiniBatch(const Uint _size, const Fval G) : size(_size), gamma(G)
   {
     episodes.resize(size);
     begTimeStep.resize(size);
@@ -230,16 +224,15 @@ struct MiniBatch
   }
 
   // episodes | time steps | dimensionality
-  std::vector< std::vector< NNvec > > S;  // state
-  std::vector< std::vector< Rvec* > > A;  // action pointer
-  std::vector< std::vector< Rvec* > > MU; // behavior pointer
-  std::vector< std::vector< Real  > > R;  // reward
-  std::vector< std::vector< nnReal> > W;  // importance sampling
+  std::vector< std::vector< NNvec > > S;  // scaled state
+  std::vector< std::vector< Real  > > R;  // scaled reward
+  std::vector< std::vector< nnReal> > W;  // prioritized sampling
 
   Sequence& getEpisode(const Uint b) const
   {
     return * episodes[b];
   }
+
   NNvec& state(const Uint b, const Uint t)
   {
     return S[b][mapTime2Ind(b, t)];
@@ -252,26 +245,6 @@ struct MiniBatch
   {
     return * MU[b][mapTime2Ind(b, t)];
   }
-  const NNvec& state(const Uint b, const Uint t) const
-  {
-    return S[b][mapTime2Ind(b, t)];
-  }
-  const Rvec& action(const Uint b, const Uint t) const
-  {
-    return * A[b][mapTime2Ind(b, t)];
-  }
-  const Rvec& mu(const Uint b, const Uint t) const
-  {
-    return * MU[b][mapTime2Ind(b, t)];
-  }
-  void set_action(const Uint b, const Uint t, std::vector<Real>& act)
-  {
-    A[b][mapTime2Ind(b, t)] = & act;
-  }
-  void set_mu(const Uint b, const Uint t, std::vector<Real>& pol)
-  {
-    MU[b][mapTime2Ind(b, t)] = & pol;
-  }
   Real& reward(const Uint b, const Uint t)
   {
     return R[b][mapTime2Ind(b, t)];
@@ -280,13 +253,68 @@ struct MiniBatch
   {
     return W[b][mapTime2Ind(b, t)];
   }
-  const Real& reward(const Uint b, const Uint t) const
+  const NNvec& state(const Uint b, const Uint t) const
   {
-    return R[b][mapTime2Ind(b, t)];
+    return S[b][mapTime2Ind(b, t)];
+  }
+  const Rvec& action(const Uint b, const Uint t) const
+  {
+    return episodes[b]->actions[t];
+  }
+  const Rvec& mu(const Uint b, const Uint t) const
+  {
+    return episodes[b]->policies[t];
   }
   const nnReal& importanceWeight(const Uint b, const Uint t) const
   {
     return W[b][mapTime2Ind(b, t)];
+  }
+  const Real& reward(const Uint b, const Uint t) const
+  {
+    return R[b][mapTime2Ind(b, t)];
+  }
+  nnReal& Q_RET(const Uint b, const Uint t) const
+  {
+    return episodes[b]->Q_RET[t];
+  }
+  nnReal& value(const Uint b, const Uint t) const
+  {
+    return episodes[b]->state_vals[t];
+  }
+  nnReal& advantage(const Uint b, const Uint t) const
+  {
+    return episodes[b]->action_adv[t];
+  }
+
+  void setMseDklImpw(const Uint b, const Uint t, // batch id and time id
+    const Fval E, const Fval D, const Fval W,    // error, dkl, offpol weight
+    const Fval C, const Fval invC) const         // bounds of offpol weight
+  {
+    Sequence& EP = getEpisode(b);
+    const bool wasOff = EP.offPolicImpW[t] > C || EP.offPolicImpW[t] < invC;
+    const bool isOff = W > C || W < invC;
+    {
+      std::lock_guard<std::mutex> lock(seq_mutex);
+      EP.sumKLDiv = EP.sumKLDiv - EP.KullbLeibDiv[t] + D;
+      EP.MSE = EP.MSE - EP.SquaredError[t] + E;
+      EP.nOffPol = EP.nOffPol - wasOff + isOff;
+    }
+    EP.SquaredError[t] = E;
+    EP.KullbLeibDiv[t] = D;
+    EP.offPolicImpW[t] = W;
+  }
+
+  Fval updateRetrace(const Uint b, const Uint t,
+    const Fval A, const Fval V, const Fval W) const
+  {
+    assert(W >= 0);
+    if(t == 0) return 0; // at time 0, no reward, QRET is undefined
+    Sequence& EP = getEpisode(b);
+    EP.action_adv[t] = A; EP.state_vals[t] = V;
+    const Fval reward = R[b][mapTime2Ind(b, t)];
+    const Fval oldRet = EP.Q_RET[t-1], clipW = W<1 ? W:1;
+    EP.Q_RET[t-1] = reward + gamma * V + gamma * clipW * (EP.Q_RET[t] - A - V);
+    return std::fabs(EP.Q_RET[t-1] - oldRet);
   }
 
   void resizeStep(const Uint b, const Uint nSteps)
@@ -297,6 +325,5 @@ struct MiniBatch
     MU[b].resize(nSteps); R[b].resize(nSteps); W[b].resize(nSteps);
   }
 };
-
 } // namespace smarties
 #endif // smarties_Sequences_h

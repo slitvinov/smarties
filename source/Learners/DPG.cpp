@@ -53,10 +53,10 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
       actor->forward(bID, t+1);
       critc->setAddedInputType(NETWORK, bID, t+1); // retrace : skip tgt weights
       const Rvec v_next = critc->forward(bID, t+1); // value with state+policy
-      updateRetrace(S, t+1, 0, v_next[0], 0);
+      MB.updateRetrace(bID, t+1, 0, v_next[0], 0);
     }
-    const Real dAdv = updateRetrace(S, t, q_curr[0]-v_curr[0], v_curr[0], RHO);
-    const Real target = S.Q_RET[t];
+    const Real target = S.Q_RET[t], advantage = q_curr[0]-v_curr[0];
+    const Real dQRET = MB.updateRetrace(bID, t, advantage, v_curr[0], RHO);
   #else
     Real target = MB.reward(bID, t);
     if (not S.isTerminal(t+1) && not isOff) {
@@ -90,8 +90,11 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   //bookkeeping:
   S.setMseDklImpw(t, std::pow(target-qval[0], 2), DKL, RHO, CmaxRet, CinvRet);
-  trainInfo->log(qval[0], valueG[0], polGrad, penGrad, {beta, RHO}, thrID);
-  //trainInfo->log(q_curr[0],grad_val[0], polG, penG, {beta,dAdv,rho}, thrID);
+  #ifdef DPG_RETRACE_TGT
+    trainInfo->log(q_curr[0],grad_val[0], polG, penG, {beta,dQRET,rho}, thrID);
+  #else
+    trainInfo->log(qval[0], valueG[0], polGrad, penGrad, {beta, RHO}, thrID);
+  #endif
   if(thrID==0)  profiler->stop_start("BCK");
 }
 
@@ -151,7 +154,8 @@ void DPG::select(Agent& agent)
       //within Retrace, we use the Q_RET vector to write the Adv retrace values
       EP.Q_RET.resize(N, 0);
       EP.offPolicImpW.resize(N, 1);
-      for(Uint i=EP.ndata(); i>0; --i) backPropRetrace(EP, i);
+      for(Uint i=EP.ndata(); i>0; --i)
+        EP.propagateRetrace(i, gamma, data->scaledReward(EP, i));
     #endif
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
