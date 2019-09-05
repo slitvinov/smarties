@@ -67,6 +67,7 @@ endif
 pytorch ?= false
 ifeq "$(pytorch)" "true"
 CPPFLAGS+= -DPY11_PYTORCH
+LIBS+= $(shell python3-config --libs)
 endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
@@ -109,7 +110,6 @@ CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
 .DEFAULT_GOAL := all
 
-#LIBS+= $(shell python3-config --libs)
 CPPFLAGS+= $(shell python3 -m pybind11 --includes)
 
 PYBINDSUF:=$(shell python3-config --extension-suffix)
