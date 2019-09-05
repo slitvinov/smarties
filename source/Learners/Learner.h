@@ -131,19 +131,6 @@ public:
 
   virtual void save();
   virtual void restart();
-
-protected:
-  Fval updateRetrace(Sequence& S, const Uint t,
-                     const Fval A, const Fval V, const Fval W) const
-  {
-    data->scaledReward(S,t)
-    assert(W >= 0);
-    if(t == 0) return 0;
-    S.setStateValue(t, V); S.setAdvantage(t, A);
-    const Fval oldRet = S.Q_RET[t-1], C = W<1 ? W:1, G = gamma;
-    S.setRetrace(t-1, data->scaledReward(S,t) +G*V + G*C*(S.Q_RET[t] -A-V) );
-    return std::fabs(S.Q_RET[t-1] - oldRet);
-  }
 };
 
 }

@@ -155,8 +155,7 @@ static inline Real expectedValue(const Rvec& Qhats, const Rvec& Qtildes,
 
 void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  Sequence& S = MB.getEpisode(bID);
-  const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+  const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->stop_start("FWD");
 
@@ -165,7 +164,7 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   assert(actt+1 < Qs.size()); // enough to store advantages and value
 
   Real Vsnew = MB.reward(bID, t);
-  if (not S.isTerminal(t+1)) {
+  if (not MB.isTerminal(bID, t+1)) {
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
     Rvec Qhats         = networks[0]->forward    (bID, t+1);
@@ -181,20 +180,20 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   #ifdef DQN_USE_POLICY
     Discrete_policy POL({0}, &aInfo, Qs);
-    POL.prepare(S.actions[t], S.policies[t]);
+    POL.prepare(MB.action(bID,t), MB.mu(bID,t));
     const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
-    const bool isOff = S.isFarPolicy(t, RHO, CmaxRet, CinvRet);
+    const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
     if(CmaxRet>1 && beta<1) { // then refer
       if(isOff) gradient = Rvec(nA+1, 0); // grad clipping as if pol gradient
-      const Rvec penGrad = POL.finalize_grad(POL.div_kl_grad(S.policies[t],-1));
+      const Rvec penGrad = POL.finalize_grad(POL.div_kl_grad(MB.mu(bID,t), -1));
       for(Uint i=0; i<nA; ++i)
         gradient[i] = beta * gradient[i] + (1-beta) * penGrad[i];
     }
-    S.setMseDklImpw(t, ERR*ERR, DKL, RHO, CmaxRet, CinvRet);
+    MB.setMseDklImpw(bID, t, ERR*ERR, DKL, RHO, CmaxRet, CinvRet);
     trainInfo->log(Qs[actt] + Qs.back(), ERR, thrID);
   #else
-    S.setMseDklImpw(t, ERR*ERR, 0, 1, CmaxRet, CinvRet);
+    MB.setMseDklImpw(bID, t, ERR*ERR, 0, 1, CmaxRet, CinvRet);
     trainInfo->log(Qs[actt] + Qs.back(), ERR, thrID);
   #endif
 

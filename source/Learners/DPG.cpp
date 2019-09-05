@@ -33,14 +33,13 @@ static inline Gaussian_policy prepare_policy(const Rvec & out,
 
 void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  Sequence& S = MB.getEpisode(bID);
-  const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+  const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->stop_start("FWD");
   const Rvec pvec = actor->forward(bID, t); // network compute
   const auto POL = prepare_policy(pvec, &aInfo, MB.action(bID,t), MB.mu(bID,t));
   const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
-  const bool isOff = S.isFarPolicy(t, RHO, CmaxRet, CinvRet);
+  const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
   critc->setAddedInputType(ACTION, bID, t);
   const Rvec qval = critc->forward(bID, t); // network compute
@@ -49,17 +48,17 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Rvec pval = critc->forward(bID, t, -1); //net alloc, with target wegiths
 
   #ifdef DPG_RETRACE_TGT
-    if( S.isTruncated(t+1) ) {
+    if( MB.isTruncated(bID, t+1) ) {
       actor->forward(bID, t+1);
       critc->setAddedInputType(NETWORK, bID, t+1); // retrace : skip tgt weights
       const Rvec v_next = critc->forward(bID, t+1); // value with state+policy
       MB.updateRetrace(bID, t+1, 0, v_next[0], 0);
     }
-    const Real target = S.Q_RET[t], advantage = q_curr[0]-v_curr[0];
+    const Real target = MB.Q_RET(bID, t), advantage = q_curr[0]-v_curr[0];
     const Real dQRET = MB.updateRetrace(bID, t, advantage, v_curr[0], RHO);
   #else
     Real target = MB.reward(bID, t);
-    if (not S.isTerminal(t+1) && not isOff) {
+    if (not MB.isTerminal(bID, t+1) && not isOff) {
       actor->forward_tgt(bID, t+1); // policy at next step, with tgt weights
       critc->setAddedInputType(NETWORK, bID, t+1, -1);
       const Rvec v_next = critc->forward_tgt(bID, t+1); //target value s_next
@@ -80,7 +79,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   #endif
 
   //if(!thrID) cout << "G "<<print(detPolG) << endl;
-  const Rvec penGrad = POL.div_kl_grad(S.policies[t], -1);
+  const Rvec penGrad = POL.div_kl_grad(MB.mu(bID,t), -1);
   Rvec finalG = Rvec(actor->nOutputs(), 0);
   POL.finalize_grad(Utilities::weightSum2Grads(polGrad, penGrad, beta), finalG);
   actor->setGradient(finalG, bID, t);
@@ -89,7 +88,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   critc->setGradient(valueG, bID, t);
 
   //bookkeeping:
-  S.setMseDklImpw(t, std::pow(target-qval[0], 2), DKL, RHO, CmaxRet, CinvRet);
+  MB.setMseDklImpw(bID, t, std::pow(target-qval[0],2), DKL,RHO,CmaxRet,CinvRet);
   #ifdef DPG_RETRACE_TGT
     trainInfo->log(q_curr[0],grad_val[0], polG, penG, {beta,dQRET,rho}, thrID);
   #else

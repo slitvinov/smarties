@@ -154,8 +154,7 @@ void NAF::setupTasks(TaskQueue& tasks)
 
 void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  Sequence& S = MB.getEpisode(bID);
-  const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+  const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->stop_start("FWD");
 
@@ -172,10 +171,10 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   //cout << POL.sampImpWeight << " " << POL.sampKLdiv << " " << CmaxRet << endl;
 
   const Real Qs = output[net_indices[0]] + ADV.computeAdvantage(POL.sampAct);
-  const bool isOff = S.isFarPolicy(t, RHO, CmaxRet, CinvRet);
+  const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
   Real target = MB.reward(bID, t);
-  if (not S.isTerminal(t+1) && not isOff)
+  if (not MB.isTerminal(bID, t+1) && not isOff)
     target += gamma * networks[0]->forward_tgt(bID, t+1) [net_indices[0]];
   const Real error = isOff? 0 : target - Qs;
   Rvec grad(networks[0]->nOutputs());
@@ -188,7 +187,7 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   }
 
   trainInfo->log(Qs, error, {beta, RHO}, thrID);
-  S.setMseDklImpw(t, error*error, DKL, RHO, CmaxRet, CinvRet);
+  MB.setMseDklImpw(bID, t, error*error, DKL, RHO, CmaxRet, CinvRet);
 
   if(thrID==0)  profiler->stop_start("BCK");
   networks[0]->setGradient(grad, bID, t);

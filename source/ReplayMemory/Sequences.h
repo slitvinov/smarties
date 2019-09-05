@@ -85,10 +85,6 @@ struct Sequence
   {
     return states.size();
   }
-  bool isLast(const Uint t) const
-  {
-    return t+1 >= states.size();
-  }
   bool isTerminal(const Uint t) const
   {
     return t+1 == states.size() && ended;
@@ -193,18 +189,17 @@ struct MiniBatch
     begTimeStep.resize(size);
     endTimeStep.resize(size);
     sampledTimeStep.resize(size);
-    S.resize(size); A.resize(size); MU.resize(size); R.resize(size);
-    W.resize(size);
+    S.resize(size); R.resize(size); PERW.resize(size);
   }
 
   std::vector<Sequence*> episodes;
   std::vector<Uint> begTimeStep;
   std::vector<Uint> endTimeStep;
   std::vector<Uint> sampledTimeStep;
-  Uint getBegStep(const Uint b) const { return begTimeStep[b]; }
-  Uint getEndStep(const Uint b) const { return endTimeStep[b]; }
-  Uint getTstep(const Uint b) const { return sampledTimeStep[b]; }
-  Uint getNumSteps(const Uint b) const {
+  Uint sampledBegStep(const Uint b) const { return begTimeStep[b]; }
+  Uint sampledEndStep(const Uint b) const { return endTimeStep[b]; }
+  Uint sampledTstep(const Uint b) const { return sampledTimeStep[b]; }
+  Uint sampledNumSteps(const Uint b) const {
     assert(begTimeStep.size() > b);
     assert(endTimeStep.size() > b);
     return endTimeStep[b] - begTimeStep[b];
@@ -226,7 +221,7 @@ struct MiniBatch
   // episodes | time steps | dimensionality
   std::vector< std::vector< NNvec > > S;  // scaled state
   std::vector< std::vector< Real  > > R;  // scaled reward
-  std::vector< std::vector< nnReal> > W;  // prioritized sampling
+  std::vector< std::vector< nnReal> > PERW;  // prioritized sampling
 
   Sequence& getEpisode(const Uint b) const
   {
@@ -237,21 +232,13 @@ struct MiniBatch
   {
     return S[b][mapTime2Ind(b, t)];
   }
-  Rvec& action(const Uint b, const Uint t)
-  {
-    return * A[b][mapTime2Ind(b, t)];
-  }
-  Rvec& mu(const Uint b, const Uint t)
-  {
-    return * MU[b][mapTime2Ind(b, t)];
-  }
   Real& reward(const Uint b, const Uint t)
   {
     return R[b][mapTime2Ind(b, t)];
   }
-  nnReal& importanceWeight(const Uint b, const Uint t)
+  nnReal& prioritizedSamplingWeight(const Uint b, const Uint t)
   {
-    return W[b][mapTime2Ind(b, t)];
+    return PERW[b][mapTime2Ind(b, t)];
   }
   const NNvec& state(const Uint b, const Uint t) const
   {
@@ -265,9 +252,9 @@ struct MiniBatch
   {
     return episodes[b]->policies[t];
   }
-  const nnReal& importanceWeight(const Uint b, const Uint t) const
+  const nnReal& prioritizedSamplingWeight(const Uint b, const Uint t) const
   {
-    return W[b][mapTime2Ind(b, t)];
+    return PERW[b][mapTime2Ind(b, t)];
   }
   const Real& reward(const Uint b, const Uint t) const
   {
@@ -286,6 +273,24 @@ struct MiniBatch
     return episodes[b]->action_adv[t];
   }
 
+
+  bool isTerminal(const Uint b, const Uint t) const
+  {
+    return episodes[b]->isTerminal(t);
+  }
+  bool isTruncated(const Uint b, const Uint t) const
+  {
+    return episodes[b]->isTruncated(t);
+  }
+  Uint nTimeSteps(const Uint b) const
+  {
+    return episodes[b]->nsteps();
+  }
+  Uint nDataSteps(const Uint b) const //terminal/truncated state not actual data
+  {
+    return episodes[b]->ndata();
+  }
+
   void setMseDklImpw(const Uint b, const Uint t, // batch id and time id
     const Fval E, const Fval D, const Fval W,    // error, dkl, offpol weight
     const Fval C, const Fval invC) const         // bounds of offpol weight
@@ -294,7 +299,7 @@ struct MiniBatch
     const bool wasOff = EP.offPolicImpW[t] > C || EP.offPolicImpW[t] < invC;
     const bool isOff = W > C || W < invC;
     {
-      std::lock_guard<std::mutex> lock(seq_mutex);
+      std::lock_guard<std::mutex> lock(EP.seq_mutex);
       EP.sumKLDiv = EP.sumKLDiv - EP.KullbLeibDiv[t] + D;
       EP.MSE = EP.MSE - EP.SquaredError[t] + E;
       EP.nOffPol = EP.nOffPol - wasOff + isOff;
@@ -319,10 +324,8 @@ struct MiniBatch
 
   void resizeStep(const Uint b, const Uint nSteps)
   {
-    assert( S.size()>b); assert( A.size()>b);
-    assert(MU.size()>b); assert( R.size()>b);
-    S [b].resize(nSteps); A[b].resize(nSteps);
-    MU[b].resize(nSteps); R[b].resize(nSteps); W[b].resize(nSteps);
+    assert( S.size()>b); assert( R.size()>b);
+    S [b].resize(nSteps); R[b].resize(nSteps); PERW[b].resize(nSteps);
   }
 };
 } // namespace smarties

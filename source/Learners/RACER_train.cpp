@@ -14,16 +14,15 @@ void RACER<Advantage_t, Policy_t, Action_t>::
 Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   const Approximator& NET = * networks[0]; // racer always uses only one net
-  const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+  const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->stop_start("FWD");
   const Rvec O = NET.forward(bID, t); // network compute
 
   //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
-  if( S.isTruncated(t+1) ) {
+  if( MB.isTruncated(bID, t+1) ) {
     assert( t+1 == S.ndata() );
-    const Rvec nxt = NET.forward(bID, t+1);
-    MB.updateRetrace(bID, t+1, 0, nxt[VsID], 0);
+    MB.updateRetrace(bID, t+1, 0, NET.forward(bID, t+1)[VsID], 0);
   }
 
   if(thrID==0) profiler->stop_start("CMP");
@@ -48,14 +47,13 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   //prepare Q with off policy corrections for next step:
 
   // compute the gradient:
-  const Real referBeta = isFarPol? 0 : beta; // if far-policy only penalization
   Rvec gradient = Rvec(networks[0]->nOutputs(), 0);
-  gradient[VsID] = referBeta * Ver;
-  const Rvec polGrad = policyGradient(MB.mu(bID,t), POL, ADV, A_RET, thrID);
-  const Rvec penalGrad  = POL.div_kl_grad(MB.mu(bID,t), -1);
-  const Rvec totPolGrad = Utilities::weightSum2Grads(polG, penalG, referBeta);
-  POL.finalize_grad(totPolGrad, gradient);
-  ADV.grad(POL.sampAct, referBeta * Aer, gradient);
+  gradient[VsID] = isFarPol? 0 : beta * Ver;
+  const Rvec penalG  = POL.div_kl_grad(MB.mu(bID,t), -1);
+  const Rvec polG = isFarPol? Rvec(penalG.size(), 0) :
+                    policyGradient(MB.mu(bID,t), POL, ADV, A_RET, thrID);
+  POL.finalize_grad(Utilities::weightSum2Grads(polG, penalG, beta), gradient);
+  ADV.grad(POL.sampAct, isFarPol? 0 : beta * Aer, gradient);
   MB.setMseDklImpw(bID, t, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
 
   // logging for diagnostics:
