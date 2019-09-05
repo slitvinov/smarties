@@ -67,7 +67,7 @@ endif
 pytorch ?= false
 ifeq "$(pytorch)" "true"
 CPPFLAGS+= -DPY11_PYTORCH
-LIBS+= $(shell python3-config --libs)
+LIBS+= $(shell python3-config --ldflags)
 endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
