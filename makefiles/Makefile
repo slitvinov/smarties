@@ -113,11 +113,6 @@ CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 CPPFLAGS+= $(shell python3 -m pybind11 --includes)
 
 PYBINDSUF:=$(shell python3-config --extension-suffix)
-ifeq ($(UNAME_S),Darwin)
-PYBINDLD= $(LDFLAGS) -undefined dynamic_lookup
-else
-PYBINDLD= $(LDFLAGS)
-endif
 
 PATH_COMM_PY11=../source/smarties_pybind11.cpp
 smarties_pybind11.o:
@@ -133,7 +128,7 @@ lib: $(OBJ_FILES)
 
 py11: $(OBJ_FILES) smarties_pybind11.o
 	mkdir -p ../lib
-	$(MPICXX) -shared $(PYBINDLD) -o ../lib/smarties$(PYBINDSUF) $^ $(LIBS)
+	$(MPICXX) -shared $(LDFLAGS) $(PYBINDLD) -o ../lib/smarties$(PYBINDSUF) $^ $(LIBS)
 
 
 #$(MPICXX) $(CPPFLAGS) -DSMARTIES_LIB -shared -fPIC \
