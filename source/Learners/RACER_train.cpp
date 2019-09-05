@@ -21,7 +21,7 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
   if( MB.isTruncated(bID, t+1) ) {
-    assert( t+1 == S.ndata() );
+    assert( t+1 == MB.nDataSteps(bID) );
     MB.updateRetrace(bID, t+1, 0, NET.forward(bID, t+1)[VsID], 0);
   }
 
@@ -40,10 +40,10 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   // all these min(CmaxRet,rho_cur) have no effect with ReFer enabled
   const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
   const Real deltaQRET = MB.updateRetrace(bID, t, A_cur, V_cur, rho);
-  //if(!thrID) cout<<dkl<<" s "<<print(S.states[samp])
+  //if(!thrID) std::cout<<dkl<<" s "<<print(S.states[samp])
   //  <<" pol "<<print(POL.getVector())<<" mu "<<MU)
   //  <<" act: "<<print(S.actions[samp])<<" pg: "<<print(polG)
-  //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<endl;
+  //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<"\n";
   //prepare Q with off policy corrections for next step:
 
   // compute the gradient:
@@ -62,40 +62,6 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   if(thrID==0)  profiler->stop_start("BCK");
   NET.setGradient(gradient, bID, t); // place gradient onto output layer
 }
-
-/*
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
-  const Uint wID, const Uint bID, const Uint thrID) const
-{
-  Sequence* const S = data->get(seq);
-  assert(t+1 < S->nsteps());
-
-  if(thrID==0) profiler->stop_start("FWD");
-  F[0]->prepare_one(S, t, thrID, wID); // prepare thread workspace
-  const Rvec O = F[0]->forward(t, thrID); // network compute
-
-  //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
-  if( S->isTruncated(t+1) ) {
-    assert( t+1 == S->ndata() );
-    const Rvec nxt = F[0]->forward(t+1, thrID);
-    updateRetrace(S, t+1, 0, nxt[VsID], 0);
-  }
-
-  const auto P = prepare_policy<Policy_t>(O, S->actions[t], S->policies[t]);
-  // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = S->isFarPolicy(t, P.sampImpWeight, CmaxRet, CinvRet);
-
-  if(thrID==0)  profiler->stop_start("CMP");
-  Rvec grad;
-  if(isOff) grad = offPolCorrUpdate(S, t, O, P, thrID);
-  else grad = compute(S, t, O, P, thrID);
-
-  if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, t, thrID); // place gradient onto output layer
-  F[0]->gradient(thrID);  // backprop
-}
-*/
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 Rvec RACER<Advantage_t, Policy_t, Action_t>::

@@ -233,7 +233,15 @@ struct MiniBatch
   {
     return S[b][mapTime2Ind(b, t)];
   }
+  const NNvec& state(const Uint b, const Uint t) const
+  {
+    return S[b][mapTime2Ind(b, t)];
+  }
   Real& reward(const Uint b, const Uint t)
+  {
+    return R[b][mapTime2Ind(b, t)];
+  }
+  const Real& reward(const Uint b, const Uint t) const
   {
     return R[b][mapTime2Ind(b, t)];
   }
@@ -241,9 +249,9 @@ struct MiniBatch
   {
     return PERW[b][mapTime2Ind(b, t)];
   }
-  const NNvec& state(const Uint b, const Uint t) const
+  const nnReal& PERweight(const Uint b, const Uint t) const
   {
-    return S[b][mapTime2Ind(b, t)];
+    return PERW[b][mapTime2Ind(b, t)];
   }
   const Rvec& action(const Uint b, const Uint t) const
   {
@@ -253,17 +261,16 @@ struct MiniBatch
   {
     return episodes[b]->policies[t];
   }
-  const nnReal& PERweight(const Uint b, const Uint t) const
-  {
-    return PERW[b][mapTime2Ind(b, t)];
-  }
-  const Real& reward(const Uint b, const Uint t) const
-  {
-    return R[b][mapTime2Ind(b, t)];
-  }
   nnReal& Q_RET(const Uint b, const Uint t) const
   {
     return episodes[b]->Q_RET[t];
+  }
+  std::vector<nnReal> Q_RET(const Uint dt = 0) const
+  {
+    std::vector<nnReal> ret(size, 0);
+    for(Uint b=0; b<size; ++b)
+      ret[b] = episodes[b]->Q_RET[sampledTstep(b)-dt];
+    return ret;
   }
   nnReal& value(const Uint b, const Uint t) const
   {
@@ -279,9 +286,23 @@ struct MiniBatch
   {
     return episodes[b]->isTerminal(t);
   }
+  std::vector<int> isNextTerminal() const // pybind will not like vector of bool
+  {
+    std::vector<int> ret(size, 0);
+    for(Uint b=0; b<size; ++b)
+      ret[b] = episodes[b]->isTerminal(sampledTstep(b) + 1);
+    return ret;
+  }
   bool isTruncated(const Uint b, const Uint t) const
   {
     return episodes[b]->isTruncated(t);
+  }
+  std::vector<int> isNextTruncated() const //pybind will not like vector of bool
+  {
+    std::vector<int> ret(size, 0);
+    for(Uint b=0; b<size; ++b)
+      ret[b] = episodes[b]->isTruncated(sampledTstep(b) + 1);
+    return ret;
   }
   Uint nTimeSteps(const Uint b) const
   {
@@ -323,10 +344,49 @@ struct MiniBatch
     return std::fabs(EP.Q_RET[t-1] - oldRet);
   }
 
+  template<typename T>
+  void updateAllRetrace(const std::vector<T>& advantages,
+                        const std::vector<T>& values,
+                        const std::vector<T>& rhos) const
+  {
+    assert(advantages.size() == size);
+    assert(values.size() == size);
+    assert(rhos.size() == size);
+    #pragma omp parallel for schedule(static)
+    for(Uint b=0; b<size; ++b)
+      updateRetrace(b, sampledTstep(b), advantages[b], values[b], rhos[b]);
+  }
+
+  template<typename T>
+  void updateAllLastStepRetrace(const std::vector<T>& values) const
+  {
+    assert(values.size() == size);
+    #pragma omp parallel for schedule(static)
+    for(Uint b=0; b<size; ++b) {
+      if( isTruncated(b, sampledTstep(b)+1) )
+        updateRetrace(b, sampledTstep(b)+1, 0, values[b], 0);
+      if( isTerminal (b, sampledTstep(b)+1) )
+        updateRetrace(b, sampledTstep(b)+1, 0, 0, 0);
+    }
+  }
+
+  template<typename T>
+  void setAllMseDklImpw(const std::vector<T>& L2errs,
+                        const std::vector<T>& DKLs,
+                        const std::vector<T>& rhos,
+                        const Fval C, const Fval invC) const
+  {
+    assert(L2errs.size() == size);
+    assert(DKLs.size() == size);
+    assert(rhos.size() == size);
+    for(Uint b=0; b<size; ++b)
+      setMseDklImpw(b, sampledTstep(b), L2errs[b], DKLs[b], rhos[b], C,invC);
+  }
+
   void resizeStep(const Uint b, const Uint nSteps)
   {
     assert( S.size()>b); assert( R.size()>b);
-    S [b].resize(nSteps); R[b].resize(nSteps); PERW[b].resize(nSteps);
+    S[b].resize(nSteps); R[b].resize(nSteps); PERW[b].resize(nSteps);
   }
 };
 } // namespace smarties
