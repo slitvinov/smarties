@@ -71,11 +71,10 @@ Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, Distribution
   py::module sys = py::module::import("sys");
   std::string path = "/home/pvlachas/smarties/source/Learners/Pytorch";
   sys.attr("path").attr("insert")(0,path);
-  auto module = py::module::import("mlp_module");
-  auto Net = module.attr("MLP");
+  auto module = py::module::import("net_modules");
+  auto Net = module.attr("NET");
 
   int input_dim = MDP_.dimStateObserved;
-  int time_steps = 1;
   // V-RACER outputing the value function, mean and std.
   int output_dim = 1 + aInfo.dim();
   int sigma_dim = aInfo.dim();
@@ -83,14 +82,15 @@ Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, Distribution
   // Outputing the mean action and the standard deviation of the action (possibly also the value function)
   std::cout << "PYTORCH: Output dimension (aInfo.dimPol())=" << output_dim << std::endl;
 
-  auto net = Net(time_steps, input_dim, S_.nnLayerSizes, output_dim, sigma_dim);
-  Nets.emplace_back(Net(time_steps, input_dim, S_.nnLayerSizes, output_dim, sigma_dim));
+  auto net = Net(S_.nnType, S_.nnBPTTseq, input_dim, S_.nnLayerSizes, output_dim, sigma_dim);
+  Nets.emplace_back(Net(S_.nnType, S_.nnBPTTseq, input_dim, S_.nnLayerSizes, output_dim, sigma_dim));
   Nets[0] = net;
   std::cout << "PYTORCH: NEW LEARNER STARTED." << std::endl;
 
   std::cout << "PYTORCH: PROPAGATING THROUGH THE LEARNER." << std::endl;
   auto torch = py::module::import("torch");
   int batch_size = 7;
+  int time_steps = S_.nnBPTTseq+1;  
   auto input_ = torch.attr("randn")(batch_size, time_steps, input_dim);
   auto output = Nets[0].attr("forwardVector")(input_);
   std::cout << "PYTORCH: PROPAGATION WORKED!" << std::endl;
@@ -189,6 +189,7 @@ void Learner_pytorch::spawnTrainTasks()
     //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
     if( S.isTruncated(t+1) ) {
       assert( t+1 == S.ndata() );
+      std::cout << "! TRUNCATED DETECTED ! " << std::endl;
 
       // const Rvec nxt = NET.forward(bID, t+1);
       Fval fval = 0.0;
@@ -202,7 +203,6 @@ void Learner_pytorch::spawnTrainTasks()
     }
   }
   auto output = Nets[0].attr("trainOnBatch")(locals);
-  std::cout << "CALLED ! " << std::endl;
 }
 
 
