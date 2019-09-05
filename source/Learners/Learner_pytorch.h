@@ -11,7 +11,11 @@
 
 #include "Learner.h"
 #include "../Utils/ParameterBlob.h"
-#include <pybind11/pybind11.h>
+
+namespace pybind11
+{
+struct object;
+}
 
 namespace smarties
 {

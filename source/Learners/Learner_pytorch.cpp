@@ -44,10 +44,10 @@ PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
         .def_readonly("endTimeStep", &MiniBatch::endTimeStep)
         .def_readonly("sampledTimeStep", &MiniBatch::sampledTimeStep)
         .def_readwrite("S", &MiniBatch::S)
-        .def_readwrite("A", &MiniBatch::A)
-        .def_readwrite("MU", &MiniBatch::MU)
+//        .def_readwrite("A", &MiniBatch::A)
+//        .def_readwrite("MU", &MiniBatch::MU)
         .def_readwrite("R", &MiniBatch::R)
-        .def_readwrite("W", &MiniBatch::W);
+        .def_readwrite("PERW", &MiniBatch::PERW);
 
     // py::bind_vector<std::vector<Uint>>(m, "VectorUint");
 
@@ -185,7 +185,7 @@ void Learner_pytorch::spawnTrainTasks()
   // UPDATING RETRACE ESTIMATES
   for (Uint bID=0; bID<batchSize; ++bID) {
     Sequence& S = MB.getEpisode(bID);
-    const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+    const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
     //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
     if( S.isTruncated(t+1) ) {
       assert( t+1 == S.ndata() );
