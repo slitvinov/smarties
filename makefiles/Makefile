@@ -161,4 +161,4 @@ main.o: ../source/main.cpp
 vpath %.cpp $(DIRS)
 
 clean:
-	rm -f *.o *.so *.s *.d ../lib/lib*
+	rm -f *.o *.so *.s *.d ../lib/libsmarties.so ../lib/smarties.cpython*

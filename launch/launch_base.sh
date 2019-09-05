@@ -99,12 +99,23 @@ echo "NWORKERS:"$NWORKERS "NMASTERS:"$NMASTERS "NNODES:"$NNODES "NPROCESSPERNODE
 ################################################################################
 ############################## PREPARE RUNFOLDER ###############################
 ################################################################################
-#if [ ! -x ${RUNDIR}/${EXECNAME} ] ; then
-#	echo "ABORT: Executable not found! Revise the setup.sh script of your app."
-#  echo "It should copy the executable to the run directory, like:"
-#  echo "cp ../apps/${APP}/exec \${RUNDIR}/\${EXECNAME}"
-#	exit 1
-#fi
+if [ -z "$SMARTIES_ROOT" ] ; then
+echo "ERROR: Environment variable SMARTIES_ROOT is not set. Read the README.rst"
+exit 1
+fi
+if [ ! -f ${SMARTIES_ROOT}/lib/libsmarties.so ]; then
+echo "ERROR: smarties library not found."
+exit 1
+fi
+if [ ! -f ${SMARTIES_ROOT}/lib/smarties.cpython-* ]; then
+echo "ERROR: pybind11 smarties library not found."
+exit 1
+fi
+if [ ! -x ${RUNDIR}/${EXECNAME} ]; then
+echo "ERROR: Application executable not found! Revise app's setup.sh"
+exit 1
+fi
+
 cp -f $0 ${RUNDIR}/launch_smarties.sh
 cp -f ${SETTINGSNAME} ${RUNDIR}/settings.json
 git log | head  > ${RUNDIR}/gitlog.log
@@ -121,6 +132,7 @@ export OPENBLAS_NUM_THREADS=1
 export CRAY_CUDA_MPS=1
 export PYTHONPATH=${PYTHONPATH}:${SMARTIES_ROOT}/lib
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib
+export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib
 #export PATH=`pwd`/../extern/build/mpich-3.3/bin/:$PATH
 #export LD_LIBRARY_PATH=`pwd`/../extern/build/mpich-3.3/lib/:$LD_LIBRARY_PATH
 ################################################################################

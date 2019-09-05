@@ -71,6 +71,7 @@ def setupSmartiesCommon(comm, task):
   return env
 
 def app_main(comm):
+  import matplotlib.pyplot as plt
   task = sys.argv[1]
   print("openAI environment: ", task)
   if task == 'Humanoid-v2' or task == 'HumanoidStandup-v2':
@@ -78,13 +79,21 @@ def app_main(comm):
   else:
     env = setupSmartiesCommon(comm, task)
 
+  sim = 0
+  fig = plt.figure()
   while True: #training loop
     observation = env.reset()
     t = 0
+    sim = sim + 1
     comm.sendInitState(observation)
     while True: # simulation loop
       action = getAction(comm, env) #receive action from smarties
       observation, reward, done, info = env.step(action)
+      #if t>0 : env.env.viewer_setup()
+      img = env.render(mode='rgb_array')
+      img = plt.imshow(img)
+      fig.savefig('sim%02d_frame%04d.png' % (sim, t))
+      env.close()
       t = t + 1
       if done == True and t >= env._max_episode_steps:
         comm.sendLastState(observation, reward)
@@ -96,4 +105,6 @@ def app_main(comm):
 if __name__ == '__main__':
   e = rl.Engine(sys.argv)
   if( e.parse() ): exit()
+  e.setIsTraining(False)
+  e.setRestartFolderPath('.')
   e.run( app_main )
