@@ -35,8 +35,7 @@ static inline Gaussian_policy prepare_policy(const Rvec & out,
 
 void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
-  Sequence& S = MB.getEpisode(bID);
-  const Sint ndata = S.ndata(), thrID = omp_get_thread_num();
+  const Sint ndata = MB.nDataSteps(bID), thrID = omp_get_thread_num();
 
   std::uniform_int_distribution<Sint> dStart(0, ndata-1);
   const Sint tst_samp = dStart(generators[thrID]);
@@ -76,8 +75,8 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     }
   }
 
-  Real Q_RET = data->scaledReward(S, tend);
-  if ( ! S.isTerminal(tend) ) Q_RET += gamma * value->forward(bID, tend)[0];
+  Real Q_RET = MB.reward(bID, tend);
+  if (not MB.isTerminal(bID,tend)) Q_RET += gamma * value->forward(bID,tend)[0];
   Real Q_OPC = Q_RET;
 
   if(thrID==0)  profiler->stop_start("POL");
@@ -92,7 +91,7 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
     const Real RHO = policies[i].sampImpWeight, DKL = policies[i].sampKLdiv;
     const Real W = std::min((Real)1, RHO), C = std::pow(W, acerTrickPow);
-    const Real R = data->scaledReward(S, step), A_OPC = Q_OPC - Vstates[i];
+    const Real R = MB.reward(bID, step), A_OPC = Q_OPC - Vstates[i];
 
     const Real polProbBehavior = policies[i].evalBehavior(policy_samples[i],
                                                           MB.mu(bID, step));
@@ -118,7 +117,7 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     Q_OPC = R + gamma*(     (Q_OPC - QTheta) + Vstates[i]); // as paper, but bad
     //Q_OPC = R + gamma*(     (Q_OPC - QTheta) + Vstates[i]); // as ret, better
     const Rvec penalBehavior = policies[i].div_kl_grad(MB.mu(bID, step), -1);
-    S.setMseDklImpw(step, Q_err*Q_err, DKL, RHO, CmaxRet, CinvRet);
+    MB.setMseDklImpw(bID, step, Q_err*Q_err, DKL, RHO, CmaxRet, CinvRet);
     trainInfo->log(QTheta, Q_err, pGrad, penalBehavior, {RHO}, thrID);
   }
 

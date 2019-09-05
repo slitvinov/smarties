@@ -1,14 +1,11 @@
 SHELL := /bin/bash
-CURPWD := $(shell pwd)
-UNAME_S := $(shell uname -s)
 config ?= prod
 extra ?=
 
 CPPFLAGS=
 LIBS=
-LIBS+= `python3.6-config --libs`
-CPPFLAGS+= `python3 -m pybind11 --includes`
-ifeq ($(UNAME_S),Darwin)
+
+ifeq ($(shell uname -s), Darwin)
 include make.macos
 endif
 
@@ -35,6 +32,7 @@ include make.lair
 endif
 
 #ifeq "$(MPICXX)" ""
+#CURPWD := $(shell pwd)
 #CPPFLAGS+= -I$(CURPWD)/../extern/build/mpich-3.3/include/
 #LIBS+= -L$(CURPWD)/../extern/build/mpich-3.3/lib/
 #MPICXX=$(CURPWD)/../extern/build/mpich-3.3/bin/mpic++
@@ -46,11 +44,14 @@ LD=$(MPICXX)
 ifeq "$(shell $(MPICXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(MPICXX) --version | grep -ci 'llvm')" "0"
 compiler=gnu
+include make.gcc.flags
 else
 compiler=llvm
+include make.llvm.flags
 endif
 else
 compiler=intel
+include make.icc.flags
 endif
 
 testdiff ?= off
@@ -59,19 +60,8 @@ CPPFLAGS+= -D__CHECK_DIFF
 endif
 
 precision ?= double
-app_precision ?= $(precision)
 ifeq "$(precision)" "single"
 CPPFLAGS+= -DSINGLE_PREC
-endif
-
-ifeq "$(compiler)" "intel"
-include make.icc.flags
-else
-ifeq "$(compiler)" "llvm"
-include make.llvm.flags
-else
-include make.gcc.flags
-endif
 endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
@@ -87,7 +77,7 @@ OBJ_FILES = \
 	Learner_pytorch.o \
 	Learner_approximator.o \
 	AlgoFactory.o \
-	Sequences.o \
+	Sequence.o \
 	Learner.o \
 	Sampling.o \
 	Collector.o \

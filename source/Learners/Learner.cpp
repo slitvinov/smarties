@@ -65,7 +65,8 @@ void Learner::initializeLearner()
   #pragma omp parallel for schedule(dynamic, 1)
   for(Uint i=0; i<setSize; ++i) {
     Sequence& SEQ = * data->get(i);
-    for(Uint j = SEQ.ndata(); j>0; --j) backPropRetrace(SEQ, j);
+    for(Uint j = SEQ.ndata(); j>0; --j)
+        SEQ.propagateRetrace(j, gamma, data->scaledReward(SEQ, j));
   }
 }
 
@@ -112,7 +113,8 @@ void Learner::updateRetraceEstimates()
     assert(std::fabs(SEQ.action_adv[SEQ.ndata()]) < 1e-16);
     if( SEQ.isTerminal(SEQ.ndata()) )
       assert(std::fabs(SEQ.state_vals[SEQ.ndata()]) < 1e-16);
-    for(Sint j=SEQ.just_sampled-1; j>0; --j) backPropRetrace(SEQ, j);
+    for(Sint j = SEQ.just_sampled-1; j>0; --j)
+        SEQ.propagateRetrace(j, gamma, data->scaledReward(SEQ, j));
   }
 }
 
