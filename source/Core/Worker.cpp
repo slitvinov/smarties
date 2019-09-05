@@ -11,6 +11,7 @@
 #include "../Utils/SocketsLib.h"
 #include "../Utils/SstreamUtilities.h"
 #include <fstream>
+// #include <iostream>
 
 namespace smarties
 {
@@ -50,6 +51,8 @@ void Worker::run(const environment_callback_t & callback)
 
 void Worker::runTraining()
 {
+  // std::cout << "######### RUNNING WORKER #########" << std::endl;
+
   const int learn_rank = MPICommRank(learners_train_comm);
   //////////////////////////////////////////////////////////////////////////////
   ////// FIRST SETUP SIMPLE FUNCTIONS TO DETECT START AND END OF TRAINING //////
@@ -104,6 +107,7 @@ void Worker::runTraining()
   //////////////////////////////////////////////////////////////////////////////
   while(1) {
     isTrainingStarted();
+    // std::cout << "######### RUNNING ALGO TASKS #########" << std::endl;
 
     algoTasks.run();
 
@@ -123,6 +127,7 @@ void Worker::answerStateAction(Agent& agent) const
   // get learning algorithm:
   Learner& algo = * learners[getLearnerID(agent.localID)].get();
   //pick next action and ...do a bunch of other stuff with the data:
+  // std::cout << "###### REACHED ########" << std::endl;
   algo.select(agent);
 
   //static constexpr auto vec2str = Utilities::vec2string<double>;

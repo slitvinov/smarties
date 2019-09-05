@@ -11,6 +11,7 @@
 
 #include "Learner.h"
 #include "../Utils/ParameterBlob.h"
+#include <pybind11/pybind11.h>
 
 namespace smarties
 {
@@ -25,21 +26,29 @@ class Learner_pytorch: public Learner
   const Real learnR = settings.learnrate;
   const Real explNoise = settings.explNoise;
 
+
  protected:
 
   void spawnTrainTasks();
+  std::vector<pybind11::object> Nets;
 
  public:
   Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
 
-  void select(Agent& ) override {}
-  void setupTasks(TaskQueue& tasks) override {}
+  static Uint getnDimPolicy(const ActionInfo*const aI)
+  {
+    return 2*aI->dim();
+  }
+  
+  void select(Agent& ) override;
+  void setupTasks(TaskQueue& tasks) override;
   virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;
   virtual void getHeaders(std::ostringstream& buff) const override;
   virtual void save() override;
   virtual void restart() override;
+
 };
 
 }

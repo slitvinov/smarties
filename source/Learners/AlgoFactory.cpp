@@ -76,6 +76,9 @@ std::unique_ptr<Learner> createLearner(
 
   if (settings.learner == "PYTORCH")
   {
+    MDP.policyVecDim = Learner_pytorch::getnDimPolicy(&aInfo);
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = std::make_unique<Learner_pytorch>(MDP, settings, distrib);
   }
   else

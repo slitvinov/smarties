@@ -391,7 +391,7 @@ std::string Settings::printArgComments()
   json j;
   j["learner"] =
     "Chosen learning algorithm. One of: "
-    "'RACER', 'VRACER', 'PPO', 'DPG', 'ACER', 'NAF', 'DQN', 'CMA'.";
+    "'RACER', 'VRACER', 'PPO', 'DPG', 'ACER', 'NAF', 'DQN', 'CMA', 'PYTORCH'.";
   //
   j["explNoise"] =
     "Noise added to policy. For discrete policies it may be the probability of "
