@@ -35,7 +35,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
-  if(thrID==0) profiler->stop_start("FWD");
+  if(thrID==0) profiler->start("FWD");
   const Rvec pvec = actor->forward(bID, t); // network compute
   const auto POL = prepare_policy(pvec, &aInfo, MB.action(bID,t), MB.mu(bID,t));
   const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
@@ -94,7 +94,6 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   #else
     trainInfo->log(qval[0], valueG[0], polGrad, penGrad, {beta, RHO}, thrID);
   #endif
-  if(thrID==0)  profiler->stop_start("BCK");
 }
 
 void DPG::select(Agent& agent)
@@ -178,6 +177,7 @@ void DPG::setupTasks(TaskQueue& tasks)
     debugL("Initialize Learner");
     initializeLearner();
     algoSubStepID = 0;
+    profiler->start("DATA");
   };
   tasks.add(stepInit);
 
@@ -187,6 +187,7 @@ void DPG::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 0 ) return; // some other op is in progress
     if ( blockGradientUpdates() ) return; // waiting for enough data
 
+    profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
     debugL("Gather gradient estimates from each thread and Learner MPI rank");
@@ -200,6 +201,8 @@ void DPG::setupTasks(TaskQueue& tasks)
     debugL("Compute state/rewards stats from the replay memory");
     finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
+    profiler->start("MPI");
+
     algoSubStepID = 1;
   };
   tasks.add(stepMain);
@@ -210,10 +213,12 @@ void DPG::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 1 ) return;
     if ( networks[0]->ready2ApplyUpdate() == false ) return;
 
+    profiler->stop();
     debugL("Apply SGD update after reduction of gradients");
     applyGradient();
     algoSubStepID = 0; // rinse and repeat
     globalGradCounterUpdate(); // step ++
+    profiler->start("DATA");
   };
   tasks.add(stepComplete);
 }

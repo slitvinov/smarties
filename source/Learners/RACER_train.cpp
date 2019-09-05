@@ -16,7 +16,7 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Approximator& NET = * networks[0]; // racer always uses only one net
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
-  if(thrID==0) profiler->stop_start("FWD");
+  if(thrID==0) profiler->start("FWD");
   const Rvec O = NET.forward(bID, t); // network compute
 
   //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
@@ -55,12 +55,10 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   POL.finalize_grad(Utilities::weightSum2Grads(polG, penalG, beta), gradient);
   ADV.grad(POL.sampAct, isFarPol? 0 : beta * Aer, gradient);
   MB.setMseDklImpw(bID, t, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
+  NET.setGradient(gradient, bID, t); // place gradient onto output layer
 
   // logging for diagnostics:
   trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {deltaQRET,rho}, thrID);
-
-  if(thrID==0)  profiler->stop_start("BCK");
-  NET.setGradient(gradient, bID, t); // place gradient onto output layer
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>

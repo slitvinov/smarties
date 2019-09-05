@@ -50,9 +50,10 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   policies.reserve(nsteps);
   std::vector<Rvec> advantages(nsteps, Rvec(2+nAexpectation, 0));
 
-  if(thrID==0) profiler->stop_start("FWD");
+  if(thrID==0) profiler->start("FWD");
 
-  for(Sint step=tstart, i=0; step < tend; ++step, ++i) {
+  for(Sint step=tstart, i=0; step < tend; ++step, ++i)
+  {
     policies.push_back( prepare_policy(actor->forward(bID, step), aInfo,
                                        MB.action(bID,step), MB.mu(bID,step)) );
     assert((Sint) policies.size() == i+1);
@@ -120,8 +121,6 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     MB.setMseDklImpw(bID, step, Q_err*Q_err, DKL, RHO, CmaxRet, CinvRet);
     trainInfo->log(QTheta, Q_err, pGrad, penalBehavior, {RHO}, thrID);
   }
-
-  if(thrID==0)  profiler->stop_start("BCK");
 }
 
 void ACER::select(Agent& agent)
@@ -165,6 +164,7 @@ void ACER::setupTasks(TaskQueue& tasks)
     debugL("Initialize Learner");
     initializeLearner();
     algoSubStepID = 0;
+    profiler->start("DATA");
   };
   tasks.add(stepInit);
 
@@ -174,6 +174,7 @@ void ACER::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 0 ) return; // some other op is in progress
     if ( blockGradientUpdates() ) return; // waiting for enough data
 
+    profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
     debugL("Gather gradient estimates from each thread and Learner MPI rank");
@@ -184,6 +185,7 @@ void ACER::setupTasks(TaskQueue& tasks)
     finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     algoSubStepID = 1;
+    profiler->start("MPI");
   };
   tasks.add(stepMain);
 
@@ -193,10 +195,12 @@ void ACER::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 1 ) return;
     if ( networks[0]->ready2ApplyUpdate() == false ) return;
 
+    profiler->stop();
     debugL("Apply SGD update after reduction of gradients");
     applyGradient();
     algoSubStepID = 0; // rinse and repeat
     globalGradCounterUpdate(); // step ++
+    profiler->start("DATA");
   };
   tasks.add(stepComplete);
 }

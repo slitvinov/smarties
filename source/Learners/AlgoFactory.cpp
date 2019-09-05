@@ -209,7 +209,7 @@ std::unique_ptr<Learner> createLearner(
   */
   else die("Learning algorithm not recognized");
 
-  ret->setLearnerName(std::string(lName)+"_", learnerID);
+  ret->setLearnerName(std::string(lName), learnerID);
 
   return ret;
 }

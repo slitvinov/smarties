@@ -116,6 +116,7 @@ void NAF::setupTasks(TaskQueue& tasks)
     debugL("Initialize Learner");
     initializeLearner();
     algoSubStepID = 0;
+    profiler->start("DATA");
   };
   tasks.add(stepInit);
 
@@ -125,6 +126,7 @@ void NAF::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 0 ) return; // some other op is in progress
     if ( blockGradientUpdates() ) return; // waiting for enough data
 
+    profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
     debugL("Gather gradient estimates from each thread and Learner MPI rank");
@@ -135,6 +137,7 @@ void NAF::setupTasks(TaskQueue& tasks)
     finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     algoSubStepID = 1;
+    profiler->start("MPI");
   };
   tasks.add(stepMain);
 
@@ -144,10 +147,12 @@ void NAF::setupTasks(TaskQueue& tasks)
     if ( algoSubStepID not_eq 1 ) return;
     if ( networks[0]->ready2ApplyUpdate() == false ) return;
 
+    profiler->stop();
     debugL("Apply SGD update after reduction of gradients");
     applyGradient();
-    algoSubStepID = 0; // rinse and repeat
     globalGradCounterUpdate(); // step ++
+    algoSubStepID = 0; // rinse and repeat
+    profiler->start("DATA");
   };
   tasks.add(stepComplete);
 }
@@ -156,7 +161,7 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
-  if(thrID==0) profiler->stop_start("FWD");
+  if(thrID==0) profiler->start("FWD");
 
   const Rvec output = networks[0]->forward(bID, t);
 
@@ -189,7 +194,6 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   trainInfo->log(Qs, error, {beta, RHO}, thrID);
   MB.setMseDklImpw(bID, t, error*error, DKL, RHO, CmaxRet, CinvRet);
 
-  if(thrID==0)  profiler->stop_start("BCK");
   networks[0]->setGradient(grad, bID, t);
 }
 

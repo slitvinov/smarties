@@ -57,7 +57,7 @@ void PPO<Policy_t, Action_t>::
 Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
-  if(thrID==0)  profiler->stop_start("FWD");
+  if(thrID==0)  profiler->start("FWD");
 
   const Rvec pVec = actor->forward(bID, t); // network compute
   const Rvec sVal = critc->forward(bID, t); // network compute
@@ -103,7 +103,6 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   #endif
   MB.setMseDklImpw(bID, t, verr*verr, DKL, RHO, 1+CmaxPol, 1-CmaxPol);
 
-  if(thrID==0)  profiler->stop_start("BCK");
   actor->setGradient(totG, bID, t);
   critc->setGradient({ verr * ( isOff? 1 : 0 ) }, bID, t);
 }

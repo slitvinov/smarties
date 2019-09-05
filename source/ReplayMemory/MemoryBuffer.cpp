@@ -36,13 +36,13 @@ void MemoryBuffer::save(const std::string base, const Uint nStep, const bool bBa
     fwrite(V.data(), sizeof(double), 2, wFile);
   };
 
-  const std::string name = base + "scaling.raw";
-  const std::string backname = base + "scaling_backup.raw";
+  const std::string name = base + "_scaling.raw";
+  const std::string backname = base + "_scaling_backup.raw";
   FILE * wFile = fopen((bBackup? name : backname).c_str(), "wb");
   write2file(wFile); fflush(wFile); fclose(wFile);
 
   if(bBackup) {
-    char fName[256]; sprintf(fName, "%sscaling_%09lu.raw", base.c_str(), nStep);
+    char fName[256]; sprintf(fName, "%s_scaling_%09lu.raw", base.c_str(),nStep);
     wFile = fopen(fName, "wb"); write2file(wFile); fflush(wFile); fclose(wFile);
   } else Utilities::copyFile(backname, name);
 }
@@ -54,12 +54,14 @@ void MemoryBuffer::restart(const std::string base)
   chdir(distrib.initial_runDir);
 
   {
-    FILE * wFile = fopen((base+"scaling.raw").c_str(), "rb");
+    FILE * wFile = fopen((base+"_scaling.raw").c_str(), "rb");
     if(wFile == NULL) {
-      printf("Parameters restart file %s not found.\n", (base+".raw").c_str());
+      printf("Parameters restart file %s not found.\n",
+        (base+"_scaling.raw").c_str());
+      chdir(currDirectory);
       return;
     } else {
-      printf("Restarting from file %s.\n", (base+"scaling.raw").c_str());
+      printf("Restarting from file %s.\n", (base+"_scaling.raw").c_str());
       fflush(0);
     }
 
