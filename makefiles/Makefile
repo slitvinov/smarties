@@ -54,14 +54,19 @@ compiler=intel
 include make.icc.flags
 endif
 
-testdiff ?= off
-ifeq "$(testdiff)" "on"
+testdiff ?= false
+ifeq "$(testdiff)" "true"
 CPPFLAGS+= -D__CHECK_DIFF
 endif
 
 precision ?= double
 ifeq "$(precision)" "single"
 CPPFLAGS+= -DSINGLE_PREC
+endif
+
+pytorch ?= false
+ifeq "$(pytorch)" "true"
+CPPFLAGS+= -DPY11_PYTORCH
 endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
@@ -104,8 +109,9 @@ CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
 .DEFAULT_GOAL := all
 
-###################### Compile Communicator Library ###########################
-PYBINDINC:=$(shell python3 -m pybind11 --includes) $(NOWARNP11)
+#LIBS+= $(shell python3-config --libs)
+CPPFLAGS+= $(shell python3 -m pybind11 --includes)
+
 PYBINDSUF:=$(shell python3-config --extension-suffix)
 ifeq ($(UNAME_S),Darwin)
 PYBINDLD= $(LDFLAGS) -undefined dynamic_lookup
@@ -115,7 +121,7 @@ endif
 
 PATH_COMM_PY11=../source/smarties_pybind11.cpp
 smarties_pybind11.o:
-	$(MPICXX) $(CPPFLAGS) $(PYBINDINC) -fPIC -c $(PATH_COMM_PY11) -o $@
+	$(MPICXX) $(CPPFLAGS) $(NOWARNP11) -fPIC -c $(PATH_COMM_PY11) -o $@
 
 lib: $(OBJ_FILES)
 	mkdir -p ../lib
@@ -144,6 +150,9 @@ all: lib py11
 
 main.o: ../source/main.cpp
 	$(MPICXX) $(extra) $(CPPFLAGS) -c $< -o $@
+
+Learner_pytorch.o: Learner_pytorch.cpp
+	$(MPICXX) $(extra) $(CPPFLAGS) $(NOWARNP11) -fPIC -c $< -o $@
 
 %.o: %.cpp
 	$(MPICXX) $(extra) $(CPPFLAGS) -fPIC -c $< -o $@

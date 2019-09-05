@@ -111,7 +111,9 @@ if [ ! -f ${SMARTIES_ROOT}/lib/smarties.cpython-* ]; then
 echo "ERROR: pybind11 smarties library not found."
 exit 1
 fi
-if [ ! -x ${RUNDIR}/${EXECNAME} ]; then
+
+EXECPATH=`echo $EXECNAME | cut -f1 -d" "`
+if [ ! -x ${RUNDIR}/${EXECPATH} ]; then
 echo "ERROR: Application executable not found! Revise app's setup.sh"
 exit 1
 fi

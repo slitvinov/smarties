@@ -6,19 +6,17 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#include "../ReplayMemory/Collector.h"
 #include "Learner_pytorch.h"
 #include <chrono>
-#include "../ReplayMemory/Collector.h"
 
-// PYBIND
+#ifdef PY11_PYTORCH
+
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-#include <vector>
-
 #include <iostream>
-
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -44,10 +42,10 @@ PYBIND11_EMBEDDED_MODULE(pybind11_embed, m) {
         .def_readonly("endTimeStep", &MiniBatch::endTimeStep)
         .def_readonly("sampledTimeStep", &MiniBatch::sampledTimeStep)
         .def_readwrite("S", &MiniBatch::S)
-        .def_readwrite("A", &MiniBatch::A)
-        .def_readwrite("MU", &MiniBatch::MU)
+//        .def_readwrite("A", &MiniBatch::A)
+//        .def_readwrite("MU", &MiniBatch::MU)
         .def_readwrite("R", &MiniBatch::R)
-        .def_readwrite("W", &MiniBatch::W);
+        .def_readwrite("PERW", &MiniBatch::PERW);
 
     // py::bind_vector<std::vector<Uint>>(m, "VectorUint");
 
@@ -96,11 +94,6 @@ Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, Distribution
   std::cout << "PYTORCH: PROPAGATION WORKED!" << std::endl;
 
 }
-
-Learner_pytorch::~Learner_pytorch() {
-  // _dispose_object(input);
-}
-
 
 void Learner_pytorch::setupTasks(TaskQueue& tasks)
 {
@@ -185,7 +178,7 @@ void Learner_pytorch::spawnTrainTasks()
   // UPDATING RETRACE ESTIMATES
   for (Uint bID=0; bID<batchSize; ++bID) {
     Sequence& S = MB.getEpisode(bID);
-    const Uint t = MB.getTstep(bID), thrID = omp_get_thread_num();
+    const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
     //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
     if( S.isTruncated(t+1) ) {
       assert( t+1 == S.ndata() );
@@ -237,11 +230,35 @@ void Learner_pytorch::select(Agent& agent)
     agent.act(action);
     data_get->add_action(agent, mu);
 
-  }else
-  {
+  } else {
     data_get->terminate_seq(agent);
   }
 
+}
+
+#else // not defined PY11_PYTORCH
+
+namespace pybind11 {
+struct object {};
+}
+
+namespace smarties
+{
+
+void Learner_pytorch::select(Agent& agent) {}
+
+void Learner_pytorch::spawnTrainTasks() {}
+
+void Learner_pytorch::setupTasks(TaskQueue& tasks) {}
+
+Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_,
+  DistributionInfo& D_) : Learner(MDP_, S_, D_)
+{}
+
+#endif
+
+Learner_pytorch::~Learner_pytorch()
+{
 }
 
 void Learner_pytorch::getMetrics(std::ostringstream& buf) const
@@ -255,30 +272,11 @@ void Learner_pytorch::getHeaders(std::ostringstream& buf) const
 
 void Learner_pytorch::restart()
 {
-  // if(settings.restart == "none") return;
-  // if(!learn_rank) printf("Restarting from saved policy...\n");
-
-  // for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
-  // input->restart(settings.restart+"/"+learner_name);
-
-  // for(auto & net : F) net->save("restarted_"+learner_name, false);
-  // input->save("restarted_"+learner_name, false);
-
   Learner::restart();
-
-  // if(input->opt not_eq nullptr) input->opt->nStep = _nGradSteps;
-  // for(auto & net : F) net->opt->nStep = _nGradSteps;
 }
 
 void Learner_pytorch::save()
 {
-  // const Uint currStep = nGradSteps()+1;
-  // const Real freqSave = freqPrint * PRFL_DMPFRQ;
-  // const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
-  // const bool bBackup = currStep % freqBackup == 0;
-  // for(auto & net : F) net->save(learner_name, bBackup);
-  // input->save(learner_name, bBackup);
-
   Learner::save();
 }
 
