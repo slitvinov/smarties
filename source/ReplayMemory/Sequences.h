@@ -13,6 +13,7 @@
 #include "../Utils/Warnings.h"
 #include <cassert>
 #include <mutex>
+#include <cmath>
 
 namespace smarties
 {
@@ -236,7 +237,7 @@ struct MiniBatch
   {
     return R[b][mapTime2Ind(b, t)];
   }
-  nnReal& prioritizedSamplingWeight(const Uint b, const Uint t)
+  nnReal& PERweight(const Uint b, const Uint t)
   {
     return PERW[b][mapTime2Ind(b, t)];
   }
@@ -252,7 +253,7 @@ struct MiniBatch
   {
     return episodes[b]->policies[t];
   }
-  const nnReal& prioritizedSamplingWeight(const Uint b, const Uint t) const
+  const nnReal& PERweight(const Uint b, const Uint t) const
   {
     return PERW[b][mapTime2Ind(b, t)];
   }

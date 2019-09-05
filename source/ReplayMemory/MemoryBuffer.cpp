@@ -132,7 +132,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     lastSampledEps.erase( std::unique(lastSampledEps.begin(), lastSampledEps.end()), lastSampledEps.end() );
   }
 
-  MiniBatch ret(batchSize);
+  MiniBatch ret(batchSize, settings.gamma);
   for(Uint b=0; b<batchSize; ++b)
   {
     ret.episodes[b] = Set[ sampleEID[b] ];
@@ -172,16 +172,14 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   for(Uint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
   {
     ret.state(b, t)  = standardizedState<nnReal>(sampleE[b], t);
-    ret.set_action(b, t, sampleE[b]->actions[t] );
-    ret.set_mu(b, t, sampleE[b]->policies[t] );
     ret.reward(b, t) = scaledReward(sampleE[b], t);
     if( bReqImpSamp ) {
       const nnReal impW_undef = sampleE[b]->priorityImpW[t];
       // if imp weight is 0 or less assume it was not computed and therefore
       // ep is probably a new experience that should be given high priority
       const nnReal impW_unnorm = impW_undef<=0 ? maxPriorityImpW : impW_undef;
-      ret.importanceWeight(b, t) = std::pow(minPriorityImpW/impW_unnorm, beta);
-    } else ret.importanceWeight(b, t) = 1;
+      ret.PERweight(b, t) = std::pow(minPriorityImpW/impW_unnorm, beta);
+    } else ret.PERweight(b, t) = 1;
   }
 
   return ret;
@@ -195,7 +193,7 @@ bool MemoryBuffer::bRequireImportanceSampling() const
 
 MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
 {
-  MiniBatch ret(1);
+  MiniBatch ret(1, settings.gamma);
   ret.episodes[0] = inProgress;
   if (settings.bSampleSequences) {
     // we may have to update estimators from S_{0} to S_{T_1}
@@ -218,8 +216,6 @@ MiniBatch MemoryBuffer::agentToMinibatch(Sequence* const inProgress) const
   for(Uint t=ret.begTimeStep[0]; t<ret.endTimeStep[0]; ++t)
   {
     ret.state(0, t) = standardizedState<nnReal>(inProgress, t);
-    ret.set_action(0, t, inProgress->actions[t] );
-    ret.set_mu(0, t, inProgress->policies[t] );
     ret.reward(0, t) = scaledReward(inProgress, t);
   }
   return ret;
