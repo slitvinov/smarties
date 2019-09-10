@@ -335,6 +335,8 @@ def main_spectral(path):
     popt, pcov = curve_fit(logEkFunc, kdata, ekdata, sigma=eksigma, maxfev=100000, \
                  p0=[3.626, 0.000159, 0.178, 5.24, 1e3])
     # 3.62590946e+00 1.58981122e-04 1.78026894e-01 5.24030627e+00 6.69070846e+03
+    # abs:
+    # 8.52677684e+00 2.42173319e-04 5.59081529e-02 5.32056057e+00 5.74571792e+03
     C,CI,CE,BETA,P0 = popt[0], popt[1], popt[2], popt[3], popt[4]
     print(popt)
 
