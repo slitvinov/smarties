@@ -56,33 +56,57 @@ void Worker::runTraining()
   ////// FIRST SETUP SIMPLE FUNCTIONS TO DETECT START AND END OF TRAINING //////
   //////////////////////////////////////////////////////////////////////////////
   long minNdataB4Train = learners[0]->nObsB4StartTraining;
-  int firstLearnerStart = 0, isStarted = 0, percentageReady = -5;
+  int firstLearnerStart = 0, isTrainingStarted = 0, percentageReady = -5;
   for(Uint i=1; i<learners.size(); ++i)
     if(learners[i]->nObsB4StartTraining < minNdataB4Train) {
       minNdataB4Train = learners[i]->nObsB4StartTraining;
       firstLearnerStart = i;
     }
 
-  const auto isTrainingStarted = [&]() {
-    if(isStarted==0 && learn_rank==0) {
+  const std::function<bool()> isOverTraining = [&] ()
+  {
+    if(isTrainingStarted==0 && learn_rank==0) {
       const auto nCollected = learners[firstLearnerStart]->locDataSetSize();
-      const int currPerc = nCollected * 100./(Real) minNdataB4Train;
-      if(nCollected >= minNdataB4Train) isStarted = 1;
-      else if(currPerc >= percentageReady+5) {
-       percentageReady = currPerc;
-       printf("\rCollected %d%% of data required to begin training. ",currPerc);
+      const int perc = nCollected * 100.0/(Real) minNdataB4Train;
+      if(nCollected >= minNdataB4Train) isTrainingStarted = 1;
+      else if(perc >= percentageReady+5) {
+       percentageReady = perc;
+       printf("\rCollected %d%% of data required to begin training. ", perc);
        fflush(0);
       }
     }
+    if(isTrainingStarted==0) return false;
+
+    bool over = true;
+    const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
+    for(const auto& L : learners)
+      over = over && L->nLocTimeStepsTrain() * factor >= distrib.totNumSteps;
+    return over;
   };
-  const auto isTrainingOver = [&](const Learner* const L) {
+  const std::function<bool()> isOverTesting = [&] ()
+  {
     // if agents share learning algo, return number of turns performed by env
     // instead of sum of timesteps performed by each agent
-    const Real factor = learners.size()==1? 1.0/ENV.nAgentsPerEnvironment : 1;
-    const long dataCounter = bTrain? L->nLocTimeStepsTrain() : L->nSeqsEval();
-    return dataCounter * factor >= distrib.totNumSteps;
+    const long factor = learners.size()==1? ENV.nAgentsPerEnvironment : 1;
+    long nEnvSeqs = 0;
+    for(const auto& L : learners)
+      nEnvSeqs = std::min(nEnvSeqs, L->nSeqsEval() / factor);
+    const Real perc = nEnvSeqs / (Real) distrib.totNumSteps;
+    if(perc >= 1) {
+      printf("\rFinished collecting %ld environment episodes " \
+        "(option --totNumSteps) to evaluate restarted policies.\n", nEnvSeqs);
+      return true;
+    } else if(perc >= percentageReady+5) {
+      percentageReady = perc;
+      printf("\rCollected %ld environment episodes out of %lu " \
+        "(option --totNumSteps) environment sequences to evaluate " \
+        "restarted policies.", nEnvSeqs, distrib.totNumSteps);
+      fflush(0);
+    }
+    return false;
   };
 
+  const auto isOver = bTrain? isOverTraining : isOverTesting;
 
   //////////////////////////////////////////////////////////////////////////////
   /////////////////////////// START DATA COLLECTION ////////////////////////////
@@ -104,13 +128,8 @@ void Worker::runTraining()
   /////////////////////////////// TRAINING LOOP ////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   while(1) {
-    isTrainingStarted();
-
     algoTasks.run();
-
-    bool over = true;
-    for(const auto& L : learners) over = over && isTrainingOver(L.get());
-    if (over) break;
+    if ( isOver() ) break;
   }
 
   // kill data gathering process
