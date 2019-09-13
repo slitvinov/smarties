@@ -88,11 +88,11 @@ void Worker::runTraining()
     // if agents share learning algo, return number of turns performed by env
     // instead of sum of timesteps performed by each agent
     const long factor = learners.size()==1? ENV.nAgentsPerEnvironment : 1;
-    long nEnvSeqs = 0;
+    long nEnvSeqs = std::numeric_limits<long>::max();
     for(const auto& L : learners)
       nEnvSeqs = std::min(nEnvSeqs, L->nSeqsEval() / factor);
-    const Real perc = nEnvSeqs / (Real) distrib.totNumSteps;
-    if(perc >= 1) {
+    const Real perc = 100.0 * nEnvSeqs / (Real) distrib.totNumSteps;
+    if(perc >= 100) {
       printf("\rFinished collecting %ld environment episodes " \
         "(option --totNumSteps) to evaluate restarted policies.\n", nEnvSeqs);
       return true;

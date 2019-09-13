@@ -28,8 +28,8 @@ Master<CommType, Request_t>::Master(DistributionInfo&D) : Worker(D) {}
 void MasterSockets::run(const environment_callback_t& callback)
 {
   assert(distrib.nForkedProcesses2spawn > 0);
-  COMM->forkApplication(callback);
-
+  const bool isChild = COMM->forkApplication(callback);
+  if(isChild) return;
   Master<MasterSockets, SOCKET_REQ>::run();
 }
 

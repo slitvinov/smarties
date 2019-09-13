@@ -1,18 +1,19 @@
-export INTERNALAPP=true
+#!/bin/bash
 
 # compile executable:
+COMPILEDIR=${SMARTIES_ROOT}/../CubismUP_3D/makefiles
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ${SMARTIES_ROOT}/../CubismUP_3D/makefiles rlHIT -j4
+make -C ${COMPILEDIR} rlHIT -j4
 fi
 
 # copy executable:
-cp ${SMARTIES_ROOT}/../CubismUP_3D/makefiles/rlHIT ${RUNDIR}/exec
+cp ${COMPILEDIR}/rlHIT ${RUNDIR}/exec
 
 # write simulation settings files:
 NNODEX=${NNODEX:-1}
 NNODEY=${NNODEY:-1}
 NNODEZ=${NNODEZ:-1}
-NNODE=$(($NNODEX * $NNODEY * $NNODEZ))
+NNODES=$(($NNODEX * $NNODEY * $NNODEZ))
 BPDX=${BPDX:-4}
 BPDY=${BPDY:-${BPDX}} #${BPDY:-32}
 BPDZ=${BPDZ:-${BPDX}} #${BPDZ:-32}
@@ -28,17 +29,9 @@ cat <<EOF >${RUNDIR}/runArguments00.sh
 EOF
 
 #copy target files
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-cp ${DIR}/targetHIT/re75/meanTarget.dat  ${RUNDIR}/
-cp ${DIR}/targetHIT/re75/kdeTarget.dat   ${RUNDIR}/
-cp ${DIR}/targetHIT/re75/scaleTarget.dat ${RUNDIR}/
+cp targetHIT/re75/meanTarget.dat  ${RUNDIR}/
+cp targetHIT/re75/kdeTarget.dat   ${RUNDIR}/
+cp targetHIT/re75/scaleTarget.dat ${RUNDIR}/
 
-# write file for launch_base.sh to read app-required settings:
-cat <<EOF >${RUNDIR}/appSettings.sh
-SETTINGS+=" --appSettings runArguments00.sh "
-SETTINGS+=" --nStepPappSett 0 "
-SETTINGS+=" --workerProcessesPerEnv ${NNODE} "
-EOF
-chmod 755 ${RUNDIR}/appSettings.sh
-
-
+export MPI_RANKS_PER_ENV=$NNODES
+export EXTRA_LINE_ARGS=" --appSettings runArguments00.sh --nStepPappSett 0 "

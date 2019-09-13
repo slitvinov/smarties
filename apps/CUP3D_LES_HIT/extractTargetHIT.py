@@ -108,11 +108,16 @@ def main(simdir, nu, nSkip, nSample):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser(description = "Compute a target file for RL agent from DNS data.")
-  parser.add_argument('simdir', help="Simulation directory containing the 'Analysis' folder")
-  parser.add_argument('nu',     help="Viscosity of the simulation.")
-  parser.add_argument('nSkip',  help="Skip the n first analysis files.")
-  parser.add_argument('nSamp',  help="Nb. of KDE sample")
+  parser = argparse.ArgumentParser(
+      description = "Compute a target file for RL agent from DNS data.")
+  parser.add_argument('simdir',
+      help="Simulation directory containing the 'Analysis' folder")
+  parser.add_argument('nu',
+      help="Viscosity of the simulation.")
+  parser.add_argument('nSkip',
+      help="Skip the n first analysis files.")
+  parser.add_argument('nSamp',
+      help="Nb. of KDE sample")
   args = parser.parse_args()
 
   main(args.simdir, float(args.nu), int(args.nSkip), int(args.nSamp))
