@@ -20,92 +20,111 @@
 # [0/1/2] [state_cnter] [state] [action] [reward] [policy]
 # (second column is 1 for first observation of an episode, 2 for last)
 
-import sys
-import numpy as np
-import matplotlib.pyplot as plt
-PATH=    sys.argv[1]
-sizes = np.fromfile(PATH+'/problem_size.log', sep=' ')
-NS, NA, NP = int(sizes[0]), int(sizes[1]), int(sizes[2])
-NL=(NA*NA+NA)//2
-IREW=3+NS+NA
-NCOL=4+NS+NA+NP
-print('States begin at col 3, actions at col '+str(3+NS)+', rewards is col '+str(IREW)+', policy at col '+str(1+IREW)+' end at '+str(NCOL)+'.')
-ICOL = int( input("Column to print? ") )
-#COLMAX = 1e7
-#COLMAX = 8e6
-#COLMAX = 1e6
-COLMAX = -1
+import argparse, sys, time, numpy as np, os, matplotlib.pyplot as plt
 
-if len(sys.argv) > 2: SKIP=int(sys.argv[2])
-else: SKIP = 10
+def nameAxis(colID, NS, NA, IREW, NCOL):
+    assert(colID < NCOL)
+    if colID<=0: return 'time steps'
+    if colID==1: return 'agent status' #0 for init, 2 term, 3 trunc, 2 intermediate
+    if colID==2: return 'time in episode'
+    if colID<3+NS: return 'state component %d' % (colID-3)
+    if colID<IREW: return 'action component %d' % (colID-3-NS)
+    if colID==IREW: return 'intantaneous reward'
+    return 'policy statistics component %d' % (colID-1-IREW)
 
-if len(sys.argv) > 3: AGENTID=int(sys.argv[3])
-else: AGENTID = 0
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(description = "Smarties state/action tuples plotting tool.")
+  parser.add_argument('folder',
+    help="Directoriy containing the observations file to plot.")
+  parser.add_argument('plotCol', type=int, default=-1, nargs='?',
+    help="Variable to plot. If unset it will be asked interactively.")
+  parser.add_argument('--nSkipPlot', type=int, default=10,
+    help="Determines how many episode's trajectories are skipped for one that is visualized in the figure.")
+  parser.add_argument('--nSkipInitT', type=int, default=0,
+    help="Allows skipping the first #arg time steps from the figure.")
+  parser.add_argument('--nLastPlotT', type=int, default=-1,
+    help="Allows plotting only the first #arg time steps contained in the file.")
+  parser.add_argument('--workerRank', type=int, default=0,
+    help="Will plot the trajectories obtained by this MPI rank. "
+         "Defaults to 0 in most cases, when the main learner rank obtains all data. "
+         "If run had MPI ranks collecting episodes it will default to 1.")
+  parser.add_argument('--agentID', type=int, default=0,
+    help="Whose agent's trajectories will be plotted. Defaults to 0 and only affects multi-agent environments.")
+  parser.add_argument('--xAxisVar', type=int, default=-1,
+    help="Allows plotting variables on the x-axis other than the time step counter.")
+  parsed = parser.parse_args()
 
-if len(sys.argv) > 4: RANK=int(sys.argv[4])
-else: RANK = 0
 
-if len(sys.argv) > 5: XAXIS=int(sys.argv[5])
-else: XAXIS = -1
-
-if len(sys.argv) > 6: IND0=int(sys.argv[6])
-else: IND0 = 0
-
-FILE = "%s/agent%03d_rank%02d_obs.raw" % (PATH, AGENTID, RANK)
-#np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
-DATA = np.fromfile(FILE, dtype=np.float32)
-NROW = DATA.size // NCOL
-DATA = DATA.reshape(NROW, NCOL)
-
-terminals = np.argwhere(DATA[:,1]>=2.)
-initials  = np.argwhere(abs(DATA[:,1]-0.1)<0.1)
-print('size of terminals %d, size of initials %d' % (len(terminals), len(initials)))
-
-print("Plot column %d out of %d. Log contains %d time steps from %d episodes." \
-      % (ICOL, NCOL, NROW, len(terminals) ) )
-inds = np.arange(0,NROW)
-ST = np.zeros(len(terminals))
-
-act = DATA[:,ICOL]
-max_a, min_a = 1.9, 0.1
-#DATA[:,ICOL] = min_a + 0.5 * (max_a-min_a) * (np.tanh(act) + 1);
-for ind in range(IND0, len(terminals), SKIP):
-  term = terminals[ind]; term = term[0]
-  init =  initials[ind]; init = init[0]
-  if COLMAX>0 and term>COLMAX: break;
-  span = range(init+1, term, 1)
-  print("Plotting episode starting from step %d to step %d." % (init,term) )
-  if XAXIS>=0:
-    xes, xtrm, xini = DATA[span,XAXIS], DATA[term,XAXIS], DATA[init,XAXIS]
+  sizes = np.fromfile(parsed.folder+'/problem_size.log', sep=' ')
+  NS, NA, NP = int(sizes[0]), int(sizes[1]), int(sizes[2])
+  NL=(NA*NA+NA)//2
+  IREW=3+NS+NA
+  NCOL=4+NS+NA+NP
+  if parsed.plotCol < 0:
+    print('States begin at col 3, actions at col ' + str(3+NS) + \
+          ', rewards is col ' + str(IREW) + ', policy at col ' + \
+          str(1+IREW) + ' end at ' + str(NCOL) + '.')
+    ICOL = int( input("Column to print? ") )
   else:
-    xes, xtrm, xini = inds[span]      , inds[term],       inds[init]
-  #print(xini, xes, xtrm)
-  if (ind % 1) == 0:
-    if ind==IND0:
-      plt.plot(xes, DATA[span,ICOL], 'bo', label='x-trajectory')
+    ICOL = parsed.plotCol
+
+  FILE = "%s/agent%03d_rank%02d_obs.raw" \
+         % (parsed.folder, parsed.agentID, parsed.workerRank)
+  if os.path.isfile(FILE) is False:
+    FILE = "%s/agent%03d_rank%02d_obs.raw" % (parsed.folder, parsed.agentID, 1)
+  assert os.path.isfile(FILE), \
+         "unable to find file %s" % FILE
+
+  DATA = np.fromfile(FILE, dtype=np.float32)
+  NROW = DATA.size // NCOL
+  DATA = DATA.reshape(NROW, NCOL)
+
+  terminals = np.argwhere(DATA[:,1]>=2.0).flatten()
+  initials  = np.argwhere(DATA[:,1]< 1.0).flatten()
+  print('Number of finished episodes %d, number of begun episodes %d' \
+        % (len(terminals), len(initials)))
+  print("Plot column %d out of %d. Log contains %d time steps from %d episodes." \
+        % (ICOL, NCOL, NROW, len(terminals) ) )
+
+  # ST = np.zeros(len(terminals)) # SAVE TERM STATES, TODO
+  # for i in range(len(terminals)): ST[i] = DATA[terminals[i], ICOL]
+  # np.savetxt('terminals.dat', ST, delimiter=',')
+
+  #act = DATA[:,ICOL] # SCALE ACTIONS, TODO
+  #max_a, min_a = 1.9, 0.1
+  #DATA[:,ICOL] = min_a + 0.5 * (max_a-min_a) * (np.tanh(act) + 1);
+
+  initialized = False
+  for ind in range(0, len(terminals), parsed.nSkipPlot):
+    init, term = initials[ind], terminals[ind]
+    if parsed.nSkipInitT>0 and init<parsed.nSkipInitT: continue
+    if parsed.nLastPlotT>0 and term>parsed.nLastPlotT: break
+
+    print("Plotting episode starting from step %d to step %d." % (init,term) )
+    span = range(init+1, term, 1)
+    if parsed.xAxisVar >= 0:
+      xes  = DATA[span, parsed.xAxisVar]
+      xtrm = DATA[term, parsed.xAxisVar]
+      xini = DATA[init, parsed.xAxisVar]
     else:
-      plt.plot(xes, DATA[span,ICOL], 'bo')
+      xes, xtrm, xini = span, term, init
 
-  #plt.plot(inds, DATA[:,ICOL])
-  ST[ind] = DATA[term, ICOL]
+    if DATA[term,1] > 3: color='mo' # truncated state
+    else: color='ro' # proper terminal state
 
-  if ind==IND0:
-    plt.plot(xini, DATA[init, ICOL], 'go', label='terminal x')
-  else:
-    plt.plot(xini, DATA[init, ICOL], 'go')
-  if DATA[term,0] > 3: color='mo'
-  else: color='ro'
-  if ind==IND0:
-    plt.plot(xtrm, DATA[term, ICOL], color, label='terminal x')
-  else:
-    plt.plot(xtrm, DATA[term, ICOL], color)
-#plt.legend(loc=4)
-#plt.ylabel('x',fontsize=16)
-#plt.xlabel('t',fontsize=16)
-#if COLMAX>0:plt.axis([0, COLMAX, -50, 150])
-#plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
-plt.tight_layout()
-#plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')
-np.savetxt('terminals.dat', ST, delimiter=',')
-#plt.savefig('prova.png', dpi=100)
-plt.show()
+    if initialized:
+      plt.plot(xes,  DATA[span, ICOL], 'b-')
+      plt.plot(xini, DATA[init, ICOL], 'go')
+      plt.plot(xtrm, DATA[term, ICOL], color)
+    else:
+      initialized = True
+      plt.plot(xes, DATA[span, ICOL], 'b-', label='trajectories')
+      plt.plot(xini, DATA[init, ICOL], 'go', label='initial states')
+      plt.plot(xtrm, DATA[term, ICOL], color, label='terminal states')
+
+  plt.xlabel(nameAxis(parsed.xAxisVar, NS, NA, IREW, NCOL))
+  plt.ylabel(nameAxis(ICOL, NS, NA, IREW, NCOL))
+  plt.legend()
+  plt.tight_layout()
+  #plt.savefig('prova.png', dpi=100)
+  plt.show()

@@ -93,6 +93,7 @@ if __name__ == '__main__':
     ax.set_xlabel('time steps')
     ax.set_ylabel('average cumulative rewards')
     ax.legend(loc='lower right')
+    plt.tight_layout()
     plt.show()
 
   
