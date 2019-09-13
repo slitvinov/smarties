@@ -306,7 +306,6 @@ void Worker::synchronizeEnvironments()
 
 void Worker::loopSocketsToMaster()
 {
-  bool bTerminate = false;
   const size_t nClients = COMM->SOCK.clients.size();
   std::vector<SOCKET_REQ> reqs = std::vector<SOCKET_REQ>(nClients);
   // worker's communication functions behave following mpi indexing
@@ -316,30 +315,40 @@ void Worker::loopSocketsToMaster()
     SOCKET_Irecv(B.dataStateBuf, B.sizeStateMsg, SID, reqs[i]);
   }
 
+  const auto sendKillMsgs = [&] (const int clientJustRecvd)
+  {
+    for(size_t i=0; i<nClients; ++i) {
+      if( (int) i == clientJustRecvd ) {
+        assert(reqs[i].todo == 0);
+        continue;
+      } else assert(reqs[i].todo not_eq 0);
+      SOCKET_Wait(reqs[i]);
+    }
+    // now all requests are completed and waiting to recv an 'action': terminate
+    for(size_t i=0; i<nClients; ++i) {
+      const auto& B = getCommBuffer(i+1);
+      Agent::messageLearnerStatus((char*) B.dataActionBuf) = KILL;
+      SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, getSocketID(i+1));
+    }
+  };
+
   for(size_t i=0; ; ++i) // infinite loop : communicate until break command
   {
+    int completed = 0;
     const int workID = i % nClients, SID = getSocketID(workID+1);
     const COMM_buffer& B = getCommBuffer(workID+1);
+    SOCKET_Test(completed, reqs[workID]);
 
-    SOCKET_Test(reqs[workID].completed, reqs[workID]);
-
-    if(reqs[workID].completed) {
+    if(completed) {
       stepWorkerToMaster(workID);
       learnerStatus& S = Agent::messageLearnerStatus((char*) B.dataActionBuf);
-      // check if abort was called. don't tell the app yet, cleaner loop later
-      if(S == KILL) { bTerminate = true; S = WORK; }
+      if(S == KILL) { // check if abort was called
+        sendKillMsgs(workID);
+        return;
+      }
       SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, SID);
     }
     else usleep(1); // wait for app to send a state without burning a cpu
-
-    if(bTerminate) break;
-  }
-
-  for(size_t i=0; i<nClients; ++i) {
-    SOCKET_Wait(reqs[i]);
-    const auto& B = getCommBuffer(i+1);
-    Agent::messageLearnerStatus((char*) B.dataActionBuf) = KILL;
-    SOCKET_Bsend(B.dataActionBuf, B.sizeActionMsg, getSocketID(i+1));
   }
 }
 
