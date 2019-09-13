@@ -40,14 +40,15 @@ Moreover, after the compilation steps for either Linux or Mac OS, add the path t
 .. code:: shell
 
     echo 'export SMARTIES_ROOT=/path/to/smarties/folder/' >> ~/.bash_profile
+    echo 'export PATH=${SMARTIES_ROOT}/bin:${PATH}' >> ~/.bash_profile
     echo 'export LD_LIBRARY_PATH=${SMARTIES_ROOT}/lib:${LD_LIBRARY_PATH}' >> ~/.bash_profile
 
-The environment variable 'SMARTIES_ROOT' is used to compile most of the applications in the 'apps' folder.
+The environment variable ``SMARTIES_ROOT`` is used to compile most of the applications in the 'apps' folder.
 
 Linux
 ------
 
-Smarties requires gcc version 6.1 or greater, a thread-safe (at least `MPI_THREAD_SERIALIZED`) implementation of MPI, and a serial BLAS implementation with CBLAS interface. Furthermore, in order to test on the benchmark problems, OpenAI gym or the DeepMind Control Suite with python>=3.5. MPI and OpenBLAS can be installed by running the ``install_dependencies.sh`` script.
+Smarties requires gcc version 6.1 or greater, a thread-safe (at least ``MPI_THREAD_SERIALIZED``) implementation of MPI, and a serial BLAS implementation with CBLAS interface. Furthermore, in order to test on the benchmark problems, OpenAI gym or the DeepMind Control Suite with python>=3.5. MPI and OpenBLAS can be installed by running the ``install_dependencies.sh`` script.
 
 .. code:: shell
 
@@ -224,53 +225,53 @@ Examples of solved problems
 Launching
 =========
 
-It is possible to run smarties without the tools defined in this folder.
-However, the script ``launch.sh`` provides some functionality that helps running
-smarties on multiple processes. For example having multiple processes running
-the environment (to parallelize data-collection) or multiple processes hosting
-the RL algorithms (to parallelize gradient descent).  
-
-When using `launch.sh` you may provide:
-
-* the name of the folder to run in, which by default will be placed in `runs/`.
-
-* the path or name of the folder in the `apps` folder containing the files defining your application.
-
-* (optional) the path to the settings file. The default setting file, specifying the RL solver and hyper-parameters, is set to `settings/VRACER.json`.
-
-* (optional) the number of threads that should be used by the learning algorithm on each process to update the networks.
-
-* (optional) the number of computational nodes available to run the training.
-
-* (optional) the number of dedicated MPI processes dedicated to update the networks. If the network, the batchsize, or the CMA population size are large it might be beneficial to add more master processes. The memory buffer and the batch size will be spread among all learners. Once an experience is stored by a learning process it will never be moved again.
-
-* (optional) the number of worker MPI processes that run the simulation. If the environment application does not require multiple ranks itself (ie. does not require MPI), it means number of separate environment instances. Many off-policy algorithms require a certain number of environment time steps per gradient steps, these are uniformly distributed among worker processes (ie. worker ranks may alternate in advancing their simulation). Must be at least 1. If the environment requires multiple ranks itself (ie. MPI app) then the number of workers must be a multiple of the number of ranks required by each instance of the application.
-
-For example:
+In many cases it is possible to launch an application compiled with smarties simple as, for example:
 
 .. code:: shell
 
-    ./launch.sh testRun cart_pole_cpp RACER.json 4 1 1 1
+    ./exec [args...]
 
-Which will setup the folder runs/testRun and run the ``cart_pole_cpp`` example on
-one process (``cart_pole_cpp`` does not require dedicated MPI processes), with
-one running simulation of the cart-pole, and 4 threads doing the gradient descent updates. The script will call:
+The script ``smarties.py`` is provided to allow greater flexibility, to ease  
+passing options to smarties, and to help setting up MPI-based training processes.  
+For example, to have multiple processes running the environment (distributed  
+data-collection) or multiple processes hosting the RL algorithms (distributed SGD).
+
+With the ``bin`` directory added to the shell ``PATH``, the description of the  
+setup options are printed out by typing:
 
 .. code:: shell
 
-    mpirun -n 1 --map-by ppr:1:node ./exec --nWorkers 1 --nMasters 1 --nThreads 4
+    smarties.py --help
 
-Additional remarks:
+The script takes 2 (optional) positional arguments, for example:
 
-* An example of launching an OpenAI gym mujoco-based app is `./launch_gym.sh RUNDIR Walker2d-v2`. The second argument, instead of providing a path to an application, is the name of the OpenAI Gym environment (e.g. `CartPole-v1`)
+.. code:: shell
 
-* An example of launching an OpenAI gym Atari-based app is `./launch_atari.sh RUNDIR Pong` (the version specifier `NoFrameskip-v4` will be added internally). Note that we apply the same frame preprocessing as in the OpenAI `baselines` repository and the base CNN architecture is the same as in the DQN paper. The network layers specified in the `settings` file (ie. fully connected, GRU, LSTM) will be added on top of those convolutional layers.
+    smarties.py cart_pole_py VRACER.json
 
+In this case, smarties will train with the V-RACER algorithm, and hyper-parameters  
+defined in the ``VRACER.json file`` found in the ``SMARTIES_ROOT/settings`` directory  
+on the application ``cart_pole_py`` found in the ``SMARTIES_ROOT/apps`` folder.  
+All output files will be saved in the current directory. 
+If no arguments are provided, the script will look for an executable (named  
+``exec`` or ``exec.py`` in the current directory or whatever specified with the  
+``--execname exec`` option) and will use default hyper-parameters.
 
-* (optional, default 1) `nMasters`: the number of learner ranks. 
-* (optional, default 1) `nWorkers`: the total number of environment processes. 
+Most useful options:  
 
-These two scripts set up the launch environment and directory, and then call `run.sh`.
+* ``--gym`` to tell smarties to run OpenAI gym applications (eg. ``smarties.py Walker2d-v2 --gym``)
+
+* ``--atari`` to tell smarties to run OpenAI gym Atari applications. For example,  ``smarties.py Pong --atari`` will run the ``PongNoFrameskip-v4`` environment with DQN-like preprocessing conv2d layers as specified by ``apps/OpenAI_gym_atari/exec.py``.
+
+* ``--dmc`` to tell smarties to run DeepMind Control Suite applications. For example,  ``smarties.py "acrobot swingup" --dmc`` will run the ``acrobot`` environment with task ``swingup``.
+
+* ``--runname RUNNAME`` will execute the training run from folder ``RUNNAME`` and create all output and setup files therein. The path of the folder is by default ``SMARTIES_ROOT/runs/RUNNAME``, but may be modified for example as ``--runprefix ./``, which will create ``RUNNAME`` in the current directory.  
+
+* ``--nEvalSeqs N`` tells smarties that it should evaluate and not modify an already trained policy for ``N`` sequences (the smarties-generated restart files should be already located in the run directory or at path ``--restart /path/to/restart/``).
+
+* ``--args "arg1 arg2 ..`` in order to pass line arguments to the application.
+
+* ``--nEnvironments N`` will spawn ``N`` processes running environment simulations. If the environment requires (or benefits from) one or more dedicated MPI ranks (recommended for clusters and expensive simulations) this can be set with ``--mpiProcsPerEnv M``. In this case, 1+N*M MPI processes will runn the training: one learner and N teams of M processes to handle the N simulations. If the network update needs to be parallelized (distributed SGD), use the option ``--nLearners K``. 
 
 Learning outputs
 =======
