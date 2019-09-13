@@ -177,66 +177,51 @@ def main(dirsname, nu, nSkip, nSample):
 
     exportTarget(nu, spectrum, modes, scalars, nSample)
 
-def fitFunction(exts, nus, epss, dataM, dataV, ind, func):
-    data = []
-    stdvs = []
-    inputs = []
-    for li in range(len(exts)):
-     for ni in range(len(nus)):
-      for ei in range(len(epss)):
-       if(dataM[li,ni,ei,ind]<1000 and dataM[li,ni,ei,ind]>-1000):
-        inputs = inputs + [[exts[li], nus[ni], epss[ei]]]
-        stdvs = stdvs + [dataV[li, ni, ei, ind]]
-        data = data + [dataM[li, ni, ei, ind]]
-    data, stdvs= np.asarray(data), np.asarray(stdvs)
-    inputs = np.asarray(inputs).transpose()
-    print(data.shape, inputs.shape)
-    popt, pcov = curve_fit(func, inputs, data, sigma=stdvs)
+def fitFunction(inps, dataM, dataV, ind, func):
+    #data, stdvs, inputs = [], [], []
+    #for li in range(len(exts)):
+    #  for ni in range(len(nus)):
+    #    for ei in range(len(epss)):
+    #      inputs = inputs + [[exts[li], nus[ni], epss[ei]]]
+    #      stdvs = stdvs + [dataV[li, ni, ei, ind]]
+    #      data = data + [dataM[li, ni, ei, ind]]
+    #data, stdvs= np.asarray(data), np.asarray(stdvs)
+    data, stdvs = dataM[:,ind].flatten(), dataV[:,ind].flatten()
+    inps = np.asarray(inps).transpose()
+    print(data.shape, inps.shape)
+    popt, pcov = curve_fit(func, inps, data, sigma=stdvs)
     return popt
 
 def main_integral(path):
     EXTs, NUs, EPSs = findAllParams(path)
     print(EXTs, NUs, EPSs)
     # average/variance tke, lambda, re, tauint, lint, l2grad
-    dataM = np.zeros([len(EXTs), len(NUs), len(EPSs), 6])
-    dataV = np.zeros([len(EXTs), len(NUs), len(EPSs), 6])
+    dataM, dataV, inps = np.zeros([0, 6]), np.zeros([0, 6]), np.zeros([0, 3])
+
     for ei in range(len(EPSs)):
-     EPSs[ei] = float(EPSs[ei])
-     for ni in range(len(NUs)):
-      NUs[ni] = float(NUs[ni])
-      for li in range(len(EXTs)):
-       EXTs[li] = float(EXTs[li])
-       allScalars = []
-       for run in [0, 1, 2, 3, 4]:
-        dirn = '%sEXT%dpi_NU%.03f_EPS%.02f_RUN%d' \
-               % (path, EXTs[li], NUs[ni], EPSs[ei], run)
-        files = getAllFiles(dirn, 0)
-        scalars = getDataScalar(files)
-        tint = computeIntTimeScale(scalars)
-        #print(tint)
-        allScalars = allScalars + scalars[int(tint/0.1):]
-       dataM[li,ni,ei,:], dataV[li,ni,ei,:] = computeAverages(allScalars)
-
-    plt.figure()
-    axes = [ plt.subplot(2,3,1), plt.subplot(2,3,2), plt.subplot(2,3,3), \
-             plt.subplot(2,3,4), plt.subplot(2,3,5), plt.subplot(2,3,6) ]
-    axes[0].set_ylabel('Turbulent Kinetic Energy')
-    axes[1].set_ylabel('Taylor Microscale')
-    axes[2].set_ylabel('Reynolds Number')
-    axes[3].set_ylabel('Integral Time Scale')
-    axes[4].set_ylabel('Integral Length Scale')
-    axes[5].set_ylabel('Vel Gradient Magnitude')
-    for ax in axes     : ax.grid()
-    for ax in axes[:3] : ax.set_xticklabels([])
-    for ax in axes[3:] : ax.set_xlabel('Energy Injection Rate')
-
-    for ai in range(6):
-     for ni in range(len(NUs)):
-      for li in range(len(EXTs)):
-        Y  = dataM[li,ni,:,ai]
-        Yb, Yt = Y - dataV[li,ni,:,ai], Y + dataV[li,ni,:,ai]
-        axes[ai].fill_between(EPSs, Yb, Yt, facecolor=colors[ni], alpha=.5)
-        axes[ai].plot(EPSs, Y, color=colors[ni], linestyle=linest[li])
+      for ni in range(len(NUs)):
+        for li in range(len(EXTs)):
+          inp = [float(EPSs[ei]), float(NUs[ni]), float(EXTs[li])]
+          EPSs[ei], NUs[ni], EXTs[li] = inp[0], inp[1], inp[2]
+          allScalars = []
+          #for run in [0, 1, 2, 3, 4]:
+          #  dirn = '%sEXT%dpi_NU%.03f_EPS%.02f_RUN%d' \
+          #         % (path, EXTs[li], NUs[ni], EPSs[ei], run)
+          for run in [5, 6, 7, 8, 9]:
+            dirn = '%sEXT%dpi_EPS%.02f_NU%.03f_RUN%d' \
+                   % (path, EXTs[li], EPSs[ei], NUs[ni], run)
+            print(dirn)
+            files = getAllFiles(dirn, 0)
+            scalars = getDataScalar(files)
+            if len(scalars) < 2 : continue
+            tint = computeIntTimeScale(scalars)
+            #print(tint)
+            allScalars = allScalars + scalars[int(tint/0.1):]
+          if len(allScalars) < 2 : continue
+          means, stdevs = computeAverages(allScalars)
+          dataM = np.append(dataM, np.asarray(means ).reshape([1,6]), 0)
+          dataV = np.append(dataV, np.asarray(stdevs).reshape([1,6]), 0)
+          inps = np.append(inps, np.asarray(inp).reshape([1,3]), 0)
 
     def fitTKE(x, A):       return A * np.power(x[2], 2/3.0)
     def fitLAMBDA(x, A):    return A * np.power(x[2],-1/6.0) * np.power(x[1], 0.5)
@@ -245,21 +230,52 @@ def main_integral(path):
     def fitLint(x, A):      return A * np.power(x[1], 1/6.0)
     def fitFun(x, A, B, C): return A * np.power(x[2], B) * np.power(x[1], C)
 
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 0, fitTKE)
+    popt = fitFunction(inps, dataM, dataV, 0, fitFun ) # fitTKE
     print('tke fit:', popt)
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 1, fitLAMBDA)
+    popt = fitFunction(inps, dataM, dataV, 1, fitFun ) # fitLAMBDA
     print('lambda fit:', popt)
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 2, fitREL)
+    popt = fitFunction(inps, dataM, dataV, 2, fitFun ) # fitREL
     print('Re_lambda fit:', popt)
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 3, fitTint)
+    popt = fitFunction(inps, dataM, dataV, 3, fitFun ) # fitTint
     print('tau_integral fit:', popt)
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 4, fitLint)
+    popt = fitFunction(inps, dataM, dataV, 4, fitFun ) # fitLint
     print('l_integral fit:', popt)
-    popt = fitFunction(EXTs, NUs, EPSs, dataM, dataV, 5, fitFun)
+    popt = fitFunction(inps, dataM, dataV, 5, fitFun)
     print('mean_grad fit:', popt)
-    #files = getAllFiles(dirsname, nSkip)
-    #scalars = getDataScalar(files)
-    plt.show()
+
+    if False:
+      plt.figure()
+      axes = [ plt.subplot(2,3,1), plt.subplot(2,3,2), plt.subplot(2,3,3), \
+               plt.subplot(2,3,4), plt.subplot(2,3,5), plt.subplot(2,3,6) ]
+      axes[0].set_ylabel('Turbulent Kinetic Energy')
+      axes[1].set_ylabel('Taylor Microscale')
+      axes[2].set_ylabel('Reynolds Number')
+      axes[3].set_ylabel('Integral Time Scale')
+      axes[4].set_ylabel('Integral Length Scale')
+      axes[5].set_ylabel('Vel Gradient Magnitude')
+      for ax in axes     : ax.grid()
+      for ax in axes[:3] : ax.set_xticklabels([])
+      for ax in axes[3:] : ax.set_xlabel('Energy Injection Rate')
+
+      for ai in range(6):
+       for ni in range(len(NUs)):
+        for li in range(len(EXTs)):
+          E, M, S = [], [], []
+          for ei in range(len(EPSs)):
+            for i in range(len(inps)):
+              if np.abs(EPSs[ei] - inps[i,0]) > 0 : continue
+              if np.abs( NUs[ni] - inps[i,1]) > 0 : continue
+              if np.abs(EXTs[li] - inps[i,2]) > 0 : continue
+              E, M, S = E+[EPSs[ei]], M+[dataM[i, ai]], S+[dataV[i, ai]]
+              #ei = np.argmin(np.abs(EPSs - inps[i,0]))
+              #ni = np.argmin(np.abs( NUs - inps[i,1]))
+              #ai = np.argmin(np.abs(EXTs - inps[i,2]))
+          if len(M) is 0: continue
+          E, M, S = np.asarray(E), np.asarray(M), np.asarray(S)
+          axes[ai].fill_between(E, M-S, M+S, facecolor=colors[ni], alpha=.5)
+          axes[ai].plot(E, M, color=colors[ni], linestyle=linest[li])
+      #for ai in range(6):for ni in range(len(NUs)):for li in range(len(EXTs)):
+      plt.show()
 
 def main_spectral(path):
     def EkFunc(x, C, CI, CE, BETA, P0):
@@ -289,9 +305,11 @@ def main_spectral(path):
         for li in range(1):
           EXTs[li] = float(EXTs[li])
           scalars, spectra, modes = [], None, None
-          for run in [0, 1, 2, 3, 4]:
-            dirn = '%sEXT%dpi_NU%.03f_EPS%.02f_RUN%d' \
-                   % (path, EXTs[li], NUs[ni], EPSs[ei], run)
+          #for run in [0, 1, 2, 3, 4]:
+          for run in [5, 6, 7, 8, 9]:
+            dirn = '%sEXT%dpi_EPS%.02f_NU%.03f_RUN%d' \
+                   % (path, EXTs[li], EPSs[ei], NUs[ni], run)
+            print(dirn)
             files = getAllFiles(dirn, 0)
             runscalars = getDataScalar(files)
             runmodes, runspectrum = getDataSpectrum(files)
@@ -375,11 +393,11 @@ if __name__ == '__main__':
     description = "Compute a target file for RL agent from DNS data.")
   parser.add_argument('simdir',
     help="Simulation directory containing the 'Analysis' folder")
-  parser.add_argument('nu',
+  parser.add_argument('--nu',
     help="Viscosity of the simulation.")
-  parser.add_argument('nSkip',
+  parser.add_argument('--nSkip',
     help="Skip the n first analysis files.")
-  parser.add_argument('nSamp',
+  parser.add_argument('--nSamp',
     help="Nb. of KDE sample")
   args = parser.parse_args()
 
