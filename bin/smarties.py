@@ -35,14 +35,19 @@ def getDefaults():
     nThreads = psutil.cpu_count(logical = False)
   return runprefix, nThreads
 
-def findSettingsFile(settings):
-  if os.path.isfile(settings):
-    return settings
-  elif os.path.isfile(SMARTIES_ROOT + '/settings/' + settings):
-    return SMARTIES_ROOT + '/settings/' + settings
-  else:
-    print('FATAL: Did not find the specified settings file %s' % settings)
-    exit()
+def copySettingsFiles(settings, absRunPath):
+  for i in range(len(settings)):
+    sett = settings[i]
+    if os.path.isfile(sett) is False: # may omit path to smarties/settings/
+      sett = SMARTIES_ROOT + '/settings/' + sett
+    if os.path.isfile(sett) is False:
+      print('FATAL: Did not find the specified settings file %s' % settings[i])
+      exit()
+
+    if len(settings) == 1: dest = absRunPath + '/settings.json'
+    else : dest = absRunPath + '/settings_%02d.json' % i
+    shutil.copy(sett, dest)
+
 
 def applicationSetup(parsed, absRunPath):
   # will run application contained in the OpenAI gym library:
@@ -225,7 +230,7 @@ if __name__ == '__main__':
            "    5) A Deepmind control suite env and task such as \n" \
            "       \"acrobot swingup\"")
 
-  parser.add_argument('settings', default='VRACER.json', nargs='*',
+  parser.add_argument('settings', default=['VRACER.json'], nargs='*',
       help="(optional) path or name of the settings file specifying RL solver\n" \
            "and its hyper-parameters. The default setting file is set to VRACER.json")
 
@@ -308,7 +313,7 @@ if __name__ == '__main__':
   # once application is defined, we can figure out all computational resouces:
   setComputationalResources(parsed)
 
-  shutil.copy(findSettingsFile(parsed.settings), absRunPath + '/')
+  copySettingsFiles(parsed.settings, absRunPath)
   os.system("cd ${SMARTIES_ROOT} && git log | head  > ${RUNDIR}/gitlog.log")
   os.system("cd ${SMARTIES_ROOT} && git diff        > ${RUNDIR}/gitdiff.log")
 

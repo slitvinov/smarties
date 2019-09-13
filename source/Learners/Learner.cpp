@@ -18,7 +18,7 @@ namespace smarties
 {
 
 Learner::Learner(MDPdescriptor& MD, Settings& S, DistributionInfo& D):
-  distrib(D), settings(S), MDP(MD), params(D), ReFER_reduce(D, LDvec{0.,1.}),
+  distrib(D), settings(S), MDP(MD), ReFER_reduce(D, LDvec{0.,1.}),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S.ERoldSeqFilter, CmaxPol>0)),
   data_proc( new MemoryProcessing( data.get() ) ),
   data_coord( new DataCoordinator( data.get(), params ) ),
