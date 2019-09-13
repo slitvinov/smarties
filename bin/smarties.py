@@ -225,12 +225,12 @@ if __name__ == '__main__':
            "    5) A Deepmind control suite env and task such as \n" \
            "       \"acrobot swingup\"")
 
-  parser.add_argument('runname', default='./', nargs='?',
-      help="Name of the directory in which the learning process will be executed.")
-
   parser.add_argument('settings', default='VRACER.json', nargs='*',
       help="(optional) path or name of the settings file specifying RL solver\n" \
            "and its hyper-parameters. The default setting file is set to VRACER.json")
+
+  parser.add_argument('--runname', default='./',
+      help="Name of the directory in which the learning process will be executed.")
 
   parser.add_argument('--nThreads', type=int, default=nThreads,
       help="(optional) Number of threads used by the learning processes.")
