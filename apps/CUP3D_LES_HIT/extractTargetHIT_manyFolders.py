@@ -223,27 +223,36 @@ def main_integral(path):
           dataV = np.append(dataV, np.asarray(stdevs).reshape([1,6]), 0)
           inps = np.append(inps, np.asarray(inp).reshape([1,3]), 0)
 
-    def fitTKE(x, A):       return A * np.power(x[2], 2/3.0)
-    def fitLAMBDA(x, A):    return A * np.power(x[2],-1/6.0) * np.power(x[1], 0.5)
-    def fitREL(x, A):       return A * np.power(x[2], 1/6.0) * np.power(x[1],-0.5)
-    def fitTint(x, A):      return A * np.power(x[2],-1/3.0) * np.power(x[1],1/6.0)
-    def fitLint(x, A):      return A * np.power(x[1], 1/6.0)
-    def fitFun(x, A, B, C): return A * np.power(x[2], B) * np.power(x[1], C)
+    def fitTKE(x, A,B,C):  return A * np.power(x[0], 2/3.0)
+    def fitLAMB(x, A,B,C): return A * np.power(x[0],-1/6.0) * np.power(x[1], 0.5)
+    def fitREL(x, A,B,C):  return A * np.power(x[0], 1/6.0) * np.power(x[1],-0.5)
+    def fitTint(x, A,B,C): return A * np.power(x[0],-1/3.0) * np.power(x[1],1/6.0)
+    #def fitLint(x, A,B,C): return A * np.power(x[1], 1/6.0)
+    def fitLint(x, A,B,C): return A * np.power(x[0],-1/24.0) * np.power(x[1], 1/12.0)
+    def fitFun(x, A,B,C):  return A * np.power(x[0], B) * np.power(x[1], C)
 
-    popt = fitFunction(inps, dataM, dataV, 0, fitFun ) # fitTKE
-    print('tke fit:', popt)
-    popt = fitFunction(inps, dataM, dataV, 1, fitFun ) # fitLAMBDA
-    print('lambda fit:', popt)
-    popt = fitFunction(inps, dataM, dataV, 2, fitFun ) # fitREL
-    print('Re_lambda fit:', popt)
-    popt = fitFunction(inps, dataM, dataV, 3, fitFun ) # fitTint
-    print('tau_integral fit:', popt)
-    popt = fitFunction(inps, dataM, dataV, 4, fitFun ) # fitLint
-    print('l_integral fit:', popt)
-    popt = fitFunction(inps, dataM, dataV, 5, fitFun)
-    print('mean_grad fit:', popt)
+    funs, popt = [], []
 
-    if False:
+    funs += [ fitTKE ]
+    popt += [ fitFunction(inps, dataM, dataV, 0, funs[-1] ) ] # fitTKE
+    print('tke fit:', popt[-1])
+    funs += [ fitLAMB ]
+    popt += [ fitFunction(inps, dataM, dataV, 1, funs[-1] ) ] # fitLAMBDA
+    print('lambda fit:', popt[-1])
+    funs += [ fitREL ]
+    popt += [ fitFunction(inps, dataM, dataV, 2, funs[-1] ) ] # fitREL
+    print('Re_lambda fit:', popt[-1])
+    funs += [ fitTint ]
+    popt += [ fitFunction(inps, dataM, dataV, 3, funs[-1] ) ] # fitTint
+    print('tau_integral fit:', popt[-1])
+    funs += [ fitLint ]
+    popt += [ fitFunction(inps, dataM, dataV, 4, funs[-1] ) ] # fitLint
+    print('l_integral fit:', popt[-1])
+    funs += [ fitFun ]
+    popt += [ fitFunction(inps, dataM, dataV, 5, funs[-1] ) ]
+    print('mean_grad fit:', popt[-1])
+
+    if True:
       plt.figure()
       axes = [ plt.subplot(2,3,1), plt.subplot(2,3,2), plt.subplot(2,3,3), \
                plt.subplot(2,3,4), plt.subplot(2,3,5), plt.subplot(2,3,6) ]
@@ -260,20 +269,23 @@ def main_integral(path):
       for ai in range(6):
        for ni in range(len(NUs)):
         for li in range(len(EXTs)):
-          E, M, S = [], [], []
+          E, M, S, F = [], [], [], []
           for ei in range(len(EPSs)):
             for i in range(len(inps)):
               if np.abs(EPSs[ei] - inps[i,0]) > 0 : continue
               if np.abs( NUs[ni] - inps[i,1]) > 0 : continue
               if np.abs(EXTs[li] - inps[i,2]) > 0 : continue
-              E, M, S = E+[EPSs[ei]], M+[dataM[i, ai]], S+[dataV[i, ai]]
+              E, M, S = E+[EPSs[ei]], M+[dataM[i,ai]], S+[dataV[i,ai]]
+              F += [funs[ai](inps[i,:], popt[ai][0], popt[ai][1], popt[ai][2])]
               #ei = np.argmin(np.abs(EPSs - inps[i,0]))
               #ni = np.argmin(np.abs( NUs - inps[i,1]))
               #ai = np.argmin(np.abs(EXTs - inps[i,2]))
           if len(M) is 0: continue
           E, M, S = np.asarray(E), np.asarray(M), np.asarray(S)
+          F = np.asarray(F)
           axes[ai].fill_between(E, M-S, M+S, facecolor=colors[ni], alpha=.5)
           axes[ai].plot(E, M, color=colors[ni], linestyle=linest[li])
+          axes[ai].plot(E, F, 'o', color=colors[ni])
       #for ai in range(6):for ni in range(len(NUs)):for li in range(len(EXTs)):
       plt.show()
 
