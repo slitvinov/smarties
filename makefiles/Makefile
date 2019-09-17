@@ -17,7 +17,7 @@ include make.euler
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
-include make.daint_srun
+include make.daint
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
