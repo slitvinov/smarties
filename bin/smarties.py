@@ -180,7 +180,7 @@ def setEnvironmentFlags(nThreads):
          "export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n " \
          % nThreads
 
-def setLaunchCommand(parsed):
+def setLaunchCommand(parsed, absRunPath):
   nProcesses, nThreads, rundir = parsed.nProcesses, parsed.nThreads, parsed.runname
   clockHours = int(parsed.clockHours)
   clockMinutes = int((parsed.clockHours - clockHours) / 60)
@@ -204,14 +204,20 @@ def setLaunchCommand(parsed):
              nProcesses, map_by, parsed.execname, parsed.args)
 
   elif isDaint() and parsed.interactive is False:
+    nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
     assert rundir is not None, "--runname option is required on Euler and Daint"
-    sbatch = "#!/bin/bash -l \n" \
-             "#SBATCH --account=s929 --time=%s:00:00 --job-name=%s \n" \
-             "#SBATCH --output=%s_out_%%j.txt --error=%s_err_%%j.txt \n" \
-             "#SBATCH --nodes=%d --constraint=gpu \n" \
-             "srun -n %d --nodes=%d --ntasks-per-node=%d ./%s %s" \
-             % (parsed.clockHours, rundir, rundir, rundir, nNodes, nProcs, \
-                nNodes, parsed.nTaskPerNode, parsed.execname, parsed.args)
+    f = open(absRunPath + '/daint_sbatch','w')
+    f.write('#!/bin/bash -l \n')
+    f.write('#SBATCH --job-name=%s \n' % rundir)
+    f.write('#SBATCH --time=%s:00:00 \n' % clockHours)
+    f.write('#SBATCH --output=%s_out_%%j.txt \n' % rundir)
+    f.write('#SBATCH --error=%s_err_%%j.txt \n'  % rundir)
+    f.write('#SBATCH --constraint=gpu \n')
+    f.write('#SBATCH --account=s929 \n')
+    f.write('#SBATCH --nodes=%d \n' % nNodes)
+    f.write('srun -n %d --nodes=%d --ntasks-per-node=%d ./%s %s \n' \
+            % (nProcesses, nNodes, nTaskPerNode, parsed.execname, parsed.args))
+    f.close()
     cmd = "chmod 755 daint_sbatch \n sbatch daint_sbatch"
 
   elif isDaint() and parsed.interactive is True:
@@ -343,8 +349,8 @@ if __name__ == '__main__':
   assert is_exe(absRunPath+'/'+parsed.execname), "FATAL: application not found"
 
   cmd = 'cd ${RUNDIR} \n'
-  cmd = cmd + setEnvironmentFlags(parsed.nThreads);
-  cmd = cmd + setLaunchCommand(parsed)
+  cmd = cmd + setEnvironmentFlags(parsed.nThreads)
+  cmd = cmd + setLaunchCommand(parsed, absRunPath)
   print('COMMAND:' + parsed.args )
   os.system(cmd)
 
