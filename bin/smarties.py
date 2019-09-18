@@ -6,7 +6,7 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-import argparse, os, psutil, sys, shutil
+import argparse, os, psutil, sys, shutil, subprocess
 
 SCRATCH       = os.getenv('SCRATCH') or ''
 SMARTIES_ROOT = os.getenv('SMARTIES_ROOT') or ''
@@ -73,7 +73,6 @@ def applicationSetup(parsed, absRunPath):
     atariScriptPath = SMARTIES_ROOT + '/apps/Deepmind_control/'
     shutil.copy(atariScriptPath + "exec.py", absRunPath + '/')
     parsed.args = parsed.app + parsed.args
-    os.system('export DISABLE_MUJOCO_RENDERING=1')
     return
 
   # Else user created app. First find its folder.
@@ -91,20 +90,25 @@ def applicationSetup(parsed, absRunPath):
              "echo ${EXTRA_LINE_ARGS}  \n " \
              "echo ${MPI_RANKS_PER_ENV} \n " \
              "echo ${EXECNAME}" % app
-    setout = os.popen(setcmd).read()
+    setout = subprocess.Popen(setcmd, executable=parsed.shell,
+                              shell=True, stdout=subprocess.PIPE
+                             ).stdout.read().splitlines()
 
-    if setout.splitlines()[-3]:
-      parsed.args = parsed.args + " " + setout.splitlines()[-3]
+    if len(setout[-3]):
+      args = str(setout[-3], 'utf-8')
+      print("app setup.sh: add args:'%s' to launch command." % args)
+      parsed.args = parsed.args + " " + args
 
-    if setout.splitlines()[-2]:
-      mpiProcsPerEnv = int( setout.splitlines()[-2] )
+    if len(setout[-2]):
+      mpiProcsPerEnv = int(setout[-2])
+      print("app setup.sh: %d MPI ranks to run each env sim." % mpiProcsPerEnv)
       if parsed.mpiProcsPerEnv > 0:
         assert ( parsed.mpiProcsPerEnv == mpiProcsPerEnv ), \
                "Contradiction between application setup and cmd line parsing"
       parsed.mpiProcsPerEnv = mpiProcsPerEnv
 
-    if setout.splitlines()[-1] and parsed.execname is not 'exec':
-      parsed.execname = setout.splitlines()[-1]
+    if len(setout[-1]) and parsed.execname is not 'exec':
+      parsed.execname = str(setout[-1], 'utf-8')
 
   elif is_exe(app+'/'+parsed.execname):
     shutil.copy(app+'/'+parsed.execname, absRunPath + '/')
@@ -173,17 +177,19 @@ def setComputationalResources(parsed):
     parsed.args += " --logAllSamples 0 "
 
 
-def setEnvironmentFlags(nThreads):
-  return "unset LSB_AFFINITY_HOSTFILE  #euler cluster \n" \
-         "export MPICH_MAX_THREAD_SAFETY=multiple #MPICH \n" \
-         "export MV2_ENABLE_AFFINITY=0 #MVAPICH \n" \
-         "export OMP_NUM_THREADS=%d \n" \
-         "export OPENBLAS_NUM_THREADS=1 \n" \
-         "export CRAY_CUDA_MPS=1 \n" \
-         "export PYTHONPATH=${PYTHONPATH}:${SMARTIES_ROOT}/lib \n" \
-         "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n" \
-         "export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n " \
-         % nThreads
+def setEnvironmentFlags(parsed):
+  env = "unset LSB_AFFINITY_HOSTFILE  #euler cluster \n" \
+        "export MPICH_MAX_THREAD_SAFETY=multiple #MPICH \n" \
+        "export MV2_ENABLE_AFFINITY=0 #MVAPICH \n" \
+        "export OMP_NUM_THREADS=%d \n" \
+        "export OPENBLAS_NUM_THREADS=1 \n" \
+        "export CRAY_CUDA_MPS=1 \n" \
+        "export PYTHONPATH=${PYTHONPATH}:${SMARTIES_ROOT}/lib \n" \
+        "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n" \
+        "export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n " \
+        % parsed.nThreads
+  if parsed.dmcApp: env += "export DISABLE_MUJOCO_RENDERING=1 \n "
+  return env
 
 def setLaunchCommand(parsed, absRunPath):
   nProcesses, nThreads, rundir = parsed.nProcesses, parsed.nThreads, parsed.runname
@@ -254,7 +260,7 @@ if __name__ == '__main__':
            '    or Python executable in the current directory.')
 
   parser.add_argument('settings', default=['VRACER.json'], nargs='*',
-      help="(optional) path or name of the settings file specifying RL solver " \
+      help="path or name of the settings file specifying RL solver " \
            "and its hyper-parameters. The default setting file is set to VRACER.json")
 
   parser.add_argument('--runname', default=None,
@@ -262,35 +268,35 @@ if __name__ == '__main__':
            "If unset, execution will take place in the current directory.")
 
   parser.add_argument('--nThreads', type=int, default=nThreads,
-      help="(optional) Number of threads used by the learning processes. " \
+      help="Number of threads used by the learning processes. " \
            "The default value is the number of available CPU cores, here %d." \
            % nThreads)
   parser.add_argument('--nProcesses', type=int, default=0, # 0 tells me no expressed preference
-      help="(optional) Number of processes available to run the training.")
+      help="Number of processes available to run the training.")
   parser.add_argument('--nLearners', type=int, default=0, # 0 tells me no expressed preference
-      help="(optional) Number of processes dedicated to update the networks. By default 1.")
+      help="Number of processes dedicated to update the networks. By default 1.")
   parser.add_argument('--nEnvironments', type=int, default=0, # 0 tells me no expressed preference
-      help="(optional) Number of concurrent environment simulations. By default 1.")
+      help="Number of concurrent environment simulations. By default 1.")
   parser.add_argument('--mpiProcsPerEnv', type=int, default=0, # 0 tells me no expressed preference
-    help="(optional) MPI processes required per env simulation. This value can also " \
+    help="MPI processes required per env simulation. This value can also " \
          "be specified in app's setup.sh script by setting the MPI_RANKS_PER_ENV " \
          "shell variable. If unset or 0, smarties performs communication via " \
          "sockets and avoids creating multiple MPI processes.")
 
   parser.add_argument('--netsOnlyOnLearners', dest='netsOnlyLearners', action='store_true',
-    help="(optional) Forces network approximator to live only inside learning " \
+    help="Forces network approximator to live only inside learning " \
          "processes. If this option is used, workers send states to learners " \
          "and learners reply with actions. Otherwise, workers collect entire " \
          "episodes, send them to learners and receive parameter updates.")
   parser.set_defaults(netsOnlyLearners=False)
 
   parser.add_argument('--printAppStdout', dest='printAppStdout', action='store_true',
-    help="(optional) Prints application output to screen. If unset, application " \
+    help="Prints application output to screen. If unset, application " \
          "output will be redirected to file in the simulation subfolder.")
   parser.set_defaults(printAppStdout=False)
 
   parser.add_argument('--disableDataLogging', dest='disableDataLogging', action='store_true',
-    help="(optional) Stops smarties from storing all state/action/reward/policy " \
+    help="Stops smarties from storing all state/action/reward/policy " \
          "into (binary) log files. These files enable postprocessing and analysis " \
          " but may occupy a lot of storage space.")
   parser.set_defaults(disableDataLogging=False)
@@ -299,36 +305,39 @@ if __name__ == '__main__':
       help="Path to existing directory which contains smarties output files "
            "needed to restart already trained agents.")
   parser.add_argument('--nTrainSteps', type=int, default=10000000,
-      help="(optional) Total number of time steps before end of learning.")
+      help="Total number of time steps before end of learning.")
   parser.add_argument('--nEvalSeqs', type=int, default=0,
-      help="(optional) Number of environment episodes to evaluate trained policy. " \
+      help="Number of environment episodes to evaluate trained policy. " \
            "This option automatically disables training.")
 
   parser.add_argument('--gym', dest='gymApp', action='store_true',
-    help="(optional) Set if application is part of OpenAI gym.")
+    help="Set if application is part of OpenAI gym.")
   parser.set_defaults(gymApp=False)
   parser.add_argument('--atari', dest='atariApp', action='store_true',
-    help="(optional) Set if application is part of OpenAI gym's atari suite.")
+    help="Set if application is part of OpenAI gym's atari suite.")
   parser.set_defaults(atariApp=False)
   parser.add_argument('--dmc', dest='dmcApp', action='store_true',
-    help="(optional) Set if application is part of DeepMind control suite.")
+    help="Set if application is part of DeepMind control suite.")
   parser.set_defaults(dmcApp=False)
 
   parser.add_argument('--execname', default='exec',
-      help="(optional) Name of application's executable.")
+      help="Name of application's executable.")
   parser.add_argument('--runprefix', default=runprefix,
-      help="(optional) Path to directory where run folder will be created.")
+      help="Path to directory where run folder will be created.")
 
   parser.add_argument('--interactive', dest='interactive', action='store_true',
-    help="(optional) Run on Euler or Daint on interactive session.")
+    help="Run on Euler or Daint on interactive session.")
   parser.set_defaults(interactive=False)
   parser.add_argument('--clockHours', type=float, default=24.0,
-      help="(optional) Number of hours to allocate if running on a cluster.")
+      help="Number of hours to allocate if running on a cluster.")
   parser.add_argument('--nTaskPerNode', type=int, default=1,
-      help="(optional) Number of processes per node if running on a cluster.")
+      help="Number of processes per node if running on a cluster.")
+  parser.add_argument('--shell', type=str, default='/bin/bash',
+      help="Which shell will be used to execute launch command. " \
+           "Defaults to /bin/bash.")
 
   parser.add_argument('--args', default="",
-      help="(optional) Arguments to pass directly to executable")
+      help="Arguments to pass directly to executable")
 
   parsed = parser.parse_args()
 
@@ -339,7 +348,7 @@ if __name__ == '__main__':
   # rundir overwriting is allowed (exist_ok could be parsed.isTraining==False):
   os.makedirs(relRunPath, exist_ok=True)
 
-  absRunPath = os.popen("cd "+relRunPath+" && pwd").read()[:-1] # trailing \n
+  absRunPath = os.path.abspath(relRunPath)
   os.environ['RUNDIR'] = absRunPath
 
   # dir created, copy executable and read any problem-specific setup options:
@@ -348,15 +357,15 @@ if __name__ == '__main__':
   setComputationalResources(parsed)
 
   copySettingsFiles(parsed.settings, absRunPath)
-  os.system("cd ${SMARTIES_ROOT} && git log | head  > ${RUNDIR}/gitlog.log")
-  os.system("cd ${SMARTIES_ROOT} && git diff        > ${RUNDIR}/gitdiff.log")
+  subprocess.run("cd ${SMARTIES_ROOT} && git log | head > ${RUNDIR}/gitlog.log", \
+                 executable=parsed.shell, shell=True)
+  subprocess.run("cd ${SMARTIES_ROOT} && git diff       > ${RUNDIR}/gitdiff.log", \
+                 executable=parsed.shell, shell=True)
 
   assert is_exe(absRunPath+'/'+parsed.execname), "FATAL: application not found"
 
   cmd = 'cd ${RUNDIR} \n'
-  cmd = cmd + setEnvironmentFlags(parsed.nThreads)
+  cmd = cmd + setEnvironmentFlags(parsed)
   cmd = cmd + setLaunchCommand(parsed, absRunPath)
   print('COMMAND:' + parsed.args )
-  os.system(cmd)
-
-
+  subprocess.run(cmd, executable=parsed.shell, shell=True)
