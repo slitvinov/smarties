@@ -108,7 +108,9 @@ def applicationSetup(parsed, absRunPath):
       parsed.mpiProcsPerEnv = mpiProcsPerEnv
 
     if len(setout[-1]) and parsed.execname is not 'exec':
-      parsed.execname = str(setout[-1], 'utf-8')
+      execn = str(setout[-1], 'utf-8')
+      print("app setup.sh: Executable named '%s'." % execn)
+      parsed.execname = execn
 
   elif is_exe(app+'/'+parsed.execname):
     shutil.copy(app+'/'+parsed.execname, absRunPath + '/')
