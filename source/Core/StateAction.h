@@ -24,6 +24,7 @@ static inline void sendRecvVectorFunc(
   Uint vecSize = vec.size();
   sendRecvFunc(&vecSize, 1 * sizeof(Uint) );
   if(vec.size() not_eq vecSize) vec.resize(vecSize);
+  if(vecSize == 0) return;
   //else assert( vecSize == (Uint) vec.size() );
   std::vector<int> intvec(vec.begin(), vec.end());
   sendRecvFunc( intvec.data(), vecSize * sizeof(int) );
@@ -38,6 +39,7 @@ static inline void sendRecvVectorFunc(
   Uint vecSize = vec.size();
   sendRecvFunc(&vecSize, 1 * sizeof(Uint) );
   if(vec.size() not_eq vecSize) vec.resize(vecSize);
+  if(vecSize == 0) return;
   //else assert( vecSize == (Uint) vec.size() );
   sendRecvFunc( vec.data(), vecSize * sizeof(T) );
 }
@@ -111,8 +113,7 @@ struct MDPdescriptor
     sendRecvFunc(&nAppendedObs,            1 * sizeof(Uint) );
     sendRecvFunc(&isPartiallyObservable,   1 * sizeof(bool) );
 
-    if(conv2dDescriptors.size() > 0)
-      sendRecvVectorFunc(sendRecvFunc, conv2dDescriptors);
+    sendRecvVectorFunc(sendRecvFunc, conv2dDescriptors);
 
     // by default agent can observe all components of state vector
     if(bStateVarObserved.size() == 0)
