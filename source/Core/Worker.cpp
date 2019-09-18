@@ -228,8 +228,10 @@ void Worker::dumpCumulativeReward(const Agent& agent) const
 void Worker::synchronizeEnvironments()
 {
   // here cannot use the recurring template because behavior changes slightly:
-  const std::function<void(void*, size_t)> recvBuffer = [&](void* buffer, size_t size)
+  const std::function<void(void*, size_t)> recvBuffer =
+    [&](void* buffer, size_t size)
   {
+    assert(size>0);
     bool received = false;
     if( COMM->SOCK.clients.size() > 0 ) { // master with apps connected through sockets (on the same compute node)
       SOCKET_Brecv(buffer, size, COMM->SOCK.clients[0]);

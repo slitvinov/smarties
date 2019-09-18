@@ -122,6 +122,11 @@ def applicationSetup(parsed, absRunPath):
     print('FATAL: Unable to locate application executable')
 
 def setComputationalResources(parsed):
+  # if launched with --nProcesses N default behavior is to have N-1 workers
+  if parsed.nLearners < 1 and parsed.nProcesses > 1:
+    parsed.nLearners = 1
+    parsed.mpiProcsPerEnv = 1
+
   if parsed.mpiProcsPerEnv == 0: # 'forkable' applications
     # at least one learner process:
     if parsed.nProcesses < 1: parsed.nProcesses = max(1, parsed.nLearners)

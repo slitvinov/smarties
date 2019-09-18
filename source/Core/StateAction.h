@@ -111,7 +111,8 @@ struct MDPdescriptor
     sendRecvFunc(&nAppendedObs,            1 * sizeof(Uint) );
     sendRecvFunc(&isPartiallyObservable,   1 * sizeof(bool) );
 
-    sendRecvVectorFunc(sendRecvFunc, conv2dDescriptors);
+    if(conv2dDescriptors.size() > 0)
+      sendRecvVectorFunc(sendRecvFunc, conv2dDescriptors);
 
     // by default agent can observe all components of state vector
     if(bStateVarObserved.size() == 0)
