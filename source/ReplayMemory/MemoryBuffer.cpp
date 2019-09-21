@@ -240,8 +240,22 @@ void MemoryBuffer::removeSequence(const Uint ind)
 
 void MemoryBuffer::pushBackSequence(Sequence*const seq)
 {
+  assert(seq not_eq nullptr);
+  const int wrank = MPICommRank(distrib.world_comm);
+  char path[2048], arg[1024];
+  sprintf(path, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
+          distrib.initial_runDir, learnID, wrank);
+  sprintf(arg, "%ld %ld %ld %lu %f", nGradSteps.load(), nLocTimeStepsTrain(),
+          seq->agentID, seq->nsteps(), seq->totR);
+
   std::lock_guard<std::mutex> lock(dataset_mutex);
-  assert( readNSeq() == (long) Set.size() and seq not_eq nullptr);
+  assert( readNSeq() == (long) Set.size() );
+
+  FILE * pFile = fopen (path, "a");
+  fprintf (pFile, "%s\n", arg);
+  fflush (pFile);
+  fclose (pFile);
+
   const auto ind = Set.size();
   seq->ID = nSeenSequences.load();
   seq->prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
