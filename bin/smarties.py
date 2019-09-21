@@ -222,7 +222,11 @@ def setLaunchCommand(parsed, absRunPath):
     f = open(absRunPath + '/daint_sbatch','w')
     f.write('#!/bin/bash -l \n')
     f.write('#SBATCH --job-name=%s \n' % rundir)
-    f.write('#SBATCH --time=%s:00:00 \n' % clockHours)
+    if True:
+      f.write('#SBATCH --time=00:30:00 \n')
+      f.write('#SBATCH --partition=debug \n')
+    else:
+      f.write('#SBATCH --time=%s:00:00 \n' % clockHours)
     f.write('#SBATCH --output=%s_out_%%j.txt \n' % rundir)
     f.write('#SBATCH --error=%s_err_%%j.txt \n'  % rundir)
     f.write('#SBATCH --constraint=gpu \n')
