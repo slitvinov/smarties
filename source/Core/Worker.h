@@ -63,7 +63,6 @@ protected:
   // small utility functions:
   Uint getLearnerID(const Uint agentIDlocal) const;
   bool learnersBlockingDataAcquisition() const;
-  void dumpCumulativeReward(const Agent&) const;
 
   void answerStateActionCaller(const int bufferID);
 

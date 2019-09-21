@@ -61,8 +61,6 @@ protected:
   long nDataGatheredB4Startup = std::numeric_limits<long>::max();
   std::atomic<long> _nGradSteps{0};
 
-  ParameterBlob params =
-                    ParameterBlob(distrib, nDataGatheredB4Startup, _nGradSteps);
   int algoSubStepID = -1;
 
   Real alpha = 0.5; // weight between critic and policy
@@ -72,9 +70,11 @@ protected:
   bool computeQretrace = false;
 
   std::vector<std::mt19937>& generators = distrib.generators;
-
   const std::unique_ptr<MemoryBuffer> data =
                          std::make_unique<MemoryBuffer>(MDP, settings, distrib);
+  ParameterBlob params =
+             ParameterBlob(distrib, data->nGatheredB4Startup, data->nGradSteps);
+
   MemoryProcessing * const data_proc;
   DataCoordinator * const  data_coord;
   Collector * const        data_get;
@@ -87,7 +87,6 @@ protected:
 
 public:
   std::string learner_name;
-  Uint learnID;
 
   Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
   virtual ~Learner();
@@ -95,11 +94,10 @@ public:
   void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
     data->learnID = id;
-    learnID = id;
   }
 
   long nLocTimeStepsTrain() const {
-    return data->readNSeen_loc() - nDataGatheredB4Startup;
+    return data->nLocTimeStepsTrain();
   }
   long locDataSetSize() const {
     return data->readNData();
@@ -108,7 +106,7 @@ public:
     return data->readNSeenSeq_loc();
   }
   long nGradSteps() const {
-    return _nGradSteps.load();
+    return data->nGradSteps.load();
   }
 
   virtual void select(Agent& agent) = 0;

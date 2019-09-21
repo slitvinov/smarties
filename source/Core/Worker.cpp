@@ -156,7 +156,6 @@ void Worker::answerStateAction(Agent& agent) const
   const Uint nSteps = std::max(algo.nLocTimeStepsTrain(), (long) 0);
   agent.learnerTimeStepID = factor * nSteps;
   agent.learnerGradStepID = algo.nGradSteps();
-  if(agent.agentStatus >= TERM) dumpCumulativeReward(agent);
   //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
 }
 
@@ -206,23 +205,6 @@ bool Worker::learnersBlockingDataAcquisition() const
   bool lock = true;
   for (const auto& L : learners) lock = lock && L->blockDataAcquisition();
   return lock;
-}
-
-void Worker::dumpCumulativeReward(const Agent& agent) const
-{
-  //if (learnAlgoIter == 0 && bTrain) return;
-  const int wrank = MPICommRank(distrib.world_comm);
-  char path[2048];
-  sprintf(path, "%s/agent_%02u_rank%02d_cumulative_rewards.dat",
-          distrib.initial_runDir, agent.localID, wrank);
-
-  std::lock_guard<std::mutex> lock(dump_mutex);
-  FILE * pFile = fopen (path, "a");
-  fprintf (pFile, "%u %u %u %u %f\n",
-    agent.learnerGradStepID, agent.learnerTimeStepID,
-    agent.workerID, agent.timeStepInEpisode, agent.cumulativeRewards);
-  fflush (pFile);
-  fclose (pFile);
 }
 
 void Worker::synchronizeEnvironments()

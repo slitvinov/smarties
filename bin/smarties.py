@@ -265,7 +265,7 @@ if __name__ == '__main__':
       help="path or name of the settings file specifying RL solver " \
            "and its hyper-parameters. The default setting file is set to VRACER.json")
 
-  parser.add_argument('--runname', default=None,
+  parser.add_argument('-r','--runname', default=None,
       help="Name of the directory in which the learning process will be executed. " \
            "If unset, execution will take place in the current directory.")
 
@@ -273,13 +273,13 @@ if __name__ == '__main__':
       help="Number of threads used by the learning processes. " \
            "The default value is the number of available CPU cores, here %d." \
            % nThreads)
-  parser.add_argument('--nProcesses', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-n','--nProcesses', type=int, default=0, # 0 tells me no expressed preference
       help="Number of processes available to run the training.")
-  parser.add_argument('--nLearners', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-l','--nLearners', type=int, default=0, # 0 tells me no expressed preference
       help="Number of processes dedicated to update the networks. By default 1.")
-  parser.add_argument('--nEnvironments', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-e','--nEnvironments', type=int, default=0, # 0 tells me no expressed preference
       help="Number of concurrent environment simulations. By default 1.")
-  parser.add_argument('--mpiProcsPerEnv', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-m','--mpiProcsPerEnv', type=int, default=0, # 0 tells me no expressed preference
     help="MPI processes required per env simulation. This value can also " \
          "be specified in app's setup.sh script by setting the MPI_RANKS_PER_ENV " \
          "shell variable. If unset or 0, smarties performs communication via " \
@@ -306,7 +306,7 @@ if __name__ == '__main__':
   parser.add_argument('--restart', default=None,
       help="Path to existing directory which contains smarties output files "
            "needed to restart already trained agents.")
-  parser.add_argument('--nTrainSteps', type=int, default=10000000,
+  parser.add_argument('-t','--nTrainSteps', type=int, default=10000000,
       help="Total number of time steps before end of learning.")
   parser.add_argument('--nEvalSeqs', type=int, default=0,
       help="Number of environment episodes to evaluate trained policy. " \
