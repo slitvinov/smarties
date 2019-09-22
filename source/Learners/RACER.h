@@ -36,7 +36,7 @@ struct Zero_advantage;
 //template<Uint nExperts>
 //class Mixture_advantage;
 
-//#define RACER_simpleSigma
+#define RACER_simpleSigma
 #define RACER_singleNet
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>

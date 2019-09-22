@@ -222,7 +222,7 @@ def setLaunchCommand(parsed, absRunPath):
     f = open(absRunPath + '/daint_sbatch','w')
     f.write('#!/bin/bash -l \n')
     f.write('#SBATCH --job-name=%s \n' % rundir)
-    if True:
+    if False:
       f.write('#SBATCH --time=00:30:00 \n')
       f.write('#SBATCH --partition=debug \n')
     else:
