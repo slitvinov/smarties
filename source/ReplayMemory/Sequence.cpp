@@ -63,6 +63,8 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
 
   /////////////////////////////////////////////////////////////////////////////
 
+  assert(buf-ret.data() == (dS+dA+dP+7) * seq_len);
+
   *(buf++) = nOffPol; //fval
   *(buf++) = MSE; //fval
   *(buf++) = sumKLDiv; //fval
@@ -109,6 +111,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   offPolicImpW = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   KullbLeibDiv = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   /////////////////////////////////////////////////////////////////////////////
+  assert(buf - data.data() == (dS+dA+dP+7) * seq_len);
   priorityImpW = std::vector<float>(seq_len, 1);
   /////////////////////////////////////////////////////////////////////////////
   nOffPol  = *(buf++);
@@ -139,7 +142,8 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
 
 template<typename T>
 inline bool isDifferent(const T& a, const T& b) {
-  return std::fabs(a-b) > 100*std::numeric_limits<Fval>::epsilon();
+  static constexpr T tol = 10*std::numeric_limits<float>::epsilon();
+  return std::fabs(a-b)/std::max(std::fabs(a), std::fabs(b)) > tol;
 }
 template<typename T>
 inline bool isDifferent(const std::vector<T>& a, const std::vector<T>& b) {

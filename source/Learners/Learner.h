@@ -58,9 +58,6 @@ public:
   const FORGET ERFILTER;
 
 protected:
-  long nDataGatheredB4Startup = std::numeric_limits<long>::max();
-  std::atomic<long> _nGradSteps{0};
-
   int algoSubStepID = -1;
 
   Real alpha = 0.5; // weight between critic and policy

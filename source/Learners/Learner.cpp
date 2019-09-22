@@ -48,7 +48,7 @@ void Learner::initializeLearner()
   profiler->start("PRE");
   data_proc->updateRewardsStats(1, 1, true);
   // shift counters after initial data is gathered and sync is concluded
-  nDataGatheredB4Startup = data->readNSeen_loc();
+  data->nGatheredB4Startup = data->readNSeen_loc();
   _nObsB4StartTraining = nObsB4StartTraining;
   //data_proc->updateRewardsStats(1, 1e-3, true);
   if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
@@ -325,7 +325,7 @@ void Learner::save()
   FILE * fstat = fopen((dumpName + "status_backup.raw").c_str(), "w");
   FILE * fdata = fopen((dumpName + "data_backup.raw").c_str(), "wb");
 
-  const long doneGradSteps = _nGradSteps;
+  const long doneGradSteps = nGradSteps();
   const Uint nStoredEps = data->readNSeq();
   const Uint nStoredObs = data->readNData();
   const Uint nLocalSeenObs = data->readNSeen_loc();
@@ -335,7 +335,7 @@ void Learner::save()
   fprintf(fstat, "nStoredObs: %lu\n",    nStoredObs);
   fprintf(fstat, "nLocalSeenEps: %lu\n", nLocalSeenEps);
   fprintf(fstat, "nLocalSeenObs: %lu\n", nLocalSeenObs);
-  fprintf(fstat, "nInitialData: %ld\n",  nDataGatheredB4Startup);
+  fprintf(fstat, "nInitialData: %ld\n",  data->nGatheredB4Startup);
   fprintf(fstat, "nGradSteps: %ld\n",    doneGradSteps);
   fprintf(fstat, "CmaxReFER: %le\n",     CmaxRet);
   fprintf(fstat, "beta: %le\n",          beta);

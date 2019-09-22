@@ -117,7 +117,7 @@ void Learner_approximator::restart()
 
   Learner::restart();
 
-  for(const auto & net : networks) net->setNgradSteps(_nGradSteps);
+  for(const auto & net : networks) net->setNgradSteps(nGradSteps());
 }
 
 void Learner_approximator::save()

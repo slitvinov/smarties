@@ -80,8 +80,8 @@ void Collector::add_action(const Agent& a, const Rvec pol)
   assert(a.agentStatus < TERM);
   if(a.trackSequence == false) {
     // do not store more stuff in sequence but also do not track data counter
-    inProgress[a.ID]->actions = std::vector<std::vector<Real>>{ a.action };
-    inProgress[a.ID]->policies = std::vector<std::vector<Real>>{ pol };
+    inProgress[a.ID]->actions = std::vector<Rvec>{ a.action };
+    inProgress[a.ID]->policies = std::vector<Rvec>{ pol };
     return;
   }
 
