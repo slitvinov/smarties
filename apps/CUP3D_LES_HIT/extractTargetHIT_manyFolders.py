@@ -229,6 +229,7 @@ def main_integral(path):
     def fitTint(x, A,B,C): return A * np.power(x[0],-1/3.0) * np.power(x[1],1/6.0)
     #def fitLint(x, A,B,C): return A * np.power(x[1], 1/6.0)
     def fitLint(x, A,B,C): return A * np.power(x[0],-1/24.0) * np.power(x[1], 1/12.0)
+    def fitGrad(x, A,B,C): return A * np.power(x[0], 0.5) * np.power(x[1], -0.5)
     def fitFun(x, A,B,C):  return A * np.power(x[0], B) * np.power(x[1], C)
 
     funs, popt = [], []
@@ -245,10 +246,11 @@ def main_integral(path):
     funs += [ fitTint ]
     popt += [ fitFunction(inps, dataM, dataV, 3, funs[-1] ) ] # fitTint
     print('tau_integral fit:', popt[-1])
-    funs += [ fitLint ]
+    #funs += [ fitLint ]
+    funs += [ fitFun ]
     popt += [ fitFunction(inps, dataM, dataV, 4, funs[-1] ) ] # fitLint
     print('l_integral fit:', popt[-1])
-    funs += [ fitFun ]
+    funs += [ fitGrad ]
     popt += [ fitFunction(inps, dataM, dataV, 5, funs[-1] ) ]
     print('mean_grad fit:', popt[-1])
 
@@ -297,8 +299,8 @@ def main_spectral(path):
       if(BETA<1e-16): BETA=1e-16
       if(P0  <1e-16): P0  =1e-16
       k, eps, leta, lint = x[0], x[1], x[2], x[3]
-      FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
-      #FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
+      #FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
+      FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
       FE = np.exp( -BETA * ( np.power( (k*leta)**4 + CE**4, 0.25 ) - CE ) )
       return C * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
     def logEkFunc(x, C, CI, CE, BETA, P0):
