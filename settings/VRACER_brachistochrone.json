@@ -1,0 +1,14 @@
+{
+  "learner": "RACER",
+  "batchSize": 256,
+  "clipImpWeight": 1,
+  "epsAnneal": 2e-7,
+  "explNoise": 0.1,
+  "gamma": 1,
+  "learnrate": 0.0001,
+  "minTotObsNum": 1048576,
+  "maxTotObsNum": 1048576,
+  "nnLayerSizes": [32, 32, 32],
+  "obsPerStep": 1,
+  "outWeightsPrefac": 0.01
+}

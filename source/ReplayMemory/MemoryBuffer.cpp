@@ -245,7 +245,8 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
   char path[2048], arg[1024];
   sprintf(path, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
           distrib.initial_runDir, learnID, wrank);
-  sprintf(arg, "%ld %ld %ld %lu %f", nGradSteps.load(), nLocTimeStepsTrain(),
+  sprintf(arg, "%ld %ld %ld %lu %f", nGradSteps.load(),
+          std::max(nLocTimeStepsTrain(), (long)0),
           seq->agentID, seq->nsteps(), seq->totR);
 
   std::lock_guard<std::mutex> lock(dataset_mutex);
