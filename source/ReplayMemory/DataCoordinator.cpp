@@ -214,7 +214,7 @@ void DataCoordinator::addComplete(Sequence* const EP, const bool bUpdateParams)
     #ifndef NDEBUG
       Sequence * const tmp = new Sequence();
       tmp->unpackSequence(MSG, sI.dimObs(), aI.dim(), aI.dimPol());
-      _warn("storing new sequence of size %lu", tmp->ndata());
+      //_warn("storing new sequence of size %lu", tmp->ndata());
       assert(EP->isEqual(tmp));
       delete tmp;
     #endif

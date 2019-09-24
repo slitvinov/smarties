@@ -81,7 +81,7 @@ class MemoryBuffer
 
  public:
   MemoryBuffer(const MemoryBuffer& c) = delete;
-  MemoryBuffer(MemoryBuffer && c) = default;
+  MemoryBuffer(MemoryBuffer && c) = delete;
   MemoryBuffer(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
   ~MemoryBuffer();
 
@@ -140,9 +140,7 @@ class MemoryBuffer
   long readNData()        const { return nTransitions.load();  }
   long readNSeq()         const { return nSequences.load();  }
   long nLocTimeStepsTrain() const {
-    const auto nTsteps = readNSeen_loc();
-    const auto nTinit  = nGatheredB4Startup;
-    return nTsteps < nTinit? 0 : nTsteps-nTinit;
+    return readNSeen_loc() - nGatheredB4Startup;
   }
 
   void setNSeen_loc(const long val)    { nSeenTransitions_loc = val;  }
