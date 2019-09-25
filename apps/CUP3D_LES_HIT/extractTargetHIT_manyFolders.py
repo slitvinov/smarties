@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import re, argparse, numpy as np, glob
-from sklearn.neighbors.kde import KernelDensity
+#from sklearn.neighbors.kde import KernelDensity
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
@@ -60,8 +60,8 @@ def findAllParams(path):
     NUs, EPSs, EXTs = set(), set(), set()
     alldirs = glob.glob(path+'*')
     for dirn in alldirs:
-        EPSs.add(re.findall('EPS\d.\d\d',  dirn)[0][3:])
-        NUs. add(re.findall('NU\d.\d\d\d', dirn)[0][2:])
+        EPSs.add(re.findall('EPS\d.\d\d\d',  dirn)[0][3:])
+        NUs. add(re.findall('NU\d.\d\d\d\d', dirn)[0][2:])
         EXTs.add(re.findall('EXT\dpi',     dirn)[0][3] )
     NUs  = list( NUs);  NUs.sort()
     EPSs = list(EPSs); EPSs.sort()
@@ -86,6 +86,7 @@ def getDataSpectrum(files):
     nFiles = len(files)
     nData = nFiles
 
+    if nFiles == 0: return [], []
     modes, energy = np.loadtxt(files[0], unpack=True, skiprows=18)
     nModes = len(modes)
 
@@ -207,16 +208,17 @@ def main_integral(path):
           #for run in [0, 1, 2, 3, 4]:
           #  dirn = '%sEXT%dpi_NU%.03f_EPS%.02f_RUN%d' \
           #         % (path, EXTs[li], NUs[ni], EPSs[ei], run)
-          for run in [5, 6, 7, 8, 9]:
-            dirn = '%sEXT%dpi_EPS%.02f_NU%.03f_RUN%d' \
+          for run in [0,1,2,3,4,5]:
+            dirn = '%sEXT%dpi_EPS%.03f_NU%.04f_RUN%d' \
                    % (path, EXTs[li], EPSs[ei], NUs[ni], run)
             print(dirn)
             files = getAllFiles(dirn, 0)
             scalars = getDataScalar(files)
+            print('found %d files' % len(scalars) )
             if len(scalars) < 2 : continue
             tint = computeIntTimeScale(scalars)
             #print(tint)
-            allScalars = allScalars + scalars[int(tint/0.1):]
+            allScalars = allScalars + scalars[int(tint/0.2):]
           if len(allScalars) < 2 : continue
           means, stdevs = computeAverages(allScalars)
           dataM = np.append(dataM, np.asarray(means ).reshape([1,6]), 0)
@@ -295,13 +297,17 @@ def main_spectral(path):
     def EkFunc(x, C, CI, CE, BETA, P0):
       if(C   <1e-16): C   =1e-16
       #if(CI<0): CI=0
+      if(CI  <1e-16): CI  =1e-16
       if(CE  <1e-16): CE  =1e-16
       if(BETA<1e-16): BETA=1e-16
       if(P0  <1e-16): P0  =1e-16
-      k, eps, leta, lint = x[0], x[1], x[2], x[3]
+      k, eps, leta, lint, nu = x[0], x[1], x[2], x[3], x[4]
+      lint =  0.74885397 * np.power(eps, -0.0233311) * np.power(nu, 0.07192009)
+      leta = np.power(eps, -0.25) * np.power(nu, 0.75)
       #FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
       FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
       FE = np.exp( -BETA * ( np.power( (k*leta)**4 + CE**4, 0.25 ) - CE ) )
+      print(FL, FE)
       return C * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
     def logEkFunc(x, C, CI, CE, BETA, P0):
       return np.log(EkFunc(x, C, CI, CE, BETA, P0))
@@ -319,24 +325,24 @@ def main_spectral(path):
         for li in range(1):
           EXTs[li] = float(EXTs[li])
           scalars, spectra, modes = [], None, None
-          #for run in [0, 1, 2, 3, 4]:
-          for run in [5, 6, 7, 8, 9]:
-            dirn = '%sEXT%dpi_EPS%.02f_NU%.03f_RUN%d' \
+          for run in [0,1,2,3,4,5]:
+            dirn = '%sEXT%dpi_EPS%.03f_NU%.04f_RUN%d' \
                    % (path, EXTs[li], EPSs[ei], NUs[ni], run)
             print(dirn)
             files = getAllFiles(dirn, 0)
             runscalars = getDataScalar(files)
             runmodes, runspectrum = getDataSpectrum(files)
+            if len(runmodes) == 0: continue 
             tint = computeIntTimeScale(runscalars)
             if(tint>=10): continue
             #print(runmodes)
-            scalars = scalars + runscalars[int(tint/0.1):]
+            scalars = scalars + runscalars[int(tint/0.2):]
             modes = runmodes
             if spectra is None:
-              spectra = runspectrum[int(tint/0.1):]
+              spectra = runspectrum[int(tint/0.2):]
               #modes   = runmodes[int(tint/0.1):]
             else:
-              spectra = np.append(spectra, runspectrum[int(tint/0.1):], 0)
+              spectra = np.append(spectra, runspectrum[int(tint/0.2):], 0)
               #modes   = np.append(  modes,    runmodes[int(tint/0.1):], 0)
 
           if len(scalars) == 0: continue
@@ -367,7 +373,7 @@ def main_spectral(path):
     kdata = inptdata.reshape(inptdata.shape[0]*inptdata.shape[1], 5)
     kdata = kdata.transpose()
     popt, pcov = curve_fit(logEkFunc, kdata, ekdata, sigma=eksigma, maxfev=100000, \
-                 p0=[3.626, 0.000159, 0.178, 5.24, 1e3])
+                 p0=[9, 4.11909853e+00, 4.28881542e-02, 5.24, 2])
     # 3.62590946e+00 1.58981122e-04 1.78026894e-01 5.24030627e+00 6.69070846e+03
     # abs:
     # 8.52677684e+00 2.42173319e-04 5.59081529e-02 5.32056057e+00 5.74571792e+03
@@ -377,24 +383,29 @@ def main_spectral(path):
     plt.figure()
     axes = []
     for ni in range(len(NUs)):
-      axes = axes + [plt.subplot(1, len(NUs), 1+ni)]
-      axes[-1].set_xlabel(r'$k \eta$')
+      axes = axes + [plt.subplot(2, len(NUs)//2, 1+ni)]
+      if ni < len(NUs)//2: axes[-1].set_xticklabels([])
+      else:
+        axes[-1].set_xlabel(r'$k \eta$')
       axes[-1].grid()
     axes[0].set_ylabel(r'$E(k) / (\eta u^2_\eta)$')
 
+    ci = len(NUs) * [0]
     for i in range(allSpectra.shape[0]):
       eps,leta,lint,nu = inptdata[i,0,1],inptdata[i,0,2],inptdata[i,0,3],inptdata[i,0,4]
       ni = np.argmin(np.abs( NUs - nu))
       ei = np.argmin(np.abs(EPSs - eps))
       Ekscal = np.power(nu**5 * eps, 0.25)
       X, Y = allModes[i,:], np.exp(allSpectra[i,:])/Ekscal
-      Yfit = np.array([EkFunc([k,eps,leta,lint], C,CI,CE,BETA,P0) for k in X])
+      Yfit = np.array([EkFunc([k,eps,leta,lint,nu], C,CI,CE,BETA,P0) for k in X])
       Yb = np.exp(allSpectra[i,:] - allStdevs[i,:])/Ekscal
       Yt = np.exp(allSpectra[i,:] + allStdevs[i,:])/Ekscal
-      axes[ni].fill_between(X*leta, Yb, Yt, facecolor=colors[ei], alpha=.5)
-      axes[ni].plot(X*leta, Yfit/Ekscal, color=colors[ei], linestyle='--')
-      label = r'$\nu=%.03f\quad\epsilon=%.02f$' %(nu, eps)
-      axes[ni].plot(X*leta, Y, color=colors[ei], label=label)
+      color = colors[ ci[ni] ]
+      ci[ni] += 1
+      axes[ni].fill_between(X*leta, Yb, Yt, facecolor=color, alpha=.5)
+      axes[ni].plot(X*leta, Yfit/Ekscal, color=color, linestyle='--')
+      label = r'$\nu=%.04f\quad\epsilon=%.03f$' %(nu, eps)
+      axes[ni].plot(X*leta, Y, color=color, label=label)
 
     for ax in axes:
       ax.set_yscale("log")
@@ -416,5 +427,5 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   #main(args.simdir, float(args.nu), int(args.nSkip), int(args.nSamp))
-  main_integral(args.simdir)
-  #main_spectral(args.simdir)
+  #main_integral(args.simdir)
+  main_spectral(args.simdir)
