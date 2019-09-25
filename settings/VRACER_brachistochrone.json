@@ -1,9 +1,10 @@
 {
   "learner": "RACER",
   "batchSize": 256,
-  "clipImpWeight": 1,
-  "epsAnneal": 2e-7,
-  "explNoise": 0.1,
+  "clipImpWeight": 4,
+  "epsAnneal": 5e-7,
+  "penalTol": 0.05,
+  "explNoise": 0.5,
   "gamma": 1,
   "learnrate": 0.0001,
   "minTotObsNum": 1048576,
