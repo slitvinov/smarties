@@ -96,12 +96,12 @@ def applicationSetup(parsed, absRunPath):
 
     if len(setout[-3]):
       args = str(setout[-3], 'utf-8')
-      print("app setup.sh: add args:'%s' to launch command." % args)
+      print("app setup.sh: added args:'%s' to launch command." % args)
       parsed.args = parsed.args + " " + args
 
     if len(setout[-2]):
       mpiProcsPerEnv = int(setout[-2])
-      print("app setup.sh: %d MPI ranks to run each env sim." % mpiProcsPerEnv)
+      print("app setup.sh: using %d MPI ranks to run each env sim." % mpiProcsPerEnv)
       if parsed.mpiProcsPerEnv > 0:
         assert ( parsed.mpiProcsPerEnv == mpiProcsPerEnv ), \
                "Contradiction between application setup and cmd line parsing"
@@ -109,7 +109,7 @@ def applicationSetup(parsed, absRunPath):
 
     if len(setout[-1]) and parsed.execname is not 'exec':
       execn = str(setout[-1], 'utf-8')
-      print("app setup.sh: Executable named '%s'." % execn)
+      print("app setup.sh: set executable name '%s'." % execn)
       parsed.execname = execn
 
   elif is_exe(app+'/'+parsed.execname):
@@ -205,16 +205,19 @@ def setLaunchCommand(parsed, absRunPath):
 
   if isEuler() and parsed.interactive is False:
     assert rundir is not None, "--runname option is required on Euler and Daint"
+    # module load new gcc/6.3.0 openblas/0.2.13_seq python/3.7.1 mvapich2/2.2
     if nThreads == 18:
-      map_by = "--map-by ppr:2:node"
+      map_by = "--map-by ppr:1:socket"
     elif nThreads == 36:
       map_by = "--map-by ppr:1:node"
     else:
       map_by = "--map-by ppr:%d:node" % parsed.nTaskPerNode
-    cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=%d]\" " \
-          " -J %s -W %s:00 mpirun -n %d %s ./%s %s " \
-          % (nProcesses * nThreads, nThreads, rundir, clockHours, \
-             nProcesses, map_by, parsed.execname, parsed.args)
+    cmd = "mpirun -n %d %s ./%s %s " % \
+          (nProcesses, map_by, parsed.execname, parsed.args)
+    if parsed.interactive is False:
+      cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=%d]\" " \
+          " -J %s -W %s:00 %s " \
+          % (nProcesses * nThreads, nThreads, rundir, clockHours, cmd )
 
   elif isDaint() and parsed.interactive is False:
     nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
