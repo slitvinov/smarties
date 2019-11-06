@@ -9,6 +9,7 @@
 #include "Sequence.h"
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 
 namespace smarties
 {
@@ -63,7 +64,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
 
   /////////////////////////////////////////////////////////////////////////////
 
-  assert(buf-ret.data() == (dS+dA+dP+7) * seq_len);
+  assert((Uint) (buf-ret.data()) == (dS+dA+dP+7) * seq_len);
 
   *(buf++) = nOffPol; //fval
   *(buf++) = MSE; //fval
@@ -111,7 +112,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   offPolicImpW = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   KullbLeibDiv = std::vector<Fval>(buf, buf + seq_len); buf += seq_len;
   /////////////////////////////////////////////////////////////////////////////
-  assert(buf - data.data() == (dS+dA+dP+7) * seq_len);
+  assert((Uint) (buf - data.data()) == (dS+dA+dP+7) * seq_len);
   priorityImpW = std::vector<float>(seq_len, 1);
   /////////////////////////////////////////////////////////////////////////////
   nOffPol  = *(buf++);
@@ -142,13 +143,15 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
 
 template<typename T>
 inline bool isDifferent(const std::atomic<T>& a, const std::atomic<T>& b) {
-  static constexpr T tol = 10*std::numeric_limits<float>::epsilon();
-  return std::fabs(a-b)/std::max(std::fabs(a.load()), std::fabs(b.load())) > tol;
+  static constexpr T EPS = std::numeric_limits<float>::epsilon(), tol = 100*EPS;
+  const auto norm = std::max({std::fabs(a.load()), std::fabs(b.load()), EPS});
+  return std::fabs(a-b)/norm > tol;
 }
 template<typename T>
 inline bool isDifferent(const T& a, const T& b) {
-  static constexpr T tol = 10*std::numeric_limits<float>::epsilon();
-  return std::fabs(a-b)/std::max(std::fabs(a), std::fabs(b)) > tol;
+  static constexpr T EPS = std::numeric_limits<float>::epsilon(), tol = 100*EPS;
+  const auto norm = std::max({std::fabs(a), std::fabs(b), EPS});
+  return std::fabs(a-b)/norm > tol;
 }
 template<typename T>
 inline bool isDifferent(const std::vector<T>& a, const std::vector<T>& b) {

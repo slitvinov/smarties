@@ -55,14 +55,13 @@ void Sampling::IDtoSeqStep_par(std::vector<Uint>& seq, std::vector<Uint>& obs,
     #pragma omp for schedule(static)
     for (Uint k=0; k<nSeqs; ++k) {
       // sample i lies before start of episode k:
-      while(ret[i] < Set[k]->prefix) ++i;
+      while(i < ret.size() && ret[i] < Set[k]->prefix) ++i;
 
-      while(ret[i] < Set[k]->prefix + Set[k]->ndata()) { // is ret[i] in ep k?
+      while(i < ret.size() && ret[i] < Set[k]->prefix + Set[k]->ndata()) {
         // if ret[i]==prefix then obs 0 of k and so forth:
         obs[i] = ret[i] - Set[k]->prefix;
         seq[i] = k;
         ++i; // next iteration remember first i-1 were already found
-        if(i == seq.size()) break; // then found all elements of minibatch
       }
     }
   }
