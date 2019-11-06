@@ -88,7 +88,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   }
   else
   {
-    const long nData = nTransitions()
+    const long nData = nTransitions();
     std::uniform_int_distribution<Uint> distObs(0, nData-1);
     std::vector<Uint> ret(nBatch);
     std::vector<Uint>::iterator it = ret.begin();

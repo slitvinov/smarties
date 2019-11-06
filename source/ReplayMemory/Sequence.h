@@ -12,7 +12,8 @@
 #include "../Utils/Bund.h"
 #include "../Utils/Warnings.h"
 #include <cassert>
-#include <mutex>
+#include <atomic>
+//#include <mutex>
 #include <cmath>
 
 namespace smarties
