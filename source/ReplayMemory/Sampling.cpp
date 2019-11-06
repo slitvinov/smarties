@@ -46,6 +46,28 @@ void Sampling::IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,
   }
 }
 
+void Sampling::IDtoSeqStep_par(std::vector<Uint>& seq, std::vector<Uint>& obs,
+  const std::vector<Uint>& ret, const Uint nSeqs)
+{ // go through each element of ret to find corresponding seq and obs
+  #pragma omp parallel
+  {
+    Uint i = 0;
+    #pragma omp for schedule(static)
+    for (Uint k=0; k<nSeqs; ++k) {
+      // sample i lies before start of episode k:
+      while(ret[i] < Set[k]->prefix) ++i;
+
+      while(ret[i] < Set[k]->prefix + Set[k]->ndata()) { // is ret[i] in ep k?
+        // if ret[i]==prefix then obs 0 of k and so forth:
+        obs[i] = ret[i] - Set[k]->prefix;
+        seq[i] = k;
+        ++i; // next iteration remember first i-1 were already found
+        if(i == seq.size()) break; // then found all elements of minibatch
+      }
+    }
+  }
+}
+
 Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
@@ -98,7 +120,17 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       std::sort(ret.begin(), ret.end());
       it = std::unique (ret.begin(), ret.end());
     } // ret is now also sorted!
-    IDtoSeqStep(seq, obs, ret, nSequences());
+    const auto nSeq = nSequences();
+    IDtoSeqStep_par(seq, obs, ret, nSeq);
+    //IDtoSeqStep(seq, obs, ret, nSeq);
+    #if 0
+    auto obs2 = obs, seq2 = seq;
+    IDtoSeqStep_par(seq2, obs2, ret, nSeq);
+    if (! std::equal(obs.begin(), obs.end(), obs2.begin()) )
+       die("obs obs2 are not equal");
+    if (! std::equal(seq.begin(), seq.end(), seq2.begin()) )
+       die("seq seq2 are not equal");
+    #endif
   }
 }
 void Sample_uniform::prepare(std::atomic<bool>& needs_pass) {

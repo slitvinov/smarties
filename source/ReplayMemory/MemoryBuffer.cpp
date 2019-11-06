@@ -135,6 +135,8 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   }
 
   MiniBatch ret(batchSize, settings.gamma);
+
+  #pragma omp parallel for schedule(static)
   for(Uint b=0; b<batchSize; ++b)
   {
     ret.episodes[b] = Set[ sampleEID[b] ];
@@ -169,6 +171,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
   const nnReal impSampAnneal = std::min( (Real)1, stepID*settings.epsAnneal);
   const nnReal beta = 0.5 + 0.5 * impSampAnneal;
   const bool bReqImpSamp = bRequireImportanceSampling();
+
   #pragma omp parallel for schedule(static) // collapse(2)
   for(Uint b=0; b<batchSize; ++b)
   for(Uint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
