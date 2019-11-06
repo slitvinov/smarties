@@ -57,9 +57,6 @@ protected:
   const Uint nCallingEnvs = distrib.nOwnedEnvironments;
   const int bTrain = distrib.bTrain;
 
-  // avoid race conditions in writing cumulative rewards file:
-  mutable std::mutex dump_mutex;
-
   // small utility functions:
   Uint getLearnerID(const Uint agentIDlocal) const;
   bool learnersBlockingDataAcquisition() const;

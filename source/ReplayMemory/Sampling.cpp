@@ -46,29 +46,31 @@ void Sampling::IDtoSeqStep(std::vector<Uint>& seq, std::vector<Uint>& obs,
   }
 }
 
-
-
 Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
   assert(seq.size() == obs.size());
-  std::unique_lock<std::mutex> lock(RM->dataset_mutex, std::defer_lock);
-  lock.lock();
-  //std::lock_guard<std::mutex> lock(RM->dataset_mutex);
-  const long nSeqs = nSequences(), nData = nTransitions(), nBatch = obs.size();
-  lock.unlock();
+  //std::unique_lock<std::mutex> lock(RM->dataset_mutex, std::defer_lock);
+  //lock.lock();
+  const long nBatch = obs.size();
+  //lock.unlock();
 
   #ifndef NDEBUG
-  assert(Set.size() == (size_t) nSeqs);
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    assert(Set[i]->prefix == (Uint) locPrefix);
-    locPrefix += Set[i]->ndata();
-    if(i+1 == nSeqs) assert(locPrefix == nData);    
+  {
+    std::lock_guard<std::mutex> lock(RM->dataset_mutex);
+    const long nSeqs = nSequences(), nData = nTransitions();
+    assert(Set.size() == (size_t) nSeqs);
+    for(long i=0, locPrefix=0; i<nSeqs; ++i) {
+      assert(Set[i]->prefix == (Uint) locPrefix);
+      locPrefix += Set[i]->ndata();
+      if(i+1 == nSeqs) assert(locPrefix == nData);
+    }
   }
   #endif
 
   if(bSampleSequences)
   {
+    const long nSeqs = nSequences();
     std::uniform_int_distribution<Uint> distSeq(0, nSeqs-1);
     std::vector<Uint>::iterator it = seq.begin();
     while(it not_eq seq.end())
@@ -86,6 +88,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   }
   else
   {
+    const long nData = nTransitions()
     std::uniform_int_distribution<Uint> distObs(0, nData-1);
     std::vector<Uint> ret(nBatch);
     std::vector<Uint>::iterator it = ret.begin();
@@ -95,8 +98,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
       std::sort(ret.begin(), ret.end());
       it = std::unique (ret.begin(), ret.end());
     } // ret is now also sorted!
-
-    IDtoSeqStep(seq, obs, ret, nSeqs);
+    IDtoSeqStep(seq, obs, ret, nSequences());
   }
 }
 void Sample_uniform::prepare(std::atomic<bool>& needs_pass) {
@@ -184,13 +186,14 @@ void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
     for(Uint j=0, k=Set[i]->prefix; j<Set[i]->ndata(); ++j, ++k)
       samples[k] = std::pair<unsigned, unsigned>{i, j};
 
-  const auto RNG = [&](const int max) {
-    assert(max > 0);
-    std::uniform_int_distribution<int> dist(0, max-1);
-    return dist(gens[0]);
-  };
+  //const auto RNG = [&](const int max) {
+  //  assert(max > 0);
+  //  std::uniform_int_distribution<int> dist(0, max-1);
+  //  return dist(gens[0]);
+  //};
   //__gnu_parallel::random_shuffle(samples.begin(), samples.end(), RNG);
-  std::random_shuffle(samples.begin(), samples.end(), RNG);
+  //std::random_shuffle(samples.begin(), samples.end(), RNG);
+  std::shuffle(samples.begin(), samples.end(), gens[0]);
 }
 void TSample_shuffle::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {

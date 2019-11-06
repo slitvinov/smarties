@@ -61,7 +61,10 @@ struct Sequence
   std::vector<float> priorityImpW;
 
   // some quantities needed for processing of experiences
-  Fval nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
+  Fval totR = 0;
+  std::atomic<Fval> sumKLDiv{0};
+  std::atomic<Fval> nOffPol{0};
+  std::atomic<Fval> MSE{0};
 
   // did episode terminate (i.e. terminal state) or was a time out (i.e. V(s_end) != 0
   bool ended = false;
@@ -73,8 +76,6 @@ struct Sequence
   Uint prefix = 0;
   // local agent id (agent id within environment) that generated epiosode
   Uint agentID;
-
-  std::mutex seq_mutex;
 
   Uint ndata() const // how much data to train from? ie. not terminal
   {

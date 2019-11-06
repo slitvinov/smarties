@@ -141,6 +141,11 @@ int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
 }
 
 template<typename T>
+inline bool isDifferent(const std::atomic<T>& a, const std::atomic<T>& b) {
+  static constexpr T tol = 10*std::numeric_limits<float>::epsilon();
+  return std::fabs(a-b)/std::max(std::fabs(a.load()), std::fabs(b.load())) > tol;
+}
+template<typename T>
 inline bool isDifferent(const T& a, const T& b) {
   static constexpr T tol = 10*std::numeric_limits<float>::epsilon();
   return std::fabs(a-b)/std::max(std::fabs(a), std::fabs(b)) > tol;
