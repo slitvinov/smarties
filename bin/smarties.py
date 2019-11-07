@@ -6,7 +6,13 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
-import argparse, os, psutil, sys, shutil, subprocess
+import argparse, os, psutil, sys, shutil, subprocess, signal
+
+def signal_handler(sig, frame):
+  JOBID = os.getenv('SLURM_JOB_ID')
+  cmd = "scancel "+JOBID
+  subprocess.run(cmd, executable=parsed.shell, shell=True) 
+  sys.exit(0)
 
 SCRATCH       = os.getenv('SCRATCH') or ''
 SMARTIES_ROOT = os.getenv('SMARTIES_ROOT') or ''
@@ -378,4 +384,5 @@ if __name__ == '__main__':
   cmd = cmd + setEnvironmentFlags(parsed)
   cmd = cmd + setLaunchCommand(parsed, absRunPath)
   print('COMMAND:' + parsed.args )
+  signal.signal(signal.SIGINT, signal_handler)
   subprocess.run(cmd, executable=parsed.shell, shell=True)
