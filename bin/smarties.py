@@ -205,19 +205,18 @@ def setLaunchCommand(parsed, absRunPath):
 
   if isEuler() and parsed.interactive is False:
     assert rundir is not None, "--runname option is required on Euler and Daint"
-    # module load new gcc/6.3.0 openblas/0.2.13_seq python/3.7.1 mvapich2/2.2
-    if nThreads == 18:
-      map_by = "--map-by ppr:1:socket"
-    elif nThreads == 36:
-      map_by = "--map-by ppr:1:node"
+    if   nThreads == 18 and parsed.nTaskPerNode == 1:
+      map_by = "--map-by ppr:1:socket --bind-to none"
+    elif nThreads == 36 and parsed.nTaskPerNode == 1:
+      map_by = "--map-by ppr:1:node --bind-to none"
     else:
-      map_by = "--map-by ppr:%d:node" % parsed.nTaskPerNode
+      map_by = "--map-by ppr:%d:node --bind-to none" % parsed.nTaskPerNode
     cmd = "mpirun -n %d %s ./%s %s " % \
           (nProcesses, map_by, parsed.execname, parsed.args)
     if parsed.interactive is False:
-      cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=%d]\" " \
+      cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=36]\" " \
           " -J %s -W %s:00 %s " \
-          % (nProcesses * nThreads, nThreads, rundir, clockHours, cmd )
+          % (nProcesses * nThreads, rundir, clockHours, cmd )
 
   elif isDaint() and parsed.interactive is False:
     nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
