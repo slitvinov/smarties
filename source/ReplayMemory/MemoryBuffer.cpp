@@ -245,7 +245,7 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 {
   assert(seq not_eq nullptr);
   const int wrank = MPICommRank(distrib.world_comm);
-  char pathRew[1024], pathObs[1024], rewArg[1024];
+  char pathRew[2048], pathObs[2048], rewArg[1024];
   sprintf(pathRew, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
           distrib.initial_runDir, learnID, wrank);
   sprintf(pathObs, "%s/agent%03lu_rank%02d_obs.raw",
