@@ -51,8 +51,8 @@ class Brachistochrone:
 
 def app_main(comm):
   env = Brachistochrone(np.pi, 50)
-  comm.set_state_action_dims(1, 1)
-  comm.set_action_scales([2.0], [0.0], areBounds=False)
+  comm.setStateActionDims(1, 1)
+  comm.setActionScales([2.0], [0.0], areBounds=False)
 
   while 1: #train loop, each new episode starts here
     env.reset()
