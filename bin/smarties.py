@@ -240,8 +240,9 @@ def setLaunchCommand(parsed, absRunPath):
     cmd = "chmod 755 daint_sbatch \n sbatch daint_sbatch"
 
   elif isDaint() and parsed.interactive is True:
-    cmd = "srun -n %d --nodes %d --ntasks-per-node%d ./%s %s" \
-          % (nProcs, nNodes, nPerNode, parsed.execname, parsed.args)
+    nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
+    cmd = "srun -C gpu -u -n %d --nodes %d --ntasks-per-node %d ./%s %s" \
+          % (nProcesses, nNodes, nTaskPerNode, parsed.execname, parsed.args)
   return cmd
 
 if __name__ == '__main__':
