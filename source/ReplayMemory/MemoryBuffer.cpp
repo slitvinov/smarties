@@ -245,20 +245,26 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 {
   assert(seq not_eq nullptr);
   const int wrank = MPICommRank(distrib.world_comm);
-  char path[2048], arg[1024];
-  sprintf(path, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
+  char pathRew[2048], pathObs[2048], rewArg[1024];
+  sprintf(pathRew, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
           distrib.initial_runDir, learnID, wrank);
-  sprintf(arg, "%ld %ld %ld %lu %f", nGradSteps.load(),
+  sprintf(pathObs, "%s/agent%03lu_rank%02d_obs.raw",
+          distrib.initial_runDir, learnID, wrank);
+  sprintf(rewArg, "%ld %ld %ld %lu %f", nGradSteps.load(),
           std::max(nLocTimeStepsTrain(), (long)0),
           seq->agentID, seq->nsteps(), seq->totR);
+  const auto log = seq->logToFile(sI.dim(), nSeenTransitions_loc.load());
 
   std::lock_guard<std::mutex> lock(dataset_mutex);
   assert( readNSeq() == (long) Set.size() );
 
-  FILE * pFile = fopen (path, "a");
-  fprintf (pFile, "%s\n", arg);
-  fflush (pFile);
-  fclose (pFile);
+  FILE * pFile = fopen (pathRew, "a");
+  fprintf (pFile, "%s\n", rewArg); fflush (pFile); fclose (pFile);
+  if(distrib.logAllSamples) {
+    pFile = fopen (pathObs, "ab");
+    fwrite (log.data(), sizeof(float), log.size(), pFile);
+    fflush(pFile); fclose(pFile);
+  }
 
   const auto ind = Set.size();
   seq->ID = nSeenSequences.load();

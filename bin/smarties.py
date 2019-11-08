@@ -210,21 +210,20 @@ def setLaunchCommand(parsed, absRunPath):
   cmd = "mpirun -n %d ./%s %s | tee out.log" \
         % (nProcesses, parsed.execname, parsed.args)
 
-  if isEuler() and parsed.interactive is False:
+  if isEuler():
     assert rundir is not None, "--runname option is required on Euler and Daint"
-    # module load new gcc/6.3.0 openblas/0.2.13_seq python/3.7.1 mvapich2/2.2
-    if nThreads == 18:
-      map_by = "--map-by ppr:1:socket"
-    elif nThreads == 36:
-      map_by = "--map-by ppr:1:node"
+    if   nThreads == 18 and parsed.nTaskPerNode == 1:
+      map_by = "--map-by ppr:1:socket --bind-to none"
+    elif nThreads == 36 and parsed.nTaskPerNode == 1:
+      map_by = "--map-by ppr:1:node --bind-to none"
     else:
-      map_by = "--map-by ppr:%d:node" % parsed.nTaskPerNode
+      map_by = "--map-by ppr:%d:node --bind-to none" % parsed.nTaskPerNode
     cmd = "mpirun -n %d %s ./%s %s " % \
           (nProcesses, map_by, parsed.execname, parsed.args)
     if parsed.interactive is False:
-      cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=%d]\" " \
+      cmd = "bsub -n %d -R \"select[model==XeonGold_6150] span[ptile=36]\" " \
           " -J %s -W %s:00 %s " \
-          % (nProcesses * nThreads, nThreads, rundir, clockHours, cmd )
+          % (nProcesses * nThreads, rundir, clockHours, cmd )
 
   elif isDaint() and parsed.interactive is False:
     nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
@@ -288,11 +287,11 @@ if __name__ == '__main__':
       help="Number of threads used by the learning processes. " \
            "The default value is the number of available CPU cores, here %d." \
            % nThreads)
-  parser.add_argument('-n','--nProcesses', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-n','--nProcesses',     type=int, default=0, # 0 tells me no expressed preference
       help="Number of processes available to run the training.")
-  parser.add_argument('-l','--nLearners', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-l','--nLearners',      type=int, default=0, # 0 tells me no expressed preference
       help="Number of processes dedicated to update the networks. By default 1.")
-  parser.add_argument('-e','--nEnvironments', type=int, default=0, # 0 tells me no expressed preference
+  parser.add_argument('-e','--nEnvironments',  type=int, default=0, # 0 tells me no expressed preference
       help="Number of concurrent environment simulations. By default 1.")
   parser.add_argument('-m','--mpiProcsPerEnv', type=int, default=0, # 0 tells me no expressed preference
     help="MPI processes required per env simulation. This value can also " \
@@ -327,17 +326,17 @@ if __name__ == '__main__':
       help="Number of environment episodes to evaluate trained policy. " \
            "This option automatically disables training.")
 
-  parser.add_argument('--gym', dest='gymApp', action='store_true',
+  parser.add_argument('--gym',   dest='gymApp',   action='store_true',
     help="Set if application is part of OpenAI gym.")
   parser.set_defaults(gymApp=False)
   parser.add_argument('--atari', dest='atariApp', action='store_true',
     help="Set if application is part of OpenAI gym's atari suite.")
   parser.set_defaults(atariApp=False)
-  parser.add_argument('--dmc', dest='dmcApp', action='store_true',
+  parser.add_argument('--dmc',   dest='dmcApp',   action='store_true',
     help="Set if application is part of DeepMind control suite.")
   parser.set_defaults(dmcApp=False)
 
-  parser.add_argument('--execname', default='exec',
+  parser.add_argument('--execname',  default='exec',
       help="Name of application's executable.")
   parser.add_argument('--runprefix', default=runprefix,
       help="Path to directory where run folder will be created.")

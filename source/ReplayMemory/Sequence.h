@@ -180,6 +180,8 @@ struct Sequence
     const Fval clipW = offPolicImpW[t]<1 ? offPolicImpW[t] : 1;
     Q_RET[t-1] = R + gamma * V + gamma * clipW * (Q_RET[t] - A - V);
   }
+
+  std::vector<float> logToFile(const Uint dimS, const Uint iterStep) const;
 };
 
 } // namespace smarties

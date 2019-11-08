@@ -88,9 +88,9 @@ void Collector::add_action(const Agent& a, const Rvec pol)
   if(a.agentStatus not_eq INIT) nSeenTransitions_loc ++;
   inProgress[a.ID]->actions.push_back( a.action );
   inProgress[a.ID]->policies.push_back(pol);
-  if(distrib.logAllSamples) // TODO was learner rank
-    a.writeData(distrib.initial_runDir, distrib.world_rank,
-                pol, nSeenTransitions_loc.load());
+  //if(distrib.logAllSamples) // TODO was learner rank
+  //  a.writeData(distrib.initial_runDir, distrib.world_rank,
+  //              pol, nSeenTransitions_loc.load());
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
@@ -105,9 +105,9 @@ void Collector::terminate_seq(Agent&a)
   inProgress[a.ID]->actions.push_back( dummyAct );
   inProgress[a.ID]->policies.push_back( dummyPol );
 
-  if(distrib.logAllSamples) // TODO was learner rank
-    a.writeData(distrib.initial_runDir, distrib.world_rank,
-                dummyPol, nSeenTransitions_loc.load());
+  //if(distrib.logAllSamples) // TODO was learner rank
+  //  a.writeData(distrib.initial_runDir, distrib.world_rank,
+  //              dummyPol, nSeenTransitions_loc.load());
   push_back(a.ID);
 }
 
