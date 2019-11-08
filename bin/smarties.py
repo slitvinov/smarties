@@ -91,9 +91,6 @@ def applicationSetup(parsed, absRunPath):
     exit()
 
   # Now copy executable over to rundir, and if needed run a setup script:
-  if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
-    print("WARNING: Application is older then smarties, make sure used libraries still match.")
-
   if is_exe(app + '/setup.sh'):
     setcmd = "cd %s && source ./setup.sh \n " \
              "echo ${EXTRA_LINE_ARGS}  \n " \
@@ -133,6 +130,9 @@ def applicationSetup(parsed, absRunPath):
     parsed.execname = parsed.execname + '.py'
   else:
     print('FATAL: Unable to locate application executable')
+
+  if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
+    print("WARNING: Application is older then smarties, make sure used libraries still match.")
 
 def setComputationalResources(parsed):
   # if launched with --nProcesses N default behavior is to have N-1 workers
