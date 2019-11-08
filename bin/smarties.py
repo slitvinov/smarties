@@ -10,7 +10,7 @@ import argparse, os, psutil, sys, shutil, subprocess, signal
 
 def signal_handler(sig, frame):
   JOBID = os.getenv('SLURM_JOB_ID')
-  cmd = "scancel "+JOBID
+  cmd = "scancel " + JOBID
   subprocess.run(cmd, executable=parsed.shell, shell=True) 
   sys.exit(0)
 
@@ -91,6 +91,9 @@ def applicationSetup(parsed, absRunPath):
     exit()
 
   # Now copy executable over to rundir, and if needed run a setup script:
+  if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
+    print("WARNING: Application is older then smarties, make sure used libraries still match.")
+
   if is_exe(app + '/setup.sh'):
     setcmd = "cd %s && source ./setup.sh \n " \
              "echo ${EXTRA_LINE_ARGS}  \n " \
@@ -123,13 +126,11 @@ def applicationSetup(parsed, absRunPath):
   elif is_exe(app+'/'+parsed.execname+'.py'):
     shutil.copy(app+'/'+parsed.execname+'.py', absRunPath + '/')
     parsed.execname = parsed.execname + '.py'
-
   elif is_exe(absRunPath+'/'+parsed.execname):
     print('WARNING: Using executable already located in run directory.')
   elif is_exe(absRunPath+'/'+parsed.execname+'.py'):
     print('WARNING: Using python executable already located in run directory.')
     parsed.execname = parsed.execname + '.py'
-
   else:
     print('FATAL: Unable to locate application executable')
 
@@ -366,7 +367,7 @@ if __name__ == '__main__':
 
   absRunPath = os.path.abspath(relRunPath)
   os.environ['RUNDIR'] = absRunPath
-
+  
   # dir created, copy executable and read any problem-specific setup options:
   applicationSetup(parsed, absRunPath)
   # once application is defined, we can figure out all computational resouces:
@@ -383,6 +384,7 @@ if __name__ == '__main__':
   cmd = 'cd ${RUNDIR} \n'
   cmd = cmd + setEnvironmentFlags(parsed)
   cmd = cmd + setLaunchCommand(parsed, absRunPath)
-  print('COMMAND:' + parsed.args )
+  print('COMMAND:' + cmd )
+  #print('COMMAND:' + parsed.args )
   signal.signal(signal.SIGINT, signal_handler)
   subprocess.run(cmd, executable=parsed.shell, shell=True)
