@@ -24,7 +24,7 @@ struct Gaussian_policy
   const Uint start_mean, start_prec, nA;
   //const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
   const Rvec netOutputs;
-  const Rvec mean, stdev, variance, precision;
+  const Rvec mean, stdev, variance, invStdev;
 
   Rvec sampAct;
   Real sampImpWeight=0, sampKLdiv=0;
@@ -60,7 +60,7 @@ struct Gaussian_policy
     nA(aI->dim()), netOutputs(out),
     mean(extract_mean()), stdev(extract_stdev()),
     variance(extract_variance()),
-    precision(extract_precision()) {}
+    invStdev(extract_invStdev()) {}
 
  private:
 
@@ -70,7 +70,7 @@ struct Gaussian_policy
     return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean+nA]));
   }
 
-  Rvec extract_precision() const
+  Rvec extract_invStdev() const
   {
     Rvec ret(nA);
     assert(variance.size() == nA);
@@ -153,7 +153,7 @@ public:
   long double evalProbability(const Rvec& act) const
   {
     long double pi  = 1;
-    for(Uint i=0; i<nA; ++i) pi *= oneDnormal(act[i], mean[i], precision[i]);
+    for(Uint i=0; i<nA; ++i) pi *= oneDnormal(act[i], mean[i], invStdev[i]);
     return pi;
   }
 
@@ -161,8 +161,8 @@ public:
   {
     Real p = 0;
     for(Uint i=0; i<nA; ++i) {
-      const Real M = beta[i], s = beta[nA+i];
-      p -= std::pow( (A[i]-M) / s, 2 ) + std::log( 2*s*s*M_PI );
+      const Real meanMu = beta[i], stdMu = beta[nA+i];
+      p -= std::pow((A[i]-meanMu) / stdMu, 2) + std::log(2*M_PI * stdMu*stdMu );
     }
     return 0.5 * p;
   }
@@ -171,8 +171,8 @@ public:
   {
     Real p = 0;
     for(Uint i=0; i<nA; ++i) {
-      p -= precision[i] * std::pow(act[i]-mean[i], 2);
-      p += std::log(precision[i]/M_PI/2);
+      p -= std::pow( (act[i] - mean[i]) * invStdev[i], 2);
+      p += std::log( invStdev[i]*invStdev[i] / M_PI / 2 );
     }
     return p / 2;
   }
@@ -213,12 +213,12 @@ public:
   {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; ++i) {
-      const Real U = (A[i]-mean[i]) * precision[i];
+      const Real U = (A[i]-mean[i]) * std::pow(invStdev[i], 2);
       ret[i] = F * U;
       #ifdef EXTRACT_COVAR
-        ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) * precision[i] / 2;
+        ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) * std::pow(invStdev[i], 2) / 2;
       #else
-        ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) / stdev[i];
+        ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) * invStdev[i];
       #endif
     }
     return ret;
@@ -234,12 +234,13 @@ public:
   {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; ++i) {
-      const Real preci = 1/std::pow(beta[nA+i], 2);
-      ret[i]   = fac * (mean[i]-beta[i])*preci;
+      const Real varMu = std::pow(beta[nA+i], 2), dMean = mean[i]-beta[i];
+      ret[i] = fac * dMean * std::pow(invStdev[i], 2);
+      const Real dKLdinvC = fac/2 * (varMu + dMean*dMean - variance[i]);
       #ifdef EXTRACT_COVAR
-        ret[i+nA] = fac * (preci-precision[i]) /2;
+        ret[i+nA] = - dKLdinvC * std::pow(invStdev[i], 4);
       #else
-        ret[i+nA] = fac * (preci-precision[i]) * stdev[i];
+        ret[i+nA] = - 2 * dKLdinvC * std::pow(invStdev[i], 3);
       #endif
     }
     return ret;
@@ -253,13 +254,13 @@ public:
   }
   Real kl_divergence(const Rvec& beta) const
   {
-    Real ret = 0;
+    Real sumCmuCpi = 0, prodCmuCpi = 1, sumDmeanCpi = 0;
     for (Uint i=0; i<nA; ++i) {
-      const Real prech = 1/std::pow(beta[nA+i],2);
-      const Real R = variance[i]*prech;
-      ret += R -1 -std::log(R) +std::pow(mean[i]-beta[i],2)*prech;
+      prodCmuCpi  *= std::pow(  beta[nA+i] * invStdev[i], 2);
+      sumCmuCpi   += std::pow(  beta[nA+i] * invStdev[i], 2);
+      sumDmeanCpi += std::pow( (mean[i]-beta[i]) * invStdev[i], 2);
     }
-    return 0.5*ret;
+    return (sumCmuCpi + sumDmeanCpi - nA + std::log(prodCmuCpi))/2;
   }
 
   Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)
@@ -310,9 +311,6 @@ public:
 
   Rvec getMean() const {
     return mean;
-  }
-  Rvec getPrecision() const {
-    return precision;
   }
   Rvec getStdev() const {
     return stdev;
