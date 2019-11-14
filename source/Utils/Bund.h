@@ -30,7 +30,7 @@ namespace smarties
 // Switch between network computing \sigma (stdev) or \Sigma (covar).
 // Does have an effect only if sigma is linked to network output rather than
 // being a separate set of lerned parameters shared by all states.
-//#define EXTRACT_COVAR
+#define EXTRACT_COVAR
 
 // Switch between \sigma in (0 1) or (0 inf).
 #define UNBND_VAR

@@ -260,7 +260,7 @@ public:
       sumCmuCpi   += std::pow(  beta[nA+i] * invStdev[i], 2);
       sumDmeanCpi += std::pow( (mean[i]-beta[i]) * invStdev[i], 2);
     }
-    return (sumCmuCpi + sumDmeanCpi - nA + std::log(prodCmuCpi))/2;
+    return (sumCmuCpi + sumDmeanCpi - nA - std::log(prodCmuCpi))/2;
   }
 
   Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)
