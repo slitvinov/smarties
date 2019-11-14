@@ -74,7 +74,7 @@ struct Gaussian_policy
   {
     Rvec ret(nA);
     assert(variance.size() == nA);
-    for (Uint j=0; j<nA; ++j) ret[j] = 1/variance[j];
+    for (Uint j=0; j<nA; ++j) ret[j] = 1/stdev[j];
     return ret;
   }
 

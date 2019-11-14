@@ -61,7 +61,7 @@ select(Agent& agent)
       auto dbg = prepare_policy<Policy_t>(output);
       const Rvec & ACT = EP.actions.back(), & MU = EP.policies.back();
       dbg.prepare(ACT, MU);
-      const double err = fabs(dbg.sampImpWeight-1);
+      const double err = std::fabs(dbg.sampImpWeight-1);
       if(err>1e-10) _die("Imp W err %20.20e", err);
     #endif
   }
