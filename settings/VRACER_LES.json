@@ -1,6 +1,6 @@
 {
   "learner": "RACER",
-  "batchSize": 256,
+  "batchSize": 512,
   "clipImpWeight": 1,
   "epsAnneal": 0,
   "penalTol": 0.05,
