@@ -45,7 +45,7 @@ struct Gaussian_policy
 
   static Real extract_stdev(const Real unbounbed)
   {
-    #ifdef EXTRACT_COVAR
+    #ifdef SMARTIES_EXTRACT_COVAR
       return std::sqrt( PosDefMapping_f::_eval(unbounbed) );
     #else
       return            PosDefMapping_f::_eval(unbounbed)  ;
@@ -113,7 +113,7 @@ public:
       printf("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.\n");
       S = std::numeric_limits<float>::epsilon();
     }
-    #ifdef EXTRACT_COVAR
+    #ifdef SMARTIES_EXTRACT_COVAR
       const Real invFS = PosDefMapping_f::_inv(S*S);
     #else
       const Real invFS = PosDefMapping_f::_inv(S);
@@ -215,7 +215,7 @@ public:
     for (Uint i=0; i<nA; ++i) {
       const Real U = (A[i]-mean[i]) * std::pow(invStdev[i], 2);
       ret[i] = F * U;
-      #ifdef EXTRACT_COVAR
+      #ifdef SMARTIES_EXTRACT_COVAR
         ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) * std::pow(invStdev[i], 2) / 2;
       #else
         ret[i+nA] = F * ( (A[i]-mean[i])*U - 1 ) * invStdev[i];
@@ -233,14 +233,26 @@ public:
   Rvec div_kl_grad(const Rvec& beta, const Real fac = 1) const
   {
     Rvec ret(2*nA);
-    for (Uint i=0; i<nA; ++i) {
-      const Real varMu = std::pow(beta[nA+i], 2), dMean = mean[i]-beta[i];
-      ret[i] = fac * dMean * std::pow(invStdev[i], 2);
-      const Real dKLdinvC = fac/2 * (varMu + dMean*dMean - variance[i]);
-      #ifdef EXTRACT_COVAR
-        ret[i+nA] = - dKLdinvC * std::pow(invStdev[i], 4);
-      #else
-        ret[i+nA] = - 2 * dKLdinvC * std::pow(invStdev[i], 3);
+    for (Uint i=0; i<nA; ++i)
+    {
+      #ifndef SMARTIES_OPPOSITE_KL // do grad Dkl(mu||pi) :
+        const Real varMu = std::pow(beta[nA+i],2), dMean = mean[i]-beta[i];
+        ret[i] = fac * dMean * std::pow(invStdev[i], 2);
+        const Real dKLdinvC = fac/2 * (varMu + dMean*dMean - variance[i]);
+        #ifdef SMARTIES_EXTRACT_COVAR // * d (C^-1) / d C
+          ret[i+nA] = -     dKLdinvC * std::pow(invStdev[i], 4);
+        #else                         // * d (stdev^-2) / d stdev
+          ret[i+nA] = - 2 * dKLdinvC * std::pow(invStdev[i], 3);
+        #endif
+      #else                        // do grad Dkl(pi||mu) :
+        const Real invCmu = 1/std::pow(beta[nA+i],2);
+        const Real invCpi = std::pow(invStdev[i],2);
+        ret[i] = fac * (mean[i]-beta[i]) * invCmu;
+        #ifdef EXTRACT_COVAR
+          ret[i+nA] = fac * (invCmu - invCpi) / 2;
+        #else
+          ret[i+nA] = fac * (invCmu - invCpi) * stdev[i];
+        #endif
       #endif
     }
     return ret;
@@ -254,13 +266,21 @@ public:
   }
   Real kl_divergence(const Rvec& beta) const
   {
-    Real sumCmuCpi = 0, prodCmuCpi = 1, sumDmeanCpi = 0;
-    for (Uint i=0; i<nA; ++i) {
-      prodCmuCpi  *= std::pow(  beta[nA+i] * invStdev[i], 2);
-      sumCmuCpi   += std::pow(  beta[nA+i] * invStdev[i], 2);
-      sumDmeanCpi += std::pow( (mean[i]-beta[i]) * invStdev[i], 2);
+    Real sumCmuCpi = 0, prodCmuCpi = 1, sumDmeanC = 0;
+    for (Uint i=0; i<nA; ++i)
+    {
+      #ifndef SMARTIES_OPPOSITE_KL // do Dkl(mu||pi) :
+        prodCmuCpi *= std::pow(  beta[nA+i] * invStdev[i], 2);
+        sumCmuCpi  += std::pow(  beta[nA+i] * invStdev[i], 2);
+        sumDmeanC  += std::pow( (mean[i]-beta[i]) * invStdev[i], 2);
+      #else                        // do Dkl(pi||mu) :
+        const Real invCmu = 1/std::pow(beta[nA+i], 2);
+        prodCmuCpi *= variance[i] * invCmu;
+        sumCmuCpi  += variance[i] * invCmu;
+        sumDmeanC  += std::pow(mean[i]-beta[i], 2) * invCmu;
+      #endif
     }
-    return (sumCmuCpi + sumDmeanCpi - nA - std::log(prodCmuCpi))/2;
+    return (sumCmuCpi + sumDmeanC - nA - std::log(prodCmuCpi))/2;
   }
 
   Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)

@@ -21,19 +21,19 @@ namespace smarties
 // Learn rate of moving stdev and mean of states. If <=0 averaging switched off
 // and state scaling quantities are only computed from initial data.
 // It can lead to small improvement of results with some computational cost
-#define OFFPOL_ADAPT_STSCALE 1
+#define SMARTIES_OFFPOL_ADAPT_STSCALE 1
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
-#define CHEAP_SOFTPLUS
+#define SMARTIES_CHEAP_SOFTPLUS
 
 // Switch between network computing \sigma (stdev) or \Sigma (covar).
 // Does have an effect only if sigma is linked to network output rather than
 // being a separate set of lerned parameters shared by all states.
-#define EXTRACT_COVAR
+#define SMARTIES_EXTRACT_COVAR
 
 // Switch between \sigma in (0 1) or (0 inf).
-#define UNBND_VAR
+#define SMARTIES_SMARTIES_UNBND_VAR
 
 // Truncate gaussian dist from -3 to 3, resamples once every ~370 times.
 // Without this truncation, high dim act spaces might fail the test rho==1
@@ -48,7 +48,7 @@ static constexpr Real BOUNDACT_MAX = 8;
 // The noise stdev for state s_t is = ($NOISY_INPUT) * || s_{t-1} - s_{t+1} ||
 //#define NOISY_INPUT 0.01
 
-#ifndef __CHECK_DIFF
+#ifndef SMARTIES_CHECK_DIFF
   //input/output gates start closed, forget starts open:
   static constexpr Real LSTM_PRIME_FAC = 1;
 #else //else we are testing finite diffs
@@ -63,10 +63,10 @@ static constexpr Real BOUNDACT_MAX = 8;
 // Extra numerical stability for Adam optimizer: ensures M2 <= M1*M1/10
 // (or in other words deltaW <= 3 \eta , which is what happens if M1 and M2 are
 // initialized to 0 and hot started to something ). Can improve results.
-#define SAFE_ADAM
+#define SMARTIES_SAFE_ADAM
 
 // Turn on Nesterov-style Adam:
-#define NESTEROV_ADAM
+#define SMARTIES_NESTEROV_ADAM
 
 // Switch for amsgrad (grep for it, it's not vanilla but spiced up a bit):
 //#define AMSGRAD
@@ -74,8 +74,8 @@ static constexpr Real BOUNDACT_MAX = 8;
 // Switch between L1 and L2 penalization, both with coef Settings::nnLambda
 //#define NET_L1_PENAL
 
-// Switch between Adam (L = Lobj+Lpenal) and AdamW (penal is applied after Adam)
-#define ADAMW
+// Switch between Adam (L = Lobj+Lpenal) and ADAMW (penal is applied after Adam)
+#define SMARTIES_ADAMW
 
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// GRADIENT CLIPPING ////////////////////////////////

@@ -10,6 +10,7 @@
 #define smarties_FunctionUtilities_h
 
 #include "Bund.h"
+#include "Warnings.h"
 
 #include <cassert>
 #include <cmath> // log, exp, ...
@@ -48,7 +49,7 @@ inline bool isValidValue(const T vals) {
 template <typename T = Real>
 inline T safeExp(const T val)
 {
-  return std::exp( std::min( (T)EXP_CUT, std::max( - (T)EXP_CUT, val) ) );
+  return std::exp( std::min( (T)SMARTIES_EXP_CUT, std::max( - (T)SMARTIES_EXP_CUT, val) ) );
 }
 template <typename T = nnReal>
 inline T nnSafeExp(const T val)
@@ -105,7 +106,7 @@ inline std::vector<T*> allocate_vec(const std::vector<Uint>& _sizes)
   return ret;
 }
 
-#ifdef CHEAP_SOFTPLUS
+#ifdef SMARTIES_CHEAP_SOFTPLUS
 
   template<typename T>
   inline T unbPosMap_func(const T in)
@@ -156,7 +157,7 @@ inline std::vector<T*> allocate_vec(const std::vector<Uint>& _sizes)
 template<typename T>
 inline T noiseMap_func(const T val)
 {
-  #ifdef UNBND_VAR
+  #ifdef SMARTIES_UNBND_VAR
     return unbPosMap_func(val);
   #else
     return 1/(1 + safeExp(-val));
@@ -166,7 +167,7 @@ inline T noiseMap_func(const T val)
 template<typename T>
 inline T noiseMap_diff(const T val)
 {
-  #ifdef UNBND_VAR
+  #ifdef SMARTIES_UNBND_VAR
     return unbPosMap_diff(val);
   #else
     const T expx = safeExp(val);
@@ -177,7 +178,7 @@ inline T noiseMap_diff(const T val)
 template<typename T>
 inline T noiseMap_inverse(T val)
 {
-  #ifdef UNBND_VAR
+  #ifdef SMARTIES_UNBND_VAR
     return unbPosMap_inverse(val);
   #else
     if(val<=0 || val>=1) {

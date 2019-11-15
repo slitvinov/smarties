@@ -17,14 +17,6 @@
 #define __STDC_VERSION__ 0
 #endif
 
-#ifndef SINGLE_PREC // NETWORK PRECISION
-  #define gemv cblas_dgemv
-  #define gemm cblas_dgemm
-#else
-  #define gemv cblas_sgemv
-  #define gemm cblas_sgemm
-#endif
-
 #if   defined(USE_MKL)
 #include "mkl_cblas.h"
 #elif defined(USE_OPENBLAS)
@@ -140,9 +132,9 @@ class Layer
         //        weight + startCompInpGrads * NOsimd,
         //        deltas, errors + startCompInpGrads);
       #else
-      gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, NO, 1,
-        weight + startCompInpGrads * NOsimd, NOsimd,
-        deltas, 1, 1, errors + startCompInpGrads, 1);
+        SMARTIES_gemv(CblasRowMajor, CblasNoTrans, spanCompInpGrads, NO, 1,
+          weight + startCompInpGrads * NOsimd, NOsimd,
+          deltas, 1, 1, errors + startCompInpGrads, 1);
       #endif
     }
 
@@ -153,8 +145,8 @@ class Layer
       #ifdef USE_OMPSIMD_BLAS
         GEMVomp(NO, NR, NOsimd, weight, deltas, errors);
       #else
-      gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
-        weight, NOsimd, deltas, 1, 1, errors, 1);
+        SMARTIES_gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
+          weight, NOsimd, deltas, 1, 1, errors, 1);
       #endif
     }
 
