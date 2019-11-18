@@ -61,7 +61,7 @@ protected:
   int algoSubStepID = -1;
 
   Real alpha = 0.5; // weight between critic and policy
-  Real beta = CmaxPol<=0? 1 : 0.5; // if CmaxPol==0 do naive Exp Replay
+  Real beta = CmaxPol<=0? 1 : 1e-4; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
   Real CinvRet = 1 / CmaxRet;
   bool computeQretrace = false;

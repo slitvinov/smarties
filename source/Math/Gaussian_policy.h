@@ -248,7 +248,7 @@ public:
         const Real invCmu = 1/std::pow(beta[nA+i],2);
         const Real invCpi = std::pow(invStdev[i],2);
         ret[i] = fac * (mean[i]-beta[i]) * invCmu;
-        #ifdef EXTRACT_COVAR
+        #ifdef SMARTIES_EXTRACT_COVAR
           ret[i+nA] = fac * (invCmu - invCpi) / 2;
         #else
           ret[i+nA] = fac * (invCmu - invCpi) * stdev[i];
@@ -270,17 +270,17 @@ public:
     for (Uint i=0; i<nA; ++i)
     {
       #ifndef SMARTIES_OPPOSITE_KL // do Dkl(mu||pi) :
-        prodCmuCpi *= std::pow(  beta[nA+i] * invStdev[i], 2);
-        sumCmuCpi  += std::pow(  beta[nA+i] * invStdev[i], 2);
-        sumDmeanC  += std::pow( (mean[i]-beta[i]) * invStdev[i], 2);
+        prodCmuCpi *= std::pow( beta[nA+i] * invStdev[i], 2);
+        sumCmuCpi  += std::pow( beta[nA+i] * invStdev[i], 2) - 1;
+        sumDmeanC  += std::pow((mean[i]-beta[i]) * invStdev[i], 2);
       #else                        // do Dkl(pi||mu) :
         const Real invCmu = 1/std::pow(beta[nA+i], 2);
         prodCmuCpi *= variance[i] * invCmu;
-        sumCmuCpi  += variance[i] * invCmu;
+        sumCmuCpi  += variance[i] * invCmu - 1;
         sumDmeanC  += std::pow(mean[i]-beta[i], 2) * invCmu;
       #endif
     }
-    return (sumCmuCpi + sumDmeanC - nA - std::log(prodCmuCpi))/2;
+    return (sumCmuCpi + sumDmeanC - std::log(prodCmuCpi))/2;
   }
 
   Rvec updateOrUhState(Rvec& state, const Rvec beta, const Real fac)

@@ -32,6 +32,9 @@ namespace smarties
 // being a separate set of lerned parameters shared by all states.
 #define SMARTIES_EXTRACT_COVAR
 
+// Switch between Dkl(mu||pi) and Dkl(pi||mu)
+//#define SMARTIES_OPPOSITE_KL
+
 // Switch between \sigma in (0 1) or (0 inf).
 #define SMARTIES_SMARTIES_UNBND_VAR
 
