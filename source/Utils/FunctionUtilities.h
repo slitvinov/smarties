@@ -301,11 +301,11 @@ void dispose_object(T *const& ptr)
 
 template<typename It> class Range
 {
-    const It beg, end;
+    const It m_beg, m_end;
 public:
-    Range(It _beg, It _end) : beg(_beg), end(_end) {}
-    It begin() const { return beg; }
-    It end()   const { return end; }
+    Range(It _beg, It _end) : m_beg(_beg), m_end(_end) {}
+    It begin() const { return m_beg; }
+    It end()   const { return m_end; }
 };
 
 template<typename ORange,
