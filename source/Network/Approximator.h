@@ -40,7 +40,7 @@ struct Approximator
   void buildPreprocessing(const std::vector<Uint> outputSizes);
   Builder& getBuilder()
   {
-    if(build) return * build.get();
+    if (build) return * build.get();
     else {
       die("Requested unallocated network building entity");
       return * build.get();
@@ -49,7 +49,15 @@ struct Approximator
 
   void initializeNetwork();
 
-  Uint nOutputs() const { return net->getnOutputs(); }
+  Uint nOutputs() const {
+    if (net == nullptr) return 0;
+    else return net->getnOutputs();
+  }
+  Uint nLayers() const {
+    if (net not_eq nullptr) return net->nLayers;
+    else if (build not_eq nullptr) return build->layers.size();
+    else return 0;
+  }
   void setNgradSteps(const Uint iter) const { opt->nStep = iter; }
   void updateGradStats(const std::string& base, const Uint iter) const
   {
@@ -198,7 +206,7 @@ struct Approximator
     assert(auxInputNet && "improperly set up the aux input net");
     assert(auxInputAttachLayer >= 0 && "improperly set up the aux input net");
     if(ESpopSize > 1) {
-      debugL("Skipping relay_backprop because we use ES optimizers.");
+      debugL("Skipping backprop because we use ES optimizers.");
       return Rvec(m_auxInputSize, 0);
     }
     ThreadContext& C = getContext(batchID);
@@ -328,7 +336,6 @@ private:
   // policy net gradients towards input conv layers
   bool m_blockInpGrad = false;
 
-  //const Aggregator* const relay;
   std::shared_ptr<Network> net;
   std::shared_ptr<Optimizer> opt;
   std::unique_ptr<Builder> build;

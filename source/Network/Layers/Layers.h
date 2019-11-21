@@ -344,13 +344,19 @@ class ParametricResidualLayer: public Layer
     const nnReal* const delta = curr->E(ID);
     assert(curr->sizes[ID-1] == size);
     memcpy(curr->E(ID-1), delta, size * sizeof(nnReal) );
-
-    nnReal* const gradB = grad->B(ID);
-    nnReal* const gradW = grad->W(ID);
     nnReal* const gradInp = curr->E(ID-2);
     const nnReal* const W = para->W(ID);
     const nnReal* const inp = curr->Y(ID-2);
     const Uint sizeInp = std::min(curr->sizes[ID-2], size);
+
+    if(grad == nullptr) {
+      #pragma omp simd aligned(delta, W, gradInp : VEC_WIDTH)
+      for (Uint j=0; j<sizeInp; ++j) gradInp[j] += delta[j] * W[j];
+      return;
+    }
+
+    nnReal* const gradB = grad->B(ID);
+    nnReal* const gradW = grad->W(ID);
 
     #pragma omp simd aligned(delta,inp,W, gradB,gradW,gradInp : VEC_WIDTH)
     for (Uint j=0; j<sizeInp; ++j) {
@@ -494,13 +500,22 @@ class ParamLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override
   {
-          nnReal* const deltas = curr->E(ID);
-          nnReal* const grad_b = grad->B(ID);
     const nnReal* const inputs = curr->X(ID);
     const nnReal* const outval = curr->Y(ID);
-    for(Uint o=0; o<size; ++o) {
-      deltas[o] *= func->evalDiff(inputs[o], outval[o]);
-      grad_b[o] += deltas[o];
+    nnReal* const deltas = curr->E(ID);
+
+    if(grad == nullptr)
+    {
+      for(Uint o=0; o<size; ++o)
+        deltas[o] *= func->evalDiff(inputs[o], outval[o]);
+    }
+    else
+    {
+      nnReal* const grad_b = grad->B(ID);
+      for(Uint o=0; o<size; ++o) {
+        deltas[o] *= func->evalDiff(inputs[o], outval[o]);
+        grad_b[o] += deltas[o];
+      }
     }
   }
 

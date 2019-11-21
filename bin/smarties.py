@@ -383,7 +383,6 @@ if __name__ == '__main__':
   cmd = 'cd ${RUNDIR} \n'
   cmd = cmd + setEnvironmentFlags(parsed)
   cmd = cmd + setLaunchCommand(parsed, absRunPath)
-  print('COMMAND:' + cmd )
   #print('COMMAND:' + parsed.args )
   signal.signal(signal.SIGINT, signal_handler)
   subprocess.run(cmd, executable=parsed.shell, shell=True)
