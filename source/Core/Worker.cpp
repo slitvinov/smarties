@@ -92,7 +92,7 @@ void Worker::runTraining()
     for(const auto& L : learners)
       nEnvSeqs = std::min(nEnvSeqs, L->nSeqsEval() / factor);
     const Real perc = 100.0 * nEnvSeqs / (Real) distrib.totNumSteps;
-    if(perc >= 100) {
+    if(nEnvSeqs >= distrib.totNumSteps) {
       printf("\rFinished collecting %ld environment episodes " \
         "(option --totNumSteps) to evaluate restarted policies.\n", nEnvSeqs);
       return true;
