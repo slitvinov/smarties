@@ -12,6 +12,7 @@
 #include "Builder.h"
 #include "ThreadContext.h"
 #include "../Utils/StatsTracker.h"
+//#include "../Utils/SstreamUtilities.h"
 #include "../ReplayMemory/MemoryBuffer.h"
 
 namespace smarties
@@ -222,11 +223,11 @@ struct Approximator
     const Rvec ret = net->backPropToLayer(gradient, auxInputAttachLayer, A, W);
     #if 0
     if(batchID == 0) {
-      const auto pret = Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
+      const auto pret = Rvec(&ret[inputSize], &ret[inputSize + m_auxInputSize]);
       const auto inp = A->getInput();
-      const auto pinp = Rvec(&inp[nInp], &inp[nInp+relay->nOutputs()]);
-      std::cout<<"G:"<<Utilities::vec2string(pret)<<" Inp:"
-                     <<Utilities::vec2string(pinp)<<std::endl;
+      const auto pinp = Rvec(&inp[inputSize], &inp[inputSize + m_auxInputSize]);
+      printf("G:%s Inp:%s\n", Utilities::vec2string(pret).c_str(),
+                              Utilities::vec2string(pinp).c_str());
     }
     #endif
     if(auxInputAttachLayer>0) return ret;

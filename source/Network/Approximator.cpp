@@ -84,19 +84,21 @@ void Approximator::setUseTargetNetworks(const Sint targetNetworkSampleID,
 void Approximator::initializeNetwork()
 {
   const MDPdescriptor & MDP = replay->MDP;
-  if(build->layers.back()->bOutput == false)
-  {
+  if(build->layers.back()->bOutput == false) {
     assert(build->nOutputs == 0);
     if (MPICommSize(distrib.world_comm) == 0)
       warn("Requested net where last layer isnt output. Overridden: now it is");
     build->layers.back()->bOutput = true;
     build->nOutputs = build->layers.back()->size;
   }
+
   if(MPICommRank(distrib.world_comm) == 0) {
     printf("Initializing %s approximator.\nLayers composition:\n",name.c_str());
   }
+
   build->build();
-  std::swap(net, build->net); std::swap(opt, build->opt);
+  std::swap(net, build->net);
+  std::swap(opt, build->opt);
   std::vector<std::shared_ptr<Parameters>> grads = build->threadGrads;
   assert(opt && net && grads.size() == nThreads);
   delete build.release();

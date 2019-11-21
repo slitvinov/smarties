@@ -314,7 +314,7 @@ class ParametricResidualLayer: public Layer
                           std::vector<Uint>& bOutputs,
                           std::vector<Uint>& bInputs) const override {
     sizes.push_back(size);
-    bOutputs.push_back(false);
+    bOutputs.push_back(bOutput);
     bInputs.push_back(false);
   }
   void biasInitialValues(const std::vector<Real> init) override { }
