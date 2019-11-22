@@ -153,7 +153,7 @@ static inline Real expectedValue(const Rvec& Qhats, const Rvec& Qtildes,
     Discrete_policy pol({0}, aI, Qhats);
     Real ret = 0;
     for(Uint i=0; i<aI->dimDiscrete(); ++i) ret += pol.probs[i] * Qtildes[i];
-    return ret;
+    return ret + Qtildes.back();
   #else
     return Qtildes[ Utilities::maxInd(Qhats) ] + Qtildes.back();
   #endif
