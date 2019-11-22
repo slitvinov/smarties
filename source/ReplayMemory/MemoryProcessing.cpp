@@ -13,6 +13,7 @@
 
 namespace smarties
 {
+static constexpr Fval EPS = std::numeric_limits<Fval>::epsilon();
 
 MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
   Ssum1Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 0) ),
@@ -75,7 +76,6 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     Rsum2Rdx.update( LDvec {newstdvr});
   }
 
-  static constexpr Real EPS = std::numeric_limits<float>::epsilon();
   const long double count = Csum1Rdx.get<0>(bInit);
 
   if(WR>0)
@@ -120,7 +120,6 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
   Real dklV = -1, farV = -1, oldV = 9e9;
   Real _nOffPol = 0, _totDKL = 0;
   const Uint setSize = RM->readNSeq();
-  const Fval EPS = std::numeric_limits<Fval>::epsilon();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
     std::pair<int, Real> farpol{-1, -1}, maxdkl{-1, -1}, oldest{-1, 9e9};
