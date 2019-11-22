@@ -195,9 +195,10 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   if (not MB.isTerminal(bID, t+1)) {
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    Rvec Qhats         = networks[0]->forward    (bID, t+1);
-    const Rvec Qtildes = networks[0]->forward_tgt(bID, t+1);
-    //v_s = r + gamma * Q(greedy action)
+    const Rvec Qhats = networks[0]->forward(bID, t+1);
+    const Rvec Qtildes = settings.targetDelay <= 0 ? Qhats // no target nets
+                         : networks[0]->forward_tgt(bID, t+1);
+    //v_s = r + gamma * Q(greedy action) :
     Vsnew += gamma * expectedValue(Qhats, Qtildes, & aInfo);
   }
   const Real ERR = Vsnew - Qs[actt];
