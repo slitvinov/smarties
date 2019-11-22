@@ -211,7 +211,7 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     const Real DKL = POL.sampKLdiv, RHO = POL.sampImpWeight;
     const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
-    if(CmaxRet>1 && beta<1) { // then refer
+    if(CmaxRet>1) { // then refer
       if(isOff) gradient = Rvec(nA, 0); // grad clipping as if pol gradient
       const Rvec penGrad = POL.finalize_grad(POL.div_kl_grad(MB.mu(bID,t), -1));
       for(Uint i=0; i<nA; ++i)
