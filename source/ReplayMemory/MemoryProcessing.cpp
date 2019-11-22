@@ -120,6 +120,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
   Real dklV = -1, farV = -1, oldV = 9e9;
   Real _nOffPol = 0, _totDKL = 0;
   const Uint setSize = RM->readNSeq();
+  const Fval EPS = std::numeric_limits<Fval>::epsilon();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
     std::pair<int, Real> farpol{-1, -1}, maxdkl{-1, -1}, oldest{-1, 9e9};
@@ -132,8 +133,9 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
           const auto& W = Set[i]->offPolicImpW[j];
           dbg_sum_mse += Set[i]->SquaredError[j];
           dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
-          assert( W>=0 );
-          assert( Set[i]->KullbLeibDiv[j]>=0 );
+          assert(W >= 0);
+          // float precision may cause DKL to be slightly negative:
+          assert(Set[i]->KullbLeibDiv[j] >= -EPS);
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
