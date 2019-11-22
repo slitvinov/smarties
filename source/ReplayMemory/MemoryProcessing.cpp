@@ -132,7 +132,8 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
           const auto& W = Set[i]->offPolicImpW[j];
           dbg_sum_mse += Set[i]->SquaredError[j];
           dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
-          assert( W>=0  &&  Set[i]->KullbLeibDiv[j]>=0 );
+          assert( W>=0 );
+          assert( Set[i]->KullbLeibDiv[j]>=0 );
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
