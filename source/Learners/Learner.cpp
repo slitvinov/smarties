@@ -329,8 +329,8 @@ void Learner::save()
   char baseName[512];
   sprintf(baseName, "%s_rank_%03lu_learner", learner_name.c_str(), learn_rank);
   const std::string dumpName(baseName);
-  FILE * fstat = fopen((dumpName + "status_backup.raw").c_str(), "w");
-  FILE * fdata = fopen((dumpName + "data_backup.raw").c_str(), "wb");
+  FILE * fstat = fopen((dumpName + "_status_backup.raw").c_str(), "w");
+  FILE * fdata = fopen((dumpName + "_data_backup.raw").c_str(), "wb");
 
   const long doneGradSteps = nGradSteps();
   const Uint nStoredEps = data->readNSeq();
@@ -353,8 +353,8 @@ void Learner::save()
     data->get(i)->save(fdata, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol() );
   fflush(fdata); fclose(fdata);
 
-  Utilities::copyFile(dumpName + "status_backup.raw", dumpName + "status.raw");
-  Utilities::copyFile(dumpName + "data_backup.raw", dumpName + "data.raw");
+  Utilities::copyFile(dumpName + "_status_backup.raw", dumpName + "_status.raw");
+  Utilities::copyFile(dumpName + "_data_backup.raw", dumpName + "_data.raw");
 }
 
 }
