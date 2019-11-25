@@ -55,6 +55,7 @@ public:
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
   void prune(const FORGET ALGO, const Fval CmaxRho = 1, const bool recompute = false);
   void finalize();
+  void histogramImportanceWeights();
 
   void getMetrics(std::ostringstream& buff);
   void getHeaders(std::ostringstream& buff);

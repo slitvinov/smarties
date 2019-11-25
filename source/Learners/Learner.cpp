@@ -136,6 +136,7 @@ void Learner::finalizeMemoryProcessing()
   profiler->stop_start("PRE");
   if(currStep%1000==0) // update state mean/std with net's learning rate
     data_proc->updateRewardsStats(1, 1e-3*(SMARTIES_OFFPOL_ADAPT_STSCALE>0));
+
   profiler->stop();
 }
 
@@ -173,8 +174,11 @@ void Learner::logStats()
   const Uint fProfl = freqPrint * PRFL_DMPFRQ;
   const Uint fBackup = std::ceil(settings.saveFreq / (Real)fProfl) * fProfl;
 
-  if(currStep % fProfl == 0 && learn_rank == 0)
+  if(currStep % fProfl == 0 && learn_rank == 0) {
     printf("%s\n", profiler->printStatAndReset().c_str() );
+    // TODO : separate histograms frequency from profiler
+    data_proc->histogramImportanceWeights();
+  }
 
   if(currStep % fBackup == 0 && learn_rank == 0) save();
 

@@ -249,46 +249,47 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   return OLDEST; // to silence warning
 }
 
+void MemoryProcessing::histogramImportanceWeights()
+{
+  static constexpr Fval bins[] = { 0, 0.001, 0.0014, 0.0018, 0.0024, 0.0031,
+    0.004, 0.005, 0.0062, 0.0079, 0.0099, 0.0123, 0.0152, 0.0185, 0.0227,
+    0.0278, 0.0346, 0.0417, 0.05, 0.0588, 0.0741, 0.0909, 0.1111, 0.1351,
+    0.1667, 0.2, 0.2381, 0.2857, 0.3448, 0.4, 0.4587, 0.5319, 0.6098, 0.6944,
+    0.7813, 0.862, 0.926, 0.96, 0.98, 0.99, 1.0, 1.01, 1.02, 1.04, 1.08, 1.16,
+    1.28, 1.44, 1.64, 1.88, 2.18, 2.50, 2.90, 3.50, 4.20, 5.00, 6.00, 7.40,
+    9.00, 11.0, 13.5, 17.0, 20.0, 24.0, 29.0, 36.0, 44.0, 54.0, 66.0, 80.0,
+    100.0, 125.0, 160.0, 200.0, 250.0, 325.0, 420.0, 550.0, 700.0, 1000.0,
+    std::numeric_limits<Fval>::max()-2000.0 // (-2000 to avoid inf later)
+  };
+  static constexpr Uint nBins = sizeof(bins) / sizeof(bins[0]);
+  Uint counts[nBins-1] = {0};
+
+  const Uint setSize = RM->readNSeq();
+  #pragma omp parallel for schedule(dynamic, 1) reduction(+ : counts[:nBins])
+  for(Uint i = 0; i < setSize; ++i) {
+    const auto & EP = * Set[i];
+    for(Uint j=0; j < EP.ndata(); ++j) {
+      const auto rho = EP.offPolicImpW[j];
+      for(Uint b = 0; b < nBins-1; ++b)
+        if(rho >= bins[b] && rho < bins[b+1]) counts[b] ++;
+    }
+  }
+  const auto harmoncMean = [](const Fval a, const Fval b) {
+    return 2 * a * (b / (a + b));
+  };
+  std::ostringstream buff;
+  buff << "_________________________________________________________________\n";
+  buff << "OFF-POLICY IMP WEIGHTS HISTOGRAMS\n";
+  buff << "weight pi/mu (harmonic mean of histogram's bounds):\n";
+  for(Uint b = 0; b < nBins-1; ++b)
+    Utilities::real2SS(buff, harmoncMean(bins[b], bins[b+1]), 6, 1);
+  buff << "\nfraction of dataset:\n";
+  const Real dataSize = RM->readNData();
+  for(Uint b = 0; b < nBins-1; ++b)
+    Utilities::real2SS(buff, counts[b]/dataSize, 6, 1);
+  buff << "\n";
+  buff << "_________________________________________________________________\n";
+  printf("%s\n", buff.str().c_str());
 }
 
-
-#if 0 // ndef NDEBUG
-  if( settings.learner_rank == 0 ) {
-   std::ofstream outf("runningAverages.dat", std::ios::app);
-   outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<std::endl;
-   outf.flush(); outf.close();
-  }
-  Uint cntSamp = 0;
-  for(Uint i=0; i<setSize; ++i) {
-    assert(Set[i] not_eq nullptr);
-    cntSamp += Set[i]->ndata();
-  }
-  assert(cntSamp==nTransitions.load());
-  if(WS>=1)
-  {
-    LDvec dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
-    #pragma omp parallel
-    {
-      LDvec thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
-      #pragma omp for schedule(dynamic)
-      for(Uint i=0; i<setSize; ++i)
-        for(Uint j=0; j<Set[i]->ndata(); ++j) {
-          const auto S = RM->standardize(Set[i]->states[j]);
-          for(Uint k=0; k<dimS; ++k) {
-            thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
-          }
-        }
-      #pragma omp critical
-      for(Uint k=0; k<dimS; ++k) {
-        dbgStateSum[k]   += thr_dbgStateSum[k];
-        dbgStateSqSum[k] += thr_dbgStateSqSum[k];
-      }
-    }
-    for(Uint k=0; k<dimS && settings.learner_rank == 0; ++k) {
-      const Real dbgMean = dbgStateSum[k]/cntSamp;
-      const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
-      if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
-        std::cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<<"\n";
-    }
-  }
-#endif
+}
