@@ -292,14 +292,32 @@ void MemoryProcessing::getHeaders(std::ostringstream& buff)
 FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   const bool bReFER)
 {
-  if(setting == "oldest")     return OLDEST;
-  if(setting == "farpolfrac") return FARPOLFRAC;
-  if(setting == "maxkldiv")   return MAXKLDIV;
-  if(setting == "batchrl")    return BATCHRL;
+  if(setting == "oldest") {
+    printf("Experience Replay storage: First In First Out.\n");
+    return OLDEST;
+  }
+  if(setting == "farpolfrac") {
+    printf("Experience Replay storage: remove most 'far policy' episode.\n");
+    return FARPOLFRAC;
+  }
+  if(setting == "maxkldiv") {
+    printf("Experience Replay storage: remove highest average DKL episode.\n");
+    return MAXKLDIV;
+  }
+  if(setting == "batchrl") {
+    printf("Experience Replay storage: remove data only if policy is better.\n");
+    return BATCHRL;
+  }
   //if(setting == "minerror")   return MINERROR; miriad ways this can go wrong
   if(setting == "default") {
-    if(bReFER) return FARPOLFRAC;
-    else       return OLDEST;
+    if(bReFER) {
+      printf("Experience Replay storage: remove most 'far policy' episode.\n");
+      return FARPOLFRAC;
+    }
+    else {
+      printf("Experience Replay storage: First In First Out.\n");
+      return OLDEST;
+    }
   }
   die("ERoldSeqFilter not recognized");
   return OLDEST; // to silence warning
