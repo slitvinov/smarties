@@ -313,6 +313,7 @@ void Learner::restart()
     Sequence* const S = new Sequence();
     if( S->restart(fdata, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol()) )
       _die("Unable to find sequence %u\n", i);
+    S->updateCumulative(CmaxRet, CinvRet);
     data->set(S, i);
   }
   fclose(fdata);
@@ -351,7 +352,8 @@ void Learner::save()
   assert(fdata != NULL);
   for(Uint i = 0; i <nStoredEps; ++i)
     data->get(i)->save(fdata, sInfo.dimObs(), aInfo.dim(), aInfo.dimPol() );
-  fflush(fdata); fclose(fdata);
+  fflush(fdata);
+  fclose(fdata);
 
   Utilities::copyFile(dumpName + "_status_backup.raw", dumpName + "_status.raw");
   Utilities::copyFile(dumpName + "_data_backup.raw", dumpName + "_data.raw");

@@ -110,49 +110,63 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   }
 }
 
-void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool recompute)
+void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
+                             const bool recompute)
 {
-  //checkNData();
   assert(CmaxRho>=1);
   const Fval invC = 1/CmaxRho;
 
+  // episode with the least far-policy steps (see refer) but lowest reward
   struct WorstOnPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = 9e9;
     void compare(const Sequence & EP, const int ep_ind) {
-      const Real W_FAR = EP.nOffPol  / EP.ndata();
-      const bool asOnPolButWorse = W_FAR <= fracFarPol && EP.totR < R;
-      if(W_FAR < fracFarPol || asOnPolButWorse) {
-        ind = ep_ind; fracFarPol = W_FAR; R = EP.totR;
+      const Real EP_fracFarPol = EP.nFarPolicySteps  / EP.ndata();
+      const bool asOnPolButWorse = EP_fracFarPol <= fracFarPol && EP.totR < R;
+      if(EP_fracFarPol < fracFarPol || asOnPolButWorse) {
+        ind = ep_ind; fracFarPol = EP_fracFarPol; R = EP.totR;
       }
-    }
-  };
-  struct BestOffPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = -1;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real W_FAR = EP.nOffPol  / EP.ndata();
-      const bool asOffPolButWorse = W_FAR >= fracFarPol && EP.totR < R;
-      if(W_FAR > fracFarPol || asOffPolButWorse) {
-        ind = ep_ind; fracFarPol = W_FAR; R = EP.totR;
-      }
-    }
-  };
-  struct MostFarPolicyEp { int ind = -1; Real fractionFarPol = -1;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real W_FAR = EP.nOffPol  / EP.ndata();
-      if(W_FAR > fractionFarPol) { ind = ep_ind; fractionFarPol = W_FAR; }
-    }
-  };
-  struct HighestAvgDklEp { int ind = -1; Real averageDkl = -1;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real W_DKL = EP.sumKLDiv / EP.ndata();
-      if(W_DKL > averageDkl) { ind = ep_ind; averageDkl = W_DKL; }
-    }
-  };
-  struct OldestDatasetEp { int ind = -1; Sint timestamp = std::numeric_limits<Sint>::max();
-    void compare(const Sequence & EP, const int ep_ind) {
-      if(EP.ID < timestamp) { ind = ep_ind; timestamp = EP.ID; }
     }
   };
 
-  WorstOnPolicyEp totWorstOn; BestOffPolicyEp totBestOff;
+  // episode with smallest average min(1, pi/mu):
+  struct MostOffPolicyEp { int ind = -1; Real R = 9e9; Real avgClipImpW = 9e9;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real EP_avgClipImpW = EP.sumClipImpW / EP.ndata();
+      if(EP_avgClipImpW < avgClipImpW) {
+        ind = ep_ind; avgClipImpW = EP_avgClipImpW; R = EP.totR;
+      }
+    }
+  };
+
+  // episode with highest fraction of far-policy steps as described in refer
+  struct MostFarPolicyEp { int ind = -1; Real fractionFarPol = -1;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real EP_fracFarPol = EP.nFarPolicySteps  / EP.ndata();
+      if(EP_fracFarPol > fractionFarPol) {
+        ind = ep_ind; fractionFarPol = EP_fracFarPol;
+      }
+    }
+  };
+
+  // episode with highest average Kullback Leibler divergence
+  struct HighestAvgDklEp { int ind = -1; Real averageDkl = -1;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real EP_avgDkl = EP.sumKLDivergence / EP.ndata();
+      if(EP_avgDkl > averageDkl) {
+        ind = ep_ind; averageDkl = EP_avgDkl;
+      }
+    }
+  };
+
+  // episode that was stored the most timesteps ago:
+  struct OldestDatasetEp { int ind = -1; Sint timestamp = std::numeric_limits<Sint>::max();
+    void compare(const Sequence & EP, const int ep_ind) {
+      if(EP.ID < timestamp) {
+        ind = ep_ind; timestamp = EP.ID;
+      }
+    }
+  };
+
+  WorstOnPolicyEp totWorstOn; MostOffPolicyEp totMostOff;
   MostFarPolicyEp totMostFar; HighestAvgDklEp totHighDkl;
   OldestDatasetEp totFirstIn;
 
@@ -160,7 +174,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
   const Uint setSize = RM->readNSeq();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
-    WorstOnPolicyEp locWorstOn; BestOffPolicyEp locBestOff;
+    WorstOnPolicyEp locWorstOn; MostOffPolicyEp locMostOff;
     MostFarPolicyEp locMostFar; HighestAvgDklEp locHighDkl;
     OldestDatasetEp locFirstIn;
 
@@ -168,26 +182,11 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
     for (Uint i = 0; i < setSize; ++i)
     {
       Sequence & EP = * Set[i];
-      if (recompute) {
-        Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0, dbg_sum_mse = 0;
-        for (Uint j = 0; j < EP.ndata(); ++j) {
-          const auto& W = EP.offPolicImpW[j];
-          dbg_sum_mse += EP.SquaredError[j];
-          dbg_sumKLDiv += EP.KullbLeibDiv[j];
-          assert(W >= 0);
-          // float precision may cause DKL to be slightly negative:
-          assert(EP.KullbLeibDiv[j] >= -EPS);
-          // sequence is off policy if offPol W is out of 1/C : C
-          if (W>CmaxRho || W<invC) dbg_nOffPol += 1;
-        }
-        EP.MSE = dbg_sum_mse;
-        EP.nOffPol = dbg_nOffPol;
-        EP.sumKLDiv = dbg_sumKLDiv;
-      }
+      if (recompute) EP.updateCumulative(CmaxRho, invC);
 
-      _nOffPol += EP.nOffPol;
-      _totDKL  += EP.sumKLDiv;
-      locWorstOn.compare(EP, i); locBestOff.compare(EP, i);
+      _nOffPol += EP.nFarPolicySteps;
+      _totDKL  += EP.sumKLDivergence;
+      locWorstOn.compare(EP, i); locMostOff.compare(EP, i);
       locMostFar.compare(EP, i); locHighDkl.compare(EP, i);
       locFirstIn.compare(EP, i);
     }
@@ -195,7 +194,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
     #pragma omp critical
     {
       totWorstOn.compare(* Set[locWorstOn.ind], locWorstOn.ind);
-      totBestOff.compare(* Set[locBestOff.ind], locBestOff.ind);
+      totMostOff.compare(* Set[locMostOff.ind], locMostOff.ind);
       totMostFar.compare(* Set[locMostFar.ind], locMostFar.ind);
       totHighDkl.compare(* Set[locHighDkl.ind], locHighDkl.ind);
       totFirstIn.compare(* Set[locFirstIn.ind], locFirstIn.ind);
@@ -207,8 +206,12 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
   nOffPol = _nOffPol;
   minInd = totFirstIn.timestamp;
 
-  assert(oldP<(int)Set.size() && farP<(int)Set.size() && dklP<(int)Set.size());
-  assert( oldP >=  0 && farP >=  0 && dklP >=  0 );
+  assert(totWorstOn.ind >= 0 && totWorstOn.ind < (int) setSize);
+  assert(totMostOff.ind >= 0 && totMostOff.ind < (int) setSize);
+  assert(totMostFar.ind >= 0 && totMostFar.ind < (int) setSize);
+  assert(totHighDkl.ind >= 0 && totHighDkl.ind < (int) setSize);
+  assert(totFirstIn.ind >= 0 && totFirstIn.ind < (int) setSize);
+
   indexOfEpisodeToDelete = -1;
   switch (ALGO) {
     case OLDEST:     indexOfEpisodeToDelete = totFirstIn.ind; break;
@@ -217,7 +220,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
     case BATCHRL:
       // If totR of most on policy EP is lower than totR of most off policy EP
       // then do not delete anything. Else delete most off-policy EP.
-      if (totWorstOn.R > totBestOff.R) indexOfEpisodeToDelete = totBestOff.ind;
+      if (totWorstOn.R > totMostOff.R) indexOfEpisodeToDelete = totMostOff.ind;
       break;
   }
 
@@ -312,7 +315,7 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   if(setting == "default") {
     if(bReFER) {
       printf("Experience Replay storage: remove most 'far policy' episode.\n");
-      return FARPOLFRAC;
+      return BATCHRL;
     }
     else {
       printf("Experience Replay storage: First In First Out.\n");

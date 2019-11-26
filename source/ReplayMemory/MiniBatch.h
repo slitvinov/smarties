@@ -151,17 +151,7 @@ struct MiniBatch
     const Fval E, const Fval D, const Fval W,    // error, dkl, offpol weight
     const Fval C, const Fval invC) const         // bounds of offpol weight
   {
-    Sequence& EP = getEpisode(b);
-    const bool wasOff = EP.offPolicImpW[t] > C || EP.offPolicImpW[t] < invC;
-    const bool isOff = W > C || W < invC;
-    {
-      EP.sumKLDiv.store(EP.sumKLDiv.load() - EP.KullbLeibDiv[t] + D);
-      EP.MSE.store(EP.MSE.load() - EP.SquaredError[t] + E);
-      EP.nOffPol.store(EP.nOffPol.load() - wasOff + isOff);
-    }
-    EP.SquaredError[t] = E;
-    EP.KullbLeibDiv[t] = D;
-    EP.offPolicImpW[t] = W;
+    getEpisode(b).updateCumulative_atomic(t, E, D, W, C, invC);
   }
 
   Fval updateRetrace(const Uint b, const Uint t,

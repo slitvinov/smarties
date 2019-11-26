@@ -403,14 +403,14 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
 
   Fval maxMSE = 0;
   for(long i=0; i<nSeqs; ++i)
-    maxMSE = std::max(maxMSE, Set[i]->MSE / Set[i]->ndata());
+    maxMSE = std::max(maxMSE, Set[i]->sumSquaredErr / Set[i]->ndata());
 
   float minP = 1e9, maxP = 0;
   #pragma omp parallel for schedule(dynamic) reduction(min:minP) reduction(max:maxP)
   for(long i=0; i<nSeqs; ++i)
   {
     const Uint ndata = Set[i]->ndata();
-    float sumErrors = Set[i]->MSE;
+    float sumErrors = Set[i]->sumSquaredErr;
     for(Uint j=0; j<ndata; ++j)
       if( std::fabs( Set[i]->SquaredError[j] ) <= 0 ) sumErrors += maxMSE;
     //sampling P is episode's RMSE to the power beta=.5 times length of episode

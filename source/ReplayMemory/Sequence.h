@@ -13,6 +13,7 @@
 #include "../Utils/Warnings.h"
 #include <cassert>
 #include <atomic>
+#include <numeric>
 //#include <mutex>
 #include <cmath>
 
@@ -63,9 +64,47 @@ struct Sequence
 
   // some quantities needed for processing of experiences
   Fval totR = 0;
-  std::atomic<Fval> sumKLDiv{0};
-  std::atomic<Fval> nOffPol{0};
-  std::atomic<Fval> MSE{0};
+  std::atomic<Uint> nFarPolicySteps{0};
+  std::atomic<Fval> sumKLDivergence{0};
+  std::atomic<Fval> sumSquaredErr{0};
+  std::atomic<Fval> sumClipImpW{0}; // sum(min(rho,1) - 1) so we can init to 0
+
+  void updateCumulative(const Fval C, const Fval invC)
+  {
+    Uint nFarPol = 0;
+    Fval sumClipRho = 0;
+    for (Uint t = 0; t < ndata(); ++t) {
+      // float precision may cause DKL to be slightly negative:
+      assert(KullbLeibDiv[t] >= - std::numeric_limits<Fval>::epsilon() && offPolicImpW[t] >= 0);
+      // sequence is off policy if offPol W is out of 1/C : C
+      if (offPolicImpW[t] > C || offPolicImpW[t] < invC) nFarPol += 1;
+      sumClipRho += std::min((Fval) 1, offPolicImpW[t]) - 1;
+    }
+    nFarPolicySteps = nFarPol;
+    sumClipImpW = sumClipRho;
+
+    totR = std::accumulate(rewards.begin(), rewards.end(), 0);
+    sumSquaredErr = std::accumulate(SquaredError.begin(), SquaredError.end(), 0);
+    sumKLDivergence = std::accumulate(KullbLeibDiv.begin(), KullbLeibDiv.end(), 0);
+  }
+
+  void updateCumulative_atomic(const Uint t, const Fval E, const Fval D,
+                               const Fval W, const Fval C, const Fval invC)
+  {
+    const bool wasOff = offPolicImpW[t] > C || offPolicImpW[t] < invC;
+    const bool isOff  = W > C || W < invC;
+    const Fval clipOldW = std::min((Fval) 1, offPolicImpW[t]);
+    const Fval clipNewW = std::min((Fval) 1, W);
+
+    sumKLDivergence.store(sumKLDivergence.load() - KullbLeibDiv[t] + D);
+    sumSquaredErr.store(sumSquaredErr.load() - SquaredError[t] + E);
+    sumClipImpW.store(sumClipImpW.load() - clipOldW + clipNewW);
+    nFarPolicySteps += isOff - wasOff;
+
+    SquaredError[t] = E;
+    KullbLeibDiv[t] = D;
+    offPolicImpW[t] = W;
+  }
 
   // did episode terminate (i.e. terminal state) or was a time out (i.e. V(s_end) != 0
   bool ended = false;
@@ -84,22 +123,33 @@ struct Sequence
     if(states.size()==0) return 0;
     else return states.size() - 1;
   }
+
   Uint nsteps() const // total number of time steps observed
   {
     return states.size();
   }
+
   bool isTerminal(const Uint t) const
   {
     return t+1 == states.size() && ended;
   }
+
   bool isTruncated(const Uint t) const
   {
     return t+1 == states.size() && not ended;
   }
+
   ~Sequence() { clear(); }
+
   void clear()
   {
-    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0; sumKLDiv=0; totR=0;
+    ended = false; ID = -1; just_sampled = -1;
+    nFarPolicySteps = 0;
+    sumKLDivergence = 0;
+    sumSquaredErr   = 0;
+    sumClipImpW     = 0;
+    totR = 0;
+
     states.clear();
     actions.clear();
     policies.clear();
@@ -113,20 +163,24 @@ struct Sequence
     state_vals.clear();
     Q_RET.clear();
   }
+
   void setSampled(const int t) //update ind of latest sampled time step
   {
     if(just_sampled < t) just_sampled = t;
   }
+
   void setRetrace(const Uint t, const Fval Q)
   {
     assert( t < Q_RET.size() );
     Q_RET[t] = Q;
   }
+
   void setAdvantage(const Uint t, const Fval A)
   {
     assert( t < action_adv.size() );
     action_adv[t] = A;
   }
+
   void setStateValue(const Uint t, const Fval V)
   {
     assert( t < state_vals.size() );
@@ -156,18 +210,19 @@ struct Sequence
     const Uint dP, const Uint Nstep)
   {
     const Uint tuplSize = dS+dA+dP+1;
-    static constexpr Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    static constexpr Uint infoSize = 6; //adv,val,ret, mse,dkl,impW
     //extras : ended,ID,sampled,prefix,agentID x 2 for conversion safety
-    static constexpr Uint extraSize = 14;
+    static constexpr Uint extraSize = 10;
     const Uint ret = (tuplSize+infoSize)*Nstep + extraSize;
     return ret;
   }
+
   static Uint computeTotalEpisodeNstep(const Uint dS, const Uint dA,
     const Uint dP, const Uint size)
   {
     const Uint tuplSize = dS+dA+dP+1;
-    static constexpr Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    static constexpr Uint extraSize = 14;
+    static constexpr Uint infoSize = 6; //adv,val,ret, mse,dkl,impW
+    static constexpr Uint extraSize = 10;
     const Uint nStep = (size - extraSize)/(tuplSize+infoSize);
     assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
     return nStep;
