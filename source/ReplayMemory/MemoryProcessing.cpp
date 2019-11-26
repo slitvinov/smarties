@@ -115,63 +115,118 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho, const bool r
   //checkNData();
   assert(CmaxRho>=1);
   const Fval invC = 1/CmaxRho;
-  // vector indicating location of sequence to delete
-  int  oldP = -1, farP = -1, dklP = -1;
-  Real dklV = -1, farV = -1, oldV = 9e9;
+
+  struct WorstOnPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = 9e9;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real W_FAR = EP.nOffPol  / EP.ndata();
+      const bool asOnPolButWorse = W_FAR <= fracFarPol && EP.totR < R;
+      if(W_FAR < fracFarPol || asOnPolButWorse) {
+        ind = ep_ind; fracFarPol = W_FAR; R = EP.totR;
+      }
+    }
+  };
+  struct BestOffPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = -1;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real W_FAR = EP.nOffPol  / EP.ndata();
+      const bool asOffPolButWorse = W_FAR >= fracFarPol && EP.totR < R;
+      if(W_FAR > fracFarPol || asOffPolButWorse) {
+        ind = ep_ind; fracFarPol = W_FAR; R = EP.totR;
+      }
+    }
+  };
+  struct MostFarPolicyEp { int ind = -1; Real fractionFarPol = -1;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real W_FAR = EP.nOffPol  / EP.ndata();
+      if(W_FAR > fractionFarPol) { ind = ep_ind; fractionFarPol = W_FAR; }
+    }
+  };
+  struct HighestAvgDklEp { int ind = -1; Real averageDkl = -1;
+    void compare(const Sequence & EP, const int ep_ind) {
+      const Real W_DKL = EP.sumKLDiv / EP.ndata();
+      if(W_DKL > averageDkl) { ind = ep_ind; averageDkl = W_DKL; }
+    }
+  };
+  struct OldestDatasetEp { int ind = -1; Sint timestamp = std::numeric_limits<Sint>::max();
+    void compare(const Sequence & EP, const int ep_ind) {
+      if(EP.ID < timestamp) { ind = ep_ind; timestamp = EP.ID; }
+    }
+  };
+
+  WorstOnPolicyEp totWorstOn; BestOffPolicyEp totBestOff;
+  MostFarPolicyEp totMostFar; HighestAvgDklEp totHighDkl;
+  OldestDatasetEp totFirstIn;
+
   Real _nOffPol = 0, _totDKL = 0;
   const Uint setSize = RM->readNSeq();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
-    std::pair<int, Real> farpol{-1, -1}, maxdkl{-1, -1}, oldest{-1, 9e9};
+    WorstOnPolicyEp locWorstOn; BestOffPolicyEp locBestOff;
+    MostFarPolicyEp locMostFar; HighestAvgDklEp locHighDkl;
+    OldestDatasetEp locFirstIn;
+
     #pragma omp for schedule(static, 1) nowait
-    for(Uint i = 0; i < setSize; ++i)
+    for (Uint i = 0; i < setSize; ++i)
     {
-      if(recompute) {
+      Sequence & EP = * Set[i];
+      if (recompute) {
         Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0, dbg_sum_mse = 0;
-        for(Uint j=0; j<Set[i]->ndata(); ++j) {
-          const auto& W = Set[i]->offPolicImpW[j];
-          dbg_sum_mse += Set[i]->SquaredError[j];
-          dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
+        for (Uint j = 0; j < EP.ndata(); ++j) {
+          const auto& W = EP.offPolicImpW[j];
+          dbg_sum_mse += EP.SquaredError[j];
+          dbg_sumKLDiv += EP.KullbLeibDiv[j];
           assert(W >= 0);
           // float precision may cause DKL to be slightly negative:
-          assert(Set[i]->KullbLeibDiv[j] >= -EPS);
+          assert(EP.KullbLeibDiv[j] >= -EPS);
           // sequence is off policy if offPol W is out of 1/C : C
-          if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
+          if (W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
-        Set[i]->MSE = dbg_sum_mse;
-        Set[i]->nOffPol = dbg_nOffPol;
-        Set[i]->sumKLDiv = dbg_sumKLDiv;
+        EP.MSE = dbg_sum_mse;
+        EP.nOffPol = dbg_nOffPol;
+        EP.sumKLDiv = dbg_sumKLDiv;
       }
 
-      const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();
-      const Real W_DKL = Set[i]->sumKLDiv/Set[i]->ndata();
-      _nOffPol += Set[i]->nOffPol; _totDKL += Set[i]->sumKLDiv;
-
-      if(Set[i]->ID<oldest.second) { oldest.second=Set[i]->ID; oldest.first=i; }
-      if(    W_FAR >farpol.second) { farpol.second= W_FAR;     farpol.first=i; }
-      if(    W_DKL >maxdkl.second) { maxdkl.second= W_DKL;     maxdkl.first=i; }
+      _nOffPol += EP.nOffPol;
+      _totDKL  += EP.sumKLDiv;
+      locWorstOn.compare(EP, i); locBestOff.compare(EP, i);
+      locMostFar.compare(EP, i); locHighDkl.compare(EP, i);
+      locFirstIn.compare(EP, i);
     }
+
     #pragma omp critical
     {
-      if(oldest.second<oldV) { oldP=oldest.first; oldV=oldest.second; }
-      if(farpol.second>farV) { farP=farpol.first; farV=farpol.second; }
-      if(maxdkl.second>dklV) { dklP=maxdkl.first; dklV=maxdkl.second; }
+      totWorstOn.compare(* Set[locWorstOn.ind], locWorstOn.ind);
+      totBestOff.compare(* Set[locBestOff.ind], locBestOff.ind);
+      totMostFar.compare(* Set[locMostFar.ind], locMostFar.ind);
+      totHighDkl.compare(* Set[locHighDkl.ind], locHighDkl.ind);
+      totFirstIn.compare(* Set[locFirstIn.ind], locFirstIn.ind);
     }
   }
 
-  if(CmaxRho<=1) _nOffPol = 0; //then this counter and its effects are skipped
-  avgDKL = _totDKL / RM->readNData();
+  if (CmaxRho<=1) _nOffPol = 0; //then this counter and its effects are skipped
+  avgDKL  = _totDKL / RM->readNData();
   nOffPol = _nOffPol;
-  minInd = oldV;
+  minInd = totFirstIn.timestamp;
+
   assert(oldP<(int)Set.size() && farP<(int)Set.size() && dklP<(int)Set.size());
   assert( oldP >=  0 && farP >=  0 && dklP >=  0 );
-  switch(ALGO) {
-    case OLDEST:     delPtr = oldP; break;
-    case FARPOLFRAC: delPtr = farP; break;
-    case MAXKLDIV:   delPtr = dklP; break;
+  indexOfEpisodeToDelete = -1;
+  switch (ALGO) {
+    case OLDEST:     indexOfEpisodeToDelete = totFirstIn.ind; break;
+    case FARPOLFRAC: indexOfEpisodeToDelete = totMostFar.ind; break;
+    case MAXKLDIV:   indexOfEpisodeToDelete = totHighDkl.ind; break;
+    case BATCHRL:
+      // If totR of most on policy EP is lower than totR of most off policy EP
+      // then do not delete anything. Else delete most off-policy EP.
+      if (totWorstOn.R > totBestOff.R) indexOfEpisodeToDelete = totBestOff.ind;
+      break;
   }
-  // prevent any weird race condition from causing deletion of newest data:
-  if(Set[oldP]->ID + (int)setSize < Set[delPtr]->ID) delPtr = oldP;
+
+  if (indexOfEpisodeToDelete >= 0) {
+    // prevent any race condition from causing deletion of newest data:
+    const Sequence & EP2delete = * Set[indexOfEpisodeToDelete];
+    if (Set[totFirstIn.ind]->ID + (Sint) setSize < EP2delete.ID)
+        indexOfEpisodeToDelete = totFirstIn.ind;
+  }
 }
 
 void MemoryProcessing::finalize()
@@ -189,16 +244,16 @@ void MemoryProcessing::finalize()
   }
   for(int i=0; i<nB4; ++i) assert(RM->get(i)->just_sampled < 0);
 
-  // safety measure: do not delete trajectory if Nobs > Ntarget
-  // but if N > Ntarget even if we remove the trajectory
-  // done to avoid bugs if a sequence is longer than maxTotObsNum
-  // negligible effect if hyperparameters are chosen wisely
-  if(delPtr>=0)
+  // Safety measure: we don't use as delete condition "if Nobs > maxTotObsNum",
+  // We use "if Nobs - toDeleteEpisode.ndata() > maxTotObsNum".
+  // This avoids bugs if any single sequence is longer than maxTotObsNum.
+  // Has negligible effect if hyperparam maxTotObsNum is chosen appropriately.
+  if(indexOfEpisodeToDelete >= 0)
   {
-    const Uint maxTotObsNum_loc = settings.maxTotObsNum_local;
-    if(nTransitions.load()-Set[delPtr]->ndata() > maxTotObsNum_loc)
-      RM->removeSequence(delPtr);
-    delPtr = -1;
+    const Uint maxTotObsNum = settings.maxTotObsNum_local; // for MPI-learners
+    if(RM->readNData() - Set[indexOfEpisodeToDelete]->ndata() > maxTotObsNum)
+      RM->removeSequence(indexOfEpisodeToDelete);
+    indexOfEpisodeToDelete = -1;
   }
   nPruned += nB4 - RM->readNSeq();
 
@@ -240,6 +295,7 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   if(setting == "oldest")     return OLDEST;
   if(setting == "farpolfrac") return FARPOLFRAC;
   if(setting == "maxkldiv")   return MAXKLDIV;
+  if(setting == "batchrl")    return BATCHRL;
   //if(setting == "minerror")   return MINERROR; miriad ways this can go wrong
   if(setting == "default") {
     if(bReFER) return FARPOLFRAC;
@@ -278,18 +334,18 @@ void MemoryProcessing::histogramImportanceWeights()
     return 2 * a * (b / (a + b));
   };
   std::ostringstream buff;
-  buff << "_________________________________________________________________\n";
-  buff << "OFF-POLICY IMP WEIGHTS HISTOGRAMS\n";
-  buff << "weight pi/mu (harmonic mean of histogram's bounds):\n";
+  buff<<"_____________________________________________________________________";
+  buff<<"\nOFF-POLICY IMP WEIGHTS HISTOGRAMS\n";
+  buff<<"weight pi/mu (harmonic mean of histogram's bounds):\n";
   for(Uint b = 0; b < nBins-1; ++b)
     Utilities::real2SS(buff, harmoncMean(bins[b], bins[b+1]), 6, 1);
-  buff << "\nfraction of dataset:\n";
+  buff<<"\nfraction of dataset:\n";
   const Real dataSize = RM->readNData();
   for(Uint b = 0; b < nBins-1; ++b)
     Utilities::real2SS(buff, counts[b]/dataSize, 6, 1);
-  buff << "\n";
-  buff << "_________________________________________________________________\n";
-  printf("%s\n", buff.str().c_str());
+  buff<<"\n";
+  buff<<"_____________________________________________________________________";
+  printf("%s\n\n", buff.str().c_str());
 }
 
 }

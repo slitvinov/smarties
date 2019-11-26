@@ -31,7 +31,7 @@ private:
 
   Uint nPruned = 0, minInd = 0, nOffPol = 0;
   Real avgDKL =  0;
-  Sint delPtr = -1;
+  Sint indexOfEpisodeToDelete = -1;
 
   DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
   DelayedReductor<long> globalStep_reduce;
