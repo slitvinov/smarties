@@ -67,6 +67,26 @@ void Sampling::IDtoSeqStep_par(std::vector<Uint>& seq, std::vector<Uint>& obs,
   }
 }
 
+void Sampling::updatePrefixes()
+{
+  const long nSeqs = nSequences();
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
+    Set[i]->prefix = locPrefix;
+    locPrefix += Set[i]->ndata();
+  }
+}
+
+void Sampling::checkPrefixes()
+{
+  const long nSeqs = nSequences(), nData = nTransitions();
+  assert(Set.size() == (size_t) nSeqs);
+  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
+    assert(Set[i]->prefix == (Uint) locPrefix);
+    locPrefix += Set[i]->ndata();
+    if(i+1 == nSeqs) assert(locPrefix == nData);
+  }
+}
+
 Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
@@ -79,13 +99,7 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   #ifndef NDEBUG
   {
     std::lock_guard<std::mutex> lock(RM->dataset_mutex);
-    const long nSeqs = nSequences(), nData = nTransitions();
-    assert(Set.size() == (size_t) nSeqs);
-    for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-      assert(Set[i]->prefix == (Uint) locPrefix);
-      locPrefix += Set[i]->ndata();
-      if(i+1 == nSeqs) assert(locPrefix == nData);
-    }
+    checkPrefixes();
   }
   #endif
 
@@ -132,14 +146,17 @@ void Sample_uniform::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
     #endif
   }
 }
-void Sample_uniform::prepare(std::atomic<bool>& needs_pass) {
-  std::lock_guard<std::mutex> lock(RM->dataset_mutex);
-  const long nSeqs = nSequences();
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    Set[i]->prefix = locPrefix;
-    locPrefix += Set[i]->ndata();
+void Sample_uniform::prepare(std::atomic<bool>& needs_pass)
+{
+  if (needs_pass)
+  {
+    std::lock_guard<std::mutex> lock(RM->dataset_mutex);
+    updatePrefixes();
+    needs_pass = false;
   }
-  needs_pass = false;
+  #ifndef NDEBUG
+    else checkPrefixes();
+  #endif
 }
 bool Sample_uniform::requireImportanceWeights() { return false; }
 
@@ -208,10 +225,8 @@ void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nSequences(), nData = nTransitions();
   samples.resize(nData);
 
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    Set[i]->prefix = locPrefix;
-    locPrefix += Set[i]->ndata();
-  }
+  updatePrefixes();
+
   #pragma omp parallel for schedule(dynamic)
   for(long i = 0; i < nSeqs; ++i)
     for(Uint j=0, k=Set[i]->prefix; j<Set[i]->ndata(); ++j, ++k)
@@ -334,10 +349,7 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nSequences(), nData = nTransitions();
   std::vector<float> probs = std::vector<float>(nData, 1);
 
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    Set[i]->prefix = locPrefix;
-    locPrefix += Set[i]->ndata();
-  }
+  updatePrefixes();
 
   float minP = 1e9, maxP = 0;
   #pragma omp parallel for schedule(dynamic) reduction(min:minP) reduction(max:maxP)

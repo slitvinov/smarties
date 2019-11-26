@@ -1,13 +1,14 @@
 {
   "learner": "DQN",
   "batchSize": 128,
-  "clipImpWeight": 0,
+  "clipImpWeight": 1,
   "epsAnneal": 0,
+  "penalTol": 0.05,
   "explNoise": 0.05,
   "gamma": 0.99,
-  "learnrate": 0.0001,
-  "maxTotObsNum": 524288,
+  "learnrate": 0.001,
+  "maxTotObsNum": 131072,
   "minTotObsNum": 131072,
   "nnLayerSizes": [128, 128],
-  "targetDelay": 0.0001
+  "targetDelay": 0
 }

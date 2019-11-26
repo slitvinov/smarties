@@ -119,7 +119,8 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
   // episode with the least far-policy steps (see refer) but lowest reward
   struct WorstOnPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = 9e9;
     void compare(const Sequence & EP, const int ep_ind) {
-      const Real EP_fracFarPol = EP.nFarPolicySteps  / EP.ndata();
+      // many episodes can tie with EP_fracFarPol = 0 (all on policy):
+      const Real EP_fracFarPol = EP.nFarPolicySteps / (Real) EP.ndata();
       const bool asOnPolButWorse = EP_fracFarPol <= fracFarPol && EP.totR < R;
       if(EP_fracFarPol < fracFarPol || asOnPolButWorse) {
         ind = ep_ind; fracFarPol = EP_fracFarPol; R = EP.totR;
@@ -140,7 +141,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
   // episode with highest fraction of far-policy steps as described in refer
   struct MostFarPolicyEp { int ind = -1; Real fractionFarPol = -1;
     void compare(const Sequence & EP, const int ep_ind) {
-      const Real EP_fracFarPol = EP.nFarPolicySteps  / EP.ndata();
+      const Real EP_fracFarPol = EP.nFarPolicySteps  / (Real) EP.ndata();
       if(EP_fracFarPol > fractionFarPol) {
         ind = ep_ind; fractionFarPol = EP_fracFarPol;
       }
@@ -170,7 +171,8 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
   MostFarPolicyEp totMostFar; HighestAvgDklEp totHighDkl;
   OldestDatasetEp totFirstIn;
 
-  Real _nOffPol = 0, _totDKL = 0;
+  Uint _nOffPol = 0;
+  Real _totDKL = 0;
   const Uint setSize = RM->readNSeq();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
@@ -220,6 +222,16 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
     case BATCHRL:
       // If totR of most on policy EP is lower than totR of most off policy EP
       // then do not delete anything. Else delete most off-policy EP.
+      if (0) { // (recompute)
+        const Sequence & EPoff = * Set[totMostOff.ind];
+        const Sequence & EPon  = * Set[totWorstOn.ind];
+        _warn("worstOn: R:%e, nFar:%lu sumDKL:%e MSE:%e sumClip:%e", EPon.totR,
+          EPon.nFarPolicySteps.load(), EPon.sumKLDivergence.load(),
+          EPon.sumSquaredErr.load(), EPon.sumClipImpW.load());
+        _warn("mostOff: R:%e, nFar:%lu sumDKL:%e MSE:%e sumClip:%e", EPoff.totR,
+          EPoff.nFarPolicySteps.load(), EPoff.sumKLDivergence.load(),
+          EPoff.sumSquaredErr.load(), EPoff.sumClipImpW.load());
+      }
       if (totWorstOn.R > totMostOff.R) indexOfEpisodeToDelete = totMostOff.ind;
       break;
   }
@@ -254,8 +266,10 @@ void MemoryProcessing::finalize()
   if(indexOfEpisodeToDelete >= 0)
   {
     const Uint maxTotObsNum = settings.maxTotObsNum_local; // for MPI-learners
-    if(RM->readNData() - Set[indexOfEpisodeToDelete]->ndata() > maxTotObsNum)
+    if(RM->readNData() - Set[indexOfEpisodeToDelete]->ndata() > maxTotObsNum) {
+      //warn("Deleting episode");
       RM->removeSequence(indexOfEpisodeToDelete);
+    }
     indexOfEpisodeToDelete = -1;
   }
   nPruned += nB4 - RM->readNSeq();
@@ -281,6 +295,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
   //buff<<" "<<std::setw(7)<<nSeenSequences_loc.load();
   //buff<<" "<<std::setw(8)<<nSeenTransitions_loc.load();
   buff<<" "<<std::setw(7)<<minInd;
+  buff<<" "<<std::setw(4)<<nPruned;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
 
   nPruned=0;
@@ -289,7 +304,8 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
 void MemoryProcessing::getHeaders(std::ostringstream& buff)
 {
   buff <<
-  "|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
+  //"|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
+  "|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nDel|nFarP ";
 }
 
 FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
@@ -314,7 +330,7 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
   //if(setting == "minerror")   return MINERROR; miriad ways this can go wrong
   if(setting == "default") {
     if(bReFER) {
-      printf("Experience Replay storage: remove most 'far policy' episode.\n");
+      printf("Experience Replay storage: remove most 'off policy' episode if policy is better.\n");
       return BATCHRL;
     }
     else {

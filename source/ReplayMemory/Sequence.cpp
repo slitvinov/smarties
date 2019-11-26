@@ -110,7 +110,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   /////////////////////////////////////////////////////////////////////////////
   assert((Uint) (buf - data.data()) == (dS+dA+dP+7) * seq_len);
   priorityImpW = std::vector<float>(seq_len, 1);
-  totR = std::accumulate(rewards.begin(), rewards.end(), 0);
+  totR = Utilities::sum(rewards);
   /////////////////////////////////////////////////////////////////////////////
 
   const char * charPos = (const char *) buf;

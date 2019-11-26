@@ -9,12 +9,10 @@
 #ifndef smarties_Sequence_h
 #define smarties_Sequence_h
 
-#include "../Utils/Bund.h"
-#include "../Utils/Warnings.h"
+#include "../Utils/FunctionUtilities.h"
+
 #include <cassert>
 #include <atomic>
-#include <numeric>
-//#include <mutex>
 #include <cmath>
 
 namespace smarties
@@ -40,6 +38,7 @@ inline bool distFarPolicy(const Fval D, const Fval target)
 
 struct Sequence
 {
+  static constexpr Fval FVAL_EPS = std::numeric_limits<Fval>::epsilon();
   Sequence()
   {
     states.reserve(MAX_SEQ_LEN);
@@ -75,7 +74,7 @@ struct Sequence
     Fval sumClipRho = 0;
     for (Uint t = 0; t < ndata(); ++t) {
       // float precision may cause DKL to be slightly negative:
-      assert(KullbLeibDiv[t] >= - std::numeric_limits<Fval>::epsilon() && offPolicImpW[t] >= 0);
+      assert(KullbLeibDiv[t] >= - FVAL_EPS && offPolicImpW[t] >= 0);
       // sequence is off policy if offPol W is out of 1/C : C
       if (offPolicImpW[t] > C || offPolicImpW[t] < invC) nFarPol += 1;
       sumClipRho += std::min((Fval) 1, offPolicImpW[t]) - 1;
@@ -83,9 +82,9 @@ struct Sequence
     nFarPolicySteps = nFarPol;
     sumClipImpW = sumClipRho;
 
-    totR = std::accumulate(rewards.begin(), rewards.end(), 0);
-    sumSquaredErr = std::accumulate(SquaredError.begin(), SquaredError.end(), 0);
-    sumKLDivergence = std::accumulate(KullbLeibDiv.begin(), KullbLeibDiv.end(), 0);
+    totR = Utilities::sum(rewards);
+    sumSquaredErr = Utilities::sum(SquaredError);
+    sumKLDivergence = Utilities::sum(KullbLeibDiv);
   }
 
   void updateCumulative_atomic(const Uint t, const Fval E, const Fval D,
@@ -197,6 +196,12 @@ struct Sequence
     // off pol importance weights are initialized to 1s
     offPolicImpW = std::vector<Fval>(seq_len, 1);
     KullbLeibDiv = std::vector<Fval>(seq_len, 0);
+    #ifndef NDEBUG
+      Fval dbg_sumR = std::accumulate(rewards.begin(), rewards.end(), (Fval)0);
+      //Fval dbg_norm = std::max(std::fabs(totR), std::fabs(dbg_sumR));
+      Fval dbg_norm = std::max((Fval)1, std::fabs(totR));
+      assert(std::fabs(totR-dbg_sumR)/dbg_norm < 100*FVAL_EPS);
+    #endif
   }
 
   int restart(FILE * f, const Uint dS, const Uint dA, const Uint dP);

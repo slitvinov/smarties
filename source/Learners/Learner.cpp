@@ -18,8 +18,8 @@ namespace smarties
 {
 
 Learner::Learner(MDPdescriptor& MD, Settings& S, DistributionInfo& D):
-  distrib(D), settings(S), MDP(MD), ReFER_reduce(D, LDvec{0.,1.}),
-  ERFILTER(MemoryProcessing::readERfilterAlgo(S.ERoldSeqFilter, CmaxPol>0)),
+  distrib(D), settings(S), MDP(MD), ReFER_reduce(D, LDvec{0.,1.}), ERFILTER(
+    MemoryProcessing::readERfilterAlgo(S.ERoldSeqFilter, S.clipImpWeight>0) ),
   data_proc( new MemoryProcessing( data.get() ) ),
   data_coord( new DataCoordinator( data.get(), params ) ),
   data_get ( new Collector       ( data.get(), data_coord ) ) {}
@@ -81,12 +81,21 @@ void Learner::processMemoryBuffer()
   profiler->start("PRNE");
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
+  Real C = settings.clipImpWeight, E = settings.epsAnneal;
 
-  CmaxRet = 1 + Utilities::annealRate(CmaxPol, currStep, epsAnneal);
+  if(ERFILTER == BATCHRL) {
+    const Real maxObsNum = settings.maxTotObsNum_local;
+    const Real currObsNum = data->readNData();
+    C *= std::min((Real) 1, maxObsNum / currObsNum);
+  }
+
+  CmaxRet = 1 + Utilities::annealRate(C, currStep, E);
   CinvRet = 1 / CmaxRet;
-  const bool bRecomputeProperties = (currStep % 100) == 0;
-  if(CmaxRet<=1 and CmaxPol>0)
+  if(CmaxRet <= 1 and C > 0)
     die("Either run lasted too long or epsAnneal is wrong.");
+
+  const bool bRecomputeProperties = (currStep % 100) == 0;
+  //if (bRecomputeProperties) printf("Using C : %f\n", C);
   data_proc->prune(ERFILTER, CmaxRet, bRecomputeProperties);
 
   // use result from prev AllReduce to update rewards (before new reduce).
@@ -100,10 +109,16 @@ void Learner::processMemoryBuffer()
   const LDvec nFarGlobal = ReFER_reduce.get();
   const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
 
-  if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
-  else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
-  if(std::fabs(ReFtol-fracOffPol)<0.001) alpha = (1-1e-4)*alpha;
-  else alpha = 1e-4 + (1-1e-4)*alpha;
+  if(fracOffPol > settings.penalTol)
+    beta = (1-1e-4)*beta; // iter converges to 0
+  else
+    beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
+
+  // unused:
+  if(std::fabs(settings.penalTol - fracOffPol) < 0.001)
+    alpha = (1-1e-4)*alpha;
+  else
+    alpha = 1e-4 + (1-1e-4)*alpha;
 
   profiler->stop();
 }
