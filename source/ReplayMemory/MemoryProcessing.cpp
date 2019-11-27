@@ -8,6 +8,7 @@
 
 #include "MemoryProcessing.h"
 #include "../Utils/SstreamUtilities.h"
+#include "ExperienceRemovalAlgorithms.h"
 #include "Sampling.h"
 #include <algorithm>
 
@@ -50,12 +51,13 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
       #pragma omp for schedule(dynamic) nowait
       for(Uint i=0; i<setSize; ++i) {
-        const Uint N = Set[i]->ndata();
+        const Sequence & EP = * Set[i];
+        const Uint N = EP.ndata();
         count += N;
         for(Uint j=0; j<N; ++j) {
-          newstdvr += std::pow(Set[i]->rewards[j+1], 2);
+          newstdvr += std::pow(EP.rewards[j+1], 2);
           for(Uint k=0; k<dimS && WS>0; ++k) {
-            const long double sk = Set[i]->states[j][k] - mean[k];
+            const long double sk = EP.states[j][k] - mean[k];
             thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
           }
         }
@@ -114,92 +116,34 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
                              const bool recompute)
 {
   assert(CmaxRho>=1);
-  const Fval invC = 1/CmaxRho;
+  const Fval invC = 1/CmaxRho, farPolTol = settings.penalTol;
 
-  // episode with the least far-policy steps (see refer) but lowest reward
-  struct WorstOnPolicyEp { int ind = -1; Real R = 9e9; Real fracFarPol = 9e9;
-    void compare(const Sequence & EP, const int ep_ind) {
-      // many episodes can tie with EP_fracFarPol = 0 (all on policy):
-      const Real EP_fracFarPol = EP.nFarPolicySteps / (Real) EP.ndata();
-      const bool asOnPolButWorse = EP_fracFarPol <= fracFarPol && EP.totR < R;
-      if(EP_fracFarPol < fracFarPol || asOnPolButWorse) {
-        ind = ep_ind; fracFarPol = EP_fracFarPol; R = EP.totR;
-      }
-    }
-  };
-
-  // episode with smallest average min(1, pi/mu):
-  struct MostOffPolicyEp { int ind = -1; Real R = 9e9; Real avgClipImpW = 9e9;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real EP_avgClipImpW = EP.sumClipImpW / EP.ndata();
-      if(EP_avgClipImpW < avgClipImpW) {
-        ind = ep_ind; avgClipImpW = EP_avgClipImpW; R = EP.totR;
-      }
-    }
-  };
-
-  // episode with highest fraction of far-policy steps as described in refer
-  struct MostFarPolicyEp { int ind = -1; Real fractionFarPol = -1;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real EP_fracFarPol = EP.nFarPolicySteps  / (Real) EP.ndata();
-      if(EP_fracFarPol > fractionFarPol) {
-        ind = ep_ind; fractionFarPol = EP_fracFarPol;
-      }
-    }
-  };
-
-  // episode with highest average Kullback Leibler divergence
-  struct HighestAvgDklEp { int ind = -1; Real averageDkl = -1;
-    void compare(const Sequence & EP, const int ep_ind) {
-      const Real EP_avgDkl = EP.sumKLDivergence / EP.ndata();
-      if(EP_avgDkl > averageDkl) {
-        ind = ep_ind; averageDkl = EP_avgDkl;
-      }
-    }
-  };
-
-  // episode that was stored the most timesteps ago:
-  struct OldestDatasetEp { int ind = -1; Sint timestamp = std::numeric_limits<Sint>::max();
-    void compare(const Sequence & EP, const int ep_ind) {
-      if(EP.ID < timestamp) {
-        ind = ep_ind; timestamp = EP.ID;
-      }
-    }
-  };
-
-  WorstOnPolicyEp totWorstOn; MostOffPolicyEp totMostOff;
+  MostOffPolicyEp totMostOff; OldestDatasetEp totFirstIn;
   MostFarPolicyEp totMostFar; HighestAvgDklEp totHighDkl;
-  OldestDatasetEp totFirstIn;
 
-  Uint _nOffPol = 0;
   Real _totDKL = 0;
+  Uint _nOffPol = 0;
   const Uint setSize = RM->readNSeq();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
-    WorstOnPolicyEp locWorstOn; MostOffPolicyEp locMostOff;
+    OldestDatasetEp locFirstIn; MostOffPolicyEp locMostOff;
     MostFarPolicyEp locMostFar; HighestAvgDklEp locHighDkl;
-    OldestDatasetEp locFirstIn;
 
     #pragma omp for schedule(static, 1) nowait
     for (Uint i = 0; i < setSize; ++i)
     {
       Sequence & EP = * Set[i];
       if (recompute) EP.updateCumulative(CmaxRho, invC);
-
-      _nOffPol += EP.nFarPolicySteps;
+      _nOffPol += EP.nFarPolicySteps();
       _totDKL  += EP.sumKLDivergence;
-      locWorstOn.compare(EP, i); locMostOff.compare(EP, i);
+      locFirstIn.compare(EP, i); locMostOff.compare(EP, i);
       locMostFar.compare(EP, i); locHighDkl.compare(EP, i);
-      locFirstIn.compare(EP, i);
     }
 
     #pragma omp critical
     {
-      totWorstOn.compare(* Set[locWorstOn.ind], locWorstOn.ind);
-      totMostOff.compare(* Set[locMostOff.ind], locMostOff.ind);
-      totMostFar.compare(* Set[locMostFar.ind], locMostFar.ind);
-      totHighDkl.compare(* Set[locHighDkl.ind], locHighDkl.ind);
-      totFirstIn.compare(* Set[locFirstIn.ind], locFirstIn.ind);
+      totFirstIn.compare(locFirstIn); totMostOff.compare(locMostOff);
+      totMostFar.compare(locMostFar); totHighDkl.compare(locHighDkl);
     }
   }
 
@@ -208,32 +152,20 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
   nOffPol = _nOffPol;
   minInd = totFirstIn.timestamp;
 
-  assert(totWorstOn.ind >= 0 && totWorstOn.ind < (int) setSize);
-  assert(totMostOff.ind >= 0 && totMostOff.ind < (int) setSize);
   assert(totMostFar.ind >= 0 && totMostFar.ind < (int) setSize);
   assert(totHighDkl.ind >= 0 && totHighDkl.ind < (int) setSize);
   assert(totFirstIn.ind >= 0 && totFirstIn.ind < (int) setSize);
 
   indexOfEpisodeToDelete = -1;
-  switch (ALGO) {
-    case OLDEST:     indexOfEpisodeToDelete = totFirstIn.ind; break;
-    case FARPOLFRAC: indexOfEpisodeToDelete = totMostFar.ind; break;
-    case MAXKLDIV:   indexOfEpisodeToDelete = totHighDkl.ind; break;
-    case BATCHRL:
-      // If totR of most on policy EP is lower than totR of most off policy EP
-      // then do not delete anything. Else delete most off-policy EP.
-      if (0) { // (recompute)
-        const Sequence & EPoff = * Set[totMostOff.ind];
-        const Sequence & EPon  = * Set[totWorstOn.ind];
-        _warn("worstOn: R:%e, nFar:%lu sumDKL:%e MSE:%e sumClip:%e", EPon.totR,
-          EPon.nFarPolicySteps.load(), EPon.sumKLDivergence.load(),
-          EPon.sumSquaredErr.load(), EPon.sumClipImpW.load());
-        _warn("mostOff: R:%e, nFar:%lu sumDKL:%e MSE:%e sumClip:%e", EPoff.totR,
-          EPoff.nFarPolicySteps.load(), EPoff.sumKLDivergence.load(),
-          EPoff.sumSquaredErr.load(), EPoff.sumClipImpW.load());
-      }
-      if (totWorstOn.R > totMostOff.R) indexOfEpisodeToDelete = totMostOff.ind;
-      break;
+  switch (ALGO)
+  {
+    case OLDEST:      indexOfEpisodeToDelete = totFirstIn(); break;
+
+    case FARPOLFRAC: indexOfEpisodeToDelete = totMostFar(); break;
+
+    case MAXKLDIV: indexOfEpisodeToDelete = totHighDkl(); break;
+
+    case BATCHRL: indexOfEpisodeToDelete = totMostOff(farPolTol); break;
   }
 
   if (indexOfEpisodeToDelete >= 0) {
@@ -324,13 +256,13 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
     return MAXKLDIV;
   }
   if(setting == "batchrl") {
-    printf("Experience Replay storage: remove data only if policy is better.\n");
+    printf("Experience Replay storage: remove most 'off policy' episode if and only if policy is better.\n");
     return BATCHRL;
   }
   //if(setting == "minerror")   return MINERROR; miriad ways this can go wrong
   if(setting == "default") {
     if(bReFER) {
-      printf("Experience Replay storage: remove most 'off policy' episode if policy is better.\n");
+      printf("Experience Replay storage: remove most 'off policy' episode if and only if policy is better.\n");
       return BATCHRL;
     }
     else {

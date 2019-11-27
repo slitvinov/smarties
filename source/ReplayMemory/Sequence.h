@@ -63,23 +63,26 @@ struct Sequence
 
   // some quantities needed for processing of experiences
   Fval totR = 0;
-  std::atomic<Uint> nFarPolicySteps{0};
+  std::atomic<Uint> nFarOverPolSteps{0}; // pi/mu > c
+  std::atomic<Uint> nFarUndrPolSteps{0}; // pi/mu < 1/c
   std::atomic<Fval> sumKLDivergence{0};
   std::atomic<Fval> sumSquaredErr{0};
   std::atomic<Fval> sumClipImpW{0}; // sum(min(rho,1) - 1) so we can init to 0
 
   void updateCumulative(const Fval C, const Fval invC)
   {
-    Uint nFarPol = 0;
+    Uint nOverFarPol = 0, nUndrFarPol = 0;
     Fval sumClipRho = 0;
     for (Uint t = 0; t < ndata(); ++t) {
       // float precision may cause DKL to be slightly negative:
       assert(KullbLeibDiv[t] >= - FVAL_EPS && offPolicImpW[t] >= 0);
       // sequence is off policy if offPol W is out of 1/C : C
-      if (offPolicImpW[t] > C || offPolicImpW[t] < invC) nFarPol += 1;
-      sumClipRho += std::min((Fval) 1, offPolicImpW[t]) - 1;
+      if (offPolicImpW[t] >    C) nOverFarPol++;
+      if (offPolicImpW[t] < invC) nUndrFarPol++;
+      sumClipRho   += std::min((Fval) 0, offPolicImpW[t] - 1);
     }
-    nFarPolicySteps = nFarPol;
+    nFarOverPolSteps = nOverFarPol;
+    nFarUndrPolSteps = nUndrFarPol;
     sumClipImpW = sumClipRho;
 
     totR = Utilities::sum(rewards);
@@ -90,15 +93,17 @@ struct Sequence
   void updateCumulative_atomic(const Uint t, const Fval E, const Fval D,
                                const Fval W, const Fval C, const Fval invC)
   {
-    const bool wasOff = offPolicImpW[t] > C || offPolicImpW[t] < invC;
-    const bool isOff  = W > C || W < invC;
-    const Fval clipOldW = std::min((Fval) 1, offPolicImpW[t]);
-    const Fval clipNewW = std::min((Fval) 1, W);
+    const Fval oldW = offPolicImpW[t];
+    const Uint wasFarOver = oldW > C, wasFarUndr = oldW < invC;
+    const Uint  isFarOver =    W > C,  isFarUndr =    W < invC;
+    const Fval clipOldW = std::min((Fval) 0, oldW - 1);
+    const Fval clipNewW = std::min((Fval) 0,    W - 1);
 
     sumKLDivergence.store(sumKLDivergence.load() - KullbLeibDiv[t] + D);
     sumSquaredErr.store(sumSquaredErr.load() - SquaredError[t] + E);
     sumClipImpW.store(sumClipImpW.load() - clipOldW + clipNewW);
-    nFarPolicySteps += isOff - wasOff;
+    nFarOverPolSteps += isFarOver - wasFarOver;
+    nFarUndrPolSteps += isFarUndr - wasFarUndr;
 
     SquaredError[t] = E;
     KullbLeibDiv[t] = D;
@@ -128,6 +133,11 @@ struct Sequence
     return states.size();
   }
 
+  Uint nFarPolicySteps() const
+  {
+    return nFarOverPolSteps + nFarUndrPolSteps;
+  }
+
   bool isTerminal(const Uint t) const
   {
     return t+1 == states.size() && ended;
@@ -143,7 +153,8 @@ struct Sequence
   void clear()
   {
     ended = false; ID = -1; just_sampled = -1;
-    nFarPolicySteps = 0;
+    nFarOverPolSteps = 0;
+    nFarUndrPolSteps = 0;
     sumKLDivergence = 0;
     sumSquaredErr   = 0;
     sumClipImpW     = 0;

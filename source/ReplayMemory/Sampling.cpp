@@ -78,13 +78,15 @@ void Sampling::updatePrefixes()
 
 void Sampling::checkPrefixes()
 {
-  const long nSeqs = nSequences(), nData = nTransitions();
-  assert(Set.size() == (size_t) nSeqs);
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    assert(Set[i]->prefix == (Uint) locPrefix);
-    locPrefix += Set[i]->ndata();
-    if(i+1 == nSeqs) assert(locPrefix == nData);
-  }
+  #ifndef NDEBUG
+    const long nSeqs = nSequences(), nData = nTransitions();
+    assert(Set.size() == (size_t) nSeqs);
+    for(long i=0, locPrefix=0; i<nSeqs; ++i) {
+      assert(Set[i]->prefix == (Uint) locPrefix);
+      locPrefix += Set[i]->ndata();
+      if(i+1 == nSeqs) assert(locPrefix == nData);
+    }
+  #endif
 }
 
 Sample_uniform::Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}

@@ -81,12 +81,13 @@ void Learner::processMemoryBuffer()
   profiler->start("PRNE");
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
-  Real C = settings.clipImpWeight, E = settings.epsAnneal;
+  Real C =settings.clipImpWeight, E =settings.epsAnneal, D =settings.penalTol;
 
   if(ERFILTER == BATCHRL) {
     const Real maxObsNum = settings.maxTotObsNum_local;
     const Real currObsNum = data->readNData();
     C *= std::min((Real) 1, maxObsNum / currObsNum);
+    //D *= std::max((Real) 1, currObsNum / maxObsNum);
   }
 
   CmaxRet = 1 + Utilities::annealRate(C, currStep, E);
@@ -109,13 +110,13 @@ void Learner::processMemoryBuffer()
   const LDvec nFarGlobal = ReFER_reduce.get();
   const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
 
-  if(fracOffPol > settings.penalTol)
+  if(fracOffPol > D)
     beta = (1-1e-4)*beta; // iter converges to 0
   else
     beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
 
   // unused:
-  if(std::fabs(settings.penalTol - fracOffPol) < 0.001)
+  if(std::fabs(D - fracOffPol) < 0.001)
     alpha = (1-1e-4)*alpha;
   else
     alpha = 1e-4 + (1-1e-4)*alpha;
