@@ -81,18 +81,19 @@ void Learner::processMemoryBuffer()
   profiler->start("PRNE");
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
-  Real C =settings.clipImpWeight, E =settings.epsAnneal, D =settings.penalTol;
+  const Real E = settings.epsAnneal, D = settings.penalTol;
 
   if(ERFILTER == BATCHRL) {
     const Real maxObsNum = settings.maxTotObsNum_local;
-    const Real currObsNum = data->readNData();
-    C *= std::min((Real) 1, maxObsNum / currObsNum);
+    const Real obsNum = data->readNData();
     //D *= std::max((Real) 1, currObsNum / maxObsNum);
+    CmaxRet = 1 + settings.clipImpWeight * std::min((Real)1, maxObsNum/obsNum);
+  } else {
+    CmaxRet = 1 + Utilities::annealRate(settings.clipImpWeight, currStep, E);
   }
 
-  CmaxRet = 1 + Utilities::annealRate(C, currStep, E);
   CinvRet = 1 / CmaxRet;
-  if(CmaxRet <= 1 and C > 0)
+  if(CmaxRet <= 1 and settings.clipImpWeight > 0)
     die("Either run lasted too long or epsAnneal is wrong.");
 
   const bool bRecomputeProperties = (currStep % 100) == 0;
@@ -110,10 +111,10 @@ void Learner::processMemoryBuffer()
   const LDvec nFarGlobal = ReFER_reduce.get();
   const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
 
-  if(fracOffPol > D)
-    beta = (1-1e-4)*beta; // iter converges to 0
-  else
-    beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
+  if(fracOffPol > D) //fixed point iter converges to 0:
+    beta = (1 - std::min(1e-4, beta) ) * beta;
+  else //fixed point iter converge to 1:
+    beta = 1e-4 + (1 - std::min(1e-4, beta) ) * beta;
 
   // unused:
   if(std::fabs(D - fracOffPol) < 0.001)
