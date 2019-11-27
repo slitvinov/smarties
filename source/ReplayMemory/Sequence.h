@@ -46,6 +46,12 @@ struct Sequence
     policies.reserve(MAX_SEQ_LEN);
     rewards.reserve(MAX_SEQ_LEN);
   }
+  ~Sequence() { }
+  Sequence(Sequence && p) = delete;
+  Sequence& operator=(Sequence && p) = delete;
+  Sequence(const Sequence &p) = delete;
+  Sequence& operator=(const Sequence &p) = delete;
+
 
   bool isEqual(const Sequence * const S) const;
 
@@ -147,8 +153,6 @@ struct Sequence
   {
     return t+1 == states.size() && not ended;
   }
-
-  ~Sequence() { clear(); }
 
   void clear()
   {

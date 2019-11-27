@@ -26,6 +26,10 @@ struct MiniBatch
     sampledTimeStep.resize(size);
     S.resize(size); R.resize(size); PERW.resize(size);
   }
+  MiniBatch(MiniBatch && p) = default;
+  MiniBatch& operator=(MiniBatch && p) = default;
+  MiniBatch(const MiniBatch &p) = delete;
+  MiniBatch& operator=(const MiniBatch &p) = delete;
 
   std::vector<Sequence*> episodes;
   std::vector<Uint> begTimeStep;

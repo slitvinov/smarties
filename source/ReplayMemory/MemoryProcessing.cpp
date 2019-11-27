@@ -147,10 +147,10 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
     }
   }
 
-  if (CmaxRho<=1) _nOffPol = 0; //then this counter and its effects are skipped
-  avgDKL  = _totDKL / RM->readNData();
-  nOffPol = _nOffPol;
-  minInd = totFirstIn.timestamp;
+  if (CmaxRho<=1) nFarPolicySteps = 0; //then this counter and its effects are skipped
+  avgKLdivergence = _totDKL / RM->readNData();
+  nFarPolicySteps = _nOffPol;
+  oldestStoresTimeStamp = totFirstIn.timestamp;
 
   assert(totMostFar.ind >= 0 && totMostFar.ind < (int) setSize);
   assert(totHighDkl.ind >= 0 && totHighDkl.ind < (int) setSize);
@@ -204,7 +204,7 @@ void MemoryProcessing::finalize()
     }
     indexOfEpisodeToDelete = -1;
   }
-  nPruned += nB4 - RM->readNSeq();
+  nPrunedEps += nB4 - RM->readNSeq();
 
   // update sampling algorithm:
   RM->sampler->prepare(RM->needs_pass);
@@ -218,7 +218,7 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
 
   Utilities::real2SS(buff, avgR/(nSeq+1e-7), 9, 0);
   Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
-  Utilities::real2SS(buff, avgDKL, 5, 1);
+  Utilities::real2SS(buff, avgKLdivergence, 5, 1);
 
   buff<<" "<<std::setw(5)<<nSeq;
   buff<<" "<<std::setw(7)<<nTransitions.load();
@@ -226,11 +226,11 @@ void MemoryProcessing::getMetrics(std::ostringstream& buff)
   buff<<" "<<std::setw(8)<<nSeenTransitions.load();
   //buff<<" "<<std::setw(7)<<nSeenSequences_loc.load();
   //buff<<" "<<std::setw(8)<<nSeenTransitions_loc.load();
-  buff<<" "<<std::setw(7)<<minInd;
-  buff<<" "<<std::setw(4)<<nPruned;
-  buff<<" "<<std::setw(6)<<(int)nOffPol;
+  buff<<" "<<std::setw(7)<<oldestStoresTimeStamp;
+  buff<<" "<<std::setw(4)<<nPrunedEps;
+  buff<<" "<<std::setw(6)<<nFarPolicySteps;
 
-  nPruned=0;
+  nPrunedEps = 0;
 }
 
 void MemoryProcessing::getHeaders(std::ostringstream& buff)

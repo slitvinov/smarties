@@ -29,8 +29,10 @@ private:
   //nnReal& stddev_reward = RM->stddev_reward;
   nnReal& invstd_reward = RM->invstd_reward;
 
-  Uint nPruned = 0, minInd = 0, nOffPol = 0;
-  Real avgDKL =  0;
+  Uint nPrunedEps = 0;
+  Uint oldestStoresTimeStamp = 0;
+  Uint nFarPolicySteps = 0;
+  Real avgKLdivergence =  0;
   Sint indexOfEpisodeToDelete = -1;
 
   DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
@@ -61,7 +63,7 @@ public:
   void getHeaders(std::ostringstream& buff);
 
   Uint nFarPol() {
-    return nOffPol;
+    return nFarPolicySteps;
   }
 };
 
