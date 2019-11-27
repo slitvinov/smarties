@@ -71,25 +71,31 @@ struct Sequence
   Fval totR = 0;
   std::atomic<Uint> nFarOverPolSteps{0}; // pi/mu > c
   std::atomic<Uint> nFarUndrPolSteps{0}; // pi/mu < 1/c
-  std::atomic<Fval> sumKLDivergence{0};
-  std::atomic<Fval> sumSquaredErr{0};
-  std::atomic<Fval> sumClipImpW{0}; // sum(min(rho,1) - 1) so we can init to 0
+  std::atomic<Real> sumKLDivergence{0};
+  std::atomic<Real> sumSquaredErr{0};
+  std::atomic<Real> minImpW{1};
+  std::atomic<Real> avgImpW{1};
 
   void updateCumulative(const Fval C, const Fval invC)
   {
+    const Uint N = ndata();
     Uint nOverFarPol = 0, nUndrFarPol = 0;
-    Fval sumClipRho = 0;
-    for (Uint t = 0; t < ndata(); ++t) {
+    Real minRho = 9e9, avgRho = 1;
+    const Real invN = 1.0 / N;
+    for (Uint t = 0; t < N; ++t) {
       // float precision may cause DKL to be slightly negative:
       assert(KullbLeibDiv[t] >= - FVAL_EPS && offPolicImpW[t] >= 0);
       // sequence is off policy if offPol W is out of 1/C : C
       if (offPolicImpW[t] >    C) nOverFarPol++;
       if (offPolicImpW[t] < invC) nUndrFarPol++;
-      sumClipRho   += std::min((Fval) 0, offPolicImpW[t] - 1);
+      if (offPolicImpW[t] < minRho) minRho = offPolicImpW[t];
+      const Real clipRho = std::min((Fval) 1, offPolicImpW[t]);
+      avgRho *= std::pow(clipRho, invN);
     }
     nFarOverPolSteps = nOverFarPol;
     nFarUndrPolSteps = nUndrFarPol;
-    sumClipImpW = sumClipRho;
+    minImpW = minRho;
+    avgImpW = avgRho;
 
     totR = Utilities::sum(rewards);
     sumSquaredErr = Utilities::sum(SquaredError);
@@ -102,14 +108,16 @@ struct Sequence
     const Fval oldW = offPolicImpW[t];
     const Uint wasFarOver = oldW > C, wasFarUndr = oldW < invC;
     const Uint  isFarOver =    W > C,  isFarUndr =    W < invC;
-    const Fval clipOldW = std::min((Fval) 0, oldW - 1);
-    const Fval clipNewW = std::min((Fval) 0,    W - 1);
+    const Real clipOldW = std::min((Fval) 1, oldW);
+    const Real clipNewW = std::min((Fval) 1,    W);
+    const Real invN = 1.0 / ndata();
 
     sumKLDivergence.store(sumKLDivergence.load() - KullbLeibDiv[t] + D);
     sumSquaredErr.store(sumSquaredErr.load() - SquaredError[t] + E);
-    sumClipImpW.store(sumClipImpW.load() - clipOldW + clipNewW);
     nFarOverPolSteps += isFarOver - wasFarOver;
     nFarUndrPolSteps += isFarUndr - wasFarUndr;
+    avgImpW.store(avgImpW.load() * std::pow(clipNewW/clipOldW, invN));
+    if(W < minImpW.load()) minImpW = W;
 
     SquaredError[t] = E;
     KullbLeibDiv[t] = D;
@@ -159,23 +167,15 @@ struct Sequence
     ended = false; ID = -1; just_sampled = -1;
     nFarOverPolSteps = 0;
     nFarUndrPolSteps = 0;
-    sumKLDivergence = 0;
-    sumSquaredErr   = 0;
-    sumClipImpW     = 0;
+    sumKLDivergence  = 0;
+    sumSquaredErr    = 0;
+    minImpW          = 1;
+    avgImpW          = 1;
     totR = 0;
 
-    states.clear();
-    actions.clear();
-    policies.clear();
-    rewards.clear();
-    //priorityImpW.clear();
-    SquaredError.clear();
-    offPolicImpW.clear();
-    priorityImpW.clear();
-    KullbLeibDiv.clear();
-    action_adv.clear();
-    state_vals.clear();
-    Q_RET.clear();
+    states.clear(); actions.clear(); policies.clear(); rewards.clear();
+    SquaredError.clear(); offPolicImpW.clear(); KullbLeibDiv.clear();
+    action_adv.clear(); state_vals.clear(); Q_RET.clear(); priorityImpW.clear();
   }
 
   void setSampled(const int t) //update ind of latest sampled time step

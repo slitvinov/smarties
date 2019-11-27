@@ -415,7 +415,7 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nSequences();
   std::vector<float> probs = std::vector<float>(nSeqs, 1);
 
-  Fval maxMSE = 0;
+  Real maxMSE = 0;
   for(long i=0; i<nSeqs; ++i)
     maxMSE = std::max(maxMSE, Set[i]->sumSquaredErr / Set[i]->ndata());
 

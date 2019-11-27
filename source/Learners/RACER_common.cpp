@@ -209,7 +209,7 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     std::normal_distribution<Real> dist(0, 1);
 
     for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5 * mu[i+nA] -1);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = Utilities::noiseMap_func(mu[i+nA]);
 
     for(Uint i=0; i<=nL; ++i) output[i] = 0.5 * dist(generators[0]);
     for(Uint i=0; i<nA; ++i)
@@ -284,7 +284,7 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     std::normal_distribution<Real> dist(0, 1);
 
     for(Uint i=0; i<mu.size(); ++i) mu[i] = dist(generators[0]);
-    for(Uint i=0; i<nA; ++i) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<nA; ++i) mu[i+nA] = Utilities::noiseMap_func(mu[i+nA]);
 
     for(Uint i=0; i<nA; ++i)
       output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];

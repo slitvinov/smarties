@@ -157,6 +157,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
   assert(totFirstIn.ind >= 0 && totFirstIn.ind < (int) setSize);
 
   indexOfEpisodeToDelete = -1;
+  //if (recompute) printf("min imp w:%e\n", totMostOff.avgClipImpW);
   switch (ALGO)
   {
     case OLDEST:      indexOfEpisodeToDelete = totFirstIn(); break;

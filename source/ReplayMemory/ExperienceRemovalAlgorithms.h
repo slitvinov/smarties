@@ -22,7 +22,7 @@ struct MostOffPolicyEp
   Real avgClipImpW = 9e9, mostOffR = 0;
   void updateMostFarUndrPol(const Sequence & EP, const int ep_ind)
   {
-    const Real EP_avgClipImpW = EP.sumClipImpW / EP.ndata();
+    const Real EP_avgClipImpW = EP.avgImpW;
     if(EP_avgClipImpW < avgClipImpW) {
       indUndr = ep_ind;
       avgClipImpW = EP_avgClipImpW;
