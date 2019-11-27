@@ -187,19 +187,24 @@ void Sample_impLen::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
   }
   else
   {
-    std::uniform_real_distribution<float> distT(0, 1);
+    std::uniform_real_distribution<float> distStep(0, 1);
     std::vector<std::pair<Uint, Uint>> S (nBatch);
     std::vector<std::pair<Uint, Uint>>::iterator it = S.begin();
-    while(it not_eq S.end()) {
+    while(it not_eq S.end())
+    {
       std::generate(it, S.end(), [&] () {
-          const Uint _s = dist(gens[0]), _t = distT(gens[0]) * Set[_s]->ndata();
-          return std::pair<Uint, Uint> {_s, _t};
+          const Uint seqID = dist(gens[0]);
+          const Uint stepID = distStep(gens[0]) * Set[seqID]->ndata();
+          return std::pair<Uint, Uint> {seqID, stepID};
         }
       );
       std::sort( S.begin(), S.end() );
       it = std::unique( S.begin(), S.end() );
     }
-    for (Uint i=0; i<nBatch; ++i) { seq[i] = S[i].first; obs[i] = S[i].second; }
+    for (Uint i=0; i<nBatch; ++i) {
+      seq[i] = S[i].first;
+      obs[i] = S[i].second;
+    }
   }
 }
 void Sample_impLen::prepare(std::atomic<bool>& needs_pass)
@@ -271,7 +276,8 @@ static inline float approxRsqrt( const float number )
 TSample_impRank::TSample_impRank(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
 {
-  if( ( stepSinceISWeep++ >= 10 || needs_pass ) == false ) return;
+  if( needs_pass == false and stepSinceISWeep++ < 10 ) return;
+
   stepSinceISWeep = 0;
   needs_pass = false;
   // we need to collect all errors and rank them by magnitude
@@ -280,19 +286,19 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
   // 2) sort them by decreasing error
   // 3) compute inv sqrt of all errors, same sweep also get minP
   //const float EPS = numeric_limits<float>::epsilon();
-  using USI = unsigned short;
-  using TupEST = std::tuple<float, USI, USI>;
-  const long nSeqs = nSequences(), nData = nTransitions();
-  if(nSeqs >= 65535) die("Too much data for data format");
+  using TupEST = std::tuple<float, unsigned, unsigned>;
+  const unsigned nSeqs = nSequences(), nData = nTransitions();
 
   std::vector<TupEST> errors(nData);
   // 1)
-  for(long i=0, locPrefix=0; i<nSeqs; ++i) {
-    Set[i]->prefix = locPrefix;
+  for(unsigned i=0, locPrefix=0; i<nSeqs; ++i) {
+    auto & EP = * Set[i];
+    EP.prefix = locPrefix;
+    const unsigned epNsteps = EP.ndata();
     const auto err_i = errors.data() + locPrefix;
-    locPrefix += Set[i]->ndata();
-    for(Uint j=0; j<Set[i]->ndata(); ++j)
-      err_i[j] = std::make_tuple(Set[i]->SquaredError[j], (USI)i, (USI)j );
+    locPrefix += epNsteps;
+    for(unsigned j=0; j<epNsteps; ++j)
+      err_i[j] = std::make_tuple(EP.SquaredError[j], i, j);
   }
 
   // 2)
@@ -308,16 +314,19 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
   #pragma omp parallel for reduction(min:minP) schedule(static)
   for(long i=0; i<nData; ++i) {
     // if samples never seen by optimizer the samples have high priority
-    const float P = std::get<0>(errors[i])>0 ? approxRsqrt(i+1) : 1;
-    const Uint seq = std::get<1>(errors[i]), t = std::get<2>(errors[i]);
-    probs[Set[seq]->prefix + t] = P;
-    Set[seq]->priorityImpW[t] = P;
+    //const float P = std::get<0>(errors[i])>0 ? approxRsqrt(i+1) : 1;
+    const float P = std::get<0>(errors[i])>0 ? 1.0/std::cbrt(i+1) : 1;
+    const unsigned seq = std::get<1>(errors[i]), t = std::get<2>(errors[i]);
+    auto & EP = * Set[seq];
+    probs[EP.prefix + t] = P;
+    EP.priorityImpW[t] = P;
     minP = std::min(minP, P);
   }
 
   setMinMaxProb(1, minP);
   distObs = std::discrete_distribution<Uint>(probs.begin(), probs.end());
 }
+
 void TSample_impRank::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 {
   if(seq.size() not_eq obs.size()) die(" ");
@@ -365,7 +374,7 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
       // do sqrt(delta^2)^alpha with alpha = 0.5
       const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq+EPS)) : 0.0f;
       const float Pe = P + EPS;
-      const float Qe = P>0.0f? P + EPS : 1.0e9f ; // avoid nans in impW
+      const float Qe = deltasq>0.0f? P + EPS : 1.0e9f ; // avoid nans in impW
       minP = std::min(minP, Qe);
       maxP = std::max(maxP, Pe);
       Set[i]->priorityImpW[j] = P;
