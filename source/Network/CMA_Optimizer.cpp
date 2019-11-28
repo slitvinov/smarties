@@ -20,6 +20,8 @@ CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
   Optimizer(S,D,W), pStarts(computePstarts()), pCounts(computePcounts()),
   pStart(pStarts[learn_rank]), pCount(pCounts[learn_rank])
 {
+  if(D.world_rank == 0)
+    printf("Optimizer: Parameter updates using diagonal-only version of CMA-ES.\n");
   diagCov->set(1);
   pathCov->set(0);
   pathDif->set(0);
