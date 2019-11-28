@@ -278,7 +278,7 @@ FORGET MemoryProcessing::readERfilterAlgo(const std::string setting,
 void MemoryProcessing::histogramImportanceWeights()
 {
   static constexpr Uint nBins = 81;
-  static constexpr Real beg = std::log(1e-3), end = std::log(50.0);
+  const Real beg = std::log(1e-3), end = std::log(50.0);
   Fval bounds[nBins+1] = { 0 };
   Uint counts[nBins]   = { 0 };
   for (Uint i = 1; i < nBins; ++i)
