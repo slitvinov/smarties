@@ -40,7 +40,7 @@ void Learner::initializeLearner()
                        (long double)data->readNData()});
 
   if ( currStep > 0 ) {
-    warn("Skipping initialization for restartd learner.");
+    printf("Skipping initialization for restartd learner.\n");
     return;
   }
 
@@ -289,18 +289,18 @@ void Learner::restart()
 
   char baseName[512];
   sprintf(baseName, "%s_rank_%03lu_learner", learner_name.c_str(), learn_rank);
-  const std::string dumpName(baseName);
-  FILE * fstat = fopen((dumpName+"_status.raw").c_str(), "r");
-  FILE * fdata = fopen((dumpName+"_data.raw").c_str(), "rb");
+  const std::string fName(baseName);
+  FILE* fstat = fopen((distrib.restart+"/"+fName+"_status.raw").c_str(), "r");
+  FILE* fdata = fopen((distrib.restart+"/"+fName+"_data.raw").c_str(), "rb");
 
   if(fstat == NULL || fdata == NULL)
   {
     if(fstat == NULL)
-      _warn("Learner status restart file %s not found\n", dumpName.c_str());
+      _warn("Learner status restart file %s not found\n", fName.c_str());
     else fclose(fstat);
 
     if(fdata == NULL)
-      _warn("Learner data restart file %s not found\n", dumpName.c_str());
+      _warn("Learner data restart file %s not found\n", fName.c_str());
     else fclose(fdata);
 
     chdir(currDirectory);
