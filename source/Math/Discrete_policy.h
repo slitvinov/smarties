@@ -107,6 +107,10 @@ struct Discrete_policy
     return beta[act];
   }
 
+  static Real evalLogBehavior(const Uint& act, const Rvec& beta) {
+    return std::log(beta[act]);
+  }
+
   static Uint sample(std::mt19937*const gen, const Rvec& beta) {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
@@ -121,7 +125,7 @@ struct Discrete_policy
     return probs[act];
   }
 
-  Real logProbability(const Uint act) const {
+  Real evalLogProbability(const Uint act) const {
     assert(act<=nA && probs.size()==nA);
     return std::log(probs[act]);
   }
