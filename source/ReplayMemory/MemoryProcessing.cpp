@@ -179,7 +179,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
 
 void MemoryProcessing::finalize()
 {
-  //std::lock_guard<std::mutex> lock(RM->dataset_mutex);
+  std::lock_guard<std::mutex> lock(RM->dataset_mutex);
   const int nB4 = RM->readNSeq();
 
   // reset flags that signal request to update estimators:
@@ -202,10 +202,10 @@ void MemoryProcessing::finalize()
     if(RM->readNData() - Set[indexOfEpisodeToDelete]->ndata() > maxTotObsNum) {
       //warn("Deleting episode");
       RM->removeSequence(indexOfEpisodeToDelete);
+      nPrunedEps ++;
     }
     indexOfEpisodeToDelete = -1;
   }
-  nPrunedEps += nB4 - RM->readNSeq();
 
   // update sampling algorithm:
   RM->sampler->prepare(RM->needs_pass);

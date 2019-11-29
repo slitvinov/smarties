@@ -152,7 +152,6 @@ void Sample_uniform::prepare(std::atomic<bool>& needs_pass)
 {
   if (needs_pass)
   {
-    std::lock_guard<std::mutex> lock(RM->dataset_mutex);
     updatePrefixes();
     needs_pass = false;
   }
