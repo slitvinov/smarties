@@ -282,7 +282,7 @@ void DistributionInfo::figureOutWorkersPattern()
       if(bIsMaster)
       {
         nOwnedEnvironments = MPICommSize(master_workers_comm) - 1;
-        _warn("master %lu owns %lu environments\n",
+        _warn("master %lu owns %lu environments",
               world_rank, nOwnedEnvironments);
         if(nWorkers < nMasters)
              workerless_masters_comm = MPICommDup(learners_train_comm);
@@ -322,7 +322,7 @@ void DistributionInfo::figureOutWorkersPattern()
         }
 
         _warn("worker %lu owns %lu environments, has rank %lu out of %lu. "
-              "worker ID inside group %d.\n", world_rank, nOwnedEnvironments,
+              "worker ID inside group %d.", world_rank, nOwnedEnvironments,
               innerWorkRank, innerWorkSize, thisWorkerGroupID);
       }
     }
