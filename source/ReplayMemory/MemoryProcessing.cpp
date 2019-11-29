@@ -179,8 +179,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho,
 
 void MemoryProcessing::finalize()
 {
-  std::lock_guard<std::mutex> lock(RM->dataset_mutex);
-  const int nB4 = RM->readNSeq();
+  const long setSize = RM->readNSeq();
 
   // reset flags that signal request to update estimators:
   const std::vector<Uint>& sampled = RM->lastSampledEpisodes();
@@ -190,7 +189,7 @@ void MemoryProcessing::finalize()
     assert(S->just_sampled >= 0);
     S->just_sampled = -1;
   }
-  for(int i=0; i<nB4; ++i) assert(RM->get(i)->just_sampled < 0);
+  for(long i=0; i<setSize; ++i) assert(RM->get(i)->just_sampled < 0);
 
   // Safety measure: we don't use as delete condition "if Nobs > maxTotObsNum",
   // We use "if Nobs - toDeleteEpisode.ndata() > maxTotObsNum".
