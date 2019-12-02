@@ -575,7 +575,7 @@ void DistributionInfo::initialzePRNG()
     MPI_Bcast(&randSeed, 1, MPI_UNSIGNED_LONG, 0, world_comm);
     if(world_rank==0) printf("Using seed %lu\n", randSeed);
   }
-  world_rank += world_rank;
+  randSeed += world_rank;
   generators.resize(0);
   generators.reserve(omp_get_max_threads());
   generators.push_back(std::mt19937(randSeed));
