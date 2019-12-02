@@ -104,7 +104,7 @@ int DistributionInfo::parse()
   parser.add_option("--nEnvironments", nEnvironments,
     "Number of environment processes (not necessarily ranks, may be forked)."
   );
-  parser.add_option("--workerProcessesPerEnv",
+  parser.add_option("--workerProcessesPerEnv", workerProcessesPerEnv,
     "Number of MPI ranks required by the the env application. It is 1 for "
     "serial/shared-memory solvers."
   );
@@ -467,23 +467,23 @@ void Settings::initializeOpts(std::ifstream & inputStream,
   if( inputStream.is_open() ) inputStream >> j;
 
   // LEARNING ALGORITHM
-  if(!j["learner"].empty()) learner = j["learner"];
-  if(!j["ERoldSeqFilter"].empty()) ERoldSeqFilter = j["ERoldSeqFilter"];
+  if(!j["learner"].empty())                   learner = j["learner"];
+  if(!j["ERoldSeqFilter"].empty())     ERoldSeqFilter = j["ERoldSeqFilter"];
   if(!j["dataSamplingAlgo"].empty()) dataSamplingAlgo = j["dataSamplingAlgo"];
 
-  if(!j["explNoise"].empty()) explNoise = j["explNoise"];
-  if(!j["gamma"].empty()) gamma = j["gamma"];
-  if(!j["lambda"].empty()) lambda = j["lambda"];
-  if(!j["obsPerStep"].empty()) obsPerStep = j["obsPerStep"];
-  if(!j["clipImpWeight"].empty()) clipImpWeight = j["clipImpWeight"];
-  if(!j["penalTol"].empty()) penalTol = j["penalTol"];
-  if(!j["klDivConstraint"].empty()) klDivConstraint = j["klDivConstraint"];
-  if(!j["targetDelay"].empty()) targetDelay = j["targetDelay"];
-  if(!j["epsAnneal"].empty()) epsAnneal = j["epsAnneal"];
+  if(!j["explNoise"].empty())               explNoise = j["explNoise"];
+  if(!j["gamma"].empty())                       gamma = j["gamma"];
+  if(!j["lambda"].empty())                     lambda = j["lambda"];
+  if(!j["obsPerStep"].empty())             obsPerStep = j["obsPerStep"];
+  if(!j["clipImpWeight"].empty())       clipImpWeight = j["clipImpWeight"];
+  if(!j["penalTol"].empty())                 penalTol = j["penalTol"];
+  if(!j["klDivConstraint"].empty())   klDivConstraint = j["klDivConstraint"];
+  if(!j["targetDelay"].empty())           targetDelay = j["targetDelay"];
+  if(!j["epsAnneal"].empty())               epsAnneal = j["epsAnneal"];
 
-  if(!j["minTotObsNum"].empty()) minTotObsNum = j["minTotObsNum"];
-  if(!j["maxTotObsNum"].empty()) maxTotObsNum = j["maxTotObsNum"];
-  if(!j["saveFreq"].empty()) saveFreq = j["saveFreq"];
+  if(!j["minTotObsNum"].empty())         minTotObsNum = j["minTotObsNum"];
+  if(!j["maxTotObsNum"].empty())         maxTotObsNum = j["maxTotObsNum"];
+  if(!j["saveFreq"].empty())                 saveFreq = j["saveFreq"];
 
   // NETWORK APPROXIMATORS
   if(!j["encoderLayerSizes"].empty()) {
@@ -497,17 +497,15 @@ void Settings::initializeOpts(std::ifstream & inputStream,
     std::copy(tmp.begin(), tmp.end(), nnLayerSizes.begin());
   }
 
-  if(!j["batchSize"].empty()) batchSize = j["batchSize"];
-  if(!j["ESpopSize"].empty()) ESpopSize = j["ESpopSize"];
-  if(!j["nnBPTTseq"].empty()) nnBPTTseq = j["nnBPTTseq"];
-
-  if(!j["nnLambda"].empty()) nnLambda = j["nnLambda"];
-  if(!j["learnrate"].empty()) learnrate = j["learnrate"];
+  if(!j["batchSize"].empty())               batchSize = j["batchSize"];
+  if(!j["ESpopSize"].empty())               ESpopSize = j["ESpopSize"];
+  if(!j["nnBPTTseq"].empty())               nnBPTTseq = j["nnBPTTseq"];
+  if(!j["nnLambda"].empty())                 nnLambda = j["nnLambda"];
+  if(!j["learnrate"].empty())               learnrate = j["learnrate"];
   if(!j["outWeightsPrefac"].empty()) outWeightsPrefac = j["outWeightsPrefac"];
-
-  if(!j["nnOutputFunc"].empty()) nnOutputFunc = j["nnOutputFunc"];
-  if(!j["nnFunc"].empty()) nnFunc = j["nnFunc"];
-  if(!j["nnType"].empty()) nnType = j["nnType"];
+  if(!j["nnOutputFunc"].empty())         nnOutputFunc = j["nnOutputFunc"];
+  if(!j["nnFunc"].empty())                     nnFunc = j["nnFunc"];
+  if(!j["nnType"].empty())                     nnType = j["nnType"];
 
   // split read workloads among processes:
   defineDistributedLearning(distrib);
@@ -538,29 +536,23 @@ void Settings::defineDistributedLearning(DistributionInfo& distrib)
   const Real nOwnEnvs = distrib.nOwnedEnvironments;
   obsPerStep_local = nOwnEnvs * obsPerStep / distrib.nEnvironments;
   //obsPerStep_local = obsPerStep;
-
   if(batchSize_local <= 0) die(" ");
   if(maxTotObsNum_local <= 0) die(" ");
 }
 
 void Settings::check()
 {
-  bRecurrent = nnType == "LSTM" ||
-               nnType == "RNN"  ||
-               nnType == "MGU"  ||
-               nnType == "GRU";
-
-  if(targetDelay<0)  die("targetDelay<0");
-  if(obsPerStep<0)   die("obsPerStep<0");
-  if(learnrate>1)    die("learnrate>1");
-  if(learnrate<0)    die("learnrate<0");
-  if(explNoise<0)    die("explNoise<0");
-  if(epsAnneal<0)    die("epsAnneal<0");
-  if(batchSize<=0)   die("batchSize<0");
-  if(nnLambda<0)     die("nnLambda<0");
-  if(gamma<0)        die("gamma<0");
-  if(gamma>1)        die("gamma>1");
-
+  bRecurrent= nnType=="LSTM" || nnType=="RNN" || nnType=="MGU" || nnType=="GRU";
+  if(targetDelay<0) die("targetDelay<0");
+  if(obsPerStep<0)  die("obsPerStep<0");
+  if(learnrate>1)   die("learnrate>1");
+  if(learnrate<0)   die("learnrate<0");
+  if(explNoise<0)   die("explNoise<0");
+  if(epsAnneal<0)   die("epsAnneal<0");
+  if(batchSize<=0)  die("batchSize<0");
+  if(nnLambda<0)    die("nnLambda<0");
+  if(gamma<0)       die("gamma<0");
+  if(gamma>1)       die("gamma>1");
   if(epsAnneal>0.0001 || epsAnneal<0) {
     warn("epsAnneal should be tiny. It will be set to 5e-7 for this run.");
     epsAnneal = 5e-7;
