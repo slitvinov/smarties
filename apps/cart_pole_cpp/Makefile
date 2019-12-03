@@ -1,4 +1,4 @@
-CXX = g++
+CXX ?= g++
 
 
 #LDFLAGS+= -fopenmp
