@@ -131,8 +131,8 @@ def applicationSetup(parsed, absRunPath):
   else:
     print('FATAL: Unable to locate application executable')
 
-  if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
-    print("WARNING: Application is older then smarties, make sure used libraries still match.")
+  #if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
+  #  print("WARNING: Application is older then smarties, make sure used libraries still match.")
 
 def setComputationalResources(parsed):
   # if launched with --nProcesses N default behavior is to have N-1 workers
