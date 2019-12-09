@@ -131,8 +131,8 @@ def applicationSetup(parsed, absRunPath):
   else:
     print('FATAL: Unable to locate application executable')
 
-  if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
-    print("WARNING: Application is older then smarties, make sure used libraries still match.")
+  #if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
+  #  print("WARNING: Application is older then smarties, make sure used libraries still match.")
 
 def setComputationalResources(parsed):
   # if launched with --nProcesses N default behavior is to have N-1 workers
@@ -383,7 +383,6 @@ if __name__ == '__main__':
   cmd = 'cd ${RUNDIR} \n'
   cmd = cmd + setEnvironmentFlags(parsed)
   cmd = cmd + setLaunchCommand(parsed, absRunPath)
-  print('COMMAND:' + cmd )
-  #print('COMMAND:' + parsed.args )
+  # print('COMMAND:' + cmd )
   signal.signal(signal.SIGINT, signal_handler)
   subprocess.run(cmd, executable=parsed.shell, shell=True)

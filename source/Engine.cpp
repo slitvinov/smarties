@@ -70,7 +70,7 @@ void Engine::setIsTraining(const bool bTrain) {
   distrib->bTrain = bTrain;
 }
 
-void Engine::setIsLoggingAllData(const bool logAllSamples) {
+void Engine::setIsLoggingAllData(const int logAllSamples) {
   distrib->logAllSamples = logAllSamples;
 }
 
@@ -135,7 +135,7 @@ void Engine::run(const std::function<void(Communicator*const,
                                           MPI_Comm,
                                           int, char **      )> & callback)
 {
-  distrib->forkableApplication = distrib->workerProcessesPerEnv == 1;
+  distrib->forkableApplication = distrib->workerProcessesPerEnv <= 1;
   init();
   if(distrib->bIsMaster)
   {

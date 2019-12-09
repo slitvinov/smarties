@@ -38,6 +38,7 @@ struct Zero_advantage;
 
 #define RACER_simpleSigma
 #define RACER_singleNet
+//#define RACER_TABC
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_approximator

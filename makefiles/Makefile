@@ -56,7 +56,7 @@ endif
 
 testdiff ?= false
 ifeq "$(testdiff)" "true"
-CPPFLAGS+= -D__CHECK_DIFF
+CPPFLAGS+= -DSMARTIES_CHECK_DIFF
 endif
 
 precision ?= double

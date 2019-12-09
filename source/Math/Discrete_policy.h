@@ -41,7 +41,7 @@ struct Discrete_policy
   static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
   {
     for(Uint e=0; e<aI->dimDiscrete(); ++e)
-    #ifdef EXTRACT_COVAR
+    #ifdef SMARTIES_EXTRACT_COVAR
         O.push_back(PosDefMapping_f::_inv(S*S));
     #else
         O.push_back(PosDefMapping_f::_inv(S));
@@ -82,7 +82,7 @@ struct Discrete_policy
     assert(unnorm.size()==nA);
     Real ret = 0;
     for (Uint j=0; j<nA; ++j) { ret += unnorm[j]; assert(unnorm[j]>0); }
-    return ret + nnEPS;
+    return std::max(ret, (Real) nnEPS);
   }
 
   Rvec extract_probabilities() const
@@ -107,6 +107,10 @@ struct Discrete_policy
     return beta[act];
   }
 
+  static Real evalLogBehavior(const Uint& act, const Rvec& beta) {
+    return std::log(beta[act]);
+  }
+
   static Uint sample(std::mt19937*const gen, const Rvec& beta) {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
@@ -121,7 +125,7 @@ struct Discrete_policy
     return probs[act];
   }
 
-  Real logProbability(const Uint act) const {
+  Real evalLogProbability(const Uint act) const {
     assert(act<=nA && probs.size()==nA);
     return std::log(probs[act]);
   }
