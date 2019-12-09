@@ -248,7 +248,7 @@ def setLaunchCommand(parsed, absRunPath):
 
   elif isDaint() and parsed.interactive is True:
     nTaskPerNode, nNodes = parsed.nTaskPerNode, nProcesses / parsed.nTaskPerNode
-    cmd = "srun -C gpu -u -n %d --nodes %d --ntasks-per-node %d ./%s %s" \
+    cmd = "srun -C gpu -u -p debug -n %d --nodes %d --ntasks-per-node %d ./%s %s" \
           % (nProcesses, nNodes, nTaskPerNode, parsed.execname, parsed.args)
   return cmd
 
