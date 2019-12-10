@@ -62,7 +62,7 @@ struct MDPdescriptor
   nnReal rewardsStdDev=1, rewardsScale=1;
 
   // TODO: vector describing shape of state. To enable environment having
-  // separate preprocessing for sight as opposed to otehr sensors.
+  // separate preprocessing for sight as opposed to other sensors.
   // This is vector of vectors because each input type will have a vector
   // describing its shape. ( eg. [84 84 1] for atari )
   // std::vector<std::vector<int>> stateShape;
