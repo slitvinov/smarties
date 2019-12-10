@@ -22,7 +22,7 @@ inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
 {
   const int control_vars = 2; // parameters to find
   const int state_vars = 0; // nothing : function maximization
-  comm->set_state_action_dims(state_vars, control_vars);
+  comm->setStateActionDims(state_vars, control_vars);
 
   #ifdef FIND_PARAM
    const std::vector<double> upper_act_scale{1, 100}, lower_act_scale{-1, -100};

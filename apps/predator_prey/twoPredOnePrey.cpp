@@ -19,9 +19,9 @@ inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
   comm->agents_define_different_MDP(); // pred & prey learn different policies
   //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
   const double maxSpeed = 0.02 * EXTENT/dt;
-  comm->set_state_action_dims(6, 2, 0); // 6 state, 2 control variables
-  comm->set_state_action_dims(6, 2, 1); // 6 state, 2 control variables
-  comm->set_state_action_dims(6, 2, 2); // 6 state, 2 control variables
+  comm->setStateActionDims(6, 2, 0); // 6 state, 2 control variables
+  comm->setStateActionDims(6, 2, 1); // 6 state, 2 control variables
+  comm->setStateActionDims(6, 2, 2); // 6 state, 2 control variables
 
   std::mt19937 &rngPointer =  comm->getPRNG();
  

@@ -11,7 +11,7 @@ inline void app_main(smarties::Communicator*const comm)
   #endif
   std::cout << ".\n";
 
-  comm->set_state_action_dims(10, 1);
+  comm->setStateActionDims(10, 1);
   std::mt19937& gen = comm->getPRNG();
 
   bool bounded = true;
