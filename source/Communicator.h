@@ -160,6 +160,8 @@ public:
   ////////////////////////////// UTILITY METHODS ///////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
   VISIBLE std::mt19937& getPRNG();
+  VISIBLE Real getUniformRandom(const Real begin = 0, const Real end = 1);
+  VISIBLE Real getNormalRandom(const Real mean = 0, const Real stdev = 1);
 
   VISIBLE bool isTraining() const;
 

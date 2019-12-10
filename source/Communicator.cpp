@@ -321,6 +321,17 @@ void Communicator::initOneCommunicationBuffer()
 std::mt19937& Communicator::getPRNG() {
   return gen;
 }
+Real Communicator::getUniformRandom(const Real begin, const Real end)
+{
+  std::uniform_real_distribution<Real> distribution(begin, end);
+  return distribution(gen);
+}
+Real Communicator::getNormalRandom(const Real mean, const Real stdev)
+{
+  std::normal_distribution<Real> distribution(mean, stdev);
+  return distribution(gen);
+}
+
 bool Communicator::isTraining() const {
   return bTrain;
 }
