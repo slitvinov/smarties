@@ -45,4 +45,4 @@ app_main.o: cart_pole.o smarties.o
 	$(CXX) $(extra) $(CPPFLAGS) -MD -c $<
 
 clean:
-	rm -f *.o *.s *.d *.mod smarties.f90 cart-pole
+	rm -f *.o *.s *.d *.mod smarties.f90 exec
