@@ -575,12 +575,4 @@ void DistributionInfo::initialzePRNG()
     generators.push_back( std::mt19937( generators[0]() ) );
 }
 
-void DistributionInfo::finalizePRNG(const Uint nAgents_local)
-{
-  const Uint finalSize = generators.size() + nAgents_local;
-  generators.reserve(finalSize);
-  for(size_t i=generators.size(); i < finalSize; ++i)
-    generators.push_back( std::mt19937( generators[0]() ) );
-}
-
 }

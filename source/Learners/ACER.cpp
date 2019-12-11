@@ -25,7 +25,7 @@ static inline Gaussian_policy prepare_policy(const Rvec & out,
                                              const Rvec ACT = Rvec(),
                                              const Rvec MU  = Rvec())
 {
-  Gaussian_policy pol({0, aInfo.dim()}, &aInfo, out);
+  Gaussian_policy pol({0, aInfo.dim()}, aInfo, out);
   if(ACT.size()) {
     assert(MU.size());
     pol.prepare(ACT, MU);
@@ -140,8 +140,8 @@ void ACER::select(Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
-    auto act = POL.pickAction(bSamplePolicy, generators[nThreads+agent.ID], MU);
+    auto act = POL.selectAction(agent, MU, settings.explNoise>0);
+
     agent.act(act);
     data_get->add_action(agent, MU);
   }
@@ -231,7 +231,7 @@ ACER::ACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   {
     actor->buildFromSettings(nA);
     actor->setUseTargetNetworks();
-    const Rvec stdParam = Gaussian_policy::initial_Stdev(&aInfo, explNoise);
+    const Rvec stdParam = Gaussian_policy::initial_Stdev(aInfo, explNoise);
     actor->getBuilder().addParamLayer(nA, "Linear", stdParam);
     actor->initializeNetwork();
   }

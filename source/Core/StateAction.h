@@ -90,7 +90,14 @@ struct MDPdescriptor
 
   Uint nAppendedObs = 0;
   bool isPartiallyObservable = false;
+
+  // In the common case where act = policy (or mean) + stdev * N(0,1)
+  // The following option allows sampling N(0,1) only once per time step
+  // and share its value among all agents. Application in RL for LES model:
+  // many agents (grid points) collaborate to dissipate right amount of energy
+  // across the grid. Having different noise values makes the problem harder.
   bool bAgentsShareNoise = false;
+  Rvec sharedNoiseVecTic, sharedNoiseVecToc;
 
   std::vector<Conv2D_Descriptor> conv2dDescriptors;
 

@@ -21,7 +21,7 @@ namespace smarties
 
 struct Discrete_policy
 {
-  const ActionInfo* const aInfo;
+  const ActionInfo& aInfo;
   const Uint start_prob, nA;
   const Rvec netOutputs;
   const Rvec unnorm;
@@ -31,16 +31,16 @@ struct Discrete_policy
   Uint sampAct;
   Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0, sampKLdiv=0;
 
-  Uint map_action(const Rvec& sent) const {
-    return aInfo->actionMessage2label(sent);
+  Uint map_action(const Rvec & sent) const {
+    return aInfo.actionMessage2label(sent);
   }
-  static Uint compute_nA(const ActionInfo* const aI) {
-    assert(aI->dimDiscrete());
-    return aI->dimDiscrete();
+  static Uint compute_nA(const ActionInfo & aI) {
+    assert(aI.dimDiscrete());
+    return aI.dimDiscrete();
   }
-  static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
+  static void setInitial_Stdev(const ActionInfo& aI, Rvec& O, const Real S)
   {
-    for(Uint e=0; e<aI->dimDiscrete(); ++e)
+    for(Uint e=0; e<aI.dimDiscrete(); ++e)
     #ifdef SMARTIES_EXTRACT_COVAR
         O.push_back(PosDefMapping_f::_inv(S*S));
     #else
@@ -48,17 +48,17 @@ struct Discrete_policy
     #endif
   }
 
-  static Rvec initial_Stdev(const ActionInfo*const aI, const Real S)
+  static Rvec initial_Stdev(const ActionInfo& aI, const Real S)
   {
-    Rvec ret; ret.reserve(aI->dimDiscrete());
+    Rvec ret; ret.reserve(aI.dimDiscrete());
     setInitial_Stdev(aI, ret, S);
     return ret;
   }
 
-  static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
+  static void setInitial_noStdev(const ActionInfo& aI, Rvec& initBias) { }
 
-  Discrete_policy(const std::vector<Uint>& start, const ActionInfo*const aI,
-    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->dimDiscrete()),
+  Discrete_policy(const std::vector<Uint>& start, const ActionInfo& aI,
+    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI.dimDiscrete()),
     netOutputs(out), unnorm(extract_unnorm()), normalization(compute_norm()),
     probs(extract_probabilities())
     {
@@ -197,9 +197,10 @@ struct Discrete_policy
     return probs;
   }
 
-  Uint pickAction(const bool bSample, std::mt19937& gen, const Rvec& beta)
+  Uint selectAction(Agent& agent, Rvec& beta, const bool bTrain)
   {
-    sampAct = bSample? sample(gen, beta) : Utilities::maxInd(probs);
+    const bool bSample = bTrain && agent.trackSequence;
+    sampAct = bSample? sample(agent.generator, beta) : Utilities::maxInd(probs);
     return sampAct;
   }
 
