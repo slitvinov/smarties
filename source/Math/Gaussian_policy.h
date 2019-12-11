@@ -336,6 +336,7 @@ public:
 
   Rvec selectAction(const Rvec & noise, const Rvec & MU)
   {
+    sampAct = Rvec(nA);
     for (Uint i=0; i<nA; ++i) sampAct[i] = MU[i] + MU[nA + i] * noise[i];
     return aInfo.action2scaledAction(sampAct); //scale back to action space
   }
