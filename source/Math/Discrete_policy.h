@@ -111,14 +111,14 @@ struct Discrete_policy
     return std::log(beta[act]);
   }
 
-  static Uint sample(std::mt19937*const gen, const Rvec& beta) {
+  static Uint sample(std::mt19937& gen, const Rvec& beta) {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
-    return dist(*gen);
+    return dist(gen);
   }
 
-  Uint sample(std::mt19937*const gen) const {
+  Uint sample(std::mt19937& gen) const {
     std::discrete_distribution<Uint> dist(probs.begin(), probs.end());
-    return dist(*gen);
+    return dist(gen);
   }
 
   Real evalProbability(const Uint act) const {
@@ -197,7 +197,7 @@ struct Discrete_policy
     return probs;
   }
 
-  Uint finalize(const bool bSample, std::mt19937*const gen, const Rvec& beta)
+  Uint pickAction(const bool bSample, std::mt19937& gen, const Rvec& beta)
   {
     sampAct = bSample? sample(gen, beta) : Utilities::maxInd(probs);
     return sampAct;

@@ -74,7 +74,7 @@ policyGradient(const Rvec& MU, const Policy_t& POL,
   const Real rho_cur = POL.sampImpWeight;
   #if defined(RACER_TABC) // apply ACER's var trunc and bias corr trick
     //compute quantities needed for trunc import sampl with bias correction
-    const Action_t sample = POL.sample(&generators[thrID]);
+    const Action_t sample = POL.sample(generators[thrID]);
     const Real polProbOnPolicy = POL.evalLogProbability(sample);
     const Real polProbBehavior = POL.evalLogBehavior(sample, MU);
     const Real rho_pol = Utilities::safeExp(polProbOnPolicy-polProbBehavior);

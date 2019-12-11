@@ -177,7 +177,7 @@ public:
     return p / 2;
   }
 
-  static Rvec sample(std::mt19937*const gen, const Rvec& beta)
+  static Rvec sample(std::mt19937& gen, const Rvec& beta)
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     Rvec ret(beta.size()/2);
@@ -185,21 +185,21 @@ public:
     std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
 
     for(Uint i=0; i<beta.size()/2; ++i) {
-      Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      Real samp = dist(gen);
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(gen);
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;
   }
-  Rvec sample(std::mt19937*const gen) const
+  Rvec sample(std::mt19937& gen) const
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
     std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
 
     for(Uint i=0; i<nA; ++i) {
-      Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      Real samp = dist(gen);
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(gen);
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
@@ -341,7 +341,7 @@ public:
   Rvec getBest() const {
     return mean;
   }
-  Rvec finalize(const bool bSample, std::mt19937*const gen, Rvec& MU)
+  Rvec pickAction(const bool bSample, std::mt19937& gen, Rvec& MU)
   { //scale back to action space size:
     for(Uint i=0; i<nA; ++i)
       if ( aInfo->isBounded(i) ) {

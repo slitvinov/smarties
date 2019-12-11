@@ -215,7 +215,7 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     }
 
     auto pol = prepare_policy<Gaussian_policy>(output);
-    Rvec act = pol.finalize(1, &generators[0], mu);
+    Rvec act = pol.pickAction(1, generators[0], mu);
     auto adv = prepare_advantage<Param_advantage>( output, &pol );
     adv.test(act, &generators[0]);
     pol.prepare(act, mu);
@@ -286,7 +286,7 @@ RACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     }
 
     auto pol = prepare_policy<Gaussian_policy>(output);
-    Rvec act = pol.finalize(1, &generators[0], mu);
+    Rvec act = pol.pickAction(1, generators[0], mu);
     pol.prepare(act, mu);
     pol.test(act, mu);
   }

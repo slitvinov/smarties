@@ -128,6 +128,8 @@ public:
 
   VISIBLE void disableDataTrackingForAgents(int agentStart, int agentEnd);
 
+  VISIBLE void agentsShareExplorationNoise(const int agentID = 0);
+
   VISIBLE void setPreprocessingConv2d(
     const int input_width, const int input_height, const int input_features,
     const int kernels_num, const int filters_size, const int stride,

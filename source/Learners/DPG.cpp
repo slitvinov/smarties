@@ -119,7 +119,7 @@ void DPG::select(Agent& agent)
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
     const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
-    auto act = POL.finalize(bSamplePolicy, &generators[nThreads+agent.ID], MU);
+    auto act = POL.pickAction(bSamplePolicy, generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
       act = POL.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
     agent.act(act);

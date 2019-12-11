@@ -90,6 +90,7 @@ struct MDPdescriptor
 
   Uint nAppendedObs = 0;
   bool isPartiallyObservable = false;
+  bool bAgentsShareNoise = false;
 
   std::vector<Conv2D_Descriptor> conv2dDescriptors;
 
@@ -109,6 +110,7 @@ struct MDPdescriptor
       die("Application did not set up dimensionality of action vector.");
 
     sendRecvFunc(&bDiscreteActions, 1 * sizeof(bool) );
+    sendRecvFunc(&bAgentsShareNoise, 1 * sizeof(bool) );
 
     sendRecvFunc(&nAppendedObs,            1 * sizeof(Uint) );
     sendRecvFunc(&isPartiallyObservable,   1 * sizeof(bool) );

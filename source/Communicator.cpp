@@ -229,6 +229,21 @@ void Communicator::disableDataTrackingForAgents(int agentStart, int agentEnd)
     ENV.bTrainFromAgentData[i] = 0;
 }
 
+void Communicator::agentsShareExplorationNoise(const int agentID)
+{
+  if(ENV.bFinalized) {
+    warn("Cannot edit env description after having sent first state."); return;
+  }
+  if(bEnvDistributedAgents) {
+    printf("ABORTING: Shared exploration noise is not yet supported for "
+      "distributed agents (noise is not communicated with MPI to other ranks "
+      "running the simulation)."); fflush(0); abort();
+  }
+  if(agentID >= (int) ENV.descriptors.size())
+    die("Attempted to write to uninitialized MDPdescriptor");
+  ENV.descriptors[agentID]->bAgentsShareNoise = true;
+}
+
 void Communicator::finalizeProblemDescription()
 {
   if(ENV.bFinalized) {

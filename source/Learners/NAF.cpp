@@ -81,7 +81,7 @@ void NAF::select(Agent& agent)
     Rvec MU = POL.getVector();
     const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
     //cout << print(MU) << endl;
-    Rvec act = POL.finalize(bSamplePolicy, &generators[nThreads+agent.ID], MU);
+    Rvec act = POL.pickAction(bSamplePolicy, generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
       act = POL.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
 

@@ -64,13 +64,13 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     advtg->setAddedInput(policies[i].sampAct, bID, step, 0);
     //if(thrID==0) cout << "Action: " << print(policies[i].sampAct) << endl;
     advantages[i][0] = advtg->forward(bID, step, 0) [0]; // sample 0
-    policy_samples[i] = policies[i].sample(&generators[thrID]);
+    policy_samples[i] = policies[i].sample(generators[thrID]);
     //if(thrID==0) cout << "Sample: " << print(policy_samples[i]) << endl;
     advtg->setAddedInput(policy_samples[i], bID, step, 1);
     advantages[i][1] = advtg->forward(bID, step, 1) [0]; // sample 1
 
     for(Uint k=0, samp=2; k<nAexpectation; ++k, ++samp) {
-      const Rvec extraPolSample = policies[i].sample(&generators[thrID]);
+      const Rvec extraPolSample = policies[i].sample(generators[thrID]);
       advtg->setAddedInput(extraPolSample, bID, step, samp);
       advantages[i][samp] = advtg->forward(bID, step, samp) [0]; // sample
     }
@@ -141,7 +141,7 @@ void ACER::select(Agent& agent)
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
     const bool bSamplePolicy = settings.explNoise>0 && agent.trackSequence;
-    auto act = POL.finalize(bSamplePolicy, &generators[nThreads+agent.ID], MU);
+    auto act = POL.pickAction(bSamplePolicy, generators[nThreads+agent.ID], MU);
     agent.act(act);
     data_get->add_action(agent, MU);
   }

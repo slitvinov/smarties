@@ -55,7 +55,7 @@ DQN::DQN(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
     }
 
     Discrete_policy pol({0}, &aInfo, output);
-    Uint act = pol.finalize(1, &generators[0], mu);
+    Uint act = pol.pickAction(1, generators[0], mu);
     pol.prepare(aInfo.label2actionMessage(act), mu);
     pol.test(act, mu);
   }
@@ -80,7 +80,7 @@ void DQN::select(Agent& agent)
       Discrete_policy POL({0}, &aInfo, outVec);
       Rvec MU = POL.getVector();
       const bool bSamplePol = settings.explNoise>0 && agent.trackSequence;
-      Uint act = POL.finalize(bSamplePol, & rngen, MU);
+      Uint act = POL.pickAction(bSamplePol, rngen, MU);
       agent.act(act);
     #else
       const Real anneal = annealingFactor(), explNoise = settings.explNoise;
