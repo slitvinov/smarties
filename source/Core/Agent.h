@@ -286,7 +286,14 @@ struct Agent
     generator = std::mt19937( gen() );
     distribution = std::normal_distribution<Real>(0.0, 1.0);
     safety = std::uniform_real_distribution<Real>(-NORMDIST_MAX, NORMDIST_MAX);
+    resetActionNoise();
+  }
 
+  void resetActionNoise()
+  {
+    // only one agent (0) needs to set a noise vector, and
+    // if noise is non shared then this does not matter:
+    if(localID > 0 or not MDP.bAgentsShareNoise) return;
     for(Uint i=0; i<aInfo.dim(); ++i) {
       Real samp = distribution(generator);
       if(samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(generator);
