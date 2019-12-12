@@ -8,8 +8,8 @@ PHYSICAL_CORE_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.physicalcpu_max 
 
 # Parameters modifiable from environment.
 JOBS=${JOBS:-$PHYSICAL_CORE_COUNT}
-SOURCES=${SOURCES:-$PWD/extern}
-INSTALL_PATH=${INSTALL_PATH:-$PWD/extern/build}
+SOURCES=${SOURCES:-${SMARTIES_ROOT}/extern}
+INSTALL_PATH=${INSTALL_PATH:-${SMARTIES_ROOT}/extern/build}
 CC=${CC:-gcc}
 CXX=${CXX:-g++}
 # Shorthands for versions.
@@ -39,6 +39,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [ -z "$SMARTIES_ROOT" ]; then
+   echo " \
+This script (and many smarties' functionalities) requires setting the
+environment variable SMARTIES_ROOT.
+"
+exit
+fi
 
 if [ -z "$INSTALL_MPICH" -a -z "$INSTALL_OBLAS" -a -z "$PRINT_EXPORT" -o -n "$UNKNOWN_ARGUMENT" ]; then
     echo "Usage:
@@ -61,13 +68,16 @@ fi
 
 
 BASEPWD=$PWD
-
+mkdir -p ${SMARTIES_ROOT}/extern/lib
+mkdir -p ${SMARTIES_ROOT}/extern/bin
+mkdir -p ${SMARTIES_ROOT}/extern/include
 
 if [ -n "$INSTALL_MPICH" ]; then
     echo "Installing mpich ${MPICH_VERSION}..."
     wget -nc http://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-#    $TAR -xzvf mpich-${MPICH_VERSION}.tar.gz
+    $TAR -xzvf mpich-${MPICH_VERSION}.tar.gz
+    rm mpich-${MPICH_VERSION}.tar.gz
     cd mpich-${MPICH_VERSION}
     CC=${CC} CXX=${CXX} ./configure \
       --prefix=$INSTALL_PATH/mpich-${MPICH_VERSION}/ \
@@ -75,6 +85,10 @@ if [ -n "$INSTALL_MPICH" ]; then
     make -j${JOBS}
     make install -j${JOBS}
     cd $BASEPWD
+    mv -f -u ${INSTALL_PATH}/mpich*/lib/lib*      ${SMARTIES_ROOT}/extern/lib/
+    mv -f -u ${INSTALL_PATH}/mpich*/bin/*         ${SMARTIES_ROOT}/extern/bin/
+    mv -f -u ${INSTALL_PATH}/mpich*/include/*     ${SMARTIES_ROOT}/extern/include/
+    rm -rf ${INSTALL_PATH}/mpich* $SOURCES/mpich*
 fi
 
 if [ -n "$INSTALL_OBLAS" ]; then
@@ -85,6 +99,9 @@ if [ -n "$INSTALL_OBLAS" ]; then
     make CC=${CC} FC=${CC} NUM_THREADS=1 USE_THREAD=0 USE_OPENMP=0 -j${JOBS}
     make PREFIX=$INSTALL_PATH/OpenBLAS/ install
     cd $BASEPWD
+    mv -f -u ${INSTALL_PATH}/OpenBLAS/lib/lib*        ${SMARTIES_ROOT}/extern/lib/
+    mv -f -u ${INSTALL_PATH}/OpenBLAS/include/*       ${SMARTIES_ROOT}/extern/include/
+    rm -rf ${INSTALL_PATH}/OpenBLAS $SOURCES/OpenBLAS
 fi
 
 #if [ -n "$INSTALL_MPICH" ]; then
