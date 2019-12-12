@@ -194,6 +194,8 @@ def setEnvironmentFlags(parsed):
         "export OPENBLAS_NUM_THREADS=1 \n" \
         "export CRAY_CUDA_MPS=1 \n" \
         "export PYTHONPATH=${PYTHONPATH}:${SMARTIES_ROOT}/lib \n" \
+        "export PATH=${PATH}:${SMARTIES_ROOT}/extern/bin \n" \
+        "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/extern/lib \n" \
         "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n" \
         "export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${SMARTIES_ROOT}/lib \n " \
         % parsed.nThreads
