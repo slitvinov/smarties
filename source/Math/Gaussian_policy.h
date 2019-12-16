@@ -355,7 +355,8 @@ public:
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;
-  }*/
+  }
+  */
 
   Rvec sample(std::mt19937& gen) const
   {
