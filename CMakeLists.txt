@@ -125,6 +125,14 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 
 # OpenBLAS
 find_package(BLAS REQUIRED)
+find_path(BLAS_INCLUDE_DIRS cblas.h
+  /usr/include
+  /usr/local/include
+  /usr/include/openblas
+  /opt/OpenBLAS/include
+  /usr/include/x86_64-linux-gnu
+  /path/to/mkl/include
+  $ENV{BLAS_HOME}/include)
 include_directories(${BLAS_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_OPENBLAS")
 
