@@ -135,6 +135,7 @@ class MGULayer: public Layer
     {
       const nnReal * const WRC = para->W(ID) + (2*nCells)*nInputs + nCells;
       #ifdef USE_OMPSIMD_BLAS
+        memset(tmp, 0, nCells*sizeof(nnReal));
         GEMVomp(nCells, nCells, 2*nCells, WRC, deltaC, tmp);
       #else
         SMARTIES_gemv(CblasRowMajor, CblasNoTrans, nCells, nCells, 1,
