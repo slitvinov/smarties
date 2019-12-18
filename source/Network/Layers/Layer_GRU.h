@@ -16,6 +16,11 @@ namespace smarties
 
 class MGULayer: public Layer
 {
+  // MGU (Minimal Gated Unit)  input(t) -> [GRU] -> output(t)
+  // forget(t) = sigmoid (Wfr output(t-1) + Wff input(t) + bf)
+  // state(t)  =    tanh (Wsr [forget(t) * output(t-1)] + Wsf input(t) + bs
+  // output(t) = (1 - forget(t)) * output(t-1) + forget(t) * state(t)
+  // Where * and + are element-wise ops, weight-vector multiplication is implied
   const Uint nInputs, nCells;
   const std::unique_ptr<Function> cell;
 
@@ -79,7 +84,7 @@ class MGULayer: public Layer
       }
     }
 
-    if(prev not_eq nullptr)
+    if(prev not_eq nullptr) // if not at first time step
     {
       // forget = = sigm [ Wfr prevOutput + Wff inputs + b ]
       const nnReal* const inputs = prev->Y(ID);
@@ -98,7 +103,7 @@ class MGULayer: public Layer
         for(Uint o=0; o<nCells; ++o) state[o] += Wsr[o] * inputs[i] * forget[i];
       }
       Tanh::_eval(state, state, nCells);
-      // output = = (1 - qforget) \elemProd prevOut + forget \elemProd state
+      // output = = (1 - forget) \elemProd prevOut + forget \elemProd state
       #pragma omp simd aligned(output, forget, inputs, state : VEC_WIDTH)
       for (Uint o=0; o<nCells; ++o)
         output[o] = forget[o]*state[o] + (1-forget[o])*inputs[o];
@@ -121,8 +126,7 @@ class MGULayer: public Layer
     using Utilities::allocate_ptr;
     const nnReal* const forget = curr->X(ID);
     const nnReal* const state  = curr->X(ID) + nCells;
-      //const nnReal* const output = curr->Y(ID);
-    nnReal* const dLdO = curr->E(ID); // dLoss d GRUoutput
+    const nnReal* const dLdO = curr->E(ID); // dLossdGRU, comes from backprop
     nnReal* const dLdF = curr->E(ID) + nCells; // dLoss dForgetGate
     // curr->Y(ID) + nCells is unused memory: used here to store dLoss dState
     nnReal* const dLdS = curr->Y(ID) + nCells;
@@ -158,7 +162,7 @@ class MGULayer: public Layer
     if(prev not_eq nullptr)
     {
       #pragma omp simd aligned(dLdprevOut,forget,dLdO,dLdFprevOut : VEC_WIDTH)
-      for(Uint o=0; o<nCells; ++o) // first two terms of 4)
+      for(Uint o=0; o<nCells; ++o) // first two terms of 4) are elt-wise:
         dLdprevOut[o] += (1-forget[o])*dLdO[o] + forget[o]*dLdFprevOut[o];
       // last term of 4):
       const nnReal * const Wfr = para->W(ID) +(2*nCells)*nInputs;
@@ -174,7 +178,7 @@ class MGULayer: public Layer
     // backprop dL to input dLdI = Wff * dLdF + Wsf * dLdS
     if( spanCompInpGrads )
     {
-            nnReal* const dLdInput = curr->E(ID-link) + startCompInpGrads;
+      nnReal* const dLdInput = curr->E(ID-link) + startCompInpGrads;
       const nnReal* const Wff = para->W(ID) +startCompInpGrads*2*nCells;
       const nnReal* const Wsf = para->W(ID) +startCompInpGrads*2*nCells +nCells;
       #ifdef USE_OMPSIMD_BLAS
@@ -269,9 +273,3 @@ class MGULayer: public Layer
 
 } // end namespace smarties
 #endif // smarties_Quadratic_term_h
-    // ft = sf (wf xt + uf ho)
-    // ct = sr (wh xt + uh ft ho)
-    // ht = ft*ho + (1-ft)*ct
-    // dc = e*(1-ft)*ct'
-    // df = ((ho-rt)*e + dc * uh^T *ho )*ft'
-    // dh = e*ft + uf * df + ft * uh * dc
