@@ -98,7 +98,7 @@ class MGULayer: public Layer
       Sigm::_eval(forget, forget, nCells);
       // state = tanh [ Wsr (forget \elemProd prevOut) + Wsf inputs + b ]
       for (Uint i=0; i<nCells; ++i) {
-        const nnReal* const Wsr = weightRecur + +(2*nCells)*i +nCells;
+        const nnReal* const Wsr = weightRecur + (2*nCells)*i +nCells;
         #pragma omp simd aligned(state, forget, inputs, Wsr : VEC_WIDTH)
         for(Uint o=0; o<nCells; ++o) state[o] += Wsr[o] * inputs[i] * forget[i];
       }
@@ -113,7 +113,7 @@ class MGULayer: public Layer
       Sigm::_eval(forget, forget, nCells);
       Tanh::_eval(state, state, nCells);
       #pragma omp simd aligned(output, forget, state : VEC_WIDTH)
-      for (Uint o=0; o<nCells; ++o) output[o] = (1-forget[o])*state[o];
+      for (Uint o=0; o<nCells; ++o) output[o] = forget[o]*state[o];
     }
   }
 
@@ -143,7 +143,7 @@ class MGULayer: public Layer
     // 2) dLdFprevOut = Wsr * dLdS
     if(prev not_eq nullptr)
     {
-      const nnReal*const Wsr = para->W(ID) + (2*nCells)*nInputs + nCells*nCells;
+      const nnReal*const Wsr = para->W(ID) + (2*nCells)*nInputs + nCells;
       #ifdef USE_OMPSIMD_BLAS
         GEMVomp(nCells, nCells, 2*nCells, Wsr, dLdS, dLdFprevOut);
       #else
