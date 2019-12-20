@@ -37,18 +37,26 @@ inline static void GEMVomp(const Uint NX, const Uint NY, const Uint S,
                                  T * __restrict__ const _Y)
 {
   assert(_W not_eq nullptr && _X not_eq nullptr && _Y not_eq nullptr);
-  //typedef __attribute__((aligned(VEC_WIDTH))) T alignT;
-  //static constexpr Uint safelen_ = VEC_WIDTH / sizeof(T);
-  //const alignT * __restrict__ const W_ = static_cast<const alignT *>(_W);
-  //const alignT * __restrict__ const X_ = static_cast<const alignT *>(_X);
-  for (Uint o=0; o<NY; ++o)
-  {
-    const T* __restrict__ const W = _W + S * o;
-    T Y = 0;
-    #pragma omp simd aligned(_X, W : VEC_WIDTH) reduction(+:Y)
-    for (Uint i=0; i<NX; ++i) Y += W[i] * _X[i];
-    _Y[o] += Y;
-  }
+  #if 0
+    for (Uint o=0; o<NY; ++o) {
+      const T* __restrict__ const W = _W + S * o;
+      T Y = 0;
+      #pragma omp simd aligned(_X, W : VEC_WIDTH) reduction(+:Y)
+      for (Uint i=0; i<NX; ++i) Y += W[i] * _X[i];
+      _Y[o] += Y;
+    }
+  #else
+    static constexpr Uint cacheLineLen = 64 / sizeof(T);
+    for (Uint I=0; I<NX; I+=cacheLineLen)
+      for (Uint o=0; o<NY; ++o) {
+        const T* __restrict__ const W = _W + S * o;
+        T Y = 0;
+        const Uint Ninner = std::min(NX, I+cacheLineLen);
+        #pragma omp simd aligned(_X, W : VEC_WIDTH) reduction(+:Y)
+        for (Uint i=I; i<Ninner; ++i) Y += W[i] * _X[i];
+        _Y[o] += Y;
+      }
+  #endif
 }
 #endif
 
