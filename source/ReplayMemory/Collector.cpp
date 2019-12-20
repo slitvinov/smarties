@@ -9,6 +9,7 @@
 #include "Collector.h"
 #include "../Utils/FunctionUtilities.h"
 #include "DataCoordinator.h"
+#include <algorithm>
 
 namespace smarties
 {
@@ -28,7 +29,6 @@ void Collector::add_state(Agent&a)
   assert(a.ID < inProgress.size());
   //assert(replay->MDP.localID == a.localID);
   Sequence* const S = inProgress[a.ID];
-
   // assign or check id of agent generating episode
   if (a.agentStatus == INIT) S->agentID = a.localID;
   else assert(S->agentID == a.localID);
@@ -53,14 +53,17 @@ void Collector::add_state(Agent&a)
   #ifndef NDEBUG // check that last new state and new old state are the same
     if( S->nsteps() ) {
       bool same = true;
-      const std::vector<nnReal> vecSold = a.getObservedOldState<nnReal>();
-      const auto memSold = S->states.back();
+      const Fvec vecSold = a.getObservedOldState<Fval>();
+      const Fvec memSold = S->states.back();
       static constexpr Fval fEPS = std::numeric_limits<Fval>::epsilon();
-      for (Uint i=0; i<vecSold.size() && same; ++i)
-        same = same && std::fabs(memSold[i]-vecSold[i]) < 100*fEPS;
+      for (Uint i=0; i<vecSold.size() && same; ++i) {
+        auto D = std::max({std::fabs(memSold[i]), std::fabs(vecSold[i]), fEPS});
+        same = same && std::fabs(memSold[i]-vecSold[i])/D < 100*fEPS;
+      }
       //debugS("Agent %s and %s",
       //  print(vecSold).c_str(), print(memSold).c_str() );
-      if (!same) die("Unexpected termination of sequence");
+      if (!same) _die("Unexpected termination of EP a %u step %u seqT %lu\n",
+        a.ID, a.timeStepInEpisode, S->nsteps());
     }
   #endif
 

@@ -52,7 +52,7 @@ void Learner::initializeLearner()
   _nObsB4StartTraining = nObsB4StartTraining;
   //data_proc->updateRewardsStats(1, 1e-3, true);
   if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
-
+  fflush(0);
   data->initialize();
 
   if( not computeQretrace ) {

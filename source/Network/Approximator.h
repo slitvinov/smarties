@@ -130,6 +130,7 @@ struct Approximator
     // compute previous outputs if needed by recurrencies. limitation. what should
     // we do for target net / additional samples?
     // next line assumes we want to use curr W and sample 0 for recurrencies:
+    if(ind>0) assert(t>0);
     if(ind>0 && not C.activation(t-1, 0)->written) forward(contextID, t-1, 0);
     //if(ind>0 && not C.net(t, samp)->written) forward(C, t-1, samp);
     const Activation* const recur = ind>0? C.activation(t-1, 0) : nullptr;
