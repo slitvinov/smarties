@@ -52,29 +52,29 @@ struct Sequence
   Sequence& operator=(const Sequence &p) = delete;
 
   #define MOVE_SEQUENCE() do {                                                \
-    ended        = p.ended;        p.ended = false;                           \
-    ID           = p.ID;           p.ID = -1;                                 \
-    just_sampled = p.just_sampled; p.just_sampled = -1;                       \
-    prefix       = p.prefix;       p.prefix = 0;                              \
-    agentID      = p.agentID;      p.agentID = 0;                             \
-    totR         = p.totR;         p.totR = 0;                                \
-    nFarOverPolSteps = p.nFarOverPolSteps.load(); p.nFarOverPolSteps = 0;     \
-    nFarUndrPolSteps = p.nFarUndrPolSteps.load(); p.nFarUndrPolSteps = 0;     \
-    sumKLDivergence  = p.sumKLDivergence.load();  p.sumKLDivergence = 0;      \
-    sumSquaredErr    = p.sumSquaredErr.load();    p.sumSquaredErr = 0;        \
-    minImpW          = p.minImpW.load();          p.minImpW = 1;              \
-    avgImpW          = p.avgImpW.load();          p.avgImpW = 1;              \
-    states           = std::move(p.states);       p.states.clear();           \
-    actions          = std::move(p.actions);      p.actions.clear();          \
-    policies         = std::move(p.policies);     p.policies.clear();         \
-    rewards          = std::move(p.rewards);      p.rewards.clear();          \
-    action_adv       = std::move(p.action_adv);   p.action_adv.clear();       \
-    state_vals       = std::move(p.state_vals);   p.state_vals.clear();       \
-    Q_RET            = std::move(p.Q_RET);        p.Q_RET.clear();            \
-    SquaredError     = std::move(p.SquaredError); p.SquaredError.clear();     \
-    offPolicImpW     = std::move(p.offPolicImpW); p.offPolicImpW.clear();     \
-    KullbLeibDiv     = std::move(p.KullbLeibDiv); p.KullbLeibDiv.clear();     \
-    priorityImpW     = std::move(p.priorityImpW); p.priorityImpW.clear();     \
+    ended            = p.ended;                     p.ended = false;          \
+    ID               = p.ID;                        p.ID = -1;                \
+    just_sampled     = p.just_sampled;              p.just_sampled = -1;      \
+    prefix           = p.prefix;                    p.prefix = 0;             \
+    agentID          = p.agentID;                   p.agentID = 0;            \
+    totR             = p.totR;                      p.totR = 0;               \
+    nFarOverPolSteps = p.nFarOverPolSteps.load();   p.nFarOverPolSteps = 0;   \
+    nFarUndrPolSteps = p.nFarUndrPolSteps.load();   p.nFarUndrPolSteps = 0;   \
+    sumKLDivergence  = p.sumKLDivergence.load();    p.sumKLDivergence = 0;    \
+    sumSquaredErr    = p.sumSquaredErr.load();      p.sumSquaredErr = 0;      \
+    minImpW          = p.minImpW.load();            p.minImpW = 1;            \
+    avgImpW          = p.avgImpW.load();            p.avgImpW = 1;            \
+    states           = std::move(p.states);         p.states.clear();         \
+    actions          = std::move(p.actions);        p.actions.clear();        \
+    policies         = std::move(p.policies);       p.policies.clear();       \
+    rewards          = std::move(p.rewards);        p.rewards.clear();        \
+    action_adv       = std::move(p.action_adv);     p.action_adv.clear();     \
+    state_vals       = std::move(p.state_vals);     p.state_vals.clear();     \
+    Q_RET            = std::move(p.Q_RET);          p.Q_RET.clear();          \
+    SquaredError     = std::move(p.SquaredError);   p.SquaredError.clear();   \
+    offPolicImpW     = std::move(p.offPolicImpW);   p.offPolicImpW.clear();   \
+    KullbLeibDiv     = std::move(p.KullbLeibDiv);   p.KullbLeibDiv.clear();   \
+    priorityImpW     = std::move(p.priorityImpW);   p.priorityImpW.clear();   \
   } while (0)
 
   Sequence(Sequence && p)

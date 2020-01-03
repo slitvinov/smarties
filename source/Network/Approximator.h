@@ -151,7 +151,6 @@ struct Approximator
       assert( (Sint) addedinp.size() >= m_auxInputSize);
       addedinp.resize(m_auxInputSize);
       INP.insert(INP.end(), addedinp.begin(), addedinp.end());
-      //if(!thrID) cout << "relay "<<print(addedinp) << endl;
     }
     else if(C.addedInputType(sampID) == ACTION)
     {
