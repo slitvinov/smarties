@@ -133,8 +133,7 @@ void DataCoordinator::mastersRecvEpisodes()
   {
     const Fvec sharedEP = recvEp(sharingComm, status);
     if(sharedEP.size()) {
-      Sequence tmp;
-      tmp.unpackSequence(sharedEP, sI.dimObs(), aI.dim(), aI.dimPol());
+      Sequence tmp(sharedEP, sI.dimObs(), aI.dim(), aI.dimPol());
       replay->pushBackSequence(tmp);
     }
   }
@@ -163,8 +162,7 @@ void DataCoordinator::mastersRecvEpisodes()
 
     // data sharing among masters:
     if (sharingDest == sharingRank) { // keep the episode
-      Sequence tmp;
-      tmp.unpackSequence(workersEP, sI.dimObs(), aI.dim(), aI.dimPol());
+      Sequence tmp(workersEP, sI.dimObs(), aI.dim(), aI.dimPol());
       assert(nStep == tmp.ndata() + 1);
       //_warn("%lu storing new sequence of size %lu", MDPID,tmp->ndata());
       replay->pushBackSequence(tmp);
@@ -196,7 +194,7 @@ void DataCoordinator::addComplete(Sequence& EP, const bool bUpdateParams)
   {
     assert(distrib.bIsMaster);
     std::lock_guard<std::mutex> lock(complete_mutex);
-    episodes.push_back(std::move(EP));
+    episodes.emplace_back(std::move(EP));
   }
   else if(bRunParameterServer)
   {
@@ -205,8 +203,7 @@ void DataCoordinator::addComplete(Sequence& EP, const bool bUpdateParams)
     assert(workerRank>0 && workerSize>1 && not distrib.bIsMaster);
     const Fvec MSG = EP.packSequence(sI.dimObs(), aI.dim(), aI.dimPol());
     #ifndef NDEBUG
-      Sequence tmp;
-      tmp.unpackSequence(MSG, sI.dimObs(), aI.dim(), aI.dimPol());
+      const Sequence tmp(MSG, sI.dimObs(), aI.dim(), aI.dimPol());
       //_warn("storing new sequence of size %lu", tmp->ndata());
       assert(EP.isEqual(tmp));
     #endif

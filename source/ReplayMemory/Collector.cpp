@@ -143,6 +143,7 @@ void Collector::push_back(const size_t agentId)
   // if all agent handled by this learner have sent a term/last state,
   // update all the learner's parameters
   sharing->addComplete(EP, fullEnvReset);
+  assert(EP.nsteps() == 0);
   nSeenTransitions_loc++;
   nSeenSequences_loc++;
 }

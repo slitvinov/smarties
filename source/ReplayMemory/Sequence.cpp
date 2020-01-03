@@ -15,6 +15,12 @@
 namespace smarties
 {
 
+Sequence::Sequence(const std::vector<Fval>& data,
+                   const Uint dS, const Uint dA, const Uint dP)
+{
+  unpackSequence(data, dS, dA, dP);
+}
+
 std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uint dP)
 {
   const Uint seq_len = states.size();

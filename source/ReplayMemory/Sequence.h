@@ -46,30 +46,35 @@ struct Sequence
     policies.reserve(MAX_SEQ_LEN);
     rewards.reserve(MAX_SEQ_LEN);
   }
+  Sequence(const std::vector<Fval>&, const Uint dS,const Uint dA,const Uint dP);
   ~Sequence() = default;
   Sequence(const Sequence &p) = delete;
   Sequence& operator=(const Sequence &p) = delete;
 
   #define MOVE_SEQUENCE() do {                                                \
-    ended = p.ended; ID = p.ID; just_sampled = p.just_sampled;                \
-    prefix = p.prefix; agentID = p.agentID; totR = p.totR;                    \
-    nFarOverPolSteps = p.nFarOverPolSteps.load();                             \
-    nFarUndrPolSteps = p.nFarUndrPolSteps.load();                             \
-    sumKLDivergence  = p.sumKLDivergence.load();                              \
-    sumSquaredErr    = p.sumSquaredErr.load();                                \
-    minImpW          = p.minImpW.load();                                      \
-    avgImpW          = p.avgImpW.load();                                      \
-    states           = std::move(p.states);                                   \
-    actions          = std::move(p.actions);                                  \
-    policies         = std::move(p.policies);                                 \
-    rewards          = std::move(p.rewards);                                  \
-    action_adv       = std::move(p.action_adv);                               \
-    state_vals       = std::move(p.state_vals);                               \
-    Q_RET            = std::move(p.Q_RET);                                    \
-    SquaredError     = std::move(p.SquaredError);                             \
-    offPolicImpW     = std::move(p.offPolicImpW);                             \
-    KullbLeibDiv     = std::move(p.KullbLeibDiv);                             \
-    priorityImpW     = std::move(p.priorityImpW);                             \
+    ended        = p.ended;        p.ended = false;                           \
+    ID           = p.ID;           p.ID = -1;                                 \
+    just_sampled = p.just_sampled; p.just_sampled = -1;                       \
+    prefix       = p.prefix;       p.prefix = 0;                              \
+    agentID      = p.agentID;      p.agentID = 0;                             \
+    totR         = p.totR;         p.totR = 0;                                \
+    nFarOverPolSteps = p.nFarOverPolSteps.load(); p.nFarOverPolSteps = 0;     \
+    nFarUndrPolSteps = p.nFarUndrPolSteps.load(); p.nFarUndrPolSteps = 0;     \
+    sumKLDivergence  = p.sumKLDivergence.load();  p.sumKLDivergence = 0;      \
+    sumSquaredErr    = p.sumSquaredErr.load();    p.sumSquaredErr = 0;        \
+    minImpW          = p.minImpW.load();          p.minImpW = 1;              \
+    avgImpW          = p.avgImpW.load();          p.avgImpW = 1;              \
+    states           = std::move(p.states);       p.states.clear();           \
+    actions          = std::move(p.actions);      p.actions.clear();          \
+    policies         = std::move(p.policies);     p.policies.clear();         \
+    rewards          = std::move(p.rewards);      p.rewards.clear();          \
+    action_adv       = std::move(p.action_adv);   p.action_adv.clear();       \
+    state_vals       = std::move(p.state_vals);   p.state_vals.clear();       \
+    Q_RET            = std::move(p.Q_RET);        p.Q_RET.clear();            \
+    SquaredError     = std::move(p.SquaredError); p.SquaredError.clear();     \
+    offPolicImpW     = std::move(p.offPolicImpW); p.offPolicImpW.clear();     \
+    KullbLeibDiv     = std::move(p.KullbLeibDiv); p.KullbLeibDiv.clear();     \
+    priorityImpW     = std::move(p.priorityImpW); p.priorityImpW.clear();     \
   } while (0)
 
   Sequence(Sequence && p)
@@ -242,7 +247,8 @@ struct Sequence
       Fval dbg_sumR = std::accumulate(rewards.begin(), rewards.end(), (Fval)0);
       //Fval dbg_norm = std::max(std::fabs(totR), std::fabs(dbg_sumR));
       Fval dbg_norm = std::max((Fval)1, std::fabs(totR));
-      assert(std::fabs(totR-dbg_sumR)/dbg_norm < 100*FVAL_EPS);
+      const bool check = std::fabs(totR-dbg_sumR)/dbg_norm > 100*FVAL_EPS;
+      if(check) _warn("%f %f %f", totR, dbg_sumR, dbg_norm);
     #endif
   }
 

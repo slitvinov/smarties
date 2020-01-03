@@ -345,7 +345,7 @@ void MemoryBuffer::pushBackSequence(Sequence & seq)
   const size_t ind = episodes.size(), len = seq.ndata();
   seq.ID = nSeenSequences.load();
   seq.prefix = ind>0? episodes[ind-1].prefix + episodes[ind-1].ndata() : 0;
-  episodes.push_back(std::move(seq));
+  episodes.emplace_back(std::move(seq));
   nSequences++;
   nTransitions += len;
   needs_pass = true;
