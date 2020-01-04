@@ -64,7 +64,7 @@ protected:
   Real & alpha   = data->alpha;
   Real & beta    = data->beta;
   Real & CmaxRet = data->CmaxRet;
-  Real & CinvRet = data->CmaxRet;
+  Real & CinvRet = data->CinvRet;
 
   MemoryProcessing * const data_proc;
   DataCoordinator * const  data_coord;
