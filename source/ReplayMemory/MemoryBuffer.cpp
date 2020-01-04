@@ -155,8 +155,8 @@ void MemoryBuffer::save(const std::string base)
   for(Uint i = 0; i <nStoredEps; ++i) episodes[i].save(fdata, dimS, dimA, dimP);
   fflush(fdata); fclose(fdata);
 
-  Utilities::copyFile(fName + "_status_backup.raw", fName + "_status.raw");
-  Utilities::copyFile(fName + "_data_backup.raw", fName + "_data.raw");
+  Utilities::copyFile(fName + "status_backup.raw", fName + "status.raw");
+  Utilities::copyFile(fName + "data_backup.raw", fName + "data.raw");
 }
 
 void MemoryBuffer::clearAll()
