@@ -247,8 +247,7 @@ struct Sequence
       Fval dbg_sumR = std::accumulate(rewards.begin(), rewards.end(), (Fval)0);
       //Fval dbg_norm = std::max(std::fabs(totR), std::fabs(dbg_sumR));
       Fval dbg_norm = std::max((Fval)1, std::fabs(totR));
-      const bool check = std::fabs(totR-dbg_sumR)/dbg_norm > 100*FVAL_EPS;
-      if(check) _warn("%f %f %f", totR, dbg_sumR, dbg_norm);
+      assert(std::fabs(totR-dbg_sumR)/dbg_norm < 100*FVAL_EPS);
     #endif
   }
 

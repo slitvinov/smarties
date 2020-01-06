@@ -58,6 +58,11 @@ void MemoryBuffer::restart(const std::string base)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
   }
 
+  if(distrib.bTrain == false) {
+    printf("Evaluating the policy: will skip restarting the Replay Buffer from file.\n");
+    return;
+  }
+
   const Uint learn_rank = MPICommRank(distrib.learners_train_comm);
   sprintf(fName, "%s_rank_%03lu_learner_status.raw", base.c_str(), learn_rank);
   FILE * const fstat = fopen(fName, "r");
