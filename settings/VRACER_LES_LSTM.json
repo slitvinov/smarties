@@ -9,8 +9,10 @@
   "learnrate": 0.00001,
   "minTotObsNum": 1048576,
   "maxTotObsNum": 1048576,
-  "nnLayerSizes": [32, 32],
+  "nnLayerSizes": [48, 48],
   "obsPerStep": 64,
+  "nnType": "GRU",
+  "nnBPTTseq": 8,
   "ERoldSeqFilter": "oldest",
   "outWeightsPrefac": 0.00001
 }
