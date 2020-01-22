@@ -38,7 +38,6 @@ private:
   Uint nFarPolicySteps = 0;
   Real avgKLdivergence =  0;
   Sint indexOfEpisodeToDelete = -1;
-  Real avgCumulativeReward = 0;
 
   DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
   DelayedReductor<long> globalStep_reduce;
@@ -73,9 +72,6 @@ public:
 
   Uint nFarPol() {
     return nFarPolicySteps;
-  }
-  Real getAvgCumulativeReward() {
-    return avgCumulativeReward;
   }
 };
 

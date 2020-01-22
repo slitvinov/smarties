@@ -102,7 +102,9 @@ public:
   long nGradSteps() const {
     return data->nGradSteps.load();
   }
-  Real getAvgCumulativeReward() const;
+  Real getAvgCumulativeReward() const {
+    return data->getAvgCumulativeReward();
+  }
 
   virtual void select(Agent& agent) = 0;
   virtual void setupTasks(TaskQueue& tasks) = 0;

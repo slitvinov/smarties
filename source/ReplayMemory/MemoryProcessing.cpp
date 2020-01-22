@@ -201,7 +201,7 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
   if (CmaxRet<=1) nFarPolicySteps = 0; //then this counter and its effects are skipped
   avgKLdivergence = _totDKL / RM->readNData();
   nFarPolicySteps = _nOffPol;
-  avgCumulativeReward = _avgR / (setSize + 1e-7);
+  RM->avgCumulativeReward = _avgR / (setSize + 1e-7);
   oldestStoresTimeStamp = totFirstIn.timestamp;
 
   assert(totMostFar.ind >= 0 && totMostFar.ind < (int) setSize);
@@ -269,7 +269,7 @@ void MemoryProcessing::prepareNextBatchAndDeleteStaleEp()
 
 void MemoryProcessing::getMetrics(std::ostringstream& buff)
 {
-  Utilities::real2SS(buff, avgCumulativeReward, 9, 0);
+  Utilities::real2SS(buff, RM->avgCumulativeReward, 9, 0);
   Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
   Utilities::real2SS(buff, avgKLdivergence, 5, 1);
 
