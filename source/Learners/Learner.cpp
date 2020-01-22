@@ -228,4 +228,9 @@ void Learner::save()
   data->save(learner_name);
 }
 
+Real Learner::getAvgCumulativeReward() const
+{
+  return data_proc->getAvgCumulativeReward();
+}
+
 }

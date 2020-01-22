@@ -44,6 +44,7 @@ struct Agent
   learnerStatus learnStatus = WORK;
   unsigned learnerTimeStepID = 0;
   unsigned learnerGradStepID = 0;
+  double learnerAvgCumulativeReward = 0;
 
   bool trackSequence = true;
 

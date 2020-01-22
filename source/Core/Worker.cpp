@@ -155,6 +155,7 @@ void Worker::answerStateAction(Agent& agent) const
   const Uint nSteps = std::max(algo.nLocTimeStepsTrain(), (long) 0);
   agent.learnerTimeStepID = factor * nSteps;
   agent.learnerGradStepID = algo.nGradSteps();
+  if(agent.agentStatus >= TERM) agent.action[0] = algo.getAvgCumulativeReward();
   //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
 }
 
