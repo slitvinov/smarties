@@ -59,8 +59,10 @@ protected:
   std::vector<std::mt19937>& generators = distrib.generators;
   const std::unique_ptr<MemoryBuffer> data =
                          std::make_unique<MemoryBuffer>(MDP, settings, distrib);
-  ParameterBlob params =
-             ParameterBlob(distrib, data->nGatheredB4Startup, data->nGradSteps);
+  ParameterBlob params = ParameterBlob(distrib,
+                                       data->nGatheredB4Startup,
+                                       data->nGradSteps,
+                                       data->avgCumulativeReward);
   Real & alpha   = data->alpha;
   Real & beta    = data->beta;
   Real & CmaxRet = data->CmaxRet;
