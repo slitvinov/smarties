@@ -358,11 +358,11 @@ bool Communicator::terminateTraining() const {
   return bTrainIsOver;
 }
 
-Real Communicator::getLearnersGradStepsNum(const int agentID)
+unsigned Communicator::getLearnersGradStepsNum(const int agentID)
 {
   return agents[agentID]->learnerGradStepID;
 }
-Real Communicator::getLearnersTrainingTimeStepsNum(const int agentID)
+unsigned Communicator::getLearnersTrainingTimeStepsNum(const int agentID)
 {
   return agents[agentID]->learnerTimeStepID;
 }
