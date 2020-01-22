@@ -143,6 +143,9 @@ class MemoryBuffer
   long nLocTimeStepsTrain() const {
     return readNSeen_loc() - nGatheredB4Startup;
   }
+  long nLocTimeSteps() const {
+    return readNSeen_loc();
+  }
 
   void removeSequence(const Uint ind);
   void pushBackSequence(Sequence & seq);

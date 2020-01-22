@@ -129,6 +129,7 @@ struct Agent
     msgPos +=                          sizeof(unsigned) ;
     memcpy(msgPos, &reward,            sizeof(double));
     msgPos +=                          sizeof(double) ;
+    assert(state.size() == dimState);
     if(state.size())
     memcpy(msgPos,  state.data(),      sizeof(double) * state.size());
     msgPos +=                          sizeof(double) * state.size() ;
@@ -165,6 +166,7 @@ struct Agent
 
     memcpy(&reward,            msgPos, sizeof(double));
     msgPos +=                          sizeof(double) ;
+    assert(state.size() == dimState);
     if(state.size())
     memcpy( state.data(),      msgPos, sizeof(double) * state.size());
     msgPos +=                          sizeof(double) * state.size() ;
@@ -182,6 +184,7 @@ struct Agent
     msgPos +=                          sizeof(unsigned) ;
     memcpy(msgPos, &learnerGradStepID, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
+    assert(action.size() == dimAction);
     memcpy(msgPos,  action.data(),     sizeof(double) * action.size());
     msgPos +=                          sizeof(double) * action.size() ;
   }
@@ -199,6 +202,7 @@ struct Agent
     msgPos +=                          sizeof(unsigned) ;
     memcpy(&learnerGradStepID, msgPos, sizeof(unsigned));
     msgPos +=                          sizeof(unsigned) ;
+    assert(action.size() == dimAction);
     memcpy( action.data(),     msgPos, sizeof(double) * action.size());
     msgPos +=                          sizeof(double) * action.size() ;
     assert( testAgentID == localID );

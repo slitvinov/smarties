@@ -90,6 +90,9 @@ public:
   long nLocTimeStepsTrain() const {
     return data->nLocTimeStepsTrain();
   }
+  long nLocTimeSteps() const {
+    return data->nLocTimeSteps();
+  }
   long locDataSetSize() const {
     return data->readNData();
   }
