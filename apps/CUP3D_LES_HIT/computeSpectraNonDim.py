@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit
 from computeMeanIntegralQuantitiesNonDim import findAllParams
 from computeMeanIntegralQuantitiesNonDim import readAllFiles
 colors = ['#1f78b4', '#33a02c', '#e31a1c', '#ff7f00', '#6a3d9a', '#b15928', '#a6cee3', '#b2df8a', '#fb9a99', '#fdbf6f', '#cab2d6', '#ffff99']
+colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999']
 nQoI = 8
 h = 2 * np.pi / (16*16)
 QoI = [ 'Time Step Size',
@@ -22,17 +23,17 @@ def EkFunc(x, C, CI, CE, BETA, P0):
     if(CE  <1e-16): CE  =1e-16
     if(BETA<1e-16): BETA=1e-16
     if(P0  <1e-16): P0  =1e-16
-    CI, BETA, P0 = 0, 5, 500
+    CI, P0, BETA, CE = 0.2, 4, 5.4, 0.22
     k, eps, leta, lint, nu = x[0], x[1], x[2], x[3], x[4]
     #print(x.shape)
     #lint =  0.74885397 * np.power(eps, -0.0233311) * np.power(nu, 0.07192009)
     #leta = np.power(eps, -0.25) * np.power(nu, 0.75)
-    #FL = 1 # np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
+    #FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
     FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
     FE = np.exp( - BETA * ( np.power( (k*leta)**4 + CE**4, 0.25 ) - CE ) )
-    ret = 3 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
-    print(np.min(FE))
+    ret = 2.8 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
     #print(C, CI, CE, BETA, P0)
+    #print(eps[0], leta[:], lint[0], nu[0])
     return ret
 
 def logEkFunc(x, C, CI, CE, BETA, P0):
@@ -42,7 +43,7 @@ def EkBrief(x, popt):
 
 def readAllSpectra(path, REs):
     nRes = len(REs)
-    allStdevs, allSpectra = None, None
+    allStdevs, allSpectra, fullSpectra = None, None, None
 
     ind = 0
     for ei in range(nRes):
@@ -50,16 +51,18 @@ def readAllSpectra(path, REs):
         sname = '%s/stdevLogE_RE%03d' % (path, REs[ei])
         if os.path.isfile(ename) == False : continue
         if os.path.isfile(sname) == False : continue
-        modes, stdevs = np.loadtxt(ename, delimiter=','), np.loadtxt(sname)
-        nyquist = stdevs.size
-        modes = modes[:nyquist,1].reshape(nyquist,1)
-        stdevs = stdevs.reshape(nyquist,1)
+        modes, stdevs = np.loadtxt(ename, delimiter=',')[:,1], np.loadtxt(sname)
+        nyquist, fullSize = stdevs.size, modes.size
         if allSpectra is None :
             allStdevs, allSpectra = np.zeros([nyquist,0]), np.zeros([nyquist,0])
+            fullSpectra = np.zeros([fullSize,0])
+        fullSpectra = np.append(fullSpectra, modes.reshape(fullSize,1), axis=1)
+        modes = modes[:nyquist].reshape(nyquist,1)
+        stdevs = stdevs.reshape(nyquist,1)
         allStdevs  = np.append(allStdevs , stdevs, axis=1)
         allSpectra = np.append(allSpectra, modes , axis=1)
 
-    return allSpectra, allStdevs
+    return allSpectra, allStdevs, fullSpectra
 
 def fitFunction(inps, dataM, dataV, row, func):
     if dataV is None :
@@ -73,6 +76,7 @@ def fitSpectrum(vecParams, vecMean, vecSpectra, vecEnStdev):
     assert(vecSpectra.shape[1] == vecParams.shape[1])
     assert(vecSpectra.shape[1] == vecMean.shape[1])
     nyquist, nruns = vecSpectra.shape[0], vecSpectra.shape[1]
+    print(nyquist)
     kdata = np.zeros([nruns, nyquist, 5])
     for i in range(nruns):
         for j in range(nyquist):
@@ -84,58 +88,70 @@ def fitSpectrum(vecParams, vecMean, vecSpectra, vecEnStdev):
     #prepare vectors so that they are compatible with curve fit:
     ekdata, eksigma = vecSpectra.flatten(), vecEnStdev.flatten()
     kdata = kdata.reshape(nyquist*nruns, 5).transpose()
-    bounds = [[ 1e-16,  1e-16, -np.inf,  1e-16,  1e-16],
+    bounds = [[ 1e-16,  1e-16,   1e-16,  1e-16,  1e-16],
               [np.inf, np.inf,  np.inf, np.inf, np.inf]]
     popt, pcov = curve_fit(logEkFunc, kdata, ekdata, sigma=eksigma,
-        maxfev=100000, p0=[6, 1, 0, 5.24, 2], bounds=bounds)
+        maxfev=100000, p0=[6.0, 1.0, 1.0, 5.24, 2.0], bounds=bounds)
     return popt, pcov
 
 def main_integral(path):
     REs = findAllParams(path)
     nRes = len(REs)
     vecParams, vecMean, vecStd = readAllFiles(path, REs)
-    vecSpectra, vecEnStdev = readAllSpectra(path, REs)
+    vecSpectra, vecEnStdev, fullSpectra = readAllSpectra(path, REs)
     popt, pcov = fitSpectrum(vecParams, vecMean, vecSpectra, vecEnStdev)
     C,CI,CE,BETA,P0 = popt[0], popt[1], popt[2], popt[3], popt[4]
-    print(popt)
 
     plt.figure()
-    axes = []
-    nPlots = 1
-    for i in range(nPlots):
-      axes = axes + [plt.subplot(1, nPlots, 1+i)]
-      axes[-1].set_xlabel(r'$k \eta$')
-      axes[-1].grid()
+    axes = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
+    axes[0].set_xlabel(r'$k \eta$')
+    axes[0].grid()
+    axes[1].grid()
     axes[0].set_ylabel(r'$E(k) / (\eta u^2_\eta)$')
 
     ci = 0
     nyquist, nruns = vecSpectra.shape[0], vecSpectra.shape[1]
-    for i in range(1, nruns, 2):
+    print(popt, nyquist, fullSpectra.shape)
+
+    for i in range(nruns):
         eps, nu, re = vecParams[0,i], vecParams[1,i], vecParams[2,i]
         leta = np.power(vecParams[1,i]**3 / vecParams[0,i], 0.25)
         lint = vecMean[4,i]
         ri = np.argmin(np.abs(REs - re))
-        print(ri, i)
+        #print(ri, i)
 
         Ekscal = np.power(nu**5 * eps, 0.25)
-        K = np.arange(1, nyquist+1)
-        X, Y = K * leta, np.exp(vecSpectra[:,i]) / Ekscal
+        K = np.arange(1, nyquist+1, dtype=np.float64)
+        E = np.exp(vecSpectra[:,i])
+        X, Y = K * leta, E / Ekscal
         fit = np.array([EkBrief([k, eps,leta,lint,nu], popt) for k in K])/Ekscal
         Yb = np.exp(vecSpectra[:,i] - vecEnStdev[:,i])/Ekscal
         Yt = np.exp(vecSpectra[:,i] + vecEnStdev[:,i])/Ekscal
 
-        idx = 0
+        fullE = np.exp(fullSpectra[:,i])
+        fullN = fullSpectra.shape[0]
+        fullK = np.arange(1, fullN+1, dtype=np.float64)
+        eTot = np.sum(fullE)
+        eCDF = np.array([np.sum(fullE[:k+1]) for k in range(fullN)]) / eTot
+        #print(fullE, eCDF)
+
         label = r'$Re=%f$' % re
         color = colors[ ci ]
         ci += 1
-        axes[idx].fill_between(X, Yb, Yt, facecolor=color, alpha=.5)
-        axes[idx].plot(X, fit, 'o', color=color)
-        axes[idx].plot(X, Y, color=color, label=label)
+        axes[0].fill_between(X, Yb, Yt, facecolor=color, alpha=.5)
+        axes[0].plot(X, fit, 'o', color=color)
+        axes[0].plot(X, Y, color=color, label=label)
+        axes[1].plot(fullK, 1-eCDF, color=color, label=label)
 
-    for ax in axes:
-      ax.set_yscale("log")
-      ax.set_xscale("log")
-      ax.legend(loc='lower left')
+    axes[1].set_xlabel(r'$k$')
+    axes[1].set_ylabel(r'$1 - CDF(E)$')
+    axes[0].set_yscale("log")
+    axes[0].set_xscale("log")
+    #axes[1].set_xscale("log")
+    axes[1].set_yscale("log")
+    axes[1].set_xlim([1,63])
+    axes[1].set_ylim([0.5, 1e-3])
+    axes[0].legend(loc='lower left')
     plt.show()
 
 if __name__ == '__main__':

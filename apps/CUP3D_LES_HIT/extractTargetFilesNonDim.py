@@ -3,7 +3,6 @@ import re, argparse, numpy as np, glob
 from os import path
 
 nBins = 16 * 16//2 - 1
-nBinsTgt = 16 * 4//2 - 1
 
 def tkeFit(nu, eps): return 2.87657077 * np.power(eps, 2/3.0)
 def relFit(nu, eps):
@@ -20,15 +19,12 @@ def epsNuFromRe(Re, uEta = 1.0):
     return eps, nu
 
 def findAllParams(path):
-    NUs, EPSs, EXTs = set(), set(), set()
+    REs = set()
     alldirs = glob.glob(path+'*')
-    for dirn in alldirs:
-        #EPSs.add(re.findall('EPS\d.\d\d\d',  dirn)[0][3:])
-        EPSs.add(re.findall('EPS..........', dirn)[0][3:])
-        NUs. add(re.findall('NU\d.\d\d\d\d', dirn)[0][2:])
-    NUs  = list( NUs);  NUs.sort()
-    EPSs = list(EPSs); EPSs.sort()
-    return NUs, EPSs
+    for dirn in alldirs: REs.add(re.findall('RE\d\d\d\d', dirn)[0][2:])
+    REs  = list( REs);  REs.sort()
+    for i in range(len(REs)): REs[i] = float(REs[i])
+    return REs
 
 def computeIntTimeScale(tau_integral):
     tau_int = 0.0
@@ -60,22 +56,16 @@ def getAllData(dirn, eps, nu, fSkip=1):
     }
     return data
 
-def main(path, fSkip):
-  '''
-  NUs, EPSs = findAllParams(path)
-  for ni in range(len(NUs)):
-    NUs[ni] = float(NUs[ni])
-    for ei in range(len(EPSs)):
-      EPSs[ei] = float(EPSs[ei])
-  '''
-  REs = np.linspace(60, 240, 19)
+def main(path, fSkip, nBlocksRL=4):
+  REs = findAllParams(path)
+  #REs =  [60, 70, 82, 95, 110, 130, 150, 176, 206, 240, 280, 325, 380]
   EPSs, NUs = len(REs) * [0], len(REs) * [0] # will be overwritten
   for j in range(len(REs)):
     EPSs[j], NUs[j] = epsNuFromRe(REs[j])
     print('Re %e nu %e eps %e' % (REs[j], NUs[j], EPSs[j]))
     data = None
     for run in [0, 1, 2, 3, 4]:
-      dirn = '%sRE%d_RUN%d' % (path, REs[j], run)
+      dirn = '%sRE%04d_RUN%d' % (path, REs[j], run)
       runData = getAllData(dirn, EPSs[j], NUs[j], fSkip)
       if data is None: data = runData
       else:
@@ -86,6 +76,7 @@ def main(path, fSkip):
       print('skipped eps:%f nu:%f' % (EPSs[j], NUs[j]))
       continue
 
+    nBinsTgt = nBlocksRL * 16 // 2 - 1
     logE = np.log(data['spectra'])
     #print(logE.shape)
     avgLogSpec = np.mean(logE, axis=0)
@@ -137,7 +128,9 @@ if __name__ == '__main__':
       help="Simulation directory containing the 'Analysis' folder")
   parser.add_argument('--fSkip', type=int, default=1,
     help="Sampling frequency for analysis files. If 1, take all. If 2, take 1 skip 1, If 3, take 1, skip 2, and so on.")
+  parser.add_argument('--nBlocksRL', type=int, default=4,
+    help="Number of CubismUP 3D blocks in the training runs.")
   args = parser.parse_args()
 
-  main(args.simdir, args.fSkip)
+  main(args.simdir, args.fSkip, args.nBlocksRL)
 
