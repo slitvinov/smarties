@@ -282,8 +282,7 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
     agents[agentID]->unpackActionMsg(BUFF[agentID]->dataActionBuf);
   }
 
-  // we cannot control application. if we received a termination signal we abort
-  if(agents[agentID]->agentStatus >= TERM) {
+  if(episodeStatus >= TERM) {
     agents[agentID]->learnerAvgCumulativeReward = agents[agentID]->action[0];
   }
   // we cannot control application. if we received a termination signal we abort

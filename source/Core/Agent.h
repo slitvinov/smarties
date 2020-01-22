@@ -20,8 +20,8 @@
 namespace smarties
 {
 
-enum episodeStatus {INIT, CONT, TERM, TRNC, FAIL};
-enum learnerStatus {WORK, KILL};
+enum episodeStatus {INIT = 0, CONT, TERM, TRNC, FAIL};
+enum learnerStatus {WORK = 0, KILL};
 
 inline int status2int(const episodeStatus status) {
   if(status == INIT) return 0;
