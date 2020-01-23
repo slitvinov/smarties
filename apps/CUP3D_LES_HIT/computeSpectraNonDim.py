@@ -43,26 +43,31 @@ def EkBrief(x, popt):
 
 def readAllSpectra(path, REs):
     nRes = len(REs)
-    allStdevs, allSpectra, fullSpectra = None, None, None
+    allStdevs, allSpectra, fullSpectra, allCovLogE = None, None, None, None
 
     ind = 0
     for ei in range(nRes):
         ename = '%s/spectrumLogE_RE%03d' % (path, REs[ei])
         sname = '%s/stdevLogE_RE%03d' % (path, REs[ei])
+        cname = '%s/invCovLogE_RE%03d' % (path, REs[ei])
         if os.path.isfile(ename) == False : continue
         if os.path.isfile(sname) == False : continue
+        if os.path.isfile(cname) == False : continue
         modes, stdevs = np.loadtxt(ename, delimiter=',')[:,1], np.loadtxt(sname)
+        invcov = np.loadtxt(cname, delimiter=', ')
         nyquist, fullSize = stdevs.size, modes.size
         if allSpectra is None :
             allStdevs, allSpectra = np.zeros([nyquist,0]), np.zeros([nyquist,0])
             fullSpectra = np.zeros([fullSize,0])
+            allCovLogE = np.zeros([nyquist, nyquist, 0])
         fullSpectra = np.append(fullSpectra, modes.reshape(fullSize,1), axis=1)
         modes = modes[:nyquist].reshape(nyquist,1)
         stdevs = stdevs.reshape(nyquist,1)
-        allStdevs  = np.append(allStdevs , stdevs, axis=1)
-        allSpectra = np.append(allSpectra, modes , axis=1)
+        allStdevs  = np.append(allStdevs,  stdevs, axis=1)
+        allSpectra = np.append(allSpectra,  modes, axis=1)
+        allCovLogE = np.append(allCovLogE, invcov, axis=2)
 
-    return allSpectra, allStdevs, fullSpectra
+    return allSpectra, allStdevs, fullSpectra, allCovLogE
 
 def fitFunction(inps, dataM, dataV, row, func):
     if dataV is None :
@@ -98,7 +103,7 @@ def main_integral(path):
     REs = findAllParams(path)
     nRes = len(REs)
     vecParams, vecMean, vecStd = readAllFiles(path, REs)
-    vecSpectra, vecEnStdev, fullSpectra = readAllSpectra(path, REs)
+    vecSpectra, vecEnStdev, fullSpectra, _ = readAllSpectra(path, REs)
     popt, pcov = fitSpectrum(vecParams, vecMean, vecSpectra, vecEnStdev)
     C,CI,CE,BETA,P0 = popt[0], popt[1], popt[2], popt[3], popt[4]
 
