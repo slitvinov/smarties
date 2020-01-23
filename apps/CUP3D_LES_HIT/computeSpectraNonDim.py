@@ -59,13 +59,13 @@ def readAllSpectra(path, REs):
         if allSpectra is None :
             allStdevs, allSpectra = np.zeros([nyquist,0]), np.zeros([nyquist,0])
             fullSpectra = np.zeros([fullSize,0])
-            allCovLogE = np.zeros([nyquist, nyquist, 0])
+            #allCovLogE = np.zeros([nyquist, nyquist, 0])
         fullSpectra = np.append(fullSpectra, modes.reshape(fullSize,1), axis=1)
         modes = modes[:nyquist].reshape(nyquist,1)
         stdevs = stdevs.reshape(nyquist,1)
         allStdevs  = np.append(allStdevs,  stdevs, axis=1)
         allSpectra = np.append(allSpectra,  modes, axis=1)
-        allCovLogE = np.append(allCovLogE, invcov, axis=2)
+        #allCovLogE = np.append(allCovLogE, invcov, axis=2)
 
     return allSpectra, allStdevs, fullSpectra, allCovLogE
 

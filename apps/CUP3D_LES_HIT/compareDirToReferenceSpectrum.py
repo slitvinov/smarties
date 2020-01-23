@@ -1,6 +1,9 @@
+#!/usr/bin/env python3.6
+import re, argparse, numpy as np, glob
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from extractTargetFilesNonDim import getAllData
+from extractTargetFilesNonDim import epsNuFromRe
 from computeMeanIntegralQuantitiesNonDim import findAllParams
 from computeMeanIntegralQuantitiesNonDim import readAllFiles
 from computeSpectraNonDim import readAllSpectra
@@ -17,9 +20,9 @@ QoI = [ 'Time Step Size',
 ]
 
 def main_integral(targetpath, simdir, relambda, simnblocks):
-    REs = findAllParams(path)
+    nSimBins = simnblocks * 16//2 - 1
     eps, nu = epsNuFromRe(relambda)
-    runData = getAllData(simdir, eps, nu, 1)
+    runData = getAllData(simdir, eps, nu, nSimBins, 1)
     vecParams, vecMean, vecStd = readAllFiles(targetpath, [relambda])
     vecSpectra, vecEnStdev, fullSpectra, vecCovLogE = readAllSpectra(targetpath, [relambda])
 
@@ -31,20 +34,22 @@ def main_integral(targetpath, simdir, relambda, simnblocks):
 
     ci = 0
     nyquist, nruns = vecSpectra.shape[0], vecSpectra.shape[1]
-    print(popt, nyquist, fullSpectra.shape)
+    print(nyquist)
 
     leta = np.power(nu**3 / eps, 0.25)
     Ekscal = np.power(nu**5 * eps, 0.25)
     nyquist = simnblocks * 16 // 2 - 1
 
-    logE = np.log(runData['spectra'])[:nyquist]
+    logE = np.log(runData['spectra'])
+    logE = np.mean(logE, axis=0)
     logEtgt = vecSpectra[:nyquist, 0]
+    print(logE.shape, logEtgt.shape, vecEnStdev.shape)
     dLogE = np.zeros(nyquist)
     for i in range(nyquist):
         dLogE[i] = (logE[i] - logEtgt[i]) / vecEnStdev[i]
 
     K = np.arange(1, nyquist+1, dtype=np.float64) * leta
-    axes[0].plot(K, dLogE, color=color, label=label)
+    axes[0].plot(K, dLogE)
     plt.show()
 
 if __name__ == '__main__':
@@ -52,8 +57,8 @@ if __name__ == '__main__':
     description = "Compute a target file for RL agent from DNS data.")
   parser.add_argument('--targets', help="Directory containing the target files")
   parser.add_argument('--sim', help="Directory containing the dim to evaluate.")
-  parser.add_argument('--re', help="Reynolds_lambda number of simulation.")
-  parser.add_argument('--nblocks', help="Number of blocks per dim in simulation.")
+  parser.add_argument('--re', type=int, help="Reynolds_lambda number of simulation.")
+  parser.add_argument('--nblocks', type=int, help="Number of blocks per dim in simulation.")
   args = parser.parse_args()
 
   main_integral(args.targets, args.sim, args.re, args.nblocks)
