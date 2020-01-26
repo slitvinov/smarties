@@ -6,7 +6,7 @@ from scipy.optimize import curve_fit
 from computeMeanIntegralQuantitiesNonDim import findAllParams
 from computeMeanIntegralQuantitiesNonDim import readAllFiles
 colors = ['#1f78b4', '#33a02c', '#e31a1c', '#ff7f00', '#6a3d9a', '#b15928', '#a6cee3', '#b2df8a', '#fb9a99', '#fdbf6f', '#cab2d6', '#ffff99']
-colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999']
+#colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999']
 nQoI = 8
 h = 2 * np.pi / (16*16)
 QoI = [ 'Time Step Size',
@@ -23,7 +23,7 @@ def EkFunc(x, C, CI, CE, BETA, P0):
     if(CE  <1e-16): CE  =1e-16
     if(BETA<1e-16): BETA=1e-16
     if(P0  <1e-16): P0  =1e-16
-    CI, P0, BETA, CE = 0.2, 4, 5.4, 0.22
+    CI, P0, BETA, CE = 0.25, 4, 5.4, 0.22
     k, eps, leta, lint, nu = x[0], x[1], x[2], x[3], x[4]
     #print(x.shape)
     #lint =  0.74885397 * np.power(eps, -0.0233311) * np.power(nu, 0.07192009)
@@ -31,7 +31,7 @@ def EkFunc(x, C, CI, CE, BETA, P0):
     #FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
     FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
     FE = np.exp( - BETA * ( np.power( (k*leta)**4 + CE**4, 0.25 ) - CE ) )
-    ret = 2.8 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
+    ret = 3.6 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
     #print(C, CI, CE, BETA, P0)
     #print(eps[0], leta[:], lint[0], nu[0])
     return ret

@@ -12,7 +12,7 @@ def relFit(nu, eps):
     return uprime * lambd / nu;
 
 def epsNuFromRe(Re, uEta = 1.0):
-    C = 2.87657077
+    C = np.sqrt(196.0/20.0)
     K = 2/3.0 * C * np.sqrt(15)
     eps = np.power(uEta*uEta * Re / K, 3.0/2.0)
     nu = np.power(uEta, 4) / eps
@@ -64,7 +64,7 @@ def main(path, fSkip, nBlocksRL=4):
     EPSs[j], NUs[j] = epsNuFromRe(REs[j])
     print('Re %e nu %e eps %e' % (REs[j], NUs[j], EPSs[j]))
     data = None
-    for run in [0, 1, 2, 3, 4]:
+    for run in [0, 1, 2, 3, 4, 5, 6, 7]:
       dirn = '%sRE%04d_RUN%d' % (path, REs[j], run)
       runData = getAllData(dirn, EPSs[j], NUs[j], fSkip)
       if data is None: data = runData
@@ -86,7 +86,8 @@ def main(path, fSkip, nBlocksRL=4):
     #print(covLogSpec.shape)
     modes = np.arange(1, nBins+1) # assumes box is 2 pi
     avgTke, avgDissip = np.mean(data['tke']), np.mean(data['dissip_tot'])
-    reLambda = np.sqrt(20/3) * avgTke / np.sqrt(NUs[j] * avgDissip)
+    #reLambda = np.sqrt(20/3) * avgTke / np.sqrt(NUs[j] * avgDissip)
+    reLambda = np.sqrt(20/3) * avgTke / np.sqrt(NUs[j] * EPSs[j])
 
     logCov2pi = np.power( np.linalg.det(2 * np.pi * covLogSpec), 0.5/nBinsTgt)
     print(-np.log(logCov2pi))
