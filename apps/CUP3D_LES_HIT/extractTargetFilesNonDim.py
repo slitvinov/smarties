@@ -34,7 +34,7 @@ def computeIntTimeScale(tau_integral):
         else: tau_int += 1e16/N
     return tau_int
 
-def getAllData(dirn, eps, nu, fSkip=1):
+def getAllData(dirn, eps, nu, nBins, fSkip=1):
     fname = dirn + '/spectralAnalysis.raw'
     if  path.exists(fname) :
       f = np.fromfile(fname, dtype=np.float64)
@@ -56,7 +56,9 @@ def getAllData(dirn, eps, nu, fSkip=1):
     }
     return data
 
-def main(path, fSkip, nBlocksRL=4):
+def main(path, fSkip, nBlocks=16, nBlocksRL=4):
+  nBinsTgt = nBlocksRL * 16 // 2 - 1
+  nBins = nBlocks * 16//2 - 1
   REs = findAllParams(path)
   #REs =  [60, 70, 82, 95, 110, 130, 150, 176, 206, 240, 280, 325, 380]
   EPSs, NUs = len(REs) * [0], len(REs) * [0] # will be overwritten
@@ -66,7 +68,7 @@ def main(path, fSkip, nBlocksRL=4):
     data = None
     for run in [0, 1, 2, 3, 4, 5, 6, 7]:
       dirn = '%sRE%04d_RUN%d' % (path, REs[j], run)
-      runData = getAllData(dirn, EPSs[j], NUs[j], fSkip)
+      runData = getAllData(dirn, EPSs[j], NUs[j], nBins, fSkip)
       if data is None: data = runData
       else:
         for key in runData:
@@ -76,7 +78,6 @@ def main(path, fSkip, nBlocksRL=4):
       print('skipped eps:%f nu:%f' % (EPSs[j], NUs[j]))
       continue
 
-    nBinsTgt = nBlocksRL * 16 // 2 - 1
     logE = np.log(data['spectra'])
     #print(logE.shape)
     avgLogSpec = np.mean(logE, axis=0)

@@ -19,14 +19,18 @@ def epsNuFromRe(Re, uEta = 1.0):
     nu = np.power(uEta, 4) / eps
     return eps, nu
 
-def runspec(re, cs, run):
-    return "HIT_BOX2_LES_EXT2pi_RE%03d_CS%.03f_RUN%d" % (re, cs, run)
+def runspec(re, cs, nblocks, run):
+  if cs < 0:
+    return "HIT_BOX2_LES_EXT2pi_%dBLOCKS_RE%03d_CS_DSM_RUN%d" % (nblocks, re, run)
+  else:
+    return "HIT_BOX2_LES_EXT2pi_%dBLOCKS_RE%03d_CS%.03f_RUN%d" % (nblocks, re, cs, run)
 
-def getSettings(nu, eps, cs):
-    options = '-sgs SSM -cs %f -bpdx 4 -bpdy 4 -bpdz 4 -CFL 0.1 ' % cs
-    tAnalysis = np.sqrt(nu / eps)
-    tEnd = 1000 * tAnalysis
-    return options + '-extentx 6.2831 -dump2D 0 -dump3D 0 ' \
+def getSettings(nu, eps, cs, nblocks):
+    options = '-sgs SSM -cs %f -bpdx %d -bpdy %d -bpdz %d -CFL 0.01 ' \
+              % (cs, nblocks, nblocks, nblocks)
+    tAnalysis = 10 * np.sqrt(nu / eps)
+    tEnd = 1e6 * tAnalysis
+    return options + '-extentx 6.283185307179586 -dump2D 0 -dump3D 0 ' \
        '-tdump 0 -BC_x periodic -BC_y periodic -BC_z periodic ' \
        '-spectralIC fromFile -initCond HITurbulence -tAnalysis %f ' \
        '-compute-dissipation 1 -nprocsx 1 -nprocsy 1 -nprocsz 1 ' \
@@ -34,11 +38,11 @@ def getSettings(nu, eps, cs):
        '-analysis HIT -nu %f -energyInjectionRate %f ' \
        % (tAnalysis, tEnd, nu, eps)
 
-def launchEuler(tpath, nu, eps, re, cs, run):
+def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
     scalname = "%s/scalars_RE%03d" % (tpath, re)
     logEname = "%s/spectrumLogE_RE%03d" % (tpath, re)
     iCovname = "%s/invCovLogE_RE%03d" % (tpath, re)
-    runname  = runspec(re, cs, run)
+    runname  = runspec(re, cs, nblocks, run)
     cmd = "export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH\n" \
       "FOLDER=/cluster/scratch/novatig/CubismUP_3D/%s\n " \
       "mkdir -p ${FOLDER}\n" \
@@ -49,7 +53,7 @@ def launchEuler(tpath, nu, eps, re, cs, run):
       "export OMP_NUM_THREADS=18\n" \
       "cd $FOLDER\n" \
       "bsub -n 18 -J %s -W 04:00 -R \"select[model==XeonGold_6150] span[ptile=18]\" mpirun -n 1 ./simulation %s\n" \
-      % (runname, scalname, logEname, iCovname, runname, getSettings(nu, eps, cs))
+      % (runname, scalname, logEname, iCovname, runname, getSettings(nu, eps, cs, nblocks))
     subprocess.run(cmd, shell=True)
 
 
@@ -96,14 +100,15 @@ if __name__ == '__main__':
     description = "Compute a target file for RL agent from DNS data.")
 
     parser.add_argument('--path', default='target', help="Simulation case.")
-
+    parser.add_argument('--nBlocksRL', type=int, default=4,
+    help="Number of CubismUP 3D blocks in the training runs.")
     args = parser.parse_args()
 
-    nCss = 13
-
-    for re in np.linspace(60, 240, 19):
-      for cs in np.linspace(0.0, 0.24, nCss):
-        for ri in [3]:
+    for re in [60, 70, 82, 95, 110, 130, 150, 176]:
+      for cs in np.linspace(-0.02, 0.32, 35):
+      #for cs in np.linspace(0.26, 0.4, 8):
+      #for cs in [-0.02]:
+        for ri in [0,1]:
           eps, nu = epsNuFromRe(re)
-          launchEuler(args.path, nu, eps, re, cs, ri)
+          launchEuler(args.path, nu, eps, re, cs, args.nBlocksRL, ri)
 

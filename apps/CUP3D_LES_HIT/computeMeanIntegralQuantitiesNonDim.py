@@ -14,9 +14,9 @@ QoI = [ 'Time Step Size',
         'Integral Length Scale',
 ]
 
-def findAllParams(path):
+def findAllParams(fpath):
     REs = set()
-    alldirs = glob.glob(path+'/scalars_*')
+    alldirs = glob.glob(fpath+'/scalars_*')
     for dirn in alldirs: REs.add(re.findall('RE\d\d\d',  dirn)[0][2:])
     REs = list(REs)
     print(REs)
