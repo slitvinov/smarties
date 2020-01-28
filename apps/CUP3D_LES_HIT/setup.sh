@@ -21,12 +21,12 @@ cat <<EOF >${RUNDIR}/runArguments00.sh
 -spectralForcing 1 -nprocsx 1 -nprocsy 1 -nprocsz 1 \
 -analysis HIT -tAnalysis 100 -nu 0.005 -energyInjectionRate 0.2 \
 -RL_freqActions ${LES_RL_FREQ_A} -RL_nIntTperSim ${LES_RL_N_TSIM} \
--initCondFileTokens RE060,RE070,RE082,RE095,RE110,RE130,RE150
+-initCondFileTokens RE060,RE070,RE082,RE095,RE111,RE130,RE152,RE176
 EOF
 
 #copy target files
 THISDIR=${SMARTIES_ROOT}/apps/CUP3D_LES_HIT
-cp ${THISDIR}/targetNonDimRe2_${LES_RL_NBLOCK}blocks/*  ${RUNDIR}/
+cp ${THISDIR}/targetNonDimRe_CFL001_${LES_RL_NBLOCK}blocks_newForce/*  ${RUNDIR}/
 #copy settings file
 # 1) either FFNN or RNN
 # 2) number of actions per grad steps affected by number of agents per sim

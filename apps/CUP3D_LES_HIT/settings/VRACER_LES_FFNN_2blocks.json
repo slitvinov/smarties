@@ -1,15 +1,15 @@
 {
   "learner": "VRACER",
-  "batchSize": 256,
+  "batchSize": 512,
   "clipImpWeight": 1,
   "epsAnneal": 0,
   "penalTol": 0.05,
   "explNoise": 0.5,
   "gamma": 0.99,
-  "learnrate": 0.00001,
+  "learnrate": 0.0001,
   "minTotObsNum": 1048576,
   "maxTotObsNum": 1048576,
-  "nnLayerSizes": [32, 32],
+  "nnLayerSizes": [64, 64],
   "obsPerStep": 8,
   "ERoldSeqFilter": "oldest",
   "outWeightsPrefac": 0.00001

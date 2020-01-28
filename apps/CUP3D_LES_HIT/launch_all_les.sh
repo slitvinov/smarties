@@ -1,12 +1,59 @@
-export SKIPMAKE=true;
-
-BASENAME=BlockAgents_TargetNondim_balanced_FFNN
-NPROCS=8
-SETTINGS=VRACER_LES.json
-#SETTINGS=VRACER_LES_LSTM.json
+export SKIPMAKE=true
 
 # how many cases to consider
-for run in 1 2 3; do
+for run in 3 4; do
+for nblocks in 2; do
+for nntype in GRU FFNN; do
+
+export LES_RL_NETTYPE=$nntype
+export LES_RL_NBLOCK=$nblocks
+export LES_RL_N_TSIM=20
+
+BASENAME=BlockAgents_LL_2nd_CFL01_${LES_RL_NETTYPE}_${nblocks}blocks
+POSTNAME=sim${LES_RL_N_TSIM}_RUN${run}
+
+# several options for actuation freq (relative to kolmogorov time)
+# bcz it affects run time we allocate different number of resources:
+
+export LES_RL_FREQ_A=1
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+smarties.py CUP3D_LES_HIT  -n 38 -r ${RUNDIR}
+
+
+export LES_RL_FREQ_A=2
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+smarties.py CUP3D_LES_HIT  -n 20 -r ${RUNDIR}
+
+
+export LES_RL_FREQ_A=4
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+smarties.py CUP3D_LES_HIT  -n 11 -r ${RUNDIR}
+
+
+export LES_RL_FREQ_A=8
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+smarties.py CUP3D_LES_HIT  -n 6 -r ${RUNDIR}
+
+
+export LES_RL_FREQ_A=16
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+#smarties.py CUP3D_LES_HIT -n 5 -r ${RUNDIR}
+
+
+export LES_RL_FREQ_A=32
+ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
+RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
+#smarties.py CUP3D_LES_HIT -n 3 -r ${RUNDIR}
+
+
+done
+done
+done
 
 #smarties.py CUP3D_LES_HIT VRACER_LES.json       -r \
 #${BASENAME}FFNN_default_RUN${run} -n 8
@@ -29,48 +76,3 @@ for run in 1 2 3; do
 #smarties.py CUP3D_LES_HIT VRACER_LES_racer.json  -r \
 #${BASENAME}GRU_racer_RUN${run} -n 8
 
-export LES_RL_N_TSIM=20
-
-export LES_RL_FREQ_A=4
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 9 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=1
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 33 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=16
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 3 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=2
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 17 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=8
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 5 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=32
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 2 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_FREQ_A=4
-
-export LES_RL_N_TSIM=10
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 9 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_N_TSIM=40
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 9 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_N_TSIM=60
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 9 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-export LES_RL_N_TSIM=80
-smarties.py CUP3D_LES_HIT ${SETTINGS}  -n 9 -r \
-${BASENAME}_act`printf %02d $LES_RL_FREQ_A`_sim${LES_RL_N_TSIM}_RUN${run}
-
-done
