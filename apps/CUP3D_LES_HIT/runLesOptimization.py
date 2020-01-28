@@ -4,16 +4,8 @@ import re, argparse, numpy as np, glob, subprocess
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
-def    tkeFit(nu, eps): return 2.86302040 * np.power(eps, 2/3.0)
-#def    relFit(nu, eps): return 7.33972668 * np.power(eps, 1/6.0) / np.sqrt(nu)
-def    relFit(nu, eps):
-    tke = tkeFit(nu,eps)
-    uprime = np.sqrt(2.0/3.0 * tke);
-    lambd = np.sqrt(15 * nu / eps) * uprime;
-    return uprime * lambd / nu;
-
 def epsNuFromRe(Re, uEta = 1.0):
-    C = 2.87657077
+    C = np.sqrt(196.0/20.0) #2.87657077
     K = 2/3.0 * C * np.sqrt(15)
     eps = np.power(uEta*uEta * Re / K, 3.0/2.0)
     nu = np.power(uEta, 4) / eps
@@ -50,9 +42,9 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
       "cp %s ${FOLDER}/scalars_target\n" \
       "cp %s ${FOLDER}/spectrumLogE_target\n" \
       "cp %s ${FOLDER}/invCovLogE_target\n" \
-      "export OMP_NUM_THREADS=18\n" \
+      "export OMP_NUM_THREADS=8\n" \
       "cd $FOLDER\n" \
-      "bsub -n 18 -J %s -W 04:00 -R \"select[model==XeonGold_6150] span[ptile=18]\" mpirun -n 1 ./simulation %s\n" \
+      "bsub -n 8 -J %s -W 04:00 -R \"select[model==XeonGold_6150] span[ptile=8]\" mpirun -n 1 ./simulation %s\n" \
       % (runname, scalname, logEname, iCovname, runname, getSettings(nu, eps, cs, nblocks))
     subprocess.run(cmd, shell=True)
 
@@ -104,11 +96,12 @@ if __name__ == '__main__':
     help="Number of CubismUP 3D blocks in the training runs.")
     args = parser.parse_args()
 
-    for re in [60, 70, 82, 95, 110, 130, 150, 176]:
-      for cs in np.linspace(-0.02, 0.32, 35):
+    for re in [60, 70, 82, 95, 111, 130, 152, 176]:
+      #for cs in np.linspace(-0.02, 0.32, 35):
+      for cs in [-0.01,  0.15,  0.16, 0.17,  0.18,  0.19,  0.2 ,  0.21,  0.22,  0.23,  0.24,  0.25, 0.26,  0.27,  0.28,  0.29,  0.3 ,  0.31,  0.32]:
       #for cs in np.linspace(0.26, 0.4, 8):
       #for cs in [-0.02]:
-        for ri in [0,1]:
+        for ri in [4, 5]:
           eps, nu = epsNuFromRe(re)
           launchEuler(args.path, nu, eps, re, cs, args.nBlocksRL, ri)
 
