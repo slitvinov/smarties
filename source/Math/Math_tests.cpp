@@ -29,7 +29,7 @@ void testPolicy(std::mt19937& gen, const ActionInfo & aI)
   const std::vector<Uint> inds = {0, nA};
   std::normal_distribution<Real> dist(0, 1);
   for(Uint i=0; i<nPol; ++i) mu[i] = dist(gen);
-  for(Uint i=0; i<nPol; ++i) pi[i] = dist(gen);
+  for(Uint i=0; i<nPol; ++i) pi[i] = mu[i] + 0.01*dist(gen);
   Policy_t pol1(inds, aI, pi);
   Policy_t pol2(inds, aI, mu);
   Action_t act = pol1.sample(gen);
@@ -109,14 +109,6 @@ void Continuous_policy::test(const Rvec& act, const Rvec& beta) const
     const Real p_2 = p2.evalLogProbability(act);
     const Real d_1 = p1.KLDivergence(beta);
     const Real d_2 = p2.KLDivergence(beta);
-    {
-      makeNetworkGrad(_grad, policygrad);
-      const double diffVal = (p_2-p_1)/(2*nnEPS);
-      const double gradVal = _grad[index];
-      const double errVal  = std::fabs(_grad[index]-(p_2-p_1)/(2*nnEPS));
-      fout<<"LogPol var grad "<<i<<" finite differences "
-      <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<"\n";
-    }
 
     {
       makeNetworkGrad(_grad, div_klgrad);
@@ -124,6 +116,14 @@ void Continuous_policy::test(const Rvec& act, const Rvec& beta) const
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(d_2-d_1)/(2*nnEPS));
       fout<<"DivKL var grad "<<i<<" finite differences "
+      <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<"\n";
+    }
+    {
+      makeNetworkGrad(_grad, policygrad);
+      const double diffVal = (p_2-p_1)/(2*nnEPS);
+      const double gradVal = _grad[index];
+      const double errVal  = std::fabs(_grad[index]-(p_2-p_1)/(2*nnEPS));
+      fout<<"LogPol var grad "<<i<<" finite differences "
       <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<"\n";
     }
   }
