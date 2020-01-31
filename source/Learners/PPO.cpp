@@ -45,14 +45,14 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
     Policy_t POL(pol_indices, aInfo, actor->forward(agent));
     const Rvec sval = critc->forward(agent);
     EP.state_vals.push_back(sval[0]); // not a terminal state
-    const Rvec beta = POL.getVector(); // vector-form current policy for storage
+    const Rvec mu = POL.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
     auto action = POL.selectAction(agent, settings.explNoise>0);
     agent.setAction(action);
-    data_get->add_action(agent, beta);
+    data_get->add_action(agent, mu);
   }
   else if( agent.agentStatus == TRNC )
   {

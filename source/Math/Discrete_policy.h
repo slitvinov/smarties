@@ -71,7 +71,7 @@ struct Discrete_policy
   }
 
   Rvec extract_probabilities() const {
-    assert(unnorm.size() == nA);
+    assert(unnorm.size() == nO);
     Rvec ret(nO);
     for (Uint j=0; j<nO; ++j) ret[j] = unnorm[j]/normalization;
     return ret;
@@ -97,7 +97,7 @@ struct Discrete_policy
   }
   Real evalProbability(const Rvec action) const {
     const Uint option = aInfo.actionMessage2label(action);
-    assert(beta.size() == nO && option < nO);
+    assert(option < nO);
     return probs[option];
   }
   Real evalLogProbability(const Uint option) const {
@@ -142,7 +142,7 @@ struct Discrete_policy
   }
 
   void makeNetworkGrad(Rvec& netGradient, const Rvec& totPolicyG) const {
-    assert(netGradient.size() >= startProbs+nA && totPolicyG.size() == nO);
+    assert(netGradient.size() >= startProbs+nO && totPolicyG.size() == nO);
     for (Uint j=0, k=startProbs; j<nO; ++j, ++k)
       netGradient[k] = totPolicyG[j] * PosDefFunction::_evalDiff(netOutputs[k]);
   }

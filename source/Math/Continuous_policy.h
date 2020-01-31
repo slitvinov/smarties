@@ -244,7 +244,7 @@ struct NormalPolicy : public Base1Dpolicy
   }
 
   void makeNetGrad(Rvec& nnGrad, const Rvec& nnOut, const Rvec& pGrad) const {
-    assert(pGrad.size() == 2*nA);
+    assert(pGrad.size() == 2 * aInfo.dim());
     const auto indMean= nnIndMean+component_id, indStd= nnIndStdev+component_id;
     assert(nnOut.size() > indMean && nnGrad.size() > indMean);
     nnGrad[indMean] = pGrad[component_id];
@@ -280,7 +280,6 @@ struct BetaPolicy : public Base1Dpolicy
       Base1Dpolicy(aI, comp, startMean, startStdev),
       mean(linearNetToMean(nnOut)), varCoef(linearNetToVarCoef(nnOut))
   {
-    assert( scale > std::numeric_limits<Real>::epsilon() );
   }
 
   static Real B_func(const Real _alpha, const Real _beta) {
@@ -304,7 +303,8 @@ struct BetaPolicy : public Base1Dpolicy
     const Real beta_mean  = beta_vec[component_id];
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
     const Real beta_varCoef = beta_stdev * beta_stdev / (mean * (1-mean));
-    assert(beta_mean>0 && beta_mean<1 && beta_varCoef>0 && beta_varCoef<0);
+    assert(beta_mean>0 && beta_mean<1);
+    assert(beta_varCoef>0 && beta_varCoef<1);
     const Real beta_alpha = beta_mean * (1/beta_varCoef - 1);
     const Real beta_beta  = (1-beta_mean) * (1/beta_varCoef - 1);
     return {beta_alpha, beta_beta};
@@ -397,7 +397,9 @@ struct BetaPolicy : public Base1Dpolicy
     std::gamma_distribution<Real> gamma_alpha(alpha, 1);
     std::gamma_distribution<Real> gamma_beta(beta, 1);
     const Real sampleAlpha = gamma_alpha(gen), sampleBeta = gamma_beta(gen);
-    return sampleAlpha/(sampleAlpha + sampleBeta);
+    const Real sample = sampleAlpha/(sampleAlpha + sampleBeta);
+    assert(sample > 0 && sample < 1);
+    return sample;
   }
 
   Real sample(std::mt19937& gen) const {
@@ -415,7 +417,7 @@ struct BetaPolicy : public Base1Dpolicy
   }
 
   void makeNetGrad(Rvec& nnGrad, const Rvec& nnOut, const Rvec& pGrad) const {
-    assert(pGrad.size() == 2*nA);
+    assert(pGrad.size() == 2*aInfo.dim());
     const auto indMean= nnIndMean+component_id, indStd= nnIndStdev+component_id;
     assert(nnOut.size() > indMean && nnGrad.size() > indMean);
     const Real dClipMdNet = ClipFunction::_evalDiff(nnOut[indMean]);
@@ -445,7 +447,7 @@ struct Continuous_policy
         ret.emplace_back(std::make_unique<NormalPolicy>(
           aInfo, netOutputs, i, startMean, startStdev) );
     }
-    assert(ret.size() == aI.dim());
+    assert(ret.size() == aInfo.dim());
     return ret;
   }
 
@@ -565,7 +567,7 @@ struct Continuous_policy
   }
 
   void makeNetworkGrad(Rvec& netGradient, const Rvec& totPolicyGrad) const {
-    assert(netGradient.size()>=start_mean+nA && totPolicyGrad.size() == 2*nA);
+    assert(netGradient.size()>=startMean+nA && totPolicyGrad.size() == 2*nA);
     for (const auto & pol : policiesVector)
       pol->makeNetGrad(netGradient, netOutputs, totPolicyGrad);
   }

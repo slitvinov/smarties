@@ -42,7 +42,7 @@ computeAction(Agent& agent, const Rvec netOutput) const
   const bool bSamplePol = settings.explNoise>0 && agent.trackSequence;
   if(bSamplePol) {
     assert(pol.size() == 2 * nA);
-    Discrete_policy POL({0, nA}, aInfo, netOutput);
+    Continuous_policy POL({0, nA}, aInfo, netOutput);
     act = POL.selectAction(agent, settings.explNoise>0);
   }
   //printf("%s\n", print(pol).c_str());

@@ -321,7 +321,7 @@ struct ActionInfo
       envPol[i] = getScale(i) * policy[i] + getShift(i);
       envPol[i+dim()] = getScale(i) * policy[i+dim()];
       // if bounded action space learner samples a beta distribution:
-      if(isBounded(i)) assert(policy[i]>0 && policy[i] < 1);
+      if(isBounded(i)) assert(policy[i]>=0 && policy[i] < 1);
     }
     return envPol;
   }
@@ -336,7 +336,7 @@ struct ActionInfo
     for (Uint i=0; i<dim(); ++i) {
       envAct[i] = getScale(i) * learnerAct[i] + getShift(i);
       // if bounded action space learner samples a beta distribution:
-      if(isBounded(i)) assert(learnerAct[i]>0 && learnerAct[i] < 1);
+      if(isBounded(i)) assert(learnerAct[i]>=0 && learnerAct[i] < 1);
     }
     return envAct;
   }

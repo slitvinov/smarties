@@ -58,10 +58,10 @@ select(Agent& agent)
     data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
-      auto dbg = prepare_policy<Policy_t>(output);
-      const double err = std::fabs(dbg.importanceWeight(ACT)-1);
-      if(err>1e-10 || dbg.importanceWeight(ACT)>nnEPS)
-        _die("ImpW:%20.20e DKL:%20.20e", dbg.importanceWeight(ACT), dbg.KLDivergence(MU));
+      const Policy_t dbg(pol_start, aInfo, output);
+      Real impW = dbg.importanceWeight(EP.actions.back(), EP.policies.back());
+      Real dkl = dbg.KLDivergence(EP.policies.back());
+      if(std::fabs(impW-1)>nnEPS || dkl>nnEPS) _die("ImpW:%e DKL:%e",impW,dkl);
     #endif
   }
   else // either terminal or truncation state
