@@ -182,11 +182,12 @@ bool Sequence::isEqual(const Sequence & S) const
   return true;
 }
 
-std::vector<float> Sequence::logToFile(const Uint dimS, const Uint iterStep) const
+std::vector<float> Sequence::logToFile(
+  const StateInfo& sInfo, const ActionInfo& aInfo, const Uint iterStep) const
 {
   const Uint seq_len = states.size();
   const Uint dimA = actions[0].size(), dimP = policies[0].size();
-  std::vector<float> buffer(seq_len * (4 + dimS + dimA + dimP));
+  std::vector<float> buffer(seq_len * (4 + sInfo.dim() + dimA + dimP));
   float * pos = buffer.data();
   for (Uint t=0; t<seq_len; ++t) {
     *(pos++) = iterStep + 0.1;
@@ -195,12 +196,15 @@ std::vector<float> Sequence::logToFile(const Uint dimS, const Uint iterStep) con
     *(pos++) = status2int(steptype) + 0.1;
     *(pos++) = t + 0.1;
     std::copy(  states[t].begin(),   states[t].end(), pos);
-    pos += dimS;
-    std::copy( actions[t].begin(),  actions[t].end(), pos);
+    pos += sInfo.dim();
+    const auto envAct = aInfo.learnerAction2envAction<float>(actions[t]);
+    std::copy(envAct.begin(), envAct.end(), pos);
     pos += dimA;
     *(pos++) = rewards[t];
-    std::copy(policies[t].begin(), policies[t].end(), pos);
+    const auto envPol = aInfo.learnerPolicy2envPolicy<float>(policies[t]);
+    std::copy(envPol.begin(), envPol.end(), pos);
     pos += dimP;
+    assert(envAct.size() == dimA && envPol.size() == dimP);
   }
   return buffer;
 }
