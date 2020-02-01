@@ -1,7 +1,7 @@
 export SKIPMAKE=true
 
 # how many cases to consider
-for run in 3 4; do
+for run in 0; do
 for nblocks in 2; do
 for nntype in GRU FFNN; do
 
@@ -9,7 +9,7 @@ export LES_RL_NETTYPE=$nntype
 export LES_RL_NBLOCK=$nblocks
 export LES_RL_N_TSIM=20
 
-BASENAME=BlockAgents_LL_2nd_CFL01_${LES_RL_NETTYPE}_${nblocks}blocks
+BASENAME=BlockAgents_LL_RK_EXP_${LES_RL_NETTYPE}_${nblocks}blocks
 POSTNAME=sim${LES_RL_N_TSIM}_RUN${run}
 
 # several options for actuation freq (relative to kolmogorov time)
@@ -18,25 +18,25 @@ POSTNAME=sim${LES_RL_N_TSIM}_RUN${run}
 export LES_RL_FREQ_A=1
 ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
 RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
-smarties.py CUP3D_LES_HIT  -n 38 -r ${RUNDIR}
+smarties.py CUP3D_LES_HIT  -n 20 -r ${RUNDIR}
 
 
 export LES_RL_FREQ_A=2
 ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
 RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
-smarties.py CUP3D_LES_HIT  -n 20 -r ${RUNDIR}
+smarties.py CUP3D_LES_HIT  -n 11 -r ${RUNDIR}
 
 
 export LES_RL_FREQ_A=4
 ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
 RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
-smarties.py CUP3D_LES_HIT  -n 11 -r ${RUNDIR}
+smarties.py CUP3D_LES_HIT  -n 6 -r ${RUNDIR}
 
 
 export LES_RL_FREQ_A=8
 ACTSPEC=act`printf %02d $LES_RL_FREQ_A`
 RUNDIR=${BASENAME}_${ACTSPEC}_${POSTNAME}
-smarties.py CUP3D_LES_HIT  -n 6 -r ${RUNDIR}
+smarties.py CUP3D_LES_HIT  -n 4 -r ${RUNDIR}
 
 
 export LES_RL_FREQ_A=16

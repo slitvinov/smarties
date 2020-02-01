@@ -6,7 +6,7 @@
   "penalTol": 0.05,
   "explNoise": 0.5,
   "gamma": 0.99,
-  "learnrate": 0.0001,
+  "learnrate": 0.00001,
   "minTotObsNum": 1048576,
   "maxTotObsNum": 1048576,
   "nnLayerSizes": [64, 64],
