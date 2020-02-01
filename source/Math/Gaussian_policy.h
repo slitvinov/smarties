@@ -260,9 +260,9 @@ public:
   {
     for (Uint i=0; i<nA; ++i) {
       const Real noise = sampAct[i] - mean[i];
-      state[i] *= fac;
-      sampAct[i] += state[i];
-      state[i] += noise;
+      const Real force = fac * state[i];
+      sampAct[i] = mean[i] + noise + force;
+      state[i] = force + noise;
     }
     return aInfo.action2scaledAction(sampAct);
   }
