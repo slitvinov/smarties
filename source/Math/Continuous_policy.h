@@ -15,6 +15,20 @@
 namespace smarties
 {
 
+#if 1
+template<typename T> T digamma(T x)
+{
+  T result = 0;
+  assert(x > 0);
+  for ( ; x < 7; ++x) result -= 1/x;
+  x -= (T) 0.5;
+  const T xx = 1/x, xx2 = xx*xx, xx4 = xx2*xx2;
+  result += std::log(x) + (1.0/24.0)*xx2
+        -(7.0/960.0)*xx4 +(31.0/8064.0)*xx4*xx2
+        -(127.0/30720.0)*xx4*xx4;
+  return result;
+}
+#else
 template<typename T> T digamma(T x)
 {
   // The constant Pi in high precision 
@@ -81,6 +95,7 @@ template<typename T> T digamma(T x)
     return result;
   }
 }
+#endif
 
 struct Base1Dpolicy
 {
@@ -265,6 +280,15 @@ struct BetaPolicy : public Base1Dpolicy
   const Real alpha =    mean  * (1/varCoef - 1);
   const Real beta  = (1-mean) * (1/varCoef - 1);
 
+  // precomputed quantities:
+  const Real M_DiGa  = digamma(alpha);
+  const Real M_DiGb  = digamma(beta);
+  const Real M_DiGab = digamma(alpha+beta);
+  const Real M_logB = logB_func(alpha, beta);
+  mutable bool storedOnBetaDigamma = false;
+  mutable Real M_BetaA=0, M_BetaB=0, M_Beta_logB = 0;
+  mutable Real M_BetaDiGa=0, M_BetaDiGb=0, M_BetaDiGab=0;
+
   Real getMean() const { return mean; }
   Real getStdev() const { return stdev; }
 
@@ -289,60 +313,62 @@ struct BetaPolicy : public Base1Dpolicy
     return std::lgamma(_alpha) + std::lgamma(_beta) - std::lgamma(_alpha+_beta);
   }
 
-  static Real prob(const Real u, const Real alpha, const Real beta) {
+  static Real prob(const Real u, const Real alpha, const Real beta, const Real norm) {
     assert(u>0 && u<1);
-    return std::pow(u, alpha-1) * std::pow(1-u, beta-1) / B_func(alpha, beta);
+    return std::pow(u, alpha-1) * std::pow(1-u, beta-1) / norm;
   }
-  static Real logProb(const Real u, const Real alpha, const Real beta) {
+  static Real logProb(const Real u, const Real alpha, const Real beta, const Real norm) {
     assert(u>0 && u<1);
-    return (alpha-1)*std::log(u) +(beta-1)*std::log(1-u) -logB_func(alpha,beta);
+    return (alpha-1)*std::log(u) +(beta-1)*std::log(1-u) - norm;
   }
 
   // Converts {mean,stdev} used for storage and NN output into {alpha,beta}
-  std::array<Real, 2> betaVec2alphaBeta(const Rvec& beta_vec) const {
-    const Real beta_mean  = beta_vec[component_id];
-    const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
-    const Real beta_varCoef = beta_stdev * beta_stdev / (beta_mean * (1-beta_mean));
-    assert(beta_mean>0 && beta_mean<1);
-    assert(beta_varCoef>0 && beta_varCoef<1);
-    const Real beta_alpha = beta_mean * (1/beta_varCoef - 1);
-    const Real beta_beta  = (1-beta_mean) * (1/beta_varCoef - 1);
-    return {beta_alpha, beta_beta};
+  void betaVec2alphaBeta(const Rvec& beta_vec) const {
+    if(storedOnBetaDigamma == false) {
+      const Real beta_mean  = beta_vec[component_id];
+      const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
+      const Real beta_varCoef = beta_stdev * beta_stdev / (beta_mean * (1-beta_mean));
+      assert(beta_mean>0 && beta_mean<1);
+      assert(beta_varCoef>0 && beta_varCoef<1);
+      M_BetaA = beta_mean * (1/beta_varCoef - 1);
+      M_BetaB  = (1-beta_mean) * (1/beta_varCoef - 1);
+      M_Beta_logB = logB_func(M_BetaA, M_BetaB);
+      M_BetaDiGa  = digamma(M_BetaA);
+      M_BetaDiGb  = digamma(M_BetaB);
+      M_BetaDiGab = digamma(M_BetaA+M_BetaB);
+      storedOnBetaDigamma = true;
+    }
   }
 
   Real prob(const Rvec & act, const Rvec & beta_vec) const {
-    const std::array<Real, 2> alphaBeta = betaVec2alphaBeta(beta_vec);
-    return prob(act[component_id], alphaBeta[0], alphaBeta[1]);
+    betaVec2alphaBeta(beta_vec);
+    return prob(act[component_id], M_BetaA, M_BetaB, std::exp(M_Beta_logB));
   }
   Real prob(const Rvec & act) const {
-    return prob(act[component_id], alpha, beta);
+    return prob(act[component_id], alpha, beta, std::exp(M_logB));
   }
 
   Real logProb(const Rvec& act, const Rvec& beta_vec) const {
-    const std::array<Real, 2> alphaBeta = betaVec2alphaBeta(beta_vec);
-    return logProb(act[component_id], alphaBeta[0], alphaBeta[1]);
+    betaVec2alphaBeta(beta_vec);
+    return logProb(act[component_id], M_BetaA, M_BetaB, M_Beta_logB);
   }
   Real logProb(const Rvec& act) const {
-    return logProb(act[component_id], alpha, beta);
-  }
-
-  static Real KLdivergence(const Real a1, const Real b1, const Real a2, const Real b2) {
-    const Real term1 = logB_func(a2, b2) - logB_func(a1, b1);
-    const Real term2 = (a1 - a2) * digamma(a1);
-    const Real term3 = (b1 - b2) * digamma(b1);
-    const Real term4 = (a2 - a1 + b2 - b1) * digamma(a1 + b1);
-    return term1 + term2 + term3 + term4;
+    return logProb(act[component_id], alpha, beta, M_logB);
   }
 
   Real KLdivergence(const Rvec & beta_vec) const {
-    const std::array<Real, 2> alphaBeta = betaVec2alphaBeta(beta_vec);
-    return KLdivergence(alphaBeta[0], alphaBeta[1], alpha, beta);
+    betaVec2alphaBeta(beta_vec);
+    const Real term1 = M_logB - M_Beta_logB;
+    const Real term2 = (M_BetaA - alpha) * M_BetaDiGa;
+    const Real term3 = (M_BetaB - beta) * M_BetaDiGb;
+    const Real term4 = (alpha - M_BetaA + beta - M_BetaB) * M_BetaDiGab;
+    return term1 + term2 + term3 + term4;
   }
 
   std::array<Real, 2> gradLogP(const Rvec& act, const Real factor) const {
     const Real u = act[component_id];
-    const Real dLogPdAlpha = digamma(alpha+beta) + std::log(u) - digamma(alpha);
-    const Real dLogPdBeta = digamma(alpha+beta) + std::log(1-u) - digamma(beta);
+    const Real dLogPdAlpha = M_DiGab + std::log(u) - M_DiGa;
+    const Real dLogPdBeta = M_DiGab + std::log(1-u) - M_DiGb;
     const Real dAlphadMean = (1/varCoef-1);
     const Real dAlphadVarC = -mean/(varCoef*varCoef);
     const Real dBetadMean  = (1-1/varCoef);
@@ -353,12 +379,9 @@ struct BetaPolicy : public Base1Dpolicy
   }
 
   std::array<Real, 2> gradKLdiv(const Rvec& mu_vec, const Real factor) const {
-    const std::array<Real, 2> muAB = betaVec2alphaBeta(mu_vec);
-    const Real diGab = digamma(alpha+beta), diGAB = digamma(muAB[0]+muAB[1]);
-    const Real diGa = digamma(alpha), diGA = digamma(muAB[0]);
-    const Real diGb = digamma(beta), diGB = digamma(muAB[1]);
-    const Real dDKLdAlpha = diGa - diGab - diGA + diGAB;
-    const Real dDKLdBeta = diGb - diGab - diGB + diGAB;
+    betaVec2alphaBeta(mu_vec);
+    const Real dDKLdAlpha = M_DiGa - M_DiGab - M_BetaDiGa + M_BetaDiGab;
+    const Real dDKLdBeta = M_DiGb - M_DiGab - M_BetaDiGb + M_BetaDiGab;
     const Real dAlphadMean = (1/varCoef-1);
     const Real dAlphadVarC = -mean/(varCoef*varCoef);
     const Real dBetadMean  = (1-1/varCoef);

@@ -302,7 +302,7 @@ struct BetaPolicy : public Base1Dpolicy
   std::array<Real, 2> betaVec2alphaBeta(const Rvec& beta_vec) const {
     const Real beta_mean  = beta_vec[component_id];
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
-    const Real beta_varCoef = beta_stdev * beta_stdev / (mean * (1-mean));
+    const Real beta_varCoef = beta_stdev * beta_stdev / (beta_mean * (1-beta_mean));
     assert(beta_mean>0 && beta_mean<1);
     assert(beta_varCoef>0 && beta_varCoef<1);
     const Real beta_alpha = beta_mean * (1/beta_varCoef - 1);
