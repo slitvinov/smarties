@@ -33,7 +33,7 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   // check whether importance weight is in 1/Cmax < c < Cmax
   const bool isFarPol = isFarPolicy(RHO, CmaxRet, CinvRet);
 
-  const Advantage_t ADV(pol_start, aInfo, O, &POL);
+  const Advantage_t ADV(adv_start, aInfo, O, &POL);
   const Real A_cur = ADV.computeAdvantage(ACT), V_cur = O[VsID];
   // shift retrace-advantage with current V(s) estimate:
   const Real A_RET = MB.Q_RET(bID, t) - V_cur;

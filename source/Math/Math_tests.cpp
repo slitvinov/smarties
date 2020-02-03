@@ -50,7 +50,7 @@ void testPolicyAdvantage(std::vector<Uint> polInds, std::vector<Uint> advInds,
           nnOut.push_back(dist(gen));
   for(Uint i=0; i<nPol; ++i) mu[i] = dist(gen);
   Policy_t pol1(polInds, aI, nnOut);
-  Policy_t pol2(polInds, aI, mu);
+  Policy_t pol2({0, nA}, aI, mu);
   Advantage_t adv(advInds, aI, nnOut, & pol1);
   Action_t act = pol1.sample(gen);
   pol1.test(act, pol2.getVector());

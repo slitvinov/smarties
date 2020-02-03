@@ -50,7 +50,7 @@ select(Agent& agent)
     // this should only be used for evaluating a learned policy
     auto action = pol.selectAction(agent, distrib.bTrain);
 
-    const Advantage_t adv(pol_start, aInfo, output, &pol);
+    const Advantage_t adv(adv_start, aInfo, output, &pol);
     const Real advantage = adv.computeAdvantage(action);
     EP.action_adv.push_back(advantage);
     EP.state_vals.push_back(output[VsID]);
