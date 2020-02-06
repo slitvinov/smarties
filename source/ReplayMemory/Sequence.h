@@ -10,6 +10,7 @@
 #define smarties_Sequence_h
 
 #include "../Utils/FunctionUtilities.h"
+#include "../Core/StateAction.h"
 
 #include <cassert>
 #include <atomic>
@@ -287,7 +288,8 @@ struct Sequence
     Q_RET[t-1] = R + gamma * V + gamma * clipW * (Q_RET[t] - A - V);
   }
 
-  std::vector<float> logToFile(const Uint dimS, const Uint iterStep) const;
+  std::vector<float> logToFile(
+    const StateInfo& sInfo, const ActionInfo& aInfo, const Uint iterStep) const;
 };
 
 } // namespace smarties
