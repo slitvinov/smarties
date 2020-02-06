@@ -1,25 +1,33 @@
 #!/usr/bin/env python3
-import os, numpy as np, argparse
+import os, numpy as np, argparse, subprocess
+
+bDoRK23 = False
+bDoRK23 = True
+bDoUpWind = False
+bDoUpWind = True
 
 def epsNuFromRe(Re, uEta = 1.0):
-    C = np.sqrt(20.0/3)
+    C = 3.0 # np.sqrt(20.0/3)
     K = 2/3.0 * C * np.sqrt(15)
     eps = np.power(uEta*uEta * Re / K, 3.0/2.0)
     nu = np.power(uEta, 4) / eps
     return eps, nu
 
 def runspec(nu, eps, re, run, cs):
-    if cs is not None:
-      return "HIT_LES_BPD04_EXT2pi_RE%04d_CS%.02f_RUN%d" % (re, cs, run)
-    else: return "HIT_DNS_BPD16_EXT2pi_RE%04d_RUN%d" % (re, run)
+    base = "HITDNS7_"
+    if bDoRK23 : tstep = "RK_"
+    else : tstep = "FE_"
+    if bDoUpWind : discr = "UW_"
+    else : discr = "CD_"
+    size = "BPD16_EXT2pi_"
+    return base + tstep + discr + "CFL010_" + size + "RE%04d_RUN%d" % (re, run)
 
 def getSettings(nu, eps, cs, run):
-    if cs is not None:
-      options = '-sgs SSM -cs %f -bpdx 4 -bpdy 4 -bpdz 4 -CFL 0.1 ' % cs
-    else:
-      options = '-bpdx 16 -bpdy 16 -bpdz 16 -CFL 0.01 '
+    options = '-bpdx 16 -bpdy 16 -bpdz 16 -CFL 0.1 '
+    if bDoRK23: options = options + '-RungeKutta23 '
+    if bDoUpWind: options = options + '-Advection3rdOrder '
     tAnalysis = np.sqrt(nu / eps)
-    tDump = (run == 0) * tAnalysis
+    tDump = 0 # (run == 0) * tAnalysis
     tEnd = 1000 * tAnalysis
     return options + '-extentx 6.2831853072 -dump2D 0 -dump3D 1 ' \
        '-tdump %f -BC_x periodic -BC_y periodic -BC_z periodic ' \
@@ -29,13 +37,19 @@ def getSettings(nu, eps, cs, run):
        '-analysis HIT -nu %f -energyInjectionRate %f ' \
        % (tDump, tAnalysis, tEnd, nu, eps)
 
-def launchEuler(nu, eps, run):
-    runname = runspec(nu, eps, run)
+def launchEuler(nu, eps, re, cs, run):
+    runname  = runspec(nu, eps, re, run, cs)
     print(runname)
-    tAnalysis = np.sqrt(nu / eps)
-    os.system("export NU=%f \n export EPS=%f \n export TANALYSIS=%f \n " \
-              "echo $NU $EPS \n ./launchEuler.sh settingsHIT_DNS.sh %s " \
-               % (nu, eps, tAnalysis, runname) )
+    cmd = "export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH\n" \
+      "FOLDER=/cluster/scratch/novatig/CubismUP_3D/%s\n " \
+      "mkdir -p ${FOLDER}\n" \
+      "cp ~/CubismUP_3D/bin/simulation ${FOLDER}/\n" \
+      "export OMP_NUM_THREADS=18\n" \
+      "cd $FOLDER\n" \
+      "bsub -n 18 -J %s -W 24:00 -R \"select[model==XeonGold_6150] span[ptile=18]\" ./simulation %s\n" \
+      % (runname, runname, getSettings(nu, eps, cs, run))
+      #"bsub -n 18 -J %s -W 24:00 -R \"select[model==XeonGold_6150] span[ptile=18]\" mpirun -n 1 ./simulation %s\n" \
+    subprocess.run(cmd, shell=True)
 
 def launchDaint(nCases, les):
     SCRATCH = os.getenv('SCRATCH')
@@ -109,9 +123,11 @@ if __name__ == '__main__':
     NUS, EPS, RES, RUN, CSS = [], [], [], [], []
 
     #for re in np.linspace(60, 240, 19) :
-    for re in [60, 65, 70, 76, 82, 88, 95, 103, 111, 120, 130, 140, 151, 163, 176, 190, 205] :
+    for i in [5, 6, 7, 8, 9] :
       for les in rangeles :
-        for i in [0, 1, 2, 3, 4] :
+        for re in [60, 65, 70, 76, 82, 88, 95, 103, 111, 120, 130, 140, 151, 163, 176, 190, 205] :
+        #for re in [60, 70, 82, 95, 111, 130, 151, 176, 205] :
+        #for re in [100] :
           RES, RUN = RES + [re], RUN + [i]
           eps, nu = epsNuFromRe(re, uEta = 1)
           NUS, EPS, CSS = NUS + [nu], EPS + [eps], CSS + [les]
@@ -131,6 +147,6 @@ if __name__ == '__main__':
       if args.printName:
         print( runspec(NUS[i], EPS[i], RES[i], RUN[i], CSS[i]) )
       if args.launchEuler:
-           launchEuler(NUS[i], EPS[i], RUN[i])
+           launchEuler(NUS[i], EPS[i], RES[i], CSS[i], RUN[i])
 
 
