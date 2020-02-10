@@ -78,7 +78,7 @@ std::vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uin
   memcpy(charPos, &          ID, sizeof(Sint)); charPos += sizeof(Sint);
   memcpy(charPos, &just_sampled, sizeof(Sint)); charPos += sizeof(Sint);
   memcpy(charPos, &      prefix, sizeof(Uint)); charPos += sizeof(Uint);
-  memcpy(charPos, &     agentID, sizeof(Uint)); charPos += sizeof(Uint);
+  memcpy(charPos, &     agentID, sizeof(Sint)); charPos += sizeof(Sint);
 
   // assert(buf - ret.data() == (ptrdiff_t) totalSize);
   return ret;
@@ -124,7 +124,7 @@ void Sequence::unpackSequence(const std::vector<Fval>& data, const Uint dS,
   memcpy(&          ID, charPos, sizeof(Sint)); charPos += sizeof(Sint);
   memcpy(&just_sampled, charPos, sizeof(Sint)); charPos += sizeof(Sint);
   memcpy(&      prefix, charPos, sizeof(Uint)); charPos += sizeof(Uint);
-  memcpy(&     agentID, charPos, sizeof(Uint)); charPos += sizeof(Uint);
+  memcpy(&     agentID, charPos, sizeof(Sint)); charPos += sizeof(Sint);
   //assert(buf-data.data()==(ptrdiff_t)computeTotalEpisodeSize(dS,dA,dP,seq_len));
 }
 
