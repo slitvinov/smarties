@@ -21,48 +21,52 @@ static constexpr Debug_level level = WARNINGS;
 //static constexpr Debug_level level = LEARNERS;
 //static constexpr Debug_level level = SCHEDULER;
 
+void signal_handler(int signal);
+
+void init_warnings();
+
 void print_warning(const char * funcname, const char * filename,
                    int line, const char * fmt, ...);
 void print_stacktrace();
 
-#define    die(format)      do {                                               \
+#define    die(err_message)      do {                                          \
   using namespace smarties::Warnings;                                          \
-  print_warning(__func__, __FILE__, __LINE__, format);                         \
+  print_warning(__func__, __FILE__, __LINE__, err_message);                    \
   print_stacktrace(); MPI_Abort(MPI_COMM_WORLD, 1); } while(0)
 
 #define   _die(format, ...) do {                                               \
   using namespace smarties::Warnings;                                          \
-  print_warning(__func__, __FILE__, __LINE__, format, ##__VA_ARGS__);          \
+  print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);            \
   print_stacktrace(); MPI_Abort(MPI_COMM_WORLD, 1); } while(0)
 
-#define   warn(format)  do { \
+#define   warn(err_message)  do { \
   if(Warnings::level == smarties::Warnings::WARNINGS) {                        \
     using namespace smarties::Warnings;                                        \
-    print_warning(__func__, __FILE__, __LINE__, format);                       \
+    print_warning(__func__, __FILE__, __LINE__, err_message);                  \
   } } while(0)
 
 #define  _warn(format, ...)  do { \
   if(Warnings::level == smarties::Warnings::WARNINGS) {                        \
     using namespace smarties::Warnings;                                        \
-    print_warning(__func__, __FILE__, __LINE__, format, ##__VA_ARGS__);        \
+    print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
 
 #define debugS(format, ...)  do { \
   if(Warnings::level == smarties::Warnings::SCHEDULER) {                       \
     using namespace smarties::Warnings;                                        \
-    print_warning(__func__, __FILE__, __LINE__, format, ##__VA_ARGS__);        \
+    print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
 
 #define _debugL(format, ...)  do { \
   if(Warnings::level == smarties::Warnings::LEARNERS) {                        \
     using namespace smarties::Warnings;                                        \
-    print_warning(__func__, __FILE__, __LINE__, format, ##__VA_ARGS__);        \
+    print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
 
-#define debugL(format)  do { \
+#define debugL(err_message)  do { \
   if(Warnings::level == smarties::Warnings::LEARNERS) {                        \
     using namespace smarties::Warnings;                                        \
-    print_warning(__func__, __FILE__, __LINE__, format);                       \
+    print_warning(__func__, __FILE__, __LINE__, err_message);                  \
   } } while(0)
 
 } // end namespace Warnings

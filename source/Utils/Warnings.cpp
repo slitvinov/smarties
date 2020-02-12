@@ -8,6 +8,8 @@
 
 #include "Warnings.h"
 
+#define PRINT_STACK_TRACE
+
 #ifdef PRINT_STACK_TRACE
 #define BACKWARD_HAS_DW 0
 #define BACKWARD_HAS_BFD 1
@@ -15,18 +17,42 @@
 #define BACKWARD_HAS_UNWIND 0
 #define BACKWARD_HAS_BACKTRACE 0
 #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
-#include "extern/backward.hpp"
+#include "../extern/backward.hpp"
 #endif
 
 #include <mutex>
 //#include <sstream>
 #include <stdarg.h>
+#include <csignal>
+#include <iostream>
 
 namespace smarties
 {
 namespace Warnings
 {
 static std::mutex warn_mutex;
+
+void signal_handler(int signal)
+{
+  if (signal == SIGABRT) {
+      std::cerr << "SIGABRT received\n";
+  } else {
+      std::cerr << "Unexpected signal " << signal << " received\n";
+  }
+  print_stacktrace();
+  std::_Exit(EXIT_FAILURE);
+}
+
+void init_warnings()
+{
+  #ifdef PRINT_STACK_TRACE
+  static backward::SignalHandling sh;
+  #endif
+
+  // Setup handler
+  auto previous_handler = std::signal(SIGABRT, signal_handler);
+  if (previous_handler == SIG_ERR) die("Error setup failed");
+}
 
 void print_warning(const char * funcname, const char * filename,
                    int line, const char * fmt, ...)

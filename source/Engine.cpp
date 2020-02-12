@@ -135,6 +135,11 @@ void Engine::run(const std::function<void(Communicator*const,
                                           MPI_Comm,
                                           int, char **      )> & callback)
 {
+  _warn("%d something\n", 10);
+  warn("something\n");
+
+  _die("%d %d %d something\n", 10, 30, 40);
+
   distrib->forkableApplication = distrib->workerProcessesPerEnv <= 1;
   init();
   if(distrib->bIsMaster)
