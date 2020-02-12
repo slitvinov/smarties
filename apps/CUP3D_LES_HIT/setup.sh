@@ -35,8 +35,13 @@ cp ${THISDIR}/target_RK_${LES_RL_NBLOCK}blocks/*  ${RUNDIR}/
 #copy settings file
 # 1) either FFNN or RNN
 # 2) number of actions per grad steps affected by number of agents per sim
+if [ ${LES_RL_GRIDACT} == 0 ] ; then
 SETTINGSF=VRACER_LES_${LES_RL_NETTYPE}_${LES_RL_NBLOCK}blocks.json
 cp ${THISDIR}/settings/${SETTINGSF} ${RUNDIR}/settings.json
+else
+SETTINGSF=VRACER_LES_${LES_RL_NETTYPE}GRID_${LES_RL_NBLOCK}blocks.json
+cp ${THISDIR}/settings/${SETTINGSF} ${RUNDIR}/settings.json
+fi
 
 export MPI_RANKS_PER_ENV=1
 export EXTRA_LINE_ARGS=" --appSettings runArguments00.sh --nStepPappSett 0 "
