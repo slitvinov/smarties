@@ -13,6 +13,18 @@
 #include <cassert>
 #include <unistd.h>
 
+#define PRINT_STACK_TRACE
+
+#ifdef PRINT_STACK_TRACE
+#define BACKWARD_HAS_DW 0
+#define BACKWARD_HAS_BFD 1
+#define BACKWARD_HAS_DWARF 0
+#define BACKWARD_HAS_UNWIND 0
+#define BACKWARD_HAS_BACKTRACE 0
+#define BACKWARD_HAS_BACKTRACE_SYMBOL 0
+#include "extern/backward.hpp"
+#endif
+
 namespace smarties
 {
 
@@ -34,6 +46,10 @@ bOwnArgv(true)
   world_comm = MPI_COMM_WORLD;
   MPI_Comm_set_errhandler(world_comm, MPI_ERRORS_RETURN);
   commonInit();
+
+  #ifdef PRINT_STACK_TRACE
+  static backward::SignalHandling sh;
+  #endif
 }
 
 DistributionInfo::DistributionInfo(int _argc, char ** _argv) :
