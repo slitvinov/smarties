@@ -15,11 +15,15 @@ namespace smarties
 {
 namespace Warnings
 {
-enum Debug_level { SILENT, WARNINGS, SCHEDULER, ENVIRONMENT, NETWORK, COMMUNICATOR, LEARNERS, TRANSITIONS };
+enum InfoDumpLevel { SILENT = 0, WARNINGS, DEBUG, SCHEDULER, LEARNERS };
 
-static constexpr Debug_level level = WARNINGS;
-//static constexpr Debug_level level = LEARNERS;
-//static constexpr Debug_level level = SCHEDULER;
+#ifdef NDEBUG
+static constexpr InfoDumpLevel level = WARNINGS;
+#else
+static constexpr InfoDumpLevel level = DEBUG;
+//static constexpr InfoDumpLevel level = LEARNERS;
+//static constexpr InfoDumpLevel level = SCHEDULER;
+#endif
 
 void signal_handler(int signal);
 
@@ -67,6 +71,12 @@ void print_stacktrace();
   if(Warnings::level == smarties::Warnings::LEARNERS) {                        \
     using namespace smarties::Warnings;                                        \
     print_warning(__func__, __FILE__, __LINE__, err_message);                  \
+  } } while(0)
+
+#define _debug(format, ...)  do { \
+  if(Warnings::level == smarties::Warnings::DEBUG) {                           \
+    using namespace smarties::Warnings;                                        \
+    print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
 
 } // end namespace Warnings
