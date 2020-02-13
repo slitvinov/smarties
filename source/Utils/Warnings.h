@@ -44,13 +44,13 @@ void print_stacktrace();
   print_stacktrace(); MPI_Abort(MPI_COMM_WORLD, 1); } while(0)
 
 #define   warn(err_message)  do { \
-  if(Warnings::level == smarties::Warnings::WARNINGS) {                        \
+  if(Warnings::level >= smarties::Warnings::WARNINGS) {                        \
     using namespace smarties::Warnings;                                        \
     print_warning(__func__, __FILE__, __LINE__, err_message);                  \
   } } while(0)
 
 #define  _warn(format, ...)  do { \
-  if(Warnings::level == smarties::Warnings::WARNINGS) {                        \
+  if(Warnings::level >= smarties::Warnings::WARNINGS) {                        \
     using namespace smarties::Warnings;                                        \
     print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
@@ -74,7 +74,7 @@ void print_stacktrace();
   } } while(0)
 
 #define _debug(format, ...)  do { \
-  if(Warnings::level == smarties::Warnings::DEBUG) {                           \
+  if(Warnings::level >= smarties::Warnings::DEBUG) {                           \
     using namespace smarties::Warnings;                                        \
     print_warning(__func__, __FILE__, __LINE__, format, __VA_ARGS__);          \
   } } while(0)
