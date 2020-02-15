@@ -9,6 +9,7 @@
 #include "AlgoFactory.h"
 
 #include "PPO.h"
+#include "SAC.h"
 #include "DPG.h"
 #include "DQN.h"
 #include "NAF.h"
@@ -158,6 +159,19 @@ std::unique_ptr<Learner> createLearner(
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = std::make_unique<DPG>(MDP, settings, distrib);
+  }
+  else
+  if (settings.learner == "SAC")
+  {
+    if(MPICommRank(distrib.world_comm) == 0) printf(
+    "==========================================================================\n"
+    "                                                                          \n"
+    "==========================================================================\n"
+    );
+    MDP.policyVecDim = 2*MDP.dimAction;
+    o << MDP.dimAction << " " << MDP.policyVecDim;
+    printLogfile(o, "problem_size.log", distrib.world_rank);
+    ret = std::make_unique<SAC>(MDP, settings, distrib);
   }
   else
   if (settings.learner == "GAE" || settings.learner == "PPO")

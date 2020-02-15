@@ -8,7 +8,7 @@
 
 #include "Warnings.h"
 
-#define PRINT_STACK_TRACE
+//#define PRINT_STACK_TRACE
 
 #ifdef PRINT_STACK_TRACE
 #define BACKWARD_HAS_DW 0

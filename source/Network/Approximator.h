@@ -12,6 +12,7 @@
 #include "Builder.h"
 #include "ThreadContext.h"
 #include "../Utils/StatsTracker.h"
+#include "../Math/Continuous_policy.h"
 //#include "../Utils/SstreamUtilities.h"
 #include "../ReplayMemory/MemoryBuffer.h"
 
@@ -154,7 +155,8 @@ struct Approximator
     }
     else if(C.addedInputType(sampID) == ACTION)
     {
-      INP.insert(INP.end(), C.getAction(t).begin(), C.getAction(t).end());
+      const Rvec addedinp = Continuous_policy::map2unbounded(aI,C.getAction(t));
+      INP.insert(INP.end(), addedinp.begin(), addedinp.end());
     }
     else if(C.addedInputType(sampID) == VECTOR)
     {
@@ -308,6 +310,14 @@ struct Approximator
   void save(const std::string base, const bool bBackup);
   void restart(const std::string base);
   void rename(std::string newname) { name = newname; }
+
+  Optimizer * getOptimizerPtr() {
+    return opt.get();
+  }
+  Network * getNetworkPtr() {
+    return net.get();
+  }
+
 private:
   const Settings& settings;
   const DistributionInfo & distrib;
@@ -317,6 +327,7 @@ private:
   const MemoryBuffer* const replay;
   const Approximator* const preprocessing;
   const Approximator* const auxInputNet;
+  const ActionInfo& aI = replay->aI;
   Sint auxInputAttachLayer = -1;
   Sint m_auxInputSize = -1;
   Uint m_numberOfAddedSamples = 0;
