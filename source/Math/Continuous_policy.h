@@ -499,6 +499,14 @@ struct Continuous_policy
     return ret;
   }
 
+  static Rvec map2unbounded(const ActionInfo& aI, const Rvec & action) {
+    Rvec ret = action;
+    assert(action.size() == aI.dim());
+    for(Uint i=0; i<aI.dim(); ++i)
+        if(aI.isBounded(i)) ret[i] = BetaPolicy::ClipFunction::_inv(ret[i]);
+    return ret;
+  }
+
   ~Continuous_policy() = default;
   Continuous_policy(const Continuous_policy &p) = delete;
   // : aInfo(p.aInfo),

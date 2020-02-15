@@ -4,22 +4,34 @@ import re, argparse, numpy as np, glob, subprocess
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
+bDoRK23 = False
+bDoRK23 = True
+bDoUpWind = False
+#bDoUpWind = True
+
 def epsNuFromRe(Re, uEta = 1.0):
-    C = np.sqrt(196.0/20.0) #2.87657077
+    C = 3.0 # np.sqrt(196.0/20.0) #2.87657077
     K = 2/3.0 * C * np.sqrt(15)
     eps = np.power(uEta*uEta * Re / K, 3.0/2.0)
     nu = np.power(uEta, 4) / eps
     return eps, nu
 
 def runspec(re, cs, nblocks, run):
+  if bDoRK23 : tstep = "RK_"
+  else : tstep = "FE_"
+  if bDoUpWind : discr = "UW_"
+  else : discr = "CD_"
+  base = "HITLES00_" + tstep + discr + "CFL010_"
   if cs < 0:
-    return "HIT_BOX2_LES_EXT2pi_%dBLOCKS_RE%03d_CS_DSM_RUN%d" % (nblocks, re, run)
+    return base + "BPD%d_RE%03d_CS_DSM_RUN%d" % (nblocks, re, run)
   else:
-    return "HIT_BOX2_LES_EXT2pi_%dBLOCKS_RE%03d_CS%.03f_RUN%d" % (nblocks, re, cs, run)
+    return base + "BPD%d_RE%03d_CS%.03f_RUN%d" % (nblocks, re, cs, run)
 
 def getSettings(nu, eps, cs, nblocks):
-    options = '-sgs SSM -cs %f -bpdx %d -bpdy %d -bpdz %d -CFL 0.01 ' \
+    options = '-sgs SSM -cs %f -bpdx %d -bpdy %d -bpdz %d -CFL 0.1 ' \
               % (cs, nblocks, nblocks, nblocks)
+    if bDoRK23: options = options + '-RungeKutta23 1 '
+    if bDoUpWind: options = options + '-Advection3rdOrder 1 '
     tAnalysis = 10 * np.sqrt(nu / eps)
     tEnd = 1e6 * tAnalysis
     return options + '-extentx 6.283185307179586 -dump2D 0 -dump3D 0 ' \
@@ -36,7 +48,7 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
     iCovname = "%s/invCovLogE_RE%03d" % (tpath, re)
     runname  = runspec(re, cs, nblocks, run)
     cmd = "export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH\n" \
-      "FOLDER=/cluster/scratch/novatig/CubismUP_3D/%s\n " \
+      "FOLDER=/cluster/scratch/novatig/CubismUP3D/%s\n " \
       "mkdir -p ${FOLDER}\n" \
       "cp ~/CubismUP_3D/bin/simulation ${FOLDER}/\n" \
       "cp %s ${FOLDER}/scalars_target\n" \
@@ -96,12 +108,13 @@ if __name__ == '__main__':
     help="Number of CubismUP 3D blocks in the training runs.")
     args = parser.parse_args()
 
-    for re in [60, 70, 82, 95, 111, 130, 152, 176]:
+    #for re in [60, 70, 82, 95, 111, 130, 152, 176]:
+    for re in [60, 65, 70, 76, 82, 88, 95, 103, 111, 120, 130, 140, 151, 163, 176, 190, 205] :
       #for cs in np.linspace(-0.02, 0.32, 35):
-      for cs in [-0.01,  0.15,  0.16, 0.17,  0.18,  0.19,  0.2 ,  0.21,  0.22,  0.23,  0.24,  0.25, 0.26,  0.27,  0.28,  0.29,  0.3 ,  0.31,  0.32]:
       #for cs in np.linspace(0.26, 0.4, 8):
       #for cs in [-0.02]:
-        for ri in [4, 5]:
+      for cs in [-.01, .14, .15, .16, .17, .18, .19, .2, .21, .22, .23, .24, .25, .26, .27, .28, .29, .3, .31, .32]:
+        for ri in [0, 1]:
           eps, nu = epsNuFromRe(re)
           launchEuler(args.path, nu, eps, re, cs, args.nBlocksRL, ri)
 

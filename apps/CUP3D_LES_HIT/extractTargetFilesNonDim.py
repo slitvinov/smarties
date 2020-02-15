@@ -4,15 +4,17 @@ from os import path
 
 nBins = 16 * 16//2 - 1
 
+'''
 def tkeFit(nu, eps): return 2.87657077 * np.power(eps, 2/3.0)
 def relFit(nu, eps):
     tke = tkeFit(nu,eps)
     uprime = np.sqrt(2.0/3.0 * tke);
     lambd = np.sqrt(15 * nu / eps) * uprime;
     return uprime * lambd / nu;
+'''
 
 def epsNuFromRe(Re, uEta = 1.0):
-    C = np.sqrt(196.0/20.0)
+    C = 3 # np.sqrt(20.0/3)
     K = 2/3.0 * C * np.sqrt(15)
     eps = np.power(uEta*uEta * Re / K, 3.0/2.0)
     nu = np.power(uEta, 4) / eps
@@ -66,7 +68,9 @@ def main(path, fSkip, nBlocks=16, nBlocksRL=4):
     EPSs[j], NUs[j] = epsNuFromRe(REs[j])
     print('Re %e nu %e eps %e' % (REs[j], NUs[j], EPSs[j]))
     data = None
-    for run in [0, 1, 2, 3, 4, 5, 6, 7]:
+    #for run in [0, 1, 2, 3, 4]:
+    #for run in [5, 6, 7, 8, 9]:
+    for run in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
       dirn = '%sRE%04d_RUN%d' % (path, REs[j], run)
       runData = getAllData(dirn, EPSs[j], NUs[j], nBins, fSkip)
       if data is None: data = runData
@@ -134,5 +138,5 @@ if __name__ == '__main__':
     help="Number of CubismUP 3D blocks in the training runs.")
   args = parser.parse_args()
 
-  main(args.simdir, args.fSkip, args.nBlocksRL)
+  main(args.simdir, args.fSkip, nBlocksRL=args.nBlocksRL)
 
