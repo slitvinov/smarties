@@ -404,7 +404,7 @@ struct BetaPolicy : public Base1Dpolicy
              "--explNoise) must be less than 1.\n");
       explNoise  = 1 - EPS;
     }
-    return ClipFunction::_inv( explNoise * explNoise );
+    return ClipFunction::_inv(explNoise * explNoise / 4);
   }
 
   Real sample_OrnsteinUhlenbeck(Rvec& state, const Real noise) const {
