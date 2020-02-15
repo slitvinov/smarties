@@ -34,8 +34,8 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   critc->setAddedInputType(NETWORK, bID, t, 1); // 1 flags to write on
   const Rvec sval = critc->forward(bID, t, 1); // separate net alloc
-  Rvec DPG = isFarPol? Rvec(nA, 0) : critc->oneStepBackProp({1}, bID, t, 1);
-
+  const Rvec DPG = isFarPol? Rvec(nA,0) : critc->oneStepBackProp({1}, bID, t,1);
+  assert(DPG.size() == nA);
   critc->setAddedInputType(ACTION, bID, t);
   const Rvec qval = critc->forward(bID, t); // network compute
 
@@ -46,29 +46,28 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     MB.updateRetrace(bID, t+1, 0, (vNext[0] + pNext[nA])/2, 0);
   }
 
-  const Real Aest = qval[0] - pvec[nA], Vest = (sval[0] + pvec[nA]) / 2;
-  //const Real Vest = (sval[0] + pvec[nA]) / 2, Aest = qval[0] - Vest;
+  //const Real Aest = qval[0] - pvec[nA], Vest = (sval[0] + pvec[nA]) / 2;
+  const Real Vest = (sval[0] + pvec[nA]) / 2, Aest = qval[0] - Vest;
   const Real dQRET = MB.updateRetrace(bID, t, Aest, Vest, RHO);
   const Real Q_RET = MB.Q_RET(bID, t), A_RET = Q_RET - Vest;
-  const Real Ver = std::min((Real)1,RHO)*(Q_RET - qval[0] + sval[0] - pvec[nA]);
-  const Real Aer = RHO * (Q_RET - qval[0]);
 
   const Rvec penalG  = POL.KLDivGradient(MU, -1);
   Rvec SPG = isFarPol? Rvec(2*nA, 0) : POL.policyGradient(ACT, A_RET * RHO);
+  trainInfo->log(qval[0], A_RET-Aest, SPG, penalG, {dQRET}, thrID);
   for (Uint i = 0; i < nA; ++i) {
-    SPGnorms[thrID][i] += SPG[i] * SPG[i];
-    DPGnorms[thrID][i] += DPG[i] * DPG[i];
-    SPG[i] = SPG[i] + 0.5 * DPG[i] * DPGfactor[0];
+    SPGm1[thrID][i] += SPG[i]; SPGm2[thrID][i] += SPG[i] * SPG[i];
+    DPGm1[thrID][i] += DPG[i]; DPGm2[thrID][i] += DPG[i] * DPG[i];
+    SPG[i] = SPG[i] + DPG[i] * DPGfactor[i];
   }
 
   Rvec gradPol = Rvec(2*nA + 1, 0);
-  gradPol[nA] = isFarPol? 0 : beta * Ver;
+  const Real Ver = std::min((Real)1,RHO)*(Q_RET - qval[0] + sval[0] - pvec[nA]);
+  gradPol[nA] = isFarPol? 0 : beta * (Ver + sval[0]-pvec[nA]);
   POL.makeNetworkGrad(gradPol, Utilities::weightSum2Grads(SPG, penalG, beta));
 
   MB.setMseDklImpw(bID, t, Ver*Ver, DKL, RHO, CmaxRet, CinvRet);
-  trainInfo->log(qval[0], sval[0] - pvec[nA], SPG, penalG, {dQRET}, thrID);
   actor->setGradient(gradPol, bID, t);
-  critc->setGradient({ isFarPol? 0 : Aer }, bID, t);
+  critc->setGradient({ isFarPol? 0 : RHO * (Q_RET - qval[0]) }, bID, t);
 }
 
 void SAC::select(Agent& agent)
@@ -166,26 +165,22 @@ void SAC::setupTasks(TaskQueue& tasks)
     profiler->start("MPI");
 
     const Real learnRate = settings.learnrate;
-    #if 0
     for (Uint i = 0; i < nA; ++i) {
-      Real spgNorm = 0, dpgNorm = 0;
+      Real meanDPG = 0, varDPG = 0, meanSPG = 0, varSPG = 0;
       for (Uint j = 0; j < nThreads; ++j) {
-        spgNorm += SPGnorms[j][i] / settings.batchSize;
-        dpgNorm += DPGnorms[j][i] / settings.batchSize;
+        meanDPG += DPGm1[j][i] / settings.batchSize; DPGm1[j][i] = 0;
+        varDPG  += DPGm2[j][i] / settings.batchSize; DPGm2[j][i] = 0;
+        meanSPG += SPGm1[j][i] / settings.batchSize; SPGm1[j][i] = 0;
+        varSPG  += SPGm2[j][i] / settings.batchSize; SPGm2[j][i] = 0;
       }
-      const Real newNorm = std::sqrt(spgNorm / (dpgNorm + nnEPS));
-      DPGfactor[i] += settings.learnrate * (newNorm - DPGfactor[i]);
+      //const Real stdDPG = std::sqrt(varDPG - meanDPG * meanDPG);
+      const Real stdSPG = std::sqrt(varSPG - meanSPG * meanSPG);
+      const Real newNorm = 0.5 * stdSPG / std::sqrt(varDPG + nnEPS);
+      //const Real newNorm = std::sqrt(varSPG / (varDPG + nnEPS));
+      DPGfactor[i] += learnRate * (newNorm - DPGfactor[i]);
+      if(nGradSteps() < 100000)
+        DPGfactor[i] = DPGfactor[i] * nGradSteps() / 100000.0;
     }
-    #else
-    Real spgNorm = 0, dpgNorm = 0;
-    for (Uint i = 0; i < nA; ++i)
-      for (Uint j = 0; j < nThreads; ++j) {
-        spgNorm += SPGnorms[j][i] / settings.batchSize / nA;
-        dpgNorm += DPGnorms[j][i] / settings.batchSize / nA;
-      }
-    const Real newNorm = std::sqrt(spgNorm / (dpgNorm + nnEPS));
-    DPGfactor[0] += learnRate * (newNorm - DPGfactor[0]);
-    #endif
 
     const Real oldLambda = critc->getOptimizerPtr()->lambda;
     const Real L2critc = critc->getNetworkPtr()->weights->compute_weight_norm();

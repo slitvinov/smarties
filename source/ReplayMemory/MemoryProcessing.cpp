@@ -26,7 +26,7 @@ MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
     globalStep_reduce.update( { nSeenSequences_loc.load(),
                                 nSeenTransitions_loc.load() } );
 
-    ReFER_reduce.update({(long double)0, (long double) settings.minTotObsNum });
+    ReFER_reduce.update({(long double)0, (long double) settings.maxTotObsNum });
 }
 
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
@@ -139,7 +139,8 @@ void MemoryProcessing::updateReFERpenalization()
   // size N (bigger N decreases accuracy because there are more samples to
   // update). We pick coef 0.1 to match learning rate chosen in original paper:
   // we had B=256 and N=2^18 and eta=1e-4. 0.1*B*N \approx 1e-4
-  const Real learnRefer = 0.1 * settings.batchSize / nFarGlobal[1];
+  Real nDataSize = std::max((long double) settings.maxTotObsNum, nFarGlobal[1]);
+  const Real learnRefer = 0.1 * settings.batchSize / nDataSize;
   const auto fixPointIter = [&] (const Real val, const bool goTo0) {
     if (goTo0) // fixed point iter converging to 0:
       return (1 - std::min(learnRefer, val)) * val;

@@ -19,8 +19,10 @@ class SAC : public Learner_approximator
   const Uint nA = aInfo.dim();
   const Real explNoise = settings.explNoise;
   Rvec DPGfactor = Rvec(nA, 0);
-  mutable std::vector<Rvec> SPGnorms = std::vector<Rvec>(nThreads, Rvec(nA, 0));
-  mutable std::vector<Rvec> DPGnorms = std::vector<Rvec>(nThreads, Rvec(nA, 0));
+  mutable std::vector<Rvec> SPGm1 = std::vector<Rvec>(nThreads, Rvec(nA, 0));
+  mutable std::vector<Rvec> SPGm2 = std::vector<Rvec>(nThreads, Rvec(nA, 0));
+  mutable std::vector<Rvec> DPGm1 = std::vector<Rvec>(nThreads, Rvec(nA, 0));
+  mutable std::vector<Rvec> DPGm2 = std::vector<Rvec>(nThreads, Rvec(nA, 0));
 
   Approximator* actor;
   Approximator* critc;
