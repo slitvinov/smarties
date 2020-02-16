@@ -24,8 +24,8 @@ MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
     LDvec initGuessStateRewStats(MDP.dimStateObserved * 2 + 3, 0);
     for(Uint i=0; i<MDP.dimStateObserved; ++i)
       initGuessStateRewStats[i + MDP.dimStateObserved] = 0;
-    initGuessStateRewStats[MDP.dimStateObserved*MDP.dimStateObserved] = 1;
-    initGuessStateRewStats[MDP.dimStateObserved*MDP.dimStateObserved + 2] = 1;
+    initGuessStateRewStats[MDP.dimStateObserved*2] = 1;
+    initGuessStateRewStats[MDP.dimStateObserved*2 + 2] = 1;
     StateRewRdx.update(initGuessStateRewStats);
 
     globalStep_reduce.update( { nSeenSequences_loc.load(),
