@@ -50,11 +50,11 @@ void MemoryBuffer::restart(const std::string base)
     invstd = std::vector<nnReal>(V.begin(), V.end());
     size_t size3 = fread(V.data(), sizeof(double), dimS, wFile);
     std    = std::vector<nnReal>(V.begin(), V.end());
-    V.resize(2);
-    size_t size4 = fread(V.data(), sizeof(double),    2, wFile);
-    stddev_reward = V[0]; invstd_reward = V[1];
+    V.resize(3);
+    size_t size4 = fread(V.data(), sizeof(double),    3, wFile);
+    stddev_reward = V[0]; invstd_reward = V[1]; mean_reward = V[2];
     fclose(wFile);
-    if (size1!=dimS || size2!=dimS || size3!=dimS || size4!=2)
+    if (size1 != dimS || size2 != dimS || size3 != dimS || size4 != 3)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
   }
 
@@ -128,8 +128,9 @@ void MemoryBuffer::save(const std::string base)
       fwrite(V.data(), sizeof(double), V.size(), wFile);
       V = std::vector<double>(std.begin(), std.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
-      V.resize(2); V[0] = stddev_reward; V[1] = invstd_reward;
-      fwrite(V.data(), sizeof(double), 2, wFile);
+      V.resize(3);
+      V[0] = stddev_reward; V[1] = invstd_reward; V[2] = mean_reward;
+      fwrite(V.data(), sizeof(double), 3, wFile);
     };
 
     const std::string backname = base + "_scaling_backup.raw";

@@ -17,12 +17,17 @@ namespace smarties
 static constexpr Fval EPS = std::numeric_limits<Fval>::epsilon();
 
 MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
-  Ssum1Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 0) ),
-  Ssum2Rdx(distrib, LDvec(_RM->MDP.dimStateObserved, 1) ),
-  Rsum2Rdx(distrib, LDvec(1, 1) ), Csum1Rdx(distrib, LDvec(1, 1) ),
+  StateRewRdx(distrib, LDvec(MDP.dimStateObserved * 2 + 3, 0) ),
   globalStep_reduce(distrib, std::vector<long>{0, 0}),
   ReFER_reduce(distrib, LDvec{0.,1.})
 {
+    LDvec initGuessStateRewStats(MDP.dimStateObserved * 2 + 3, 0);
+    for(Uint i=0; i<MDP.dimStateObserved; ++i)
+      initGuessStateRewStats[i + MDP.dimStateObserved] = 0;
+    initGuessStateRewStats[MDP.dimStateObserved*MDP.dimStateObserved] = 1;
+    initGuessStateRewStats[MDP.dimStateObserved*MDP.dimStateObserved + 2] = 1;
+    StateRewRdx.update(initGuessStateRewStats);
+
     globalStep_reduce.update( { nSeenSequences_loc.load(),
                                 nSeenTransitions_loc.load() } );
 
@@ -49,9 +54,9 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
 
   if(WR>0 or WS>0)
   {
-    long double count = 0, newstdvr = 0;
+    long double count = 0, newRSum = 0, newRSqSum = 0;
     std::vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
-    #pragma omp parallel reduction(+ : count, newstdvr)
+    #pragma omp parallel reduction(+ : count, newRSum, newRSqSum)
     {
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
       #pragma omp for schedule(dynamic, 1) nowait
@@ -60,7 +65,8 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         const Uint N = EP.ndata();
         count += N;
         for(Uint j=0; j<N; ++j) {
-          newstdvr += std::pow(EP.rewards[j+1], 2);
+          newRSum += EP.rewards[j+1];
+          newRSqSum += std::pow(EP.rewards[j+1], 2);
           for(Uint k=0; k<dimS && WS>0; ++k) {
             const long double sk = EP.states[j][k] - mean[k];
             thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
@@ -77,30 +83,42 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     }
 
     //add up gradients across nodes (masters)
-    Ssum1Rdx.update(newSSum);
-    Ssum2Rdx.update(newSSqSum);
-    Csum1Rdx.update( LDvec {count});
-    Rsum2Rdx.update( LDvec {newstdvr});
+    auto newSRstats = newSSum;
+    assert(newSRstats.size() == dimS);
+    newSRstats.insert(newSRstats.end(), newSSqSum.begin(), newSSqSum.end());
+    assert(newSRstats.size() == 2*dimS);
+    newSRstats.push_back(count);
+    newSRstats.push_back(newRSum);
+    newSRstats.push_back(newRSqSum);
+    assert(newSRstats.size() == 2*dimS + 3);
+    StateRewRdx.update(newSRstats);
   }
 
-  const long double count = Csum1Rdx.get<0>(bInit);
+  const auto newSRstats = StateRewRdx.get(bInit);
+  assert(newSRstats.size() == 2*dimS + 3);
+  const auto count = newSRstats[2*dimS];
 
   if(WR>0)
   {
-   long double varR = Rsum2Rdx.get<0>(bInit)/count;
-   if(varR < 0) varR = 0;
-   //if( settings.ESpopSize > 1e7 ) {
-   //  const Real gamma = settings.gamma;
-   //  const auto Rscal = (std::sqrt(varR)+EPS) * (1-gamma>EPS? 1/(1-gamma) :1);
-   //  invstd_reward = (1-WR)*invstd_reward +WR/Rscal;
-   //} else
-   invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(varR) + EPS );
+    #if 1
+      const auto rewM1 = newSRstats[2*dimS+1]/count;
+      const auto rewM2 = newSRstats[2*dimS+2]/count;
+      auto varR = rewM2 - rewM1 * rewM1;
+      if(varR < 0) varR = 0;
+      mean_reward   = (1-WR)*  mean_reward + WR * rewM1;
+      invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(varR) + EPS );
+    #else
+      auto rewM2 = newSRstats[2*dimS+2]/count;
+      if(rewM2 < 0) rewM2 = 0;
+      mean_reward = 0;
+      invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(rewM2) + EPS );
+    #endif
   }
 
   if(WS>0)
   {
-    const LDvec SSum1 = Ssum1Rdx.get(bInit);
-    const LDvec SSum2 = Ssum2Rdx.get(bInit);
+    const LDvec SSum1(& newSRstats[0], & newSRstats[dimS]);
+    const LDvec SSum2(& newSRstats[dimS], & newSRstats[2 * dimS]);
     for(Uint k=0; k<dimS; ++k)
     {
       // this is the sample mean minus mean[k]:
@@ -281,6 +299,7 @@ void MemoryProcessing::prepareNextBatchAndDeleteStaleEp()
 void MemoryProcessing::getMetrics(std::ostringstream& buff)
 {
   Utilities::real2SS(buff, RM->avgCumulativeReward, 9, 0);
+  Utilities::real2SS(buff, mean_reward, 6, 0);
   Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
   Utilities::real2SS(buff, avgKLdivergence, 5, 1);
 
@@ -304,7 +323,7 @@ void MemoryProcessing::getHeaders(std::ostringstream& buff)
 {
   buff <<
   //"|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
-  "|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nDel|nFarP ";
+  "|  avgR  | avgr | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nDel|nFarP ";
   if(CmaxRet>1) {
     //buf << "| alph | beta ";
     buff << "| beta ";

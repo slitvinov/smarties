@@ -36,6 +36,7 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Rvec sval = critc->forward(bID, t, 1); // separate net alloc
   const Rvec DPG = isFarPol? Rvec(nA,0) : critc->oneStepBackProp({1}, bID, t,1);
   assert(DPG.size() == nA);
+
   critc->setAddedInputType(ACTION, bID, t);
   const Rvec qval = critc->forward(bID, t); // network compute
 
@@ -62,7 +63,7 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   Rvec gradPol = Rvec(2*nA + 1, 0);
   const Real Ver = std::min((Real)1,RHO)*(Q_RET - qval[0] + sval[0] - pvec[nA]);
-  gradPol[nA] = isFarPol? 0 : beta * (Ver + sval[0]-pvec[nA]);
+  gradPol[nA] = isFarPol? 0 : beta * Ver;
   POL.makeNetworkGrad(gradPol, Utilities::weightSum2Grads(SPG, penalG, beta));
 
   MB.setMseDklImpw(bID, t, Ver*Ver, DKL, RHO, CmaxRet, CinvRet);
@@ -95,7 +96,8 @@ void SAC::select(Agent& agent)
     const Rvec qval = critc->forward(agent);
     critc->setAddedInputType(NETWORK, agent, currStep);
     const Rvec sval = critc->forward(agent, true); // overwrite = true
-    EP.action_adv.push_back( qval[0] - pvec[nA]   );
+    EP.action_adv.push_back( qval[0] - (sval[0] + pvec[nA])/2   );
+    //EP.action_adv.push_back( qval[0] - pvec[nA]   );
     EP.state_vals.push_back((sval[0] + pvec[nA])/2);
   }
   else // either terminal or truncation state
@@ -175,7 +177,7 @@ void SAC::setupTasks(TaskQueue& tasks)
       }
       //const Real stdDPG = std::sqrt(varDPG - meanDPG * meanDPG);
       const Real stdSPG = std::sqrt(varSPG - meanSPG * meanSPG);
-      const Real newNorm = 0.5 * stdSPG / std::sqrt(varDPG + nnEPS);
+      const Real newNorm = 0.2 * stdSPG / std::sqrt(varDPG + nnEPS);
       //const Real newNorm = std::sqrt(varSPG / (varDPG + nnEPS));
       DPGfactor[i] += learnRate * (newNorm - DPGfactor[i]);
       if(nGradSteps() < 100000)

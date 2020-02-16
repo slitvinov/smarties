@@ -55,6 +55,7 @@ class MemoryBuffer
   std::vector<nnReal>& std = MDP.stateStdDev;
   nnReal& stddev_reward = MDP.rewardsStdDev;
   nnReal& invstd_reward = MDP.rewardsScale;
+  nnReal&   mean_reward = MDP.rewardsMean;
 
   const bool bSampleSequences = settings.bSampleSequences;
   const Uint nAppended = MDP.nAppendedObs;
@@ -125,7 +126,9 @@ class MemoryBuffer
     assert(samp < (T) seq.rewards.size());
     return scaledReward(seq.rewards[samp]);
   }
-  Real scaledReward(const Real r) const { return r * invstd_reward; }
+  Real scaledReward(const Real r) const {
+    return (r - mean_reward) * invstd_reward;
+  }
 
   void restart(const std::string base);
   void save(const std::string base);

@@ -28,6 +28,7 @@ private:
   std::vector<nnReal> & std = RM->std;
   //nnReal& stddev_reward = RM->stddev_reward;
   nnReal & invstd_reward = RM->invstd_reward;
+  nnReal &   mean_reward = RM->mean_reward;
   Real & beta = RM->beta;
   Real & alpha = RM->alpha;
   Real & CmaxRet = RM->CmaxRet;
@@ -39,7 +40,7 @@ private:
   Real avgKLdivergence =  0;
   Sint indexOfEpisodeToDelete = -1;
 
-  DelayedReductor<long double> Ssum1Rdx, Ssum2Rdx, Rsum2Rdx, Csum1Rdx;
+  DelayedReductor<long double> StateRewRdx;
   DelayedReductor<long> globalStep_reduce;
   DelayedReductor<long double> ReFER_reduce;
 

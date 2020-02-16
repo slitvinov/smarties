@@ -221,6 +221,7 @@ struct Approximator
     //const int ind = mapTime2Ind(samp, thrID);
     //assert(act[ind]->written == true && relay not_eq nullptr);
     const Rvec ret = net->backPropToLayer(gradient, auxInputAttachLayer, A, W);
+    //C.endBackPropStep(sampID) = -1; //to stop additional backprops
     //printf("%f\n", ret[inputSize]);
     if(auxInputAttachLayer>0) return ret;
     else return Rvec(& ret[inputSize], & ret[inputSize + m_auxInputSize]);
@@ -245,13 +246,11 @@ struct Approximator
         if(last_error < 0) continue;
 
         const auto& timeSeries = activations[samp];
-        for (Sint i=0; i<last_error; ++i)
-          assert(timeSeries[i]->written == true);
+        for (Sint i=0; i<last_error; ++i) assert(timeSeries[i]->written);
 
         const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
         net->backProp(timeSeries, last_error, C.partialGradient.get(), W);
 
-        //for(int i=0;i<last_error&&!thrID;++i)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
         if(preprocessing and not m_blockInpGrad)
         {
           for(Sint k=0; k<last_error; ++k)
