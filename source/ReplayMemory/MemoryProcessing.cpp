@@ -189,7 +189,8 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
     //CmaxRet = 1 + C * factorDw
     CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E) * factorUp;
   } else {
-    CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E);
+    //CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E);
+    CmaxRet = 1 + C;
   }
 
   CinvRet = 1 / CmaxRet;
