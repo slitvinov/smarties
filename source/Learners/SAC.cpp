@@ -177,7 +177,7 @@ void SAC::setupTasks(TaskQueue& tasks)
       }
       //const Real stdDPG = std::sqrt(varDPG - meanDPG * meanDPG);
       const Real stdSPG = std::sqrt(varSPG - meanSPG * meanSPG);
-      const Real newNorm = 0.2 * stdSPG / std::sqrt(varDPG + nnEPS);
+      const Real newNorm = 0.0 * stdSPG / std::sqrt(varDPG + nnEPS);
       //const Real newNorm = std::sqrt(varSPG / (varDPG + nnEPS));
       DPGfactor[i] += learnRate * (newNorm - DPGfactor[i]);
       if(nGradSteps() < 100000)
@@ -189,8 +189,6 @@ void SAC::setupTasks(TaskQueue& tasks)
     const Real L2actor = actor->getNetworkPtr()->weights->compute_weight_norm();
     const Real newLambda = oldLambda * (1 + learnRate * (L2critc/L2actor - 1));
     critc->getOptimizerPtr()->lambda = newLambda;
-    //if( ((nGradSteps() + 1) % 1000) == 0 )
-    //  printf("%f %f\n", newLambda, DPGfactor[0]);
 
     algoSubStepID = 1;
   };
