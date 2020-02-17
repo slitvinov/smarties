@@ -47,8 +47,8 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     MB.updateRetrace(bID, t+1, 0, (vNext[0] + pNext[nA])/2, 0);
   }
 
-  //const Real Aest = qval[0] - pvec[nA], Vest = (sval[0] + pvec[nA]) / 2;
-  const Real Vest = (sval[0] + pvec[nA]) / 2, Aest = qval[0] - Vest;
+  const Real Aest = qval[0] - sval[0], Vest = (sval[0] + pvec[nA]) / 2;
+  //const Real Vest = (sval[0] + pvec[nA]) / 2, Aest = qval[0] - Vest;
   const Real dQRET = MB.updateRetrace(bID, t, Aest, Vest, RHO);
   const Real Q_RET = MB.Q_RET(bID, t), A_RET = Q_RET - Vest;
 
@@ -96,8 +96,8 @@ void SAC::select(Agent& agent)
     const Rvec qval = critc->forward(agent);
     critc->setAddedInputType(NETWORK, agent, currStep);
     const Rvec sval = critc->forward(agent, true); // overwrite = true
-    EP.action_adv.push_back( qval[0] - (sval[0] + pvec[nA])/2   );
-    //EP.action_adv.push_back( qval[0] - pvec[nA]   );
+    //EP.action_adv.push_back( qval[0] - (sval[0] + pvec[nA])/2   );
+    EP.action_adv.push_back( qval[0] - sval[0]   );
     EP.state_vals.push_back((sval[0] + pvec[nA])/2);
   }
   else // either terminal or truncation state
