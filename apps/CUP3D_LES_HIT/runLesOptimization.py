@@ -46,6 +46,7 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
     scalname = "%s/scalars_RE%03d" % (tpath, re)
     logEname = "%s/spectrumLogE_RE%03d" % (tpath, re)
     iCovname = "%s/invCovLogE_RE%03d" % (tpath, re)
+    sdtDevname = "%s/stdevLogE_RE%03d" % (tpath, re)
     runname  = runspec(re, cs, nblocks, run)
     cmd = "export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH\n" \
       "FOLDER=/cluster/scratch/novatig/CubismUP3D/%s\n " \
@@ -54,10 +55,12 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
       "cp %s ${FOLDER}/scalars_target\n" \
       "cp %s ${FOLDER}/spectrumLogE_target\n" \
       "cp %s ${FOLDER}/invCovLogE_target\n" \
+      "cp %s ${FOLDER}/stdevLogE_target\n" \
       "export OMP_NUM_THREADS=8\n" \
       "cd $FOLDER\n" \
       "bsub -n 8 -J %s -W 04:00 -R \"select[model==XeonGold_6150] span[ptile=8]\" mpirun -n 1 ./simulation %s\n" \
-      % (runname, scalname, logEname, iCovname, runname, getSettings(nu, eps, cs, nblocks))
+      % (runname, scalname, logEname, iCovname, sdtDevname, \
+        runname, getSettings(nu, eps, cs, nblocks))
     subprocess.run(cmd, shell=True)
 
 

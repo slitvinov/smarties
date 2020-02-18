@@ -2,7 +2,7 @@
   "learner": "VRACER",
   "batchSize": 256,
   "clipImpWeight": 0.5,
-  "epsAnneal": 0,
+  "epsAnneal": 2e-7,
   "penalTol": 0.05,
   "explNoise": 0.2,
   "gamma": 0.99,

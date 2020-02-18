@@ -25,7 +25,7 @@ cat <<EOF >${RUNDIR}/runArguments00.sh
 -extentx 6.2831853072 -tend 500 -dump2D 1 -dump3D 1 -tdump 1.0 -CFL 0.1 \
 -BC_x periodic -BC_y periodic -BC_z periodic -initCond HITurbulence \
 -spectralIC fromFit -keepMomentumConstant 1 -sgs RLSM -cs 0.5 -RungeKutta23 1 \
--spectralForcing 1 -nprocsx 1 -nprocsy 1 -nprocsz 1 -Advection3rdOrder 0 \
+-spectralForcing 1 -nprocsx 1 -nprocsy 1 -nprocsz 1 -Advection3rdOrder 1 \
 -analysis HIT -tAnalysis 100 -nu 0.005 -energyInjectionRate 0.2 \
 -RL_freqActions ${LES_RL_FREQ_A} -RL_nIntTperSim ${LES_RL_N_TSIM} \
 -RL_gridPointAgents ${LES_RL_GRIDACT} -initCondFileTokens ${LES_RL_EVALUATE}

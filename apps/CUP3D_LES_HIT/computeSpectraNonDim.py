@@ -26,7 +26,7 @@ def EkFunc(x, C, CI, CE, BETA, P0):
     if(CE  <1e-16): CE  =1e-16
     if(BETA<1e-16): BETA=1e-16
     if(P0  <1e-16): P0  =1e-16
-    CI, P0, BETA, CE = 0.001, 800, 5.4, 0.22
+    CI, P0, BETA, CE = 0.001, 2, 5.4, 0.22
     k, eps, leta, lint, nu = x[0], x[1], x[2], x[3], x[4]
     #print(x.shape)
     #lint =  0.74885397 * np.power(eps, -0.0233311) * np.power(nu, 0.07192009)
@@ -34,7 +34,7 @@ def EkFunc(x, C, CI, CE, BETA, P0):
     #FL = np.power( k*lint / (np.abs(k*lint) + CI), 5/3.0 + P0 )
     FL = np.power( k*lint / np.sqrt((k*lint)**2 + CI), 5/3.0 + P0 )
     FE = np.exp( - BETA * ( np.power( (k*leta)**4 + CE**4, 0.25 ) - CE ) )
-    ret = 2.8 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
+    ret = 2.7 * np.power(eps, 2/3.0) * np.power(k, -5/3.0) * FL * FE
     #print(C, CI, CE, BETA, P0)
     #print(eps[0], leta[:], lint[0], nu[0])
     return ret
@@ -131,7 +131,8 @@ def main_integral(path):
         Ekscal = np.power(nu**5 * eps, 0.25)
         K = np.arange(1, nyquist+1, dtype=np.float64)
         E = np.exp(vecSpectra[:,i])
-        X, Y = K * leta, E / Ekscal
+        X, Y = K, E / Ekscal
+        #X, Y = K * leta, E / Ekscal
         fit = np.array([EkBrief([k, eps,leta,lint,nu], popt) for k in K])/Ekscal
         Yb = np.exp(vecSpectra[:,i] - vecEnStdev[:,i])/Ekscal
         Yt = np.exp(vecSpectra[:,i] + vecEnStdev[:,i])/Ekscal
@@ -147,14 +148,14 @@ def main_integral(path):
         color = colors[ ci ]
         ci += 1
         axes[0].fill_between(X, Yb, Yt, facecolor=color, alpha=.5)
-        axes[0].plot(X, fit, 'o', color=color)
+        #axes[0].plot(X[1:], fit[1:], 'o', color=color)
         axes[0].plot(X, Y, color=color, label=label)
         axes[1].plot(fullK, 1-eCDF, color=color, label=label)
 
     axes[1].set_xlabel(r'$k$')
     axes[1].set_ylabel(r'$1 - CDF(E)$')
     axes[0].set_yscale("log")
-    axes[0].set_xscale("log")
+    #axes[0].set_xscale("log")
     #axes[1].set_xscale("log")
     axes[1].set_yscale("log")
     axes[1].set_xlim([1,63])

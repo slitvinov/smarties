@@ -83,7 +83,7 @@ def main(path, fSkip, nBlocks=16, nBlocksRL=4):
       continue
 
     logE = np.log(data['spectra'])
-    #print(logE.shape)
+    print(logE.shape)
     avgLogSpec = np.mean(logE, axis=0)
     logE = np.log(data['spectra'][:, 0:nBinsTgt])
     stdLogSpec = np.std(logE, axis=0)
