@@ -1,7 +1,8 @@
 export SKIPMAKE=true
 
 # how many cases to consider
-for RE in RE065 RE076 RE088 RE103 RE120 RE140 RE163; do
+#for RE in RE065 RE076 RE088 RE103 RE120 RE140 RE163; do
+for RE in RE163 ; do
 
 
 export LES_RL_NBLOCK=2

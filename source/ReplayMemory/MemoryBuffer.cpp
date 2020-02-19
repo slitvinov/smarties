@@ -60,6 +60,7 @@ void MemoryBuffer::restart(const std::string base)
 
   if(distrib.bTrain == false) {
     printf("Evaluating the policy: will skip restarting the Replay Buffer from file.\n");
+    chdir(currDirectory);
     return;
   }
 
