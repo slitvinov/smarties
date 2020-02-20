@@ -47,7 +47,7 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   const Real Aest = qval[0] - sval[0], Vest = (sval[0] + pvec[nA]) / 2;
   //const Real Vest = (sval[0] + pvec[nA]) / 2, Aest = qval[0] - Vest;
-  const Real dQRET = MB.updateRetrace(bID, t, Aest, Vest, RHO);
+  const Real dQRET = MB.updateRetrace(bID, t, 0, Vest, RHO);
   const Real Q_RET = MB.Q_RET(bID, t), A_RET = Q_RET - Vest;
 
   const Real dQ = Q_RET - qval[0], dV = pvec[nA] - sval[0];
@@ -77,7 +77,7 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   Rvec gradPol = Rvec(2*nA + 1, 0);
   const Real VerrActor = Q_RET - Aest - pvec[nA];
   gradPol[nA] = isFarPol? 0 : beta * std::min((Real)1, RHO) * VerrActor;
-  POL.makeNetworkGrad(gradPol, Utilities::weightSum2Grads(SPG, penalG, beta));
+  POL.makeNetworkGrad(gradPol, Utilities::penalizeReFER(SPG, penalG, beta));
   actor->setGradient(gradPol, bID, t);
 
   MB.setMseDklImpw(bID, t, Verr*Verr, DKL, RHO, CmaxRet, CinvRet);
