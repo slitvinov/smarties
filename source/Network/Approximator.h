@@ -14,6 +14,7 @@
 #include "../Utils/StatsTracker.h"
 #include "../Math/Continuous_policy.h"
 //#include "../Utils/SstreamUtilities.h"
+//#include <iostream>
 #include "../ReplayMemory/MemoryBuffer.h"
 
 namespace smarties
@@ -217,10 +218,29 @@ struct Approximator
     const Uint inputSize = preprocessing? preprocessing->nOutputs()
                          : (1+MDP.nAppendedObs) * MDP.dimStateObserved;
     Activation* const A = C.activation(t, sampID);
-    //const std::vector<Activation*>& act = series_tgt[thrID];
-    //const int ind = mapTime2Ind(samp, thrID);
-    //assert(act[ind]->written == true && relay not_eq nullptr);
+    assert(C.activation(t, sampID)->written == true);
     const Rvec ret = net->backPropToLayer(gradient, auxInputAttachLayer, A, W);
+    //C.endBackPropStep(sampID) = -1; //to stop additional backprops
+    //printf("%f\n", ret[inputSize]);
+    if(auxInputAttachLayer>0) return ret;
+    else return Rvec(& ret[inputSize], & ret[inputSize + m_auxInputSize]);
+  }
+
+  Rvec getStepBackProp(const Uint batchID, const Uint t, Sint sampID) const
+  {
+    assert(auxInputNet && "improperly set up the aux input net");
+    assert(auxInputAttachLayer >= 0 && "improperly set up the aux input net");
+    if(ESpopSize > 1) {
+      debugL("Skipping backprop because we use ES optimizers.");
+      return Rvec(m_auxInputSize, 0);
+    }
+    ThreadContext& C = getContext(batchID);
+    if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
+    const MDPdescriptor & MDP = replay->MDP;
+    const Uint inputSize = preprocessing? preprocessing->nOutputs()
+                         : (1+MDP.nAppendedObs) * MDP.dimStateObserved;
+    assert(C.activation(t, sampID)->written == true);
+    Rvec ret = C.activation(t, sampID)->getInputGradient(auxInputAttachLayer);
     //C.endBackPropStep(sampID) = -1; //to stop additional backprops
     //printf("%f\n", ret[inputSize]);
     if(auxInputAttachLayer>0) return ret;
@@ -230,7 +250,6 @@ struct Approximator
   void backProp(const Uint batchID) const
   {
     ThreadContext& C = getContext(batchID);
-    assert( C.endBackPropStep(0) > 0 );
 
     if(ESpopSize > 1)
     {
@@ -239,17 +258,21 @@ struct Approximator
     else
     {
       const auto& activations = C.activations;
+      const auto& timeSeriesBase = activations[0];
+
       //loop over all the network samples, each may need different BPTT window
-      for(Uint samp = 0; samp < activations.size(); ++samp)
+      for(Uint j = 0; j < activations.size(); ++j)
       {
+        const Uint samp = activations.size() - 1 - j;
         const Sint last_error = C.endBackPropStep(samp);
         if(last_error < 0) continue;
 
-        const auto& timeSeries = activations[samp];
-        for (Sint i=0; i<last_error; ++i) assert(timeSeries[i]->written);
+        const auto& timeSeriesSamp = activations[samp];
+        for (Sint i=0; i<last_error; ++i) assert(timeSeriesSamp[i]->written);
 
         const Parameters* const W = opt->getWeights(C.usedWeightID(samp));
-        net->backProp(timeSeries, last_error, C.partialGradient.get(), W);
+        net->backProp(timeSeriesSamp, timeSeriesBase, last_error,
+                      C.partialGradient.get(), W);
 
         if(preprocessing and not m_blockInpGrad)
         {

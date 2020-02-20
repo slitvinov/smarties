@@ -243,7 +243,7 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
 
     case MAXKLDIV: indexOfEpisodeToDelete = totHighDkl(); break;
 
-    case BATCHRL: indexOfEpisodeToDelete = totMostOff(settings.penalTol); break;
+    case BATCHRL: indexOfEpisodeToDelete = totMostOff(); break;
   }
 
   if (indexOfEpisodeToDelete >= 0) {

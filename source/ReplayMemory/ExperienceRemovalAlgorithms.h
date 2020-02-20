@@ -84,14 +84,14 @@ struct MostOffPolicyEp
     //if(EP.fracFarUndrPol > fracFarUndrPol) fracFarUndrPol = EP.fracFarUndrPol;
   }
 
-  Sint operator()(const Real tolFarPol)
+  Sint operator()()
   {
     // If totR of most on policy EP is lower than totR of most off policy EP
     // then do not delete anything. Else delete most off-policy EP.
     //if ( fracFarOverPol > fracFarUndrPol ) return indOver;
     //printf("fracFarOverPol:%g fracFarUndrPol:%g avgOnPolicyR:%g mostOffR:%g\n",
     //fracFarOverPol, fracFarUndrPol, avgOnPolicyR, mostOffR);
-    if ( fracFarOverPol > 2 * tolFarPol ) return indOver;
+    if ( fracFarOverPol > 2 * tol ) return indOver;
     else if (avgOnPolicyR > mostOffR) return indUndr;
     else return -1;
   }
