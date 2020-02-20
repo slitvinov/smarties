@@ -31,12 +31,10 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const auto & ACT = MB.action(bID, t), & MU = MB.mu(bID, t);
   const Real RHO = POL.importanceWeight(ACT, MU), DKL = POL.KLDivergence(MU);
   const bool isFarPol = isFarPolicy(RHO, CmaxRet, CinvRet);
+  const Rvec penalG  = POL.KLDivGradient(MU, -1);
 
   critc->setAddedInputType(NETWORK, bID, t, 1); // 1 flags to write on
   const Rvec sval = critc->forward(bID, t, 1); // separate net alloc
-  const Rvec DPG = isFarPol? Rvec(nA,0) : critc->oneStepBackProp({1}, bID, t,1);
-  assert(DPG.size() == nA);
-
   critc->setAddedInputType(ACTION, bID, t);
   const Rvec qval = critc->forward(bID, t); // network compute
 
@@ -52,23 +50,38 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Real dQRET = MB.updateRetrace(bID, t, Aest, Vest, RHO);
   const Real Q_RET = MB.Q_RET(bID, t), A_RET = Q_RET - Vest;
 
-  const Rvec penalG  = POL.KLDivGradient(MU, -1);
+  const Real dQ = Q_RET - qval[0], dV = pvec[nA] - sval[0];
+  Real Qerr = isFarPol? 0 : RHO * dQ; // prev record
+  if      (isFarPol and RHO>1 and dQ < 0) Qerr = std::min(CmaxRet, RHO) * dQ;
+  else if (isFarPol and RHO<1 and dQ > 0) Qerr = std::max(CinvRet, RHO) * dQ;
+  //const Real Verr = dV;
+  Real Verr = isFarPol? 0 : dV; // prev record:
+  if      (isFarPol and RHO>1 and dV > 0) Verr = dV;
+  else if (isFarPol and RHO<1 and dV < 0) Verr = dV;
+  //const Real Verr = isFarPol? std::max((Real)0, dV) : dV;
+  critc->setGradient({ Qerr }, bID, t);
+  critc->setGradient({ Verr }, bID, t, 1);
+  critc->backProp(bID);
+
   Rvec SPG = isFarPol? Rvec(2*nA, 0) : POL.policyGradient(ACT, A_RET * RHO);
-  trainInfo->log(qval[0], A_RET-Aest, SPG, penalG, {dQRET}, thrID);
-  for (Uint i = 0; i < nA; ++i) {
-    SPGm1[thrID][i] += SPG[i]; SPGm2[thrID][i] += SPG[i] * SPG[i];
-    DPGm1[thrID][i] += DPG[i]; DPGm2[thrID][i] += DPG[i] * DPG[i];
-    SPG[i] = SPG[i] + DPG[i] * DPGfactor[i];
-  }
+  Rvec DPG = isFarPol? Rvec(nA, 0) : critc->getStepBackProp(bID, t, 1);
+  assert(DPG.size() == nA);
+
+  const Real F = std::fabs(Verr) < nnEPS ? 0 : 1/(Verr);
+  // as if DPG was taken with dLdO = 1, instead of Verr:
+  for (Uint i = 0; i < nA; ++i) DPG[i] *= F;
+  stats[thrID].add(SPG, DPG, Q_RET-qval[0]);
+  // scale DPG to be in the same range as SPG:
+  for (Uint i = 0; i < nA; ++i) SPG[i] = SPG[i] + DPG[i] * DPGfactor[i];
 
   Rvec gradPol = Rvec(2*nA + 1, 0);
-  const Real Ver = std::min((Real)1,RHO)*(Q_RET - qval[0] + sval[0] - pvec[nA]);
-  gradPol[nA] = isFarPol? 0 : beta * Ver;
+  const Real VerrActor = Q_RET - Aest - pvec[nA];
+  gradPol[nA] = isFarPol? 0 : beta * std::min((Real)1, RHO) * VerrActor;
   POL.makeNetworkGrad(gradPol, Utilities::weightSum2Grads(SPG, penalG, beta));
-
-  MB.setMseDklImpw(bID, t, Ver*Ver, DKL, RHO, CmaxRet, CinvRet);
   actor->setGradient(gradPol, bID, t);
-  critc->setGradient({ isFarPol? 0 : RHO * (Q_RET - qval[0]) }, bID, t);
+
+  MB.setMseDklImpw(bID, t, Verr*Verr, DKL, RHO, CmaxRet, CinvRet);
+  trainInfo->log(Aest, A_RET - Aest, SPG, penalG, {dQRET}, thrID);
 }
 
 void SAC::select(Agent& agent)
@@ -98,6 +111,7 @@ void SAC::select(Agent& agent)
     const Rvec sval = critc->forward(agent, true); // overwrite = true
     //EP.action_adv.push_back( qval[0] - (sval[0] + pvec[nA])/2   );
     EP.action_adv.push_back( qval[0] - sval[0]   );
+    //EP.action_adv.push_back( 0 );
     EP.state_vals.push_back((sval[0] + pvec[nA])/2);
   }
   else // either terminal or truncation state
@@ -166,29 +180,18 @@ void SAC::setupTasks(TaskQueue& tasks)
     logStats();
     profiler->start("MPI");
 
-    const Real learnRate = settings.learnrate;
-    for (Uint i = 0; i < nA; ++i) {
-      Real meanDPG = 0, varDPG = 0, meanSPG = 0, varSPG = 0;
-      for (Uint j = 0; j < nThreads; ++j) {
-        meanDPG += DPGm1[j][i] / settings.batchSize; DPGm1[j][i] = 0;
-        varDPG  += DPGm2[j][i] / settings.batchSize; DPGm2[j][i] = 0;
-        meanSPG += SPGm1[j][i] / settings.batchSize; SPGm1[j][i] = 0;
-        varSPG  += SPGm2[j][i] / settings.batchSize; SPGm2[j][i] = 0;
-      }
-      //const Real stdDPG = std::sqrt(varDPG - meanDPG * meanDPG);
-      const Real stdSPG = std::sqrt(varSPG - meanSPG * meanSPG);
-      const Real newNorm = 0.0 * stdSPG / std::sqrt(varDPG + nnEPS);
-      //const Real newNorm = std::sqrt(varSPG / (varDPG + nnEPS));
-      DPGfactor[i] += learnRate * (newNorm - DPGfactor[i]);
-      if(nGradSteps() < 100000)
-        DPGfactor[i] = DPGfactor[i] * nGradSteps() / 100000.0;
-    }
+    const Real learnRate = settings.learnrate, batchSize = settings.batchSize;
+    SACstats::update(DPGfactor, errQfactor, stats, nA, learnRate, batchSize);
 
-    const Real oldLambda = critc->getOptimizerPtr()->lambda;
-    const Real L2critc = critc->getNetworkPtr()->weights->compute_weight_norm();
-    const Real L2actor = actor->getNetworkPtr()->weights->compute_weight_norm();
-    const Real newLambda = oldLambda * (1 + learnRate * (L2critc/L2actor - 1));
-    critc->getOptimizerPtr()->lambda = newLambda;
+    if(nGradSteps() < 100000)
+      for (Uint i = 0; i < nA; ++i)
+        DPGfactor[i] = DPGfactor[i] * nGradSteps() / 100000.0;
+
+    //const Real oldLambda = critc->getOptimizerPtr()->lambda;
+    //const Real L2critc = critc->getNetworkPtr()->weights->compute_weight_norm();
+    //const Real L2actor = actor->getNetworkPtr()->weights->compute_weight_norm();
+    //const Real newLambda = oldLambda * (1 + learnRate * (L2critc/L2actor - 1));
+    //critc->getOptimizerPtr()->lambda = newLambda;
 
     algoSubStepID = 1;
   };
@@ -234,8 +237,8 @@ SAC::SAC(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   critc->setAddedInput(NETWORK, nA);
   critc->setNumberOfAddedSamples(1);
   // update settings that are going to be read by critic:
-  settings.learnrate *= 10; // DPG wants critic faster than actor
-  settings.nnLambda = 1e-4; // also wants L2 penl coef
+  //settings.learnrate *= 3; // DPG wants critic faster than actor
+  //settings.nnLambda = 1e-4; // also wants L2 penl coef
   settings.nnOutputFunc = "Linear"; // critic must be linear
   critc->buildFromSettings(1);
   critc->initializeNetwork();
