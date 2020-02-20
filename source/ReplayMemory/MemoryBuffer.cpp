@@ -42,7 +42,7 @@ void MemoryBuffer::restart(const std::string base)
       fflush(0);
     }
 
-    const Uint dimS = MDP.dimStateObserved; assert(mean.size() == dimS);
+    const Uint dimS = MDP.dimStateObserved; assert(mean_state.size() == dimS);
     std::vector<double> V(dimS);
     size_t size1 = fread(V.data(), sizeof(double), dimS, wFile);
     mean_state   = std::vector<nnReal>(V.begin(), V.end());
@@ -333,7 +333,7 @@ void MemoryBuffer::pushBackSequence(Sequence & seq)
           distrib.initial_runDir, learnID, wrank);
   snprintf(pathObs, 2048, "%s/agent%03lu_rank%02d_obs.raw",
           distrib.initial_runDir, learnID, wrank);
-  snprintf(rewArg, 2048, "%ld %ld %ld %lu %f", nGradSteps.load(),
+  snprintf(rewArg, 1024, "%ld %ld %ld %lu %f", nGradSteps.load(),
           std::max(nLocTimeStepsTrain(), (long)0),
           seq.agentID, seq.nsteps(), seq.totR);
   const auto log = not logSample ? std::vector<float>(0) :
