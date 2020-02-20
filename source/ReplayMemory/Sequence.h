@@ -63,8 +63,6 @@ struct Sequence
     nFarUndrPolSteps = p.nFarUndrPolSteps.load();   p.nFarUndrPolSteps = 0;   \
     sumKLDivergence  = p.sumKLDivergence.load();    p.sumKLDivergence = 0;    \
     sumSquaredErr    = p.sumSquaredErr.load();      p.sumSquaredErr = 0;      \
-    minImpW          = p.minImpW.load();            p.minImpW = 1;            \
-    avgImpW          = p.avgImpW.load();            p.avgImpW = 1;            \
     states           = std::move(p.states);         p.states.clear();         \
     actions          = std::move(p.actions);        p.actions.clear();        \
     policies         = std::move(p.policies);       p.policies.clear();       \
@@ -77,6 +75,9 @@ struct Sequence
     KullbLeibDiv     = std::move(p.KullbLeibDiv);   p.KullbLeibDiv.clear();   \
     priorityImpW     = std::move(p.priorityImpW);   p.priorityImpW.clear();   \
   } while (0)
+
+  // minImpW          = p.minImpW.load();            p.minImpW = 1;
+  // avgImpW          = p.avgImpW.load();            p.avgImpW = 1;
 
   Sequence(Sequence && p)
   {
@@ -97,8 +98,8 @@ struct Sequence
     nFarUndrPolSteps = 0;
     sumKLDivergence  = 0;
     sumSquaredErr    = 0;
-    minImpW          = 1;
-    avgImpW          = 1;
+    //minImpW          = 1;
+    //avgImpW          = 1;
 
     states.clear(); actions.clear(); policies.clear(); rewards.clear();
     SquaredError.clear(); offPolicImpW.clear(); KullbLeibDiv.clear();
@@ -136,8 +137,8 @@ struct Sequence
   std::atomic<Uint> nFarUndrPolSteps{0}; // pi/mu < 1/c
   std::atomic<Real> sumKLDivergence{0};
   std::atomic<Real> sumSquaredErr{0};
-  std::atomic<Real> minImpW{1};
-  std::atomic<Real> avgImpW{1};
+  //std::atomic<Real> minImpW{1};
+  //std::atomic<Real> avgImpW{1};
   //////////////////////////////////////////////////////////////////////////////
 
   void updateCumulative(const Fval C, const Fval invC)
