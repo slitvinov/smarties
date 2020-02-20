@@ -45,14 +45,14 @@ void MemoryBuffer::restart(const std::string base)
     const Uint dimS = MDP.dimStateObserved; assert(mean.size() == dimS);
     std::vector<double> V(dimS);
     size_t size1 = fread(V.data(), sizeof(double), dimS, wFile);
-    mean   = std::vector<nnReal>(V.begin(), V.end());
+    mean_state   = std::vector<nnReal>(V.begin(), V.end());
     size_t size2 = fread(V.data(), sizeof(double), dimS, wFile);
-    invstd = std::vector<nnReal>(V.begin(), V.end());
+    invstd_state = std::vector<nnReal>(V.begin(), V.end());
     size_t size3 = fread(V.data(), sizeof(double), dimS, wFile);
-    std    = std::vector<nnReal>(V.begin(), V.end());
+    std_state    = std::vector<nnReal>(V.begin(), V.end());
     V.resize(3);
     size_t size4 = fread(V.data(), sizeof(double),    3, wFile);
-    stddev_reward = V[0]; invstd_reward = V[1]; mean_reward = V[2];
+    std_reward = V[0]; invstd_reward = V[1]; mean_reward = V[2];
     fclose(wFile);
     if (size1 != dimS || size2 != dimS || size3 != dimS || size4 != 3)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
@@ -123,14 +123,14 @@ void MemoryBuffer::save(const std::string base)
 {
   {
     const auto write2file = [&] (FILE * wFile) {
-      std::vector<double> V = std::vector<double>(mean.begin(), mean.end());
+      std::vector<double> V(mean_state.begin(), mean_state.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
-      V = std::vector<double>(invstd.begin(), invstd.end());
+      V = std::vector<double>(invstd_state.begin(), invstd_state.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
-      V = std::vector<double>(std.begin(), std.end());
+      V = std::vector<double>(std_state.begin(), std_state.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
       V.resize(3);
-      V[0] = stddev_reward; V[1] = invstd_reward; V[2] = mean_reward;
+      V[0] = std_reward; V[1] = invstd_reward; V[2] = mean_reward;
       fwrite(V.data(), sizeof(double), 3, wFile);
     };
 

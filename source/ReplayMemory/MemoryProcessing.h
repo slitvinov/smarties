@@ -23,12 +23,12 @@ private:
   const Settings & settings = RM->settings;
   const DistributionInfo & distrib = RM->distrib;
 
-  std::vector<nnReal> & invstd = RM->invstd;
-  std::vector<nnReal> & mean = RM->mean;
-  std::vector<nnReal> & std = RM->std;
-  //nnReal& stddev_reward = RM->stddev_reward;
+  std::vector<nnReal> & invstd_state = RM->invstd_state;
+  std::vector<nnReal> &   mean_state = RM->mean_state;
+  std::vector<nnReal> &    std_state = RM->std_state;
   nnReal & invstd_reward = RM->invstd_reward;
   nnReal &   mean_reward = RM->mean_reward;
+  nnReal &    std_reward = RM->std_reward;
   Real & beta = RM->beta;
   Real & alpha = RM->alpha;
   Real & CmaxRet = RM->CmaxRet;

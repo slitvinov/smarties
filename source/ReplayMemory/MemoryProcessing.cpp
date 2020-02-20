@@ -14,7 +14,6 @@
 
 namespace smarties
 {
-static constexpr Fval EPS = std::numeric_limits<Fval>::epsilon();
 
 MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
   StateRewRdx(distrib, LDvec(MDP.dimStateObserved * 2 + 3, 0) ),
@@ -65,11 +64,11 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         const Uint N = EP.ndata();
         count += N;
         for(Uint j=0; j<N; ++j) {
-          newRSum += EP.rewards[j+1];
-          newRSqSum += std::pow(EP.rewards[j+1], 2);
+          const long double drk = EP.rewards[j+1] - mean_reward;
+          newRSum += drk; newRSqSum += drk * drk;
           for(Uint k=0; k<dimS && WS>0; ++k) {
-            const long double sk = EP.states[j][k] - mean[k];
-            thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
+            const long double dsk = EP.states[j][k] - mean_state[k];
+            thNewSSum[k] += dsk; thNewSSqSum[k] += dsk * dsk;
           }
         }
       }
@@ -98,21 +97,27 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   assert(newSRstats.size() == 2*dimS + 3);
   const auto count = newSRstats[2*dimS];
 
+  // function to update {mean, std, 1/std} given:
+  // - Evar = sample_mean minus old mean = E[(X-old_mean)]
+  // - Evar2 = E[(X-old_mean)^2]
+  const auto updateStats = [] (nnReal & mean, nnReal & stdev, nnReal & invstdev,
+    const Real learnRate, const long double Evar, const long double Evar2)
+  {
+    // mean = (1-learnRate) * mean + learnRate * sample_mean, which becomes:
+    mean += learnRate * Evar;
+    // if learnRate==1 then variance is exact, otherwise update second moment
+    // centered around current sample_mean (ie. var = E[(X-sample_mean)^2]):
+    auto variance = Evar2 - Evar*Evar * (2*learnRate - learnRate*learnRate);
+    static constexpr long double EPS = std::numeric_limits<nnReal>::epsilon();
+    variance = std::max(variance, EPS); //large sum may be neg machine precision
+    stdev += learnRate * (std::sqrt(variance) - stdev);
+    invstdev = 1/stdev;
+  };
+
   if(WR>0)
   {
-    #if 1
-      const auto rewM1 = newSRstats[2*dimS+1]/count;
-      const auto rewM2 = newSRstats[2*dimS+2]/count;
-      auto varR = rewM2 - rewM1 * rewM1;
-      if(varR < 0) varR = 0;
-      mean_reward   = (1-WR)*  mean_reward + WR * rewM1;
-      invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(varR) + EPS );
-    #else
-      auto rewM2 = newSRstats[2*dimS+2]/count;
-      if(rewM2 < 0) rewM2 = 0;
-      mean_reward = 0;
-      invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(rewM2) + EPS );
-    #endif
+      updateStats(mean_reward, std_reward, invstd_reward, WR,
+                  newSRstats[2*dimS+1] / count, newSRstats[2*dimS+2] / count);
   }
 
   if(WS>0)
@@ -120,18 +125,8 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     const LDvec SSum1(& newSRstats[0], & newSRstats[dimS]);
     const LDvec SSum2(& newSRstats[dimS], & newSRstats[2 * dimS]);
     for(Uint k=0; k<dimS; ++k)
-    {
-      // this is the sample mean minus mean[k]:
-      const long double MmM = SSum1[k]/count;
-      // mean[k] = (1-WS)*mean[k] + WS * sample_mean, which becomes:
-      mean[k] = mean[k] + WS * MmM;
-      // if WS==1 then varS is exact, otherwise update second moment
-      // centered around current mean[k] (ie. E[(Sk-mean[k])^2])
-      long double varS = SSum2[k]/count - MmM*MmM*(2*WS-WS*WS);
-      if(varS < 0) varS = 0;
-      std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
-      invstd[k] = 1/(std[k]+EPS);
-    }
+      updateStats(mean_state[k], std_state[k], invstd_state[k],
+                  WS, SSum1[k] / count, SSum2[k] / count);
   }
 }
 

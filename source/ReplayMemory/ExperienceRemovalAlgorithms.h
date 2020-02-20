@@ -19,29 +19,38 @@ struct MostOffPolicyEp
   }
 
   int indUndr = -1;
-  Real avgClipImpW = 9e9, mostOffR = 0;
+  //Real avgClipImpW = 9e9, mostOffR = 0;
+  Real mostOffR = 0; Uint mostFarPolicySteps = 0;
   void updateMostFarUndrPol(const Sequence & EP, const int ep_ind)
   {
+    #if 0
     const Real EP_avgClipImpW = EP.avgImpW;
     if(EP_avgClipImpW < avgClipImpW) {
       indUndr = ep_ind;
       avgClipImpW = EP_avgClipImpW;
       mostOffR = EP.totR;
     }
+    #else
+    const auto EP_nFarPolicy = EP.nFarPolicySteps();
+    if(EP_nFarPolicy > mostFarPolicySteps) {
+      indUndr = ep_ind;
+      mostOffR = EP.totR;
+      mostFarPolicySteps = EP_nFarPolicy;
+    }
+    #endif
   }
 
   int indOver = -1;
-  Real fracFarOverPol = -1, fracFarUndrPol = -1;
+  Real fracFarOverPol = -1; //, fracFarUndrPol = -1;
   void updateMostFarOverPol(const Sequence & EP, const int ep_ind)
   {
     const Real EP_fracFarOverPol = EP.nFarOverPolSteps / (Real) EP.ndata();
-    const Real EP_fracFarUndrPol = EP.nFarUndrPolSteps / (Real) EP.ndata();
+    //const Real EP_fracFarUndrPol = EP.nFarUndrPolSteps / (Real) EP.ndata();
     if(EP_fracFarOverPol > fracFarOverPol) {
       indOver = ep_ind;
       fracFarOverPol = EP_fracFarOverPol;
     }
-    if(EP_fracFarUndrPol > fracFarUndrPol)
-      fracFarUndrPol = EP_fracFarUndrPol;
+    //if(EP_fracFarUndrPol > fracFarUndrPol) fracFarUndrPol = EP_fracFarUndrPol;
   }
 
   void compare(const Sequence & EP, const int ep_ind)
@@ -58,17 +67,18 @@ struct MostOffPolicyEp
     avgOnPolicyR = avgOnPolicyR * Wown + EP.avgOnPolicyR * Wep;
     countOnPolicyEps += EP.countOnPolicyEps;
 
-    if(EP.avgClipImpW < avgClipImpW) {
-      indUndr=EP.indUndr;
-      avgClipImpW=EP.avgClipImpW;
-      mostOffR=EP.mostOffR;
+    //if(EP.avgClipImpW < avgClipImpW) {
+    if(EP.mostFarPolicySteps > mostFarPolicySteps) {
+      indUndr = EP.indUndr;
+      //avgClipImpW = EP.avgClipImpW;
+      mostOffR = EP.mostOffR;
+      mostFarPolicySteps = EP.mostFarPolicySteps;
     }
     if(EP.fracFarOverPol > fracFarOverPol) {
-      indOver=EP.indOver;
-      fracFarOverPol=EP.fracFarOverPol;
+      indOver = EP.indOver;
+      fracFarOverPol = EP.fracFarOverPol;
     }
-    if(EP.fracFarUndrPol > fracFarUndrPol)
-      fracFarUndrPol=EP.fracFarUndrPol;
+    //if(EP.fracFarUndrPol > fracFarUndrPol) fracFarUndrPol = EP.fracFarUndrPol;
   }
 
   Sint operator()(const Real tolFarPol)

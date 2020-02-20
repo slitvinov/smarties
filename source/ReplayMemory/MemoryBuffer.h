@@ -50,10 +50,10 @@ class MemoryBuffer
   friend class MemoryProcessing;
 
   std::vector<std::mt19937>& generators = distrib.generators;
-  std::vector<nnReal>& invstd = MDP.stateScale;
-  std::vector<nnReal>& mean = MDP.stateMean;
-  std::vector<nnReal>& std = MDP.stateStdDev;
-  nnReal& stddev_reward = MDP.rewardsStdDev;
+  std::vector<nnReal>&    std_state = MDP.stateStdDev;
+  std::vector<nnReal>& invstd_state = MDP.stateScale;
+  std::vector<nnReal>&   mean_state = MDP.stateMean;
+  nnReal&    std_reward = MDP.rewardsStdDev;
   nnReal& invstd_reward = MDP.rewardsScale;
   nnReal&   mean_reward = MDP.rewardsMean;
 
@@ -112,7 +112,8 @@ class MemoryBuffer
       const Sint t = std::max((Sint)samp - (Sint)j, (Sint)0);
       const auto& state = seq.states[t];
       assert(state.size() == dimS);
-      for (Uint i=0; i<dimS; ++i, ++k) ret[k] = (state[i]-mean[i]) * invstd[i];
+      for (Uint i=0; i<dimS; ++i, ++k)
+          ret[k] = (state[i]-mean_state[i]) * invstd_state[i];
     }
     return ret;
   }
