@@ -641,7 +641,7 @@ struct Continuous_policy
   }
 
   Rvec selectAction(Agent& agent, const bool bTrain) const {
-    //if (not bTrain || not agent.trackSequence)
+    //if (not bTrain || not agent.trackSequence) return getMean();
     if (not bTrain) return getMean();
     // else sample:
     Rvec act(nA);
@@ -656,8 +656,8 @@ struct Continuous_policy
   }
 
   Rvec selectAction_OrnsteinUhlenbeck(Agent& agent, const bool bTrain, Rvec& state) const {
-    if (not bTrain || not agent.trackSequence)
-        return getMean();
+    //if (not bTrain || not agent.trackSequence) return getMean();
+    if (not bTrain) return getMean();
     // else sample:
     Rvec act(nA);
     if (agent.MDP.bAgentsShareNoise) {

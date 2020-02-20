@@ -9,11 +9,14 @@ namespace smarties
 // episode with smallest average min(1, pi/mu):
 struct MostOffPolicyEp
 {
+  const Real tol;
+  MostOffPolicyEp(const Real tol_) : tol(tol_) {}
+
   Real avgOnPolicyR = 0;
   Uint countOnPolicyEps = 0;
   void updateAvgOnPolReward(const Sequence & EP, const int ep_ind)
   {
-    if(EP.nFarPolicySteps() > 0) return;
+    if(EP.nFarPolicySteps() > tol * EP.ndata()) return;
     countOnPolicyEps ++;
     avgOnPolicyR += (EP.totR - avgOnPolicyR) / countOnPolicyEps;
   }

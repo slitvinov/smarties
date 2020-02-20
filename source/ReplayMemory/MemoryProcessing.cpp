@@ -179,17 +179,17 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
   const bool bRecomputeProperties = ( (nGradSteps + 1) % 100) == 0;
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
-  Real C = settings.clipImpWeight, E = settings.epsAnneal;
+  const Real C = settings.clipImpWeight, D = settings.penalTol;
 
   if(ALGO == BATCHRL) {
-    const Real maxObsNum = settings.maxTotObsNum_local;
+    const Real maxObsNum = settings.maxTotObsNum_local, E = settings.epsAnneal;
     const Real factorUp = std::max((Real) 1, nTransitions.load() / maxObsNum);
     //const Real factorDw = std::min((Real)1, maxObsNum / obsNum);
     //D *= factorUp;
     //CmaxRet = 1 + C * factorDw
     CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E) * factorUp;
   } else {
-    //CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E);
+    //CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, settings.epsAnneal);
     CmaxRet = 1 + C;
   }
 
@@ -197,8 +197,8 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
   if(CmaxRet <= 1 and C > 0) die("Unallowed ReF-ER annealing values.");
   assert(CmaxRet>=1);
 
-  MostOffPolicyEp totMostOff; OldestDatasetEp totFirstIn;
-  MostFarPolicyEp totMostFar; HighestAvgDklEp totHighDkl;
+  MostOffPolicyEp totMostOff(D); OldestDatasetEp totFirstIn;
+  MostFarPolicyEp totMostFar;    HighestAvgDklEp totHighDkl;
 
   Real _avgR = 0;
   Real _totDKL = 0;
@@ -206,7 +206,7 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
   const Uint setSize = RM->readNSeq();
   #pragma omp parallel reduction(+ : _avgR, _totDKL, _nOffPol)
   {
-    OldestDatasetEp locFirstIn; MostOffPolicyEp locMostOff;
+    OldestDatasetEp locFirstIn; MostOffPolicyEp locMostOff(D);
     MostFarPolicyEp locMostFar; HighestAvgDklEp locHighDkl;
 
     #pragma omp for schedule(static, 1) nowait
