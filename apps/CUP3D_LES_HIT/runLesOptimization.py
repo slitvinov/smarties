@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 bDoRK23 = False
 bDoRK23 = True
 bDoUpWind = False
-#bDoUpWind = True
+bDoUpWind = True
 
 def epsNuFromRe(Re, uEta = 1.0):
     C = 3.0 # np.sqrt(196.0/20.0) #2.87657077
@@ -33,7 +33,7 @@ def getSettings(nu, eps, cs, nblocks):
     if bDoRK23: options = options + '-RungeKutta23 1 '
     if bDoUpWind: options = options + '-Advection3rdOrder 1 '
     tAnalysis = 10 * np.sqrt(nu / eps)
-    tEnd = 1e6 * tAnalysis
+    tEnd = 1e4 * tAnalysis
     return options + '-extentx 6.283185307179586 -dump2D 0 -dump3D 0 ' \
        '-tdump 0 -BC_x periodic -BC_y periodic -BC_z periodic ' \
        '-spectralIC fromFile -initCond HITurbulence -tAnalysis %f ' \
@@ -46,6 +46,7 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
     scalname = "%s/scalars_RE%03d" % (tpath, re)
     logEname = "%s/spectrumLogE_RE%03d" % (tpath, re)
     iCovname = "%s/invCovLogE_RE%03d" % (tpath, re)
+    sdtDevname = "%s/stdevLogE_RE%03d" % (tpath, re)
     runname  = runspec(re, cs, nblocks, run)
     cmd = "export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH\n" \
       "FOLDER=/cluster/scratch/novatig/CubismUP3D/%s\n " \
@@ -54,10 +55,12 @@ def launchEuler(tpath, nu, eps, re, cs, nblocks, run):
       "cp %s ${FOLDER}/scalars_target\n" \
       "cp %s ${FOLDER}/spectrumLogE_target\n" \
       "cp %s ${FOLDER}/invCovLogE_target\n" \
+      "cp %s ${FOLDER}/stdevLogE_target\n" \
       "export OMP_NUM_THREADS=8\n" \
       "cd $FOLDER\n" \
       "bsub -n 8 -J %s -W 04:00 -R \"select[model==XeonGold_6150] span[ptile=8]\" mpirun -n 1 ./simulation %s\n" \
-      % (runname, scalname, logEname, iCovname, runname, getSettings(nu, eps, cs, nblocks))
+      % (runname, scalname, logEname, iCovname, sdtDevname, \
+        runname, getSettings(nu, eps, cs, nblocks))
     subprocess.run(cmd, shell=True)
 
 
@@ -109,12 +112,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     #for re in [60, 70, 82, 95, 111, 130, 152, 176]:
-    for re in [60, 65, 70, 76, 82, 88, 95, 103, 111, 120, 130, 140, 151, 163, 176, 190, 205] :
-      #for cs in np.linspace(-0.02, 0.32, 35):
+    for ri in [2, 3]:
       #for cs in np.linspace(0.26, 0.4, 8):
       #for cs in [-0.02]:
-      for cs in [-.01, .14, .15, .16, .17, .18, .19, .2, .21, .22, .23, .24, .25, .26, .27, .28, .29, .3, .31, .32]:
-        for ri in [0, 1]:
+      #for cs in [-.01, 0, .01, .02, .03, .04, .05, .06, .07, .1, .11, .12, .13, .14, .15, .16, .17, .18, .19, .2, .21, .22, .23, .24, .25, .26, .27, .28, .29, .3, .31, .32]:
+      for cs in np.linspace(-0.01, 0.32, 34):
+        for re in [60, 65, 70, 76, 82, 88, 95, 103, 111, 120, 130, 140, 151, 163, 176, 190, 205] :
           eps, nu = epsNuFromRe(re)
           launchEuler(args.path, nu, eps, re, cs, args.nBlocksRL, ri)
 
