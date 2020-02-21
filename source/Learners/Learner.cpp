@@ -48,7 +48,7 @@ void Learner::initializeLearner()
   data->nGatheredB4Startup = data->readNSeen_loc();
   _nObsB4StartTraining = nObsB4StartTraining;
   //data_proc->updateRewardsStats(1, 1e-3, true);
-  if(learn_rank==0) printf("Initial reward std %e\n", 1/data->scaledReward(1));
+  if(learn_rank==0) printf("Initial reward std %e\n", 1/MDP.rewardsScale);
   fflush(0);
   data->initialize();
 
@@ -106,8 +106,12 @@ void Learner::finalizeMemoryProcessing()
   data_proc->prepareNextBatchAndDeleteStaleEp();
 
   profiler->stop_start("PRE");
-  if(currStep%1000==0) // update state mean/std with net's learning rate
-    data_proc->updateRewardsStats(1, 1e-3*(SMARTIES_OFFPOL_ADAPT_STSCALE>0));
+  if(currStep%1000==0) {
+    const Real learnR = std::min((Real) 1, settings.learnrate);
+    const bool learnStateScales = SMARTIES_OFFPOL_ADAPT_STSCALE > 0;
+    // update state mean/std with net's learning rate
+    data_proc->updateRewardsStats(learnR, learnR * learnStateScales);
+  }
 
   profiler->stop();
 }

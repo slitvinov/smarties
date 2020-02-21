@@ -72,6 +72,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 
 OBJ_FILES = \
 	PPO.o \
+	SAC.o \
 	NAF.o \
 	DPG.o \
 	DQN.o \
@@ -102,6 +103,7 @@ OBJ_FILES = \
 	Master.o \
 	Worker.o \
 	Engine.o \
+	Warnings.o \
 	smarties_extern.o
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
