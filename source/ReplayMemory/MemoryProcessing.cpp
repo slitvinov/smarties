@@ -346,7 +346,7 @@ void MemoryProcessing::histogramImportanceWeights()
         if(rho >= bounds[b] && rho < bounds[b+1]) counts[b] ++;
     }
   }
-  const auto harmoncMean = [](const Fval a, const Fval b) {
+  const auto harmonicMean = [](const Fval a, const Fval b) {
     return 2 * a * (b / (a + b));
   };
   std::ostringstream buff;
@@ -354,7 +354,7 @@ void MemoryProcessing::histogramImportanceWeights()
   buff<<"\nOFF-POLICY IMP WEIGHTS HISTOGRAMS\n";
   buff<<"weight pi/mu (harmonic mean of histogram's bounds):\n";
   for (Uint b = 0; b < nBins; ++b)
-    Utilities::real2SS(buff, harmoncMean(bounds[b], bounds[b+1]), 6, 1);
+    Utilities::real2SS(buff, harmonicMean(bounds[b], bounds[b+1]), 6, 1);
   buff<<"\nfraction of dataset:\n";
   const Real dataSize = RM->readNData();
   for (Uint b = 0; b < nBins; ++b)
