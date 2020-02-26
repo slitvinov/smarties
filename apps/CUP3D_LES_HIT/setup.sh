@@ -33,7 +33,8 @@ EOF
 
 #copy target files
 THISDIR=${SMARTIES_ROOT}/apps/CUP3D_LES_HIT
-cp ${THISDIR}/target_RK_${LES_RL_NBLOCK}blocks/*  ${RUNDIR}/
+#cp ${THISDIR}/target_RK_${LES_RL_NBLOCK}blocks/*  ${RUNDIR}/
+cp ${THISDIR}/target_RK_2blocks/*  ${RUNDIR}/
 
 #copy settings file
 # 1) either FFNN or RNN
