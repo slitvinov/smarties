@@ -4,6 +4,7 @@ LES_RL_FREQ_A=${LES_RL_FREQ_A:-4}
 LES_RL_N_TSIM=${LES_RL_N_TSIM:-10}
 LES_RL_NBLOCK=${LES_RL_NBLOCK:-4}
 LES_RL_GRIDACT=${LES_RL_GRIDACT:-0}
+LES_RL_GRIDACTSETTINGS=${LES_RL_GRIDACTSETTINGS:-${LES_RL_GRIDACT}}
 
 LES_RL_EVALUATE=${LES_RL_EVALUATE:-0}
 if [ ${LES_RL_EVALUATE} == 0 ] ; then
@@ -39,7 +40,7 @@ cp ${THISDIR}/target_RK_2blocks/*  ${RUNDIR}/
 #copy settings file
 # 1) either FFNN or RNN
 # 2) number of actions per grad steps affected by number of agents per sim
-if [ ${LES_RL_GRIDACT} == 0 ] ; then
+if [ ${LES_RL_GRIDACTSETTINGS} == 0 ] ; then
 SETTINGSF=VRACER_LES_${LES_RL_NETTYPE}_${LES_RL_NBLOCK}blocks.json
 cp ${THISDIR}/settings/${SETTINGSF} ${RUNDIR}/settings.json
 else
