@@ -53,7 +53,6 @@ inline static std::ifstream findSettingsFile(DistributionInfo& D, const Uint ID)
 
   // else return the default settings name for all settings files:
   ret.open("settings.json", std::ifstream::in);
-  if( ! ret.is_open() ) die("unable to find settings file");
   chdir(currDirectory);
   return ret;
 }
