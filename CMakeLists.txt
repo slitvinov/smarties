@@ -68,6 +68,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 
 set(COMMON_SOURCES
     ${ROOT_FOLDER}/source/Learners/PPO.cpp
+    ${ROOT_FOLDER}/source/Learners/SAC.cpp
     ${ROOT_FOLDER}/source/Learners/NAF.cpp
     ${ROOT_FOLDER}/source/Learners/DPG.cpp
     ${ROOT_FOLDER}/source/Learners/DQN.cpp
