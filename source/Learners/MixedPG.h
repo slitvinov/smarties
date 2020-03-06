@@ -6,20 +6,20 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef smarties_SAC_h
-#define smarties_SAC_h
+#ifndef smarties_MixedPG_h
+#define smarties_MixedPG_h
 
 #include "Learner_approximator.h"
 
 namespace smarties
 {
 
-struct SACstats
+struct MixedPGstats
 {
   Real Qerrm2 = 0;
   Rvec SPGm1, SPGm2, DPGm1, DPGm2;
 
-  SACstats(const Uint nA) : SPGm1(Rvec(nA, 0)),
+  MixedPGstats(const Uint nA) : SPGm1(Rvec(nA, 0)),
     SPGm2(Rvec(nA, 0)), DPGm1(Rvec(nA, 0)), DPGm2(Rvec(nA, 0)) {}
 
   void add(const Rvec& SPG, const Rvec& DPG, const Real errQ) {
@@ -33,7 +33,7 @@ struct SACstats
   }
 
   static void update(Rvec & DPGfactor, Real & errQfactor,
-                     std::vector<SACstats> & stats, const Uint nA,
+                     std::vector<MixedPGstats> & stats, const Uint nA,
                      const Real learnRate, const Real batchSize)
   {
     Real varErrQ = 0;
@@ -59,13 +59,13 @@ struct SACstats
   }
 };
 
-class SAC : public Learner_approximator
+class MixedPG : public Learner_approximator
 {
   const Uint nA = aInfo.dim();
   const Real explNoise = settings.explNoise;
   Rvec DPGfactor = Rvec(nA, 0);
   Real errQfactor = 0;
-  mutable std::vector<SACstats> stats = std::vector<SACstats>(nThreads, nA);
+  mutable std::vector<MixedPGstats> stats = std::vector<MixedPGstats>(nThreads, nA);
 
   Approximator* actor;
   Approximator* critc;
@@ -73,7 +73,7 @@ class SAC : public Learner_approximator
   void Train(const MiniBatch& MB, const Uint wID, const Uint bID) const override;
 
 public:
-  SAC(MDPdescriptor&, Settings&, DistributionInfo&);
+  MixedPG(MDPdescriptor&, Settings&, DistributionInfo&);
 
   void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;

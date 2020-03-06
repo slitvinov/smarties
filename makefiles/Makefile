@@ -72,7 +72,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 
 OBJ_FILES = \
 	PPO.o \
-	SAC.o \
+	MixedPG.o \
 	NAF.o \
 	DPG.o \
 	DQN.o \

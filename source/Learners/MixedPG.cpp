@@ -5,7 +5,7 @@
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-#include "SAC.h"
+#include "MixedPG.h"
 
 #include "../Network/Builder.h"
 #include "../Utils/StatsTracker.h"
@@ -21,7 +21,7 @@
 namespace smarties
 {
 
-void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
+void MixedPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
@@ -84,7 +84,7 @@ void SAC::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   trainInfo->log(Aest, A_RET - Aest, SPG, penalG, {dQRET}, thrID);
 }
 
-void SAC::select(Agent& agent)
+void MixedPG::select(Agent& agent)
 {
   data_get->add_state(agent);
   Sequence& EP = data_get->get(agent.ID);
@@ -140,7 +140,7 @@ void SAC::select(Agent& agent)
   }
 }
 
-void SAC::setupTasks(TaskQueue& tasks)
+void MixedPG::setupTasks(TaskQueue& tasks)
 {
   if( not bTrain ) return;
 
@@ -181,7 +181,7 @@ void SAC::setupTasks(TaskQueue& tasks)
     profiler->start("MPI");
 
     const Real learnRate = settings.learnrate, batchSize = settings.batchSize;
-    SACstats::update(DPGfactor, errQfactor, stats, nA, learnRate, batchSize);
+    MixedPGstats::update(DPGfactor, errQfactor, stats, nA, learnRate, batchSize);
 
     if(nGradSteps() < 100000)
       for (Uint i = 0; i < nA; ++i)
@@ -213,7 +213,7 @@ void SAC::setupTasks(TaskQueue& tasks)
   tasks.add(stepComplete);
 }
 
-SAC::SAC(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+MixedPG::MixedPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
   const bool bCreatedEncorder = createEncoder();
@@ -244,7 +244,7 @@ SAC::SAC(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   critc->initializeNetwork();
 
   computeQretrace = true;
-  trainInfo = new TrainData("SAC", distrib, 1, "| dAdv ", 1);
+  trainInfo = new TrainData("MixedPG", distrib, 1, "| dAdv ", 1);
 }
 
 }
