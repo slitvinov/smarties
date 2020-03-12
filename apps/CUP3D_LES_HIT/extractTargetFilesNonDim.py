@@ -38,8 +38,9 @@ def computeIntTimeScale(tau_integral):
 
 def getAllData(dirn, eps, nu, nBins, fSkip=1):
     fname = dirn + '/spectralAnalysis.raw'
-    if  path.exists(fname) :
-      f = np.fromfile(fname, dtype=np.float64)
+    rl_fname = dirn + '/simulation_000_00000/run_00000000/spectralAnalysis.raw'
+    if   path.exists(fname)    : f = np.fromfile(fname, dtype=np.float64)
+    elif path.exists(rl_fname) : f = np.fromfile(rl_fname, dtype=np.float64)
     else :
       f = np.zeros([nBins + 13])
       print('File %s does not exist. Simulation did not start?' % fname)

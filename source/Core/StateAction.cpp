@@ -92,13 +92,18 @@ void MDPdescriptor::synchronize(const std::function<void(void*, size_t)>& sendRe
 
   if(bDiscreteActions == false)
   {
+    for (Uint i=0; i<dimAction; ++i) {
+      const auto L = lowerActionValue[i], U = upperActionValue[i];
+      lowerActionValue[i] = std::min(L, U);
+      upperActionValue[i] = std::max(L, U);
+    }
     if(world_rank==0) {
       printf("Action vector components :");
       for (Uint i=0; i<dimAction; ++i) {
         printf(" [ %lu : %s to (%.1f:%.1f) ]", i,
-        bActionSpaceBounded[i] ? "bound" : "scaled",
-        upperActionValue[i], lowerActionValue[i]);
-        // tidy-up fortmatting for very high-dim action spaces:
+          bActionSpaceBounded[i] ? "bound" : "scaled",
+          lowerActionValue[i], upperActionValue[i]);
+        // tidy-up formatting for very high-dim action spaces:
         if( ((i+1) % 3) == 0 && i+1 < dimAction )
           printf("\n                          ");
       }
