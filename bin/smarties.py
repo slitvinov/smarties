@@ -113,7 +113,7 @@ def applicationSetup(parsed, absRunPath):
                "Contradiction between application setup and cmd line parsing"
       parsed.mpiProcsPerEnv = mpiProcsPerEnv
 
-    if len(setout[-1]) and parsed.execname is not 'exec':
+    if len(setout[-1]) and parsed.execname == 'exec': # if user did not specify
       execn = str(setout[-1], 'utf-8')
       print("app setup.sh: set executable name '%s'." % execn)
       parsed.execname = execn

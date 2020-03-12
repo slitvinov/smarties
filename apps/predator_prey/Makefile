@@ -27,7 +27,7 @@ endif
 
 .DEFAULT_GOAL := pp
 
-pp: $(OBJ_FILES)
+exec: $(OBJ_FILES)
 	$(CXX) $(extra) $(LIBS) $^ -o $@
 
 %.o: %.cpp
