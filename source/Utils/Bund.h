@@ -23,6 +23,8 @@ namespace smarties
 // It can lead to small improvement of results with some computational cost
 #define SMARTIES_OFFPOL_ADAPT_STSCALE 1
 
+// Gradual clipping of network inputs, useful for applying smarties to numerics
+// problems where bad actions might cause numerical explosions.
 #define SMARTIES_INPUT_SANITIZE
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
