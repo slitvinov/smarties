@@ -100,6 +100,7 @@ struct MDPdescriptor
   Rvec sharedNoiseVecTic, sharedNoiseVecToc;
 
   std::vector<Conv2D_Descriptor> conv2dDescriptors;
+  void synchronize(const std::function<void(void*, size_t)>& sendRecvFunc);
 };
 
 struct StateInfo
