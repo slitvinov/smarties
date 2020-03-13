@@ -84,7 +84,7 @@ Then we are ready to get and install smarties:
     make -j
 
 
-Note: if mpic++ still points to the Apple clang binary, you may try:
+*Alternative*: if mpic++ still points to the Apple clang binary, you may try:
 
 .. code:: shell
 
