@@ -87,9 +87,11 @@ Then we are ready to get and install smarties:
 Note: if mpic++ still points to the Apple clang binary, you may try:
 
 .. code:: shell
+
     ln -s /usr/local/opt/llvm/bin/clang++ /usr/local/opt/llvm/bin/g++
     ln -s /usr/local/opt/llvm/bin/clang++ /usr/local/opt/llvm/bin/c++
     echo "export PATH=/usr/local/opt/llvm/bin:\${PATH}" >> ~/.bash_profile
+
 
 
 Environment code samples
