@@ -39,7 +39,7 @@ echo $RUNDIR
 if [ -d ${SMARTIES_ROOT}/runs/${RUNDIR} ] ; then
 echo ${RUNDIR} exists
 else
-smarties.py CUP3D_LES_HIT -n 1 -r ${RUNDIR} --restart ${RESTARTDIR} --nEvalSeqs 1
+smarties.py CUP3D_LES_HIT -n 1 -r ${RUNDIR} --restart ${RESTARTDIR} --nEvalSeqs 1 --clockHours 1 --nTaskPerNode 2
 #echo ${RUNDIR} todo
 fi 
 
