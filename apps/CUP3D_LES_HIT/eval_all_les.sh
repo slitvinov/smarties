@@ -2,7 +2,21 @@ export SKIPMAKE=true
 
 export LES_RL_NETTYPE=${LES_RL_NETTYPE:-FFNN}
 export LES_RL_N_TSIM=${LES_RL_N_TSIM:-100}
-export LES_RL_NBLOCK=${LES_RL_NBLOCK:-2}
+export LES_RL_NBLOCK=${LES_RL_NBLOCK:-4}
+
+if [ ${LES_RL_NBLOCK} == 8 ] ; then
+blocksize=4
+elif [ ${LES_RL_NBLOCK} == 4 ] ; then
+blocksize=8
+elif [ ${LES_RL_NBLOCK} == 2 ] ; then
+blocksize=16
+else
+echo "ERROR"
+exit 1
+fi
+
+make -C ~/CubismUP_3D/makefiles/ clean
+make -C ~/CubismUP_3D/makefiles/ hdf=false bs=${blocksize} accfft=false -j rlHIT
 
 THISDIR=${SMARTIES_ROOT}/apps/CUP3D_LES_HIT
 
