@@ -69,12 +69,16 @@ set_property(TARGET ${smarties_core} PROPERTY PREFIX "") # remove the extra "lib
 # compilation flags
 target_compile_features(${smarties_core} PUBLIC cxx_std_14)
 
-set(cxx_private_flags -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
+set(cxx_private_flags
+     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:
+          -Wall -Wno-pass-failed >
+     $<$<CXX_COMPILER_ID:GNU>:
+          -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3  >)
 target_compile_options(${smarties_core} PRIVATE ${cxx_private_flags})
 
 target_compile_options(${smarties_core} PRIVATE
   $<$<CONFIG:Debug>:-O0 -g>
-  $<$<CONFIG:Release>:-DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32>
+  $<$<CONFIG:Release>:-DNDEBUG -O3 -ffast-math>
   )
 
 # include flags
