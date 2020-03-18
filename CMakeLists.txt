@@ -152,6 +152,10 @@ if (COMPILE_SO)
 endif()
 
 if (COMPILE_PY_SO)
+    set(COMMON_SOURCES
+         ${COMMON_SOURCES}
+         ${ROOT_FOLDER}/source/smarties_pybind11.cpp
+    )
     set(PY_SO "smarties${PY_SO_SUFFIX}")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
     add_library(${PY_SO} SHARED ${COMMON_SOURCES} )
