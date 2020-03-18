@@ -8,7 +8,7 @@
 ##
 
 import numpy as np, sys
-import pysmarties as rl
+import smarties as rl
 from scipy.integrate import ode
 
 class CartPole:
