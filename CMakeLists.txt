@@ -19,7 +19,6 @@ option(COMPILE_PY_SO "Compile Python bindings" ON)
 set(root_folder ${CMAKE_CURRENT_LIST_DIR})
 set(source_dir ${root_folder}/source)
 set(lib_output ${root_folder}/lib)
-set(smarties_core "smarties")
 
 set(smarties_sources
     ${source_dir}/Learners/PPO.cpp
@@ -63,7 +62,9 @@ set(smarties_sources
     ${source_dir}/Network/CMA_Optimizer.cpp
 )
 
+set(smarties_core "libsmarties")
 add_library(${smarties_core} SHARED ${smarties_sources})
+set_property(TARGET ${smarties_core} PROPERTY PREFIX "") # remove the extra "lib" prefix
 
 # compilation flags
 target_compile_features(${smarties_core} PUBLIC cxx_std_14)
@@ -128,7 +129,7 @@ if (COMPILE_PY_SO)
   add_subdirectory(${source_dir}/extern/pybind11)
   set(PYBIND11_CPP_STANDARD -std=c++14)
 
-  set(smarties_py "pysmarties")
+  set(smarties_py "smarties")
   
   add_library(${smarties_py} MODULE ${source_dir}/smarties_pybind11.cpp)
   target_link_libraries(${smarties_py} PRIVATE ${smarties_core} pybind11::module)
