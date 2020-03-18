@@ -18,6 +18,7 @@ option(COMPILE_PY_SO "Compile Python bindings" ON)
 
 set(root_folder ${CMAKE_CURRENT_LIST_DIR})
 set(source_dir ${root_folder}/source)
+set(lib_output ${root_folder}/lib)
 
 set(smarties_sources
     ${source_dir}/Learners/PPO.cpp
@@ -115,6 +116,9 @@ target_link_libraries(smarties PUBLIC
   OpenMP::OpenMP_CXX
   ${BLAS_LIBRARIES})
 
+set_target_properties(smarties PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
+    )
 
 # Python bindings
 
@@ -125,9 +129,10 @@ if (COMPILE_PY_SO)
   add_library(pysmarties MODULE ${source_dir}/smarties_pybind11.cpp)
   target_link_libraries(pysmarties PRIVATE smarties pybind11::module)
 
-  set_target_properties(${LIB_MIR} PROPERTIES
+  set_target_properties(pysmarties PROPERTIES
     PREFIX "${PYTHON_MODULE_PREFIX}"
     SUFFIX "${PYTHON_MODULE_EXTENSION}"
+    LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
     )
 
 endif()
