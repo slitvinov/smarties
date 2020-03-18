@@ -19,6 +19,7 @@ option(COMPILE_PY_SO "Compile Python bindings" ON)
 set(root_folder ${CMAKE_CURRENT_LIST_DIR})
 set(source_dir ${root_folder}/source)
 set(lib_output ${root_folder}/lib)
+set(smarties_core "smarties")
 
 set(smarties_sources
     ${source_dir}/Learners/PPO.cpp
@@ -62,25 +63,25 @@ set(smarties_sources
     ${source_dir}/Network/CMA_Optimizer.cpp
 )
 
-add_library(smarties SHARED ${smarties_sources})
+add_library(${smarties_core} SHARED ${smarties_sources})
 
 # compilation flags
-target_compile_features(smarties PUBLIC cxx_std_14)
+target_compile_features(${smarties_core} PUBLIC cxx_std_14)
 
 set(cxx_private_flags -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
-target_compile_options(smarties PRIVATE ${cxx_private_flags})
+target_compile_options(${smarties_core} PRIVATE ${cxx_private_flags})
 
-target_compile_options(smarties PRIVATE
+target_compile_options(${smarties_core} PRIVATE
   $<$<CONFIG:Debug>:-O0 -g>
   $<$<CONFIG:Release>:-DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32>
   )
 
 # include flags
 # here interface since no internal source include the following directory
-target_include_directories(smarties INTERFACE ${root_folder}/include)
+target_include_directories(${smarties_core} INTERFACE ${root_folder}/include)
 
 # -fPIC
-set_property(TARGET smarties PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET ${smarties_core} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # External libraries
 
@@ -111,25 +112,28 @@ if(NOT TARGET OpenMP::OpenMP_CXX)
     PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
 endif()
 
-target_link_libraries(smarties PUBLIC
+target_link_libraries(${smarties_core} PUBLIC
   MPI::MPI_CXX
   OpenMP::OpenMP_CXX
   ${BLAS_LIBRARIES})
 
-set_target_properties(smarties PROPERTIES
+set_target_properties(${smarties_core} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
     )
 
 # Python bindings
 
 if (COMPILE_PY_SO)
+  
   add_subdirectory(${source_dir}/extern/pybind11)
   set(PYBIND11_CPP_STANDARD -std=c++14)
 
-  add_library(pysmarties MODULE ${source_dir}/smarties_pybind11.cpp)
-  target_link_libraries(pysmarties PRIVATE smarties pybind11::module)
+  set(smarties_py "pysmarties")
+  
+  add_library(${smarties_py} MODULE ${source_dir}/smarties_pybind11.cpp)
+  target_link_libraries(${smarties_py} PRIVATE ${smarties_core} pybind11::module)
 
-  set_target_properties(pysmarties PROPERTIES
+  set_target_properties(${smarties_py} PROPERTIES
     PREFIX "${PYTHON_MODULE_PREFIX}"
     SUFFIX "${PYTHON_MODULE_EXTENSION}"
     LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
