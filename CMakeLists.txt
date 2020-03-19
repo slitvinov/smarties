@@ -122,9 +122,14 @@ target_link_libraries(${smarties_core} PUBLIC
   OpenMP::OpenMP_CXX
   ${BLAS_LIBRARIES})
 
+# fix for llvm that does not link to libatomic
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_link_libraries(${smarties_core} PUBLIC -latomic)
+endif()
+
 set_target_properties(${smarties_core} PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
-    )
+  LIBRARY_OUTPUT_DIRECTORY "${lib_output}"
+  )
 
 # Python bindings
 
