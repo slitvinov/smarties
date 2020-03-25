@@ -103,14 +103,15 @@ def app_main(comm):
   comm.setNumAppendedPastObservations(3)
   # 2) add convolutional layers:
   '''
+  # these are the conv2d layers described by Mnih et al., 2015
   #    input is image of size 84 * 84 * (1 + 3)
   comm.setPreprocessingConv2d(84, 84,  4, 32, 8, 4)
   #    then some math to figure out the input dim of next layers
   comm.setPreprocessingConv2d(20, 20, 32, 64, 4, 2)
   comm.setPreprocessingConv2d( 9,  9, 64, 64, 3, 1)
   '''
+  # faster stack of conv2d layers, not optimized for high returns:
   comm.setPreprocessingConv2d(84, 84,  4,  8, 8, 4)
-  #    then some math to figure out the input dim of next layers
   comm.setPreprocessingConv2d(20, 20,  8, 16, 6, 2)
   comm.setPreprocessingConv2d( 8,  8, 16, 32, 4, 1)
   comm.setPreprocessingConv2d( 5,  5, 32, 64, 3, 1)
