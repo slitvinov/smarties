@@ -110,9 +110,17 @@ int DistributionInfo::parse()
     "serial/shared-memory solvers."
   );
 
-  parser.add_option("--totNumSteps", totNumSteps,
-    "Total number of time steps before end of learning."
+
+  parser.add_option("--nTrainSteps", nTrainSteps,
+    "Total number of time steps before end of training."
   );
+  parser.add_option("--nEvalEpisodes", nEvalEpisodes,
+    "Total number of episodes to evaluate training policy. "
+    "If >0, training is DISABLED and network parameters frozen."
+  );
+  if (nEvalEpisodes>0) bTrain = 0;
+  else                 bTrain = 1;
+
   parser.add_option("--randSeed", randSeed, "Random seed." );
 
   parser.add_option("--nStepPappSett", nStepPappSett,
@@ -138,9 +146,6 @@ int DistributionInfo::parse()
     "workers only send states and recv actions from masters."
   );
 
-  parser.add_option("--bTrain", bTrain,
-    "Whether training a policy (=1) or evaluating (=0)."
-  );
   parser.add_option("--logAllSamples", logAllSamples,
     "Whether to write files recording all transitions."
   );

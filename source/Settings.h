@@ -66,7 +66,8 @@ struct DistributionInfo
   Uint nEnvironments = 1;
   Uint workerProcessesPerEnv = 1;
   Uint randSeed = 0;
-  Uint totNumSteps = 10000000; // total number of env time steps
+  Uint nTrainSteps = 10000000; // if training: total number of env time steps
+  Uint nEvalEpisodes = 0; // if not training: number of episode to evaluate on
 
   std::string nStepPappSett = "0";
   std::string appSettings = "";
