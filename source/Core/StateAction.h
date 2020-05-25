@@ -133,6 +133,19 @@ struct StateInfo
   }
 
   template<typename T = Real>
+  std::vector<T> observedAndLatent2state(const std::vector<T>& observ,
+                                         const std::vector<T>& latent) const
+  {
+    assert(observ.size() == dimObs() and latent.size() == dimInfo());
+    std::vector<T> ret( dim() );
+    for (Uint i=0, o=0, l=0; i<dim(); ++i) {
+      if (    MDP.bStateVarObserved[i]) ret[i] = observ[o++];
+      if (not MDP.bStateVarObserved[i]) ret[i] = latent[l++];
+    }
+    return ret;
+  }
+
+  template<typename T = Real>
   void scale(std::vector<T>& observed) const
   {
     assert(observed.size() == dimObs());

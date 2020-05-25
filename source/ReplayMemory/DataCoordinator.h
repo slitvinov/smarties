@@ -24,6 +24,7 @@ class DataCoordinator
   //const Settings & settings = replay->settings;
   const DistributionInfo & distrib = replay->distrib;
 
+  const MDPdescriptor & MDP = replay->MDP;
   const Uint MDPID = replay->MDP.localID;
   const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;
