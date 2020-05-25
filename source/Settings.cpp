@@ -110,7 +110,6 @@ int DistributionInfo::parse()
     "serial/shared-memory solvers."
   );
 
-
   parser.add_option("--nTrainSteps", nTrainSteps,
     "Total number of time steps before end of training."
   );
@@ -118,8 +117,6 @@ int DistributionInfo::parse()
     "Total number of episodes to evaluate training policy. "
     "If >0, training is DISABLED and network parameters frozen."
   );
-  if (nEvalEpisodes>0) bTrain = 0;
-  else                 bTrain = 1;
 
   parser.add_option("--randSeed", randSeed, "Random seed." );
 
@@ -564,8 +561,11 @@ void Settings::check()
   }
 }
 
-void DistributionInfo::initialzePRNG()
+void DistributionInfo::initialze()
 {
+  if (nEvalEpisodes>0) bTrain = 0;
+  else                 bTrain = 1;
+
   if(nThreads<1) die("nThreads<1");
   if(randSeed<=0) {
     std::random_device rdev; randSeed = rdev();
@@ -573,6 +573,7 @@ void DistributionInfo::initialzePRNG()
     if(world_rank==0) printf("Using seed %lu\n", randSeed);
   }
   randSeed += world_rank;
+
   generators.resize(0);
   generators.reserve(omp_get_max_threads());
   generators.push_back(std::mt19937(randSeed));

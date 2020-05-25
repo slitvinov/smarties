@@ -32,7 +32,7 @@ struct DistributionInfo
   void commonInit();
   int parse();
 
-  void initialzePRNG();
+  void initialze();
   void figureOutWorkersPattern();
 
   char initial_runDir[1024];

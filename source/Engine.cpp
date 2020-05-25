@@ -86,7 +86,7 @@ void Engine::setRedirectAppScreenOutput(const bool redirect) {
 
 void Engine::init()
 {
-  distrib->initialzePRNG();
+  distrib->initialze();
   distrib->figureOutWorkersPattern();
 
   if(distrib->bTrain == false && distrib->restart == "none") {
