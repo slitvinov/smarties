@@ -114,12 +114,16 @@ struct StateInfo
   Uint dimInfo() const { return  MDP.dimState - MDP.dimStateObserved; }
 
   template<typename T = Real>
-  std::vector<T> state2observed(const Rvec& state) const
+  std::vector<T> state2observed(const Rvec& state) const {
+    return state2observed<T>(state, MDP);
+  }
+  template<typename T = Real>
+  static std::vector<T> state2observed(const Rvec& S, const MDPdescriptor& MDP)
   {
-    assert(state.size() == dim());
-    std::vector<T> ret(dimObs());
-    for (Uint i=0, k=0; i<dim(); ++i)
-      if (MDP.bStateVarObserved[i]) ret[k++] = state[i];
+    assert(S.size() == MDP.dimState);
+    std::vector<T> ret(MDP.dimStateObserved);
+    for (Uint i=0, k=0; i<MDP.dimState; ++i)
+      if (MDP.bStateVarObserved[i]) ret[k++] = S[i];
     return ret;
   }
   template<typename T = Real>
