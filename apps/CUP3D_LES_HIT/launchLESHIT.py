@@ -23,12 +23,12 @@ def runspec(nu, eps, re, run, cs):
     return base + tstep + discr + "CFL010_" + size + "RE%04d_RUN%d" % (re, run)
 
 def getSettings(nu, eps, cs, run):
-    options = '-bpdx 16 -bpdy 16 -bpdz 16 -CFL 0.1 '
+    options = '-bpdx 32 -bpdy 32 -bpdz 32 -CFL 0.1 '
     if bDoRK23: options = options + '-RungeKutta23 '
     if bDoUpWind: options = options + '-Advection3rdOrder '
     tAnalysis = np.sqrt(nu / eps)
     tDump = 0 # (run == 0) * tAnalysis
-    tEnd = 1000 * tAnalysis
+    tEnd = 10000 * tAnalysis # abort in code
     return options + '-extentx 6.2831853072 -dump2D 0 -dump3D 1 ' \
        '-tdump %f -BC_x periodic -BC_y periodic -BC_z periodic ' \
        '-spectralIC fromFit -initCond HITurbulence -tAnalysis %f ' \

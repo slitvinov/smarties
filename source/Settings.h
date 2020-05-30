@@ -104,7 +104,7 @@ struct Settings
   Real penalTol = 0.1;
   Real klDivConstraint = 0.01;
   Real targetDelay = 0;
-  Real epsAnneal = 0;
+  Real epsAnneal = 5e-7;
 
   Uint minTotObsNum =  65536;
   Uint maxTotObsNum = 262144;

@@ -8,8 +8,11 @@ from computeMeanIntegralQuantitiesNonDim import readAllFiles
 colors = ['#1f78b4', '#33a02c', '#e31a1c', '#ff7f00', '#6a3d9a', '#b15928', '#a6cee3', '#b2df8a', '#fb9a99', '#fdbf6f', '#cab2d6', '#ffff99']
 #colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999']
 colors = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6', '#6a3d9a', '#ffff99', '#b15928']
-colors = ['#abd9e9', '#74add1', '#4575b4', '#313695', '#006837', '#1a9850', '#66bd63', '#a6d96a', '#d9ef8b', '#fee08b', '#fdae61', '#f46d43', '#d73027', '#a50026', '#8e0152', '#c51b7d', '#de77ae', '#f1b6da']
-
+colors = ['#abd9e9', '#74add1', '#4575b4', '#313695', '#006837', '#1a9850',
+          '#66bd63', '#a6d96a', '#d9ef8b', '#fee08b', '#fdae61', '#f46d43',
+          '#d73027', '#a50026', '#8e0152', '#c51b7d', '#de77ae', '#f1b6da']
+colors = ['#e9a3c9', '#c51b7d', '#d73027', '#fc8d59', '#fee08b', '#91cf60',
+          '#1a9850', '#4575b4', '#91bfdb']
 nQoI = 8
 h = 2 * np.pi / (16*16)
 QoI = [ 'Time Step Size',
@@ -110,18 +113,18 @@ def main_integral(path):
     popt, pcov = fitSpectrum(vecParams, vecMean, vecSpectra, vecEnStdev)
     C,CI,CE,BETA,P0 = popt[0], popt[1], popt[2], popt[3], popt[4]
 
-    plt.figure()
-    axes = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
+    fig, axes = plt.subplots(1,2, figsize=[12, 3], frameon=False, squeeze=True)
+
     axes[0].set_xlabel(r'$k \eta$')
     axes[0].grid()
     axes[1].grid()
-    axes[0].set_ylabel(r'$E(k) / (\eta u^2_\eta)$')
+    axes[0].set_ylabel(r'$E(k) \,/\, \eta u^2_\eta$')
 
     ci = 0
     nyquist, nruns = vecSpectra.shape[0], vecSpectra.shape[1]
     print(popt, nyquist, fullSpectra.shape)
 
-    for i in range(0, nruns):
+    for i in range(0, nruns, 2):
         eps, nu, re = vecParams[0,i], vecParams[1,i], vecParams[2,i]
         leta = np.power(vecParams[1,i]**3 / vecParams[0,i], 0.25)
         lint = vecMean[4,i]
@@ -131,8 +134,8 @@ def main_integral(path):
         Ekscal = np.power(nu**5 * eps, 0.25)
         K = np.arange(1, nyquist+1, dtype=np.float64)
         E = np.exp(vecSpectra[:,i])
-        X, Y = K, E / Ekscal
-        #X, Y = K * leta, E / Ekscal
+        #X, Y = K, E / Ekscal
+        X, Y = K * leta, E / Ekscal
         fit = np.array([EkBrief([k, eps,leta,lint,nu], popt) for k in K])/Ekscal
         Yb = np.exp(vecSpectra[:,i] - vecEnStdev[:,i])/Ekscal
         Yt = np.exp(vecSpectra[:,i] + vecEnStdev[:,i])/Ekscal
@@ -144,23 +147,28 @@ def main_integral(path):
         eCDF = np.array([np.sum(fullE[:k+1]) for k in range(fullN)]) / eTot
         #print(fullE, eCDF)
 
-        label = r'$Re=%f$' % re
-        color = colors[ ci ]
+        label = r'$Re_\lambda=%d$' % re
         ci += 1
+        color = colors[ - ci ]
         axes[0].fill_between(X, Yb, Yt, facecolor=color, alpha=.5)
         #axes[0].plot(X[1:], fit[1:], 'o', color=color)
         axes[0].plot(X, Y, color=color, label=label)
         axes[1].plot(fullK, 1-eCDF, color=color, label=label)
 
-    axes[1].set_xlabel(r'$k$')
-    axes[1].set_ylabel(r'$1 - CDF(E)$')
+    xTheory = np.zeros(2)
+    xTheory[0], xTheory[1] = 0.025, 0.25
+    yTheory = 6.41241 * np.power(xTheory, -5.0/3.0)
+    axes[0].plot(xTheory, yTheory, 'k--')
+    axes[1].plot([15, 15], [1, 1e-3], 'k')
+    axes[1].set_xlabel(r'$k \cdot L \,/\, 2 \pi$')
+    axes[1].set_ylabel(r'$1 - CDF\,\left[ E(k)\right]$')
     axes[0].set_yscale("log")
-    #axes[0].set_xscale("log")
+    axes[0].set_xscale("log")
     #axes[1].set_xscale("log")
     axes[1].set_yscale("log")
     axes[1].set_xlim([1,63])
     axes[1].set_ylim([0.5, 1e-3])
-    axes[0].legend(loc='lower left')
+    axes[0].legend(loc='lower left', ncol=3)
     plt.show()
 
 if __name__ == '__main__':
