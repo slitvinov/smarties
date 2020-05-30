@@ -117,8 +117,8 @@ struct StateInfo
   std::vector<T> state2observed(const Rvec& state) const {
     return state2observed<T>(state, MDP);
   }
-  template<typename T = Real>
-  static std::vector<T> state2observed(const Rvec& S, const MDPdescriptor& MDP)
+  template<typename T = Real, typename TS>
+  static std::vector<T> state2observed(const std::vector<TS>& S, const MDPdescriptor& MDP)
   {
     assert(S.size() == MDP.dimState);
     std::vector<T> ret(MDP.dimStateObserved);
@@ -126,8 +126,8 @@ struct StateInfo
       if (MDP.bStateVarObserved[i]) ret[k++] = S[i];
     return ret;
   }
-  template<typename T = Real>
-  std::vector<T> state2nonObserved(const Rvec& state) const
+  template<typename T = Real, typename TS>
+  std::vector<T> state2nonObserved(const std::vector<TS>& state) const
   {
     assert(state.size() == dim());
     std::vector<T> ret( dimInfo() );
