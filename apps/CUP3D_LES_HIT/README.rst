@@ -8,6 +8,11 @@ Because ``smarties`` is a library, the main executable that simulates the flow i
 We refer to that page for instructions regarding install and dependencies. 
 The dependencies of ``CubismUP 3D`` are a superset of those of ``smarties``.
 
+All the scripts in this folder assume that:  
+
+- The directories of ``smarties`` and ``CubismUP 3D`` are placed at the same path (e.g. ``${HOME}/``).  
+- ``smarties`` is installed and ``CubismUP 3D`` can be compiled without issues.
+
 Core task description
 =====================
 The file ``CubismUP 3D`` file ``source/main_RL_HIT.cpp`` produces the main executable.
