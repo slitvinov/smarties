@@ -176,15 +176,17 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(
     description = "Compute a target file for RL agent from DNS data.")
   ADD = parser.add_argument
-  ADD('--target', help="Path to target files directory",
-    default='/users/novatig/smarties/apps/CUP3D_LES_HIT/target_RKBPD24_2blocks/')
-  #  default='/users/novatig/smarties/apps/CUP3D_LES_HIT/target_RK_2blocks/')
-  ADD('--tokens', nargs='+', help="Text token distinguishing each series of runs")
-  ADD('--res', nargs='+', type=int, help="Reynolds numbers",
-    default = [65, 76, 88, 103, 120, 140, 163])
+  ADD('tokens', nargs='+',
+    help="Directory naming tokens shared by all runs across Re")
+  ADD('--target', default='target_RKBPD32_2blocks/',
+    help="Path to target DNS files directory")
+  ADD('--res', nargs='+', type=int, default = [65, 76, 88, 103, 120, 140, 163],
+    help="Reynolds numbers to visualize")
   ADD('--labels', nargs='+', help="Plot labels to assiciate to tokens")
-  ADD('--runspath', default='./', help="Plot labels to assiciate to tokens")
-  ADD('--gridSize', nargs='+', type=int, default=[32], help="Plot labels to assiciate to tokens")
+  ADD('--runspath', default='../../runs/',
+    help="Relative path to evaluation runs")
+  ADD('--gridSize', nargs='+', type=int, default=[32],
+    help="1D grid size used by the evaluation runs")
 
   args = parser.parse_args()
   if args.labels is None: args.labels = args.tokens

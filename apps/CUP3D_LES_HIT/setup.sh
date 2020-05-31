@@ -1,5 +1,5 @@
 #!/bin/bash
-LES_RL_NETTYPE=${LES_RL_NETTYPE:-GRU}
+LES_RL_NETTYPE=${LES_RL_NETTYPE:-FFNN}
 LES_RL_FREQ_A=${LES_RL_FREQ_A:-8}
 LES_RL_N_TSIM=${LES_RL_N_TSIM:-20}
 LES_RL_NBLOCK=${LES_RL_NBLOCK:-4}
@@ -15,8 +15,20 @@ fi
 
 # compile executable:
 COMPILEDIR=${SMARTIES_ROOT}/../CubismUP_3D/makefiles
+#SKIPMAKE=true
 if [[ "${SKIPMAKE}" != "true" ]] ; then
-make -C ${COMPILEDIR} rlHIT -j4
+if [ ${LES_RL_NBLOCK} == 8 ] ; then
+blocksize=4
+elif [ ${LES_RL_NBLOCK} == 4 ] ; then
+blocksize=8
+elif [ ${LES_RL_NBLOCK} == 2 ] ; then
+blocksize=16
+else
+echo "ERROR "
+exit 1
+fi
+make -C ${COMPILEDIR} clean
+make -C ${COMPILEDIR} bs=${blocksize} -j rlHIT
 fi
 
 # copy executable:
@@ -28,7 +40,7 @@ cat <<EOF >${RUNDIR}/runArguments00.sh
 -extentx 6.2831853072 -tend 500 -dump2D 1 -dump3D 1 -tdump 0 -CFL 0.1 \
 -BC_x periodic -BC_y periodic -BC_z periodic -initCond HITurbulence \
 -spectralIC fromFit -sgs RLSM -cs 0.5 -spectralForcing 1 \
--RungeKutta23 0 -Advection3rdOder 0 -keepMomentumConstant 1 \
+-RungeKutta23 1 -Advection3rdOder 0 -keepMomentumConstant 1 \
 -nprocsx 1 -nprocsy 1 -nprocsz 1 \
 -analysis HIT -tAnalysis 100 -nu 0.005 -energyInjectionRate 0.2 \
 -RL_freqActions ${LES_RL_FREQ_A} -RL_nIntTperSim ${LES_RL_N_TSIM} \

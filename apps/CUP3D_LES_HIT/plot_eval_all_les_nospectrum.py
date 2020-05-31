@@ -148,9 +148,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(
     description = "Compute a target file for RL agent from DNS data.")
   ADD = parser.add_argument
-  ADD('--target', help="Path to target files directory",
-    default='/users/novatig/smarties/apps/CUP3D_LES_HIT/target_RKBPD24_2blocks/')
-  ADD('--tokens', nargs='+', help="Text token distinguishing each series of runs")
+  ADD('tokens', nargs='+', help="Text token distinguishing each series of runs")
+  ADD('--target', help="Path to target files directory", default='target_RKBPD32_2blocks/')
   ADD('--res', nargs='+', type=int, help="Reynolds numbers",
     default = [60, 70, 111, 151, 176, 190, 205])
   ADD('--labels', nargs='+', help="Plot labels to assiciate to tokens")
