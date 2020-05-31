@@ -43,7 +43,7 @@ The terminal output of the simulations is redirected to, for example, ``training
 all the simulation snapshots and post-processing to, for example, ``training_directory_name/simulation_000_00000/run_00000000/``.
 During training, no post-processing (e.g. energy spectra, dissipation, other integral statistics) are stored to file.
 
-Evaluating a trained model
+Running the trained model
 ==========================
 Once trained, the policy can be used to perform any simulation. This can be done for example as:
 
@@ -62,8 +62,8 @@ Using the script
 will evaluate the policy saved in ``training_directory_name`` at Reynolds in log-intervals from 60 to 205, each in a separate directory.
 Each evaluation directory will be named according to the Reynolds like: ``training_directory_name_RE%03d``.
 
-Evaluating a trained model
-==========================
+Evaluating the trained policy
+==============================
 From the list of directories, the energy spectra can be plotted as
 
 .. code:: shell
