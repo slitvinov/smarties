@@ -51,6 +51,7 @@ Once trained, the policy can be used to perform any simulation. This can be done
 
     smarties.py CUP3D_LES_HIT -r evaluation_directory_name --restart training_directory_name --nEvalEpisodes 1
 
+This process should take few minutes.
 Because we specificed that we evaluate the policy for 1 episode (or N), training is disabled and the policy is fixed.
 However, the ``CubismUP_3D`` side will run identically as for training, which means that it will simulate a random Reynolds number.
 Using the script
