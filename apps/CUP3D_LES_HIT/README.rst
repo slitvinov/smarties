@@ -15,13 +15,13 @@ All the scripts in this folder assume that:
 
 Core task description
 =====================
-The file ``CubismUP 3D`` file ``source/main_RL_HIT.cpp`` produces the main executable.
+The ``CubismUP 3D`` file ``source/main_RL_HIT.cpp`` produces the main executable.
 It describes the environment loop and parses all hyper-parameters.
-This file interacts with 3 objects.   
-The ``smarties::Communicator`` class receives a description of the RL problem and handles the state-action loop for all the agents.   
-The ``cubismup3d::Simulation`` class comprises the solver and defines the operations performed on each (simulation) time-step.   
-The ``cubismup3d::SGS_RL`` class describes the operations performed to update the Smagorinsky coefficients. 
-This class describes both the interpolation of the actions onto the grid and the calculation of the state components.
+This file interacts with 3 objects:
+
+- The class ``smarties::Communicator`` receives a description of the RL problem and handles the state-action loop for all the agents.   
+- The class ``cubismup3d::Simulation`` comprises the solver and defines the operations performed on each (simulation) time-step.   
+- The class ``cubismup3d::SGS_RL`` describes the operations performed to update the Smagorinsky coefficients. This class describes both the interpolation of the actions onto the grid and the calculation of the state components.
 
 
 In this folder, the file ``setup.sh`` is read by ``smarties.py`` and prepares all hyper-parameters, and simulation description.
