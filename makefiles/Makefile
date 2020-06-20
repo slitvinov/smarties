@@ -98,7 +98,8 @@ OBJ_FILES = \
 	Communicator.o \
 	Approximator.o \
 	Launcher.o \
-	Settings.o \
+	ExecutionInfo.o \
+	HyperParameters.o \
 	Profiler.o \
 	Master.o \
 	Worker.o \
@@ -106,6 +107,7 @@ OBJ_FILES = \
 	Engine.o \
 	Warnings.o \
 	smarties_extern.o
+
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

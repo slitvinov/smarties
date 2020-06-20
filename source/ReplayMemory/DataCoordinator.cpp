@@ -100,7 +100,7 @@ void DataCoordinator::distributePendingEpisodes()
       const int dest = sharingDest, tag = 737283+MDPID;
       if( sharingReq[dest] not_eq MPI_REQUEST_NULL)
         MPI(Wait, & sharingReq[dest], MPI_STATUS_IGNORE);
-      sharingSeq[dest] = EP.packEpisode(MDP);
+      sharingSeq[dest] = EP.packEpisode();
       MPI(Isend, sharingSeq[dest].data(), sharingSeq[dest].size(),
           SMARTIES_MPI_Fval, dest, tag, sharingComm, & sharingReq[dest]);
     }
@@ -157,8 +157,8 @@ void DataCoordinator::mastersRecvEpisodes()
   if(workersEP.size())
   {
     const Uint nStep = Episode::computeTotalEpisodeNstep(MDP, workersEP.size());
-    nSeenTransitions_loc += nStep - 1; // we do not count init state
-    nSeenEpisodes_loc    += 1;
+    replay->increaseLocalSeenSteps(nStep - 1); // we do not count last state
+    replay->increaseLocalSeenEps();
 
     // data sharing among masters:
     if (sharingDest == sharingRank) { // keep the episode
@@ -201,7 +201,7 @@ void DataCoordinator::addComplete(Episode& EP, const bool bUpdateParams)
     // if we created data structures for worker to send eps to master
     // this better be a worker!
     assert(workerRank>0 && workerSize>1 && not distrib.bIsMaster);
-    const Fvec MSG = EP.packEpisode(MDP);
+    const Fvec MSG = EP.packEpisode();
     #ifndef NDEBUG
       Episode tmp(MSG, MDP);
       assert(EP.isEqual(tmp));

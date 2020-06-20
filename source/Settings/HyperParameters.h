@@ -6,11 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef smarties_Settings_h
-#define smarties_Settings_h
+#ifndef smarties_HyperParameters_h
+#define smarties_HyperParameters_h
 
-#include "Utils/Definitions.h"
-#include "Utils/MPIUtilities.h"
+#include "Definitions.h"
+#include "../Utils/MPIUtilities.h"
 
 #include <random>
 #include <mutex>
@@ -18,76 +18,14 @@
 namespace smarties
 {
 
-struct DistributionInfo
+struct ExecutionInfo;
+
+struct HyperParameters
 {
-  DistributionInfo(int _argc, char ** _argv);
-  DistributionInfo(const std::vector<std::string> & args);
-  DistributionInfo(const MPI_Comm& mpi_comm, int _argc, char ** _argv);
-  ~DistributionInfo();
-
-  const bool bOwnArgv; // whether argv needs to be deallocated
-  int argc;
-  char ** argv;
-
-  void commonInit();
-  int parse();
-
-  void initialze();
-  void figureOutWorkersPattern();
-
-  char initial_runDir[1024];
-  MPI_Comm world_comm;
-  Uint world_rank;
-  Uint world_size;
-
-  int threadSafety = -1;
-  bool bAsyncMPI;
-  mutable std::mutex mpiMutex;
-
-  Sint thisWorkerGroupID = -1;
-  Uint nAgents;
-
-  MPI_Comm master_workers_comm = MPI_COMM_NULL;
-  MPI_Comm workerless_masters_comm = MPI_COMM_NULL;
-  MPI_Comm learners_train_comm = MPI_COMM_NULL;
-  MPI_Comm environment_app_comm = MPI_COMM_NULL;
-
-  bool bIsMaster;
-  Uint nOwnedEnvironments = 0;
-  Uint nOwnedAgentsPerAlgo = 1;
-  Uint nForkedProcesses2spawn = 0;
-  //random number generators (one per thread)
-  mutable std::vector<std::mt19937> generators;
-
-  // Parsed. For comments look at .cpp
-  Uint nThreads = 1;
-  Uint nMasters = 1;
-  Uint nWorkers = 1;
-  Uint nEnvironments = 1;
-  Uint workerProcessesPerEnv = 1;
-  Uint randSeed = 0;
-  Uint nTrainSteps = 10000000; // if training: total number of env time steps
-  Uint nEvalEpisodes = 0; // if not training: number of episode to evaluate on
-
-  std::string nStepPappSett = "0";
-  std::string appSettings = "";
-  std::string setupFolder = "";
-  std::string restart = ".";
-
-  bool bTrain = true;
-  int logAllSamples = 1;
-  bool learnersOnWorkers = true;
-  bool forkableApplication = false;
-  bool redirectAppStdoutToFile = true;
-};
-
-struct Settings
-{
-  Settings();
   void check();
   static std::string printArgComments();
-  void initializeOpts(std::ifstream & , DistributionInfo & );
-  void defineDistributedLearning(DistributionInfo&);
+  void initializeOpts(std::ifstream & , ExecutionInfo & );
+  void defineDistributedLearning(ExecutionInfo &);
 
   //////////////////////////////////////////////////////////////////////////////
   //SETTINGS PERTAINING TO LEARNING ALGORITHM
@@ -95,10 +33,11 @@ struct Settings
   std::string learner = "VRACER";
   std::string ERoldSeqFilter = "oldest";
   std::string dataSamplingAlgo = "uniform";
+  std::string returnsEstimator = "retrace";
 
   Real explNoise = std::sqrt(0.2);
   Real gamma = 0.995;
-  Real lambda = 0.95;
+  Real lambda = 1;
   Real obsPerStep = 1;
   Real clipImpWeight = 4;
   Real penalTol = 0.1;

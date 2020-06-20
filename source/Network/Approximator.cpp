@@ -15,8 +15,8 @@ namespace smarties
 {
 
 Approximator::Approximator(std::string name_,
-                           const Settings&S,
-                           const DistributionInfo&D,
+                           const HyperParameters&S,
+                           const ExecutionInfo&D,
                            const MemoryBuffer* const replay_,
                            const Approximator* const preprocessing_,
                            const Approximator* const auxInputNet_) :

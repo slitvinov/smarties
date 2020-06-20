@@ -20,7 +20,7 @@
 namespace smarties
 {
 
-Builder::Builder(const Settings& S, const DistributionInfo& D)
+Builder::Builder(const HyperParameters& S, const ExecutionInfo& D)
   : distrib(D), settings(S) { }
 
 void Builder::addInput(const Uint size)

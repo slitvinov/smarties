@@ -21,8 +21,7 @@ class DataCoordinator
 {
   MemoryBuffer* const replay;
   ParameterBlob & params;
-  //const Settings & settings = replay->settings;
-  const DistributionInfo & distrib = replay->distrib;
+  const ExecutionInfo & distrib = replay->distrib;
 
   const MDPdescriptor & MDP = replay->MDP;
   const Uint MDPID = replay->MDP.localID;
@@ -43,8 +42,6 @@ class DataCoordinator
 
   std::mutex complete_mutex;
 
-  std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
-  std::atomic<long>& nSeenEpisodes_loc = replay->nSeenEpisodes_loc;
   const TaskQueue * allTasksPtr = nullptr;
 
 public:

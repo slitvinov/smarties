@@ -16,8 +16,8 @@ namespace smarties
 {
 
 Learner_approximator::Learner_approximator(MDPdescriptor& MDP_,
-                                           Settings& S_,
-                                           DistributionInfo& D_) :
+                                           HyperParameters& S_,
+                                           ExecutionInfo& D_) :
                                            Learner(MDP_, S_, D_)
 {
   if(!settings.bSampleEpisodes && nObsB4StartTraining<(long)settings.batchSize)
@@ -36,15 +36,17 @@ Learner_approximator::~Learner_approximator()
 
 void Learner_approximator::spawnTrainTasks()
 {
-  if(settings.bSampleEpisodes && data->readNSeq() < (long) settings.batchSize)
+  if(settings.bSampleEpisodes && data->nStoredEps() < (long) settings.batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
   profiler->start("SAMP");
+  debugL("Sample the replay memory");
   const Uint batchSize=settings.batchSize_local, ESpopSize=settings.ESpopSize;
   const Uint nThr = distrib.nThreads, CS =  batchSize / nThr;
   const MiniBatch MB = data->sampleMinibatch(batchSize, nGradSteps() );
   profiler->stop();
 
+  debugL("Compute the gradients");
   if(settings.bSampleEpisodes)
   {
     #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
@@ -73,23 +75,30 @@ void Learner_approximator::spawnTrainTasks()
       if(thrID==0) profiler->stop();
     }
   }
-}
 
-void Learner_approximator::prepareGradient()
-{
-  const Uint currStep = nGradSteps()+1;
+  if(ESpopSize>1) {
+    debugL("Compute objective function for CMA optimizer.");
+    prepareCMALoss();
+  }
 
   profiler->start("ADDW");
+  debugL("Reduce gradient estimates");
   for(const auto & net : networks) {
     net->prepareUpdate();
-    net->updateGradStats(learner_name, currStep-1);
+    net->updateGradStats(learner_name, nGradSteps());
   }
   profiler->stop();
+}
+
+void Learner_approximator::prepareCMALoss()
+{
+
 }
 
 void Learner_approximator::applyGradient()
 {
   profiler->start("GRAD");
+  debugL("Apply SGD update");
   for(const auto & net : networks) net->applyUpdate();
   profiler->stop();
 }

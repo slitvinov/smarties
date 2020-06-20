@@ -63,7 +63,11 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   }
 
   Real Q_RET = MB.reward(bID, tend);
-  if (not MB.isTerminal(bID,tend)) Q_RET += gamma * value->forward(bID,tend)[0];
+  if (not MB.isTerminal(bID,tend)) {
+    const Real vLast = value->forward(bID,tend)[0];
+    MB.setValues(bID, tend, vLast);
+    Q_RET += gamma * vLast;
+  }
   Real Q_OPC = Q_RET;
 
   if(thrID==0)  profiler->stop_start("POL");
@@ -104,35 +108,29 @@ void ACER::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     Q_OPC = R + gamma*(     (Q_OPC - QTheta) + Vstates[i]); // as paper, but bad
     //Q_OPC = R + gamma*(     (Q_OPC - QTheta) + Vstates[i]); // as ret, better
     const Rvec penalBehavior = policies[i]->KLDivGradient(MB.mu(bID, step), -1);
-    MB.setMseDklImpw(bID, step, Q_err*Q_err, DKL, RHO, CmaxRet, CinvRet);
-    trainInfo->log(QTheta, Q_err, pGrad, penalBehavior, {RHO}, thrID);
+    MB.setMseDklImpw(bID, step, Q_err, DKL, RHO, CmaxRet, CinvRet);
+    MB.setValues(bID, step, Vstates[i], QTheta);
   }
   for(const auto & polPtr : policies) delete polPtr;
   for(const auto & polPtr : policies_tgt) delete polPtr;
 }
 
-void ACER::select(Agent& agent)
+void ACER::selectAction(const MiniBatch& MB, Agent& agent)
 {
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
+  if (encoder) encoder->load(MB, agent);
+  actor->load(MB, agent);
+  //Compute policy and value on most recent element of the sequence.
+  Continuous_policy POL({0,nA}, aInfo, actor->forward(agent));
 
-  if( agent.agentStatus < TERM ) // not end of sequence
-  {
-    if (encoder) encoder->load(MB, agent);
-    actor->load(MB, agent);
-    //Compute policy and value on most recent element of the sequence.
-    Continuous_policy POL({0,nA}, aInfo, actor->forward(agent));
-    Rvec MU = POL.getVector(); // vector-form current policy for storage
+  // if explNoise is 0, we just act according to policy
+  // since explNoise is initial value of diagonal std vectors
+  // this should only be used for evaluating a learned policy
+  Rvec action = POL.selectAction(agent, settings.explNoise>0);
+  agent.setAction(action, POL.getVector());
+}
 
-    // if explNoise is 0, we just act according to policy
-    // since explNoise is initial value of diagonal std vectors
-    // this should only be used for evaluating a learned policy
-    Rvec action = POL.selectAction(agent, settings.explNoise>0);
-    agent.setAction(action);
-    data_get->add_action(agent, MU);
-  }
-  else data_get->terminate_seq(agent); // either terminal or truncated episode
+void ACER::processTerminal(const MiniBatch& MB, Agent& agent)
+{
 }
 
 void ACER::setupTasks(TaskQueue& tasks)
@@ -146,7 +144,7 @@ void ACER::setupTasks(TaskQueue& tasks)
   {
     // conditions to start the initialization task:
     if ( algoSubStepID >= 0 ) return; // we done with init
-    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+    if ( data->nStoredSteps() < nObsB4StartTraining ) return; // not enough data to init
 
     debugL("Initialize Learner");
     initializeLearner();
@@ -165,11 +163,7 @@ void ACER::setupTasks(TaskQueue& tasks)
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
     debugL("Gather gradient estimates from each thread and Learner MPI rank");
-    prepareGradient();
-    debugL("Search work to do in the Replay Memory");
     processMemoryBuffer(); // find old eps, update avg quantities ...
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     algoSubStepID = 1;
     profiler->start("MPI");
@@ -192,7 +186,7 @@ void ACER::setupTasks(TaskQueue& tasks)
   tasks.add(stepComplete);
 }
 
-ACER::ACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+ACER::ACER(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
   const bool bCreatedEncorder = createEncoder();
@@ -242,7 +236,6 @@ ACER::ACER(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   }
 
   settings.learnrate /= 10; // reset just in case it's needed
-  trainInfo = new TrainData("ACER", distrib, 1, "| avgW ", 1);
 }
 
 }

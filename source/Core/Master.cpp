@@ -14,9 +14,9 @@
 namespace smarties
 {
 
-MasterSockets::MasterSockets(DistributionInfo& D) :
+MasterSockets::MasterSockets(ExecutionInfo& D) :
 Master<MasterSockets, SOCKET_REQ>(D) { }
-MasterMPI::MasterMPI(DistributionInfo& D) :
+MasterMPI::MasterMPI(ExecutionInfo& D) :
 Master<MasterMPI, MPI_Request>(D) { }
 
 #ifndef NDEBUG
@@ -32,7 +32,7 @@ MasterSockets::~MasterSockets() {}
 MasterMPI::~MasterMPI() {}
 
 template<typename CommType, typename Request_t>
-Master<CommType, Request_t>::Master(DistributionInfo&D) : Worker(D) {}
+Master<CommType, Request_t>::Master(ExecutionInfo&D) : Worker(D) {}
 
 void MasterSockets::run(const environment_callback_t& callback)
 {

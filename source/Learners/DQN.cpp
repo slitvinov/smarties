@@ -22,7 +22,7 @@
 namespace smarties
 {
 
-DQN::DQN(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+DQN::DQN(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
   createEncoder();
@@ -35,44 +35,35 @@ DQN::DQN(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
   networks[0]->setUseTargetNetworks();
   networks[0]->buildFromSettings(nA);
   networks[0]->initializeNetwork();
-  trainInfo = new TrainData("DQN", distrib);
 }
 
-void DQN::select(Agent& agent)
+void DQN::selectAction(const MiniBatch& MB, Agent& agent)
 {
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
+  networks[0]->load(MB, agent, 0);
+  //Compute policy and value on most recent element of the sequence. If RNN
+  // recurrent connection from last call from same agent will be reused
+  auto outVec = networks[0]->forward(agent);
 
-  if( agent.agentStatus < TERM )
-  {
-    //Compute policy and value on most recent element of the sequence. If RNN
-    // recurrent connection from last call from same agent will be reused
-    networks[0]->load(MB, agent);
-    auto outVec = networks[0]->forward(agent);
+  #ifdef DQN_USE_POLICY
+    Discrete_policy POL({0}, aInfo, outVec);
+    Uint act = POL.selectAction(agent, settings.explNoise>0);
+    agent.setAction(act, POL.getVector());
+  #else // from paper : annealed epsilon-greedy
+    const Real anneal = annealingFactor(), explNoise = settings.explNoise;
+    const Real annealedEps = bTrain? anneal +(1-anneal)*explNoise : explNoise;
+    const Uint greedyAct = Utilities::maxInd(outVec);
+    Rvec MU(policyVecDim, annealedEps/nA);
+    MU[greedyAct] += 1-annealedEps;
 
-    #ifdef DQN_USE_POLICY
-      Discrete_policy POL({0}, aInfo, outVec);
-      Rvec MU = POL.getVector();
-      Uint act = POL.selectAction(agent, settings.explNoise>0);
-      agent.setAction(act);
-    #else
-      const Real anneal = annealingFactor(), explNoise = settings.explNoise;
-      const Real annealedEps = bTrain? anneal +(1-anneal)*explNoise : explNoise;
-      const Uint greedyAct = Utilities::maxInd(outVec);
+    std::uniform_real_distribution<Real> dis(0.0, 1.0);
+    if(dis(agent.generator) < annealedEps)
+      agent.setAction(nA * dis(agent.generator), MU);
+    else agent.setAction(greedyAct, MU);
+  #endif
+}
 
-      std::uniform_real_distribution<Real> dis(0.0, 1.0);
-      if(dis(agent.generator) < annealedEps)
-        agent.setAction(nA * dis(agent.generator));
-      else agent.setAction(greedyAct);
-
-      Rvec MU(policyVecDim, annealedEps/nA);
-      MU[greedyAct] += 1-annealedEps;
-    #endif
-
-    data_get->add_action(agent, MU);
-  } else
-    data_get->terminate_seq(agent);
+void DQN::processTerminal(const MiniBatch& MB, Agent& agent)
+{
 }
 
 void DQN::setupTasks(TaskQueue& tasks)
@@ -86,7 +77,7 @@ void DQN::setupTasks(TaskQueue& tasks)
   {
     // conditions to start the initialization task:
     if ( algoSubStepID >= 0 ) return; // we done with init
-    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+    if ( data->nStoredSteps() < nObsB4StartTraining ) return; // not enough data to init
 
     debugL("Initialize Learner");
     initializeLearner();
@@ -104,12 +95,8 @@ void DQN::setupTasks(TaskQueue& tasks)
     profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
-    debugL("Gather gradient estimates from each thread and Learner MPI rank");
-    prepareGradient();
     debugL("Search work to do in the Replay Memory");
     processMemoryBuffer();
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     profiler->start("MPI");
 
@@ -185,12 +172,11 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
       for(Uint i=0; i<nA; ++i)
         gradient[i] = beta * gradient[i] + (1-beta) * penGrad[i];
     }
-    MB.setMseDklImpw(bID, t, ERR*ERR, DKL, RHO, CmaxRet, CinvRet);
-    trainInfo->log(Qs[actt], ERR, thrID);
+    MB.setMseDklImpw(bID, t, ERR, DKL, RHO, CmaxRet, CinvRet);
   #else
-    MB.setMseDklImpw(bID, t, ERR*ERR, 0, 1, CmaxRet, CinvRet);
-    trainInfo->log(Qs[actt], ERR, thrID);
+    MB.setMseDklImpw(bID, t, ERR, 0, 1, CmaxRet, CinvRet);
   #endif
+  MB.setValues(bID, t, expectedValue(Qs, Qs, aInfo), Qs[actt]);
 
   networks[0]->setGradient(gradient, bID, t);
 }

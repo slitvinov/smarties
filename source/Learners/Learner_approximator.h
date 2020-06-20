@@ -23,14 +23,16 @@ class Learner_approximator: public Learner
 
   void initializeApproximators();
   bool createEncoder();
+  void spawnTrainTasks();
 
   virtual void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const=0;
-  void spawnTrainTasks();
-  virtual void prepareGradient();
+
+  virtual void prepareCMALoss();
+
   virtual void applyGradient();
 
  public:
-  Learner_approximator(MDPdescriptor&, Settings&, DistributionInfo&);
+  Learner_approximator(MDPdescriptor&, HyperParameters&, ExecutionInfo&);
   virtual ~Learner_approximator() override;
 
   virtual void setupDataCollectionTasks(TaskQueue& tasks) override;

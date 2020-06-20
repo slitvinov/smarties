@@ -32,10 +32,11 @@ class DQN : public Learner_approximator
   void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const override;
 
 public:
-  DQN(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  DQN(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_);
 
   void setupTasks(TaskQueue& tasks) override;
-  void select(Agent& agent) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 };
 
 }

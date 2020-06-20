@@ -10,7 +10,7 @@
 #define smarties_Launcher_h
 
 #include "../Communicator.h"
-#include "../Settings.h"
+#include "../Settings/ExecutionInfo.h"
 
 namespace smarties
 {
@@ -18,7 +18,7 @@ namespace smarties
 class Launcher: public Communicator
 {
 protected:
-  DistributionInfo& distrib;
+  ExecutionInfo & distrib;
 
   std::vector<std::string> argsFiles;
   std::vector<Uint> argFilesStepsLimits;
@@ -36,7 +36,7 @@ public:
   bool forkApplication( const environment_callback_t & callback );
   void runApplication( const environment_callback_t & callback );
 
-  Launcher(Worker* const W, DistributionInfo& D);
+  Launcher(Worker* const W, ExecutionInfo& D);
 };
 
 } // end namespace smarties

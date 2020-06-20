@@ -36,10 +36,11 @@ public:
     return 2*aI->dim();
   }
 
-  void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 
-  ACER(MDPdescriptor&, Settings&, DistributionInfo&);
+  ACER(MDPdescriptor&, HyperParameters&, ExecutionInfo&);
   ~ACER() override { };
 };
 

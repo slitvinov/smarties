@@ -7,10 +7,9 @@
 //
 
 #include "StatsTracker.h"
-#include "../Settings.h"
 #include "Warnings.h"
 #include "SstreamUtilities.h"
-#include "Bund.h"
+#include "../Settings/Bund.h"
 
 #include <cassert>
 
@@ -18,7 +17,7 @@ namespace smarties
 {
 
 template<typename T>
-DelayedReductor<T>::DelayedReductor(const DistributionInfo& D,
+DelayedReductor<T>::DelayedReductor(const ExecutionInfo& D,
                                     const std::vector<T> I) :
 mpicomm(MPICommDup(D.learners_train_comm)), arysize(I.size()),
 mpisize(MPICommSize(D.learners_train_comm)), distrib(D), return_ret(I) {}
@@ -85,7 +84,7 @@ template<> void DelayedReductor<long>::beginRDX()
 template struct DelayedReductor<long>;
 template struct DelayedReductor<long double>;
 
-TrainData::TrainData(const std::string _name, const DistributionInfo& distrib,
+TrainData::TrainData(const std::string _name, const ExecutionInfo& distrib,
   bool bPPol, const std::string extrah, const Uint nextra) :
   n_extra(nextra), nThreads(distrib.nThreads), bPolStats(bPPol), name(_name), extra_header(extrah), cntVec(nThreads, 0), qVec(nThreads, LDvec(5, 0)),
   pVec(nThreads, LDvec(3, 0)), eVec(nThreads, LDvec(n_extra, 0))
@@ -243,7 +242,7 @@ void TrainData::trackPolicy(const std::vector<Real>& polG,
   pVec[thrID][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
 }
 
-StatsTracker::StatsTracker(const Uint N, const DistributionInfo& distrib) :
+StatsTracker::StatsTracker(const Uint N, const ExecutionInfo& distrib) :
   n_stats(N), nThreads(distrib.nThreads),
   learn_rank(MPICommRank(distrib.learners_train_comm)), cntVec(nThreads, 0),
   avgVec(nThreads, LDvec(n_stats, 0)), stdVec(nThreads, LDvec(n_stats, 0))

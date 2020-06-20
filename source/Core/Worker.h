@@ -14,7 +14,7 @@
 #include "Environment.h"
 #include "Launcher.h"
 #include "../Learners/Learner.h"
-#include "../Settings.h"
+#include "../Settings/ExecutionInfo.h"
 #include <thread>
 
 namespace smarties
@@ -23,7 +23,7 @@ namespace smarties
 class Worker
 {
 public:
-  Worker(DistributionInfo& distribinfo);
+  Worker(ExecutionInfo& distribinfo);
   virtual ~Worker() {}
 
   void synchronizeEnvironments();
@@ -37,7 +37,7 @@ public:
   void run(const environment_callback_t & callback);
 
 protected:
-  DistributionInfo& distrib;
+  ExecutionInfo& distrib;
   TaskQueue dataTasks, algoTasks;
 
   const std::unique_ptr<Launcher> COMM;

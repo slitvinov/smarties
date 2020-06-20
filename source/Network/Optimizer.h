@@ -10,7 +10,8 @@
 #define smarties_Optimizer_h
 
 #include "Layers/Parameters.h"
-#include "../Settings.h"
+#include "../Settings/ExecutionInfo.h"
+#include "../Settings/HyperParameters.h"
 
 namespace smarties
 {
@@ -18,8 +19,8 @@ namespace smarties
 class Optimizer
 {
 protected:
-  const DistributionInfo& distrib;
-  const Settings & settings;
+  const ExecutionInfo & distrib;
+  const HyperParameters & settings;
   const MPI_Comm learnersComm = MPICommDup(distrib.learners_train_comm);
   const Uint learn_size = MPICommSize(learnersComm);
   const Uint learn_rank = MPICommRank(learnersComm);
@@ -50,7 +51,7 @@ public:
   const Real tgtUpdateAlpha = settings.targetDelay;
   long unsigned nStep = 0;
 
-  Optimizer(const Settings& S, const DistributionInfo& D,
+  Optimizer(const HyperParameters& S, const ExecutionInfo& D,
             const std::shared_ptr<Parameters>& W);
 
   virtual ~Optimizer();
@@ -100,7 +101,7 @@ protected:
 
 public:
 
-  AdamOptimizer(const Settings& S, const DistributionInfo& D,
+  AdamOptimizer(const HyperParameters& S, const ExecutionInfo& D,
                 const std::shared_ptr<Parameters>& W,
                 const std::vector<std::shared_ptr<Parameters>> & G,
                 const Real B1=.9, const Real B2=.999);

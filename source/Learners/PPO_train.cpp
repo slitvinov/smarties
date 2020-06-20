@@ -25,34 +25,6 @@ void PPO<Policy_t, Action_t>::updatePenalizationCoef()
 }
 
 template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::advanceEpochCounters()
-{
-  const Uint currStep = nGradSteps()+1; //base class will advance this with this func
-  debugL("shift counters of epochs over the stored data");
-  cntBatch += settings.batchSize;
-  if(cntBatch >= nHorizon) {
-    const Real LR = settings.learnrate, E = settings.epsAnneal;
-    const Real annealedLR = Utilities::annealRate(LR, currStep, E);
-    data_proc->updateRewardsStats(0.001, annealedLR);
-    cntBatch = 0;
-    cntEpoch++;
-  }
-
-  if(cntEpoch >= nEpochs) {
-    debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples");
-    #if 0 // keep nearly on policy data
-      cntKept = data->clearOffPol(CmaxPol, 0.05);
-    #else
-      data->clearAll();
-      cntKept = 0;
-    #endif
-    //reset batch learning counters
-    cntEpoch = 0;
-    cntBatch = 0;
-  }
-}
-
-template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::
 Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 {
@@ -75,10 +47,10 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   if(DKL > 1.5 * DKL_target)
     penalUpdateDelta = penalUpdateDelta + penalCoef; //double
 
-  Real gain = RHO * MB.advantage(bID, t);
+  Real gain = RHO * (MB.returnEstimate(bID, t) - MB.value(bID, t));
   #ifdef PPO_CLIPPED
-    if(MB.advantage(bID, t) > 0 && RHO > 1+CmaxPol) gain = 0;
-    if(MB.advantage(bID, t) < 0 && RHO < 1-CmaxPol) gain = 0;
+    if(MB.returnEstimate(bID, t) > 0 && RHO > 1+CmaxPol) gain = 0;
+    if(MB.returnEstimate(bID, t) < 0 && RHO < 1-CmaxPol) gain = 0;
     updateDKL_target(isOff, RHO);
   #endif
 
@@ -97,13 +69,9 @@ Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   POL.makeNetworkGrad(grad, totG);
 
   //bookkeeping:
-  const Real verr = MB.Q_RET(bID, t) - sVal[0]; // Q_ret actually stores V_gae here
-  #ifdef PPO_learnDKLt
-  trainInfo->log(sVal[0],verr,polG,penG, {penalCoef,DKL,RHO,DKL_target}, thrID);
-  #else
-  trainInfo->log(sVal[0],verr,polG,penG, {penalCoef,DKL,RHO}, thrID);
-  #endif
-  MB.setMseDklImpw(bID, t, verr*verr, DKL, RHO, 1+CmaxPol, 1-CmaxPol);
+  const Real verr = MB.returnEstimate(bID, t) - sVal[0];
+  MB.setMseDklImpw(bID, t, verr, DKL, RHO, 1+CmaxPol, 1-CmaxPol);
+  MB.setValues(bID, t, sVal[0], sVal[0]);
 
   actor->setGradient(totG, bID, t);
   critc->setGradient({ verr * ( isOff? 1 : 0 ) }, bID, t);

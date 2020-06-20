@@ -10,7 +10,7 @@
 #define smarties_Agent_h
 
 #include "StateAction.h"
-#include "../Utils/Bund.h"
+#include "../Settings/Bund.h"
 #include <cstring> // memcpy
 
 #include <atomic>
@@ -20,14 +20,14 @@
 namespace smarties
 {
 
-enum episodeStatus {INIT = 0, CONT, TERM, TRNC, FAIL};
+enum episodeStatus {INIT = 0, CONT, LAST, TERM, FAIL};
 enum learnerStatus {WORK = 0, KILL};
 
 inline int status2int(const episodeStatus status) {
   if(status == INIT) return 0;
   if(status == CONT) return 1;
-  if(status == TERM) return 2;
-  if(status == TRNC) return 3;
+  if(status == LAST) return 2;
+  if(status == TERM) return 3;
   if(status == FAIL) return 4;
   die("unreachable"); return 0;
 }
@@ -55,6 +55,7 @@ struct Agent
   std::vector<double> sOld = std::vector<double>(MDP.dimState, 0); // previous state
   std::vector<double> state = std::vector<double>(MDP.dimState, 0);  // current state
   std::vector<double> action = std::vector<double>(MDP.dimAction, 0);
+  Rvec policyVector;
   double reward; // current reward
   double cumulativeRewards = 0;
 
@@ -76,7 +77,7 @@ struct Agent
   template<typename T>
   void update(const episodeStatus E, const std::vector<T>& S, const double R)
   {
-    assert( S.size() == sInfo.dim() );
+    assert( S.size() == MDP.dimS() );
     agentStatus = E;
 
     if(E == FAIL) { // app crash, probably
@@ -97,15 +98,29 @@ struct Agent
     }
   }
 
-  void setAction(const Uint label) {
+  /**
+   * @brief Updates action and policy vector stored in agent.
+   * @param label     Integer corresponding to selected action.
+   * @param policyVec Categorical probabilities for each discrete action option.
+   */
+  void setAction(const Uint label, const Rvec& policyVec) {
     action = aInfo.label2actionMessage<double>(label);
+    assert(policyVec.size() == MDP.dimAction);
+    policyVector = policyVec;
   }
   Uint getDiscreteAction() const {
     return aInfo.actionMessage2label(action);
   }
 
-  void setAction(const Rvec& _act) {
-    action = std::vector<double>(_act.begin(), _act.end());
+  /**
+   * @brief Updates action and policy vector stored in agent.
+   * @param label     Vector corresponding to selected action.
+   * @param policyVec Statistics of the policy which sampled the action (e.g. mean vector and stdevs vector).
+   */
+  void setAction(const Rvec& act, const Rvec& policyVec) {
+    action = std::vector<double>(act.begin(), act.end());
+    assert(policyVec.size() == MDP.policyVecDim);
+    policyVector = policyVec;
   }
   template<typename T = double>
   std::vector<T> getAction() const {
@@ -258,12 +273,15 @@ struct Agent
   }
 
   void writeData(const char* const logpath, const int rank,
-                 const Rvec& mu, const Uint globalTstep) const
+                 const Rvec& polVec, const Uint globalTstep) const
   {
     // possible race conditions, avoided by the fact that each worker
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads
-    const Uint writesize = 4 + sInfo.dim() + aInfo.dim() + mu.size();
+    assert(state.size() == MDP.dimS());
+    assert(action.size() == MDP.dimAct());
+    assert(polVec.size() == MDP.dimPol());
+    const Uint writesize = 4 + MDP.dimS() + MDP.dimAct() + polVec.size();
     if(OUTBUFFSIZE<writesize) die("Increase compile-time OUTBUFFSIZE variable");
     assert( buffCnter % writesize == 0 );
     if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(logpath, rank);
@@ -271,12 +289,10 @@ struct Agent
     buf[ind++] = globalTstep + 0.1;
     buf[ind++] = status2int(agentStatus) + 0.1;
     buf[ind++] = timeStepInEpisode + 0.1;
-    assert( state.size() == sInfo.dim());
     for (Uint i=0; i<state.size(); ++i) buf[ind++] = (float) state[i];
-    assert(action.size() == aInfo.dim());
     for (Uint i=0; i<action.size(); ++i) buf[ind++] = (float) action[i];
     buf[ind++] = reward;
-    for (Uint i=0; i<mu.size(); ++i) buf[ind++] = (float) mu[i];
+    for (Uint i=0; i<polVec.size(); ++i) buf[ind++] = (float) polVec[i];
 
     buffCnter += writesize;
     assert(buffCnter == ind);
@@ -296,8 +312,8 @@ struct Agent
 
   void initializeActionSampling(std::mt19937 & gen)
   {
-    MDP.sharedNoiseVecTic = std::vector<Real>(aInfo.dim());
-    MDP.sharedNoiseVecToc = std::vector<Real>(aInfo.dim());
+    MDP.sharedNoiseVecTic = std::vector<Real>(MDP.dimAct());
+    MDP.sharedNoiseVecToc = std::vector<Real>(MDP.dimAct());
     generator.seed( gen() );
     distribution = std::normal_distribution<Real>(0.0, 1.0);
     safety = std::uniform_real_distribution<Real>(-NORMDIST_MAX, NORMDIST_MAX);
@@ -316,9 +332,9 @@ struct Agent
     // only one agent (0) needs to set a noise vector, and
     // if noise is non shared then this does not matter:
     if(localID > 0 or not MDP.bAgentsShareNoise) return;
-    for(Uint i=0; i<aInfo.dim(); ++i)
+    for(Uint i=0; i<MDP.dimAct(); ++i)
       MDP.sharedNoiseVecTic[i] = sampleClippedGaussian();
-    for(Uint i=0; i<aInfo.dim(); ++i)
+    for(Uint i=0; i<MDP.dimAct(); ++i)
       MDP.sharedNoiseVecToc[i] = sampleClippedGaussian();
   }
 
@@ -331,14 +347,14 @@ struct Agent
       if(localID == 0) // agent 0 prepares next noise vector for the team:
       {
         auto& nxtNoise = bTic? MDP.sharedNoiseVecToc : MDP.sharedNoiseVecTic;
-        for(Uint i=0; i<aInfo.dim(); ++i) nxtNoise[i] = sampleClippedGaussian();
+        for(Uint i=0; i<MDP.dimAct(); ++i) nxtNoise[i] = sampleClippedGaussian();
       }
       return bTic? MDP.sharedNoiseVecTic : MDP.sharedNoiseVecToc;
     }
     else
     {
-      Rvec sample(aInfo.dim());
-      for(Uint i=0; i<aInfo.dim(); ++i) sample[i] = sampleClippedGaussian();
+      Rvec sample(MDP.dimAct());
+      for(Uint i=0; i<MDP.dimAct(); ++i) sample[i] = sampleClippedGaussian();
       return sample;
     }
   }

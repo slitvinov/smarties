@@ -92,7 +92,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   if(networks.size() > 1) die("");
   networks[0]->initializeNetwork();
   //networks[0]->opt->bAnnealLearnRate= true;
-  trainInfo = new TrainData("racer", distrib, 1, "| dAdv ", 1);
   computeQretrace = true;
 }
 
@@ -130,7 +129,7 @@ getnDimPolicy(const ActionInfo& aI) {
 
 template<>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
-RACER(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D):
+RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {
@@ -184,7 +183,7 @@ getnDimPolicy(const ActionInfo& aI) {
 
 template<>
 RACER<Param_advantage, Continuous_policy, Rvec>::
-RACER(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D):
+RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {
@@ -235,7 +234,7 @@ getnDimPolicy(const ActionInfo& aI) {
 
 template<>
 RACER<Zero_advantage, Continuous_policy, Rvec>::
-RACER(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D):
+RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {

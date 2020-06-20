@@ -9,7 +9,7 @@
 #ifndef smarties_ThreadSafeVec_h
 #define smarties_ThreadSafeVec_h
 
-#include "Definitions.h"
+#include "../Settings/Definitions.h"
 #include <cassert>
 #include <memory>
 #include <omp.h>

@@ -41,17 +41,16 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     if( MB.isTruncated(bID, t+1) ) {
       actor->forward(bID, t+1);
       critc->setAddedInputType(NETWORK, bID, t+1); // retrace : skip tgt weights
-      const Rvec v_next = critc->forward(bID, t+1); // value with state+policy
-      MB.updateRetrace(bID, t+1, 0, v_next[0], 0);
+      MB.setValues(bID, t+1, critc->forward(bID, t+1)[0]);
     }
-    const Real target = MB.Q_RET(bID, t), advantage = qval[0] - pval[0];
-    const Real dQRET = MB.updateRetrace(bID, t, advantage, pval[0], RHO);
+    const Real target = MB.returnEstimate(bID, t);
   #else
     Real target = MB.reward(bID, t);
     if (not MB.isTerminal(bID, t+1) && not isOff) {
       actor->forward_tgt(bID, t+1); // policy at next step, with tgt weights
       critc->setAddedInputType(NETWORK, bID, t+1, -1);
       const Rvec v_next = critc->forward_tgt(bID, t+1); //target value s_next
+      MB.setValues(bID, t+1, v_next[0]);
       target += gamma * v_next[0];
     }
   #endif
@@ -80,74 +79,45 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   critc->setGradient(valueG, bID, t);
 
   //bookkeeping:
-  MB.setMseDklImpw(bID, t, std::pow(target-qval[0],2), DKL,RHO,CmaxRet,CinvRet);
+  MB.setMseDklImpw(bID, t, target-qval[0], DKL, RHO, CmaxRet, CinvRet);
+  MB.setValues(bID, t, pval[0], qval[0]);
+}
+
+void DPG::selectAction(const MiniBatch& MB, Agent& agent)
+{
+  for (const auto & net : networks ) net->load(MB, agent, 0);
+  //Compute policy and value on most recent element of the sequence.
+  const Continuous_policy POL({0, aInfo.dim()}, aInfo, actor->forward(agent));
+
+  // if explNoise is 0, we just act according to policy
+  // since explNoise is initial value of diagonal std vectors
+  // this should only be used for evaluating a learned policy
+  Rvec action = OrUhDecay<=0? POL.selectAction(agent, distrib.bTrain) :
+      POL.selectAction_OrnsteinUhlenbeck(agent, distrib.bTrain, OrUhState[agent.ID]);
+  agent.setAction(action, POL.getVector());
+
   #ifdef DPG_RETRACE_TGT
-    trainInfo->log(qval[0],valueG[0], polGrad,penGrad, {beta,dQRET,RHO}, thrID);
-  #else
-    trainInfo->log(qval[0],valueG[0], polGrad,penGrad, {beta, RHO}, thrID);
+    //careful! act may be scaled to agent's action space, mean/sampAct aren't
+    critc->setAddedInputType(ACTION, agent, MB.indCurrStep());
+    const Rvec qval = critc->forward(agent);
+    critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
+    const Rvec sval = critc->forward(agent, true); // overwrite = true
+    MB.appendValues(sval[0], qval[0]);
   #endif
 }
 
-void DPG::select(Agent& agent)
+void DPG::processTerminal(const MiniBatch& MB, Agent& agent)
 {
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
-  for (const auto & net : networks ) net->load(MB, agent, 0);
   #ifdef DPG_RETRACE_TGT
-    const Uint currStep = EP.nsteps() - 1; assert(EP.nsteps()>0);
+    for (const auto & net : networks ) net->load(MB, agent, 0);
+    // whether episode is truncated or terminated, action advantage is 0
+    if( agent.agentStatus == LAST ) {
+      const Rvec pvec = actor->forward(agent); // grab pol mean
+      critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
+      MB.appendValues(critc->forward(agent)[0]); // not a terminal state
+    } else MB.appendValues(0); // value of terminal state is 0
   #endif
-
-  if( agent.agentStatus < TERM ) // not end of sequence
-  {
-    //Compute policy and value on most recent element of the sequence.
-    const Continuous_policy POL({0, aInfo.dim()}, aInfo, actor->forward(agent));
-
-    // if explNoise is 0, we just act according to policy
-    // since explNoise is initial value of diagonal std vectors
-    // this should only be used for evaluating a learned policy
-    Rvec action = OrUhDecay<=0? POL.selectAction(agent, settings.explNoise>0) :
-        POL.selectAction_OrnsteinUhlenbeck(agent, settings.explNoise>0, OrUhState[agent.ID]);
-    agent.setAction(action);
-    data_get->add_action(agent, POL.getVector());
-
-    #ifdef DPG_RETRACE_TGT
-      //careful! act may be scaled to agent's action space, mean/sampAct aren't
-      critc->setAddedInputType(ACTION, agent, currStep);
-      const Rvec qval = critc->forward(agent);
-      critc->setAddedInputType(NETWORK, agent, currStep);
-      const Rvec sval = critc->forward(agent, true); // overwrite = true
-      EP.action_adv.push_back(qval[0]-sval[0]);
-      EP.state_vals.push_back(sval[0]);
-    #endif
-  }
-  else // either terminal or truncation state
-  {
-    #ifdef DPG_RETRACE_TGT
-      if( agent.agentStatus == TRNC ) {
-        const Rvec pvec = actor->forward(agent); // grab pol mean
-        critc->setAddedInputType(NETWORK, agent, currStep);
-        const Rvec sval = critc->forward(agent);
-        EP.state_vals.push_back(sval[0]); // not a terminal state
-      } else {
-        EP.state_vals.push_back(0); //value of terminal state is 0
-      }
-      //whether seq is truncated or terminated, act adv is undefined:
-      EP.action_adv.push_back(0);
-      const Uint N = EP.nsteps();
-      // compute initial Qret for whole trajectory:
-      assert(N == EP.action_adv.size() && N == EP.state_vals.size());
-      assert(0 == EP.Q_RET.size());
-      //within Retrace, we use the Q_RET vector to write the Adv retrace values
-      EP.Q_RET.resize(N, 0);
-      EP.offPolicImpW.resize(N, 1);
-      for(Uint i=EP.ndata(); i>0; --i)
-        EP.propagateRetrace(i, gamma, data->scaledReward(EP, i));
-    #endif
-
-    OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
-    data_get->terminate_seq(agent);
-  }
+  OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
 }
 
 void DPG::setupTasks(TaskQueue& tasks)
@@ -161,7 +131,7 @@ void DPG::setupTasks(TaskQueue& tasks)
   {
     // conditions to start the initialization task:
     if ( algoSubStepID >= 0 ) return; // we done with init
-    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+    if ( data->nStoredSteps() < nObsB4StartTraining ) return; // not enough data to init
 
     debugL("Initialize Learner");
     initializeLearner();
@@ -179,16 +149,8 @@ void DPG::setupTasks(TaskQueue& tasks)
     profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
-    debugL("Gather gradient estimates from each thread and Learner MPI rank");
-    prepareGradient();
     debugL("Search work to do in the Replay Memory");
     processMemoryBuffer(); // find old eps, update avg quantities ...
-    #ifdef DPG_RETRACE_TGT
-    debugL("Update Retrace est. for episodes sampled in prev. grad update");
-    updateRetraceEstimates();
-    #endif
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     profiler->start("MPI");
 
@@ -212,7 +174,7 @@ void DPG::setupTasks(TaskQueue& tasks)
   tasks.add(stepComplete);
 }
 
-DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+DPG::DPG(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   Learner_approximator(MDP_, S_, D_)
 {
   const bool bCreatedEncorder = createEncoder();
@@ -245,9 +207,6 @@ DPG::DPG(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
 
   #ifdef DPG_RETRACE_TGT
     computeQretrace = true;
-    trainInfo = new TrainData("DPG", distrib, 1, "| beta | dAdv | avgW ", 3);
-  #else
-    trainInfo = new TrainData("DPG", distrib, 1, "| beta | avgW ", 2);
   #endif
 }
 

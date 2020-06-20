@@ -26,11 +26,9 @@ template<> void CMALearner<Uint>::
 computeAction(Agent& agent, const Rvec netOutput) const
 {
   Discrete_policy POL({0}, aInfo, netOutput);
-  Rvec MU = POL.getVector();
   Uint act = POL.selectAction(agent, settings.explNoise>0);
 
-  agent.setAction(act);
-  data_get->add_action(agent, MU);
+  agent.setAction(act, POL.getVector());
 }
 
 template<> void CMALearner<Rvec>::
@@ -46,59 +44,56 @@ computeAction(Agent& agent, const Rvec netOutput) const
     act = POL.selectAction(agent, settings.explNoise>0);
   }
   //printf("%s\n", print(pol).c_str());
-  agent.setAction(act);
-  data_get->add_action(agent, pol);
+  agent.setAction(act, pol);
 }
 
-template<typename Action_t> void CMALearner<Action_t>::select(Agent& agent)
+template<typename Action_t> Uint CMALearner<Action_t>::
+weightID(const Agent& agent) const
 {
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
-  const Uint envID = agent.workerID;
-
-  if(agent.agentStatus == INIT and curNumEndedPerEnv[envID]>0)
-   die("Cannot start new EP for agent unless all other agents have terminated");
-
   // to complete a step you need to do one episode per
   // 1) fraction of the total batchSize
   // 2) sample of the es population
   // 3) agent contained in each environment and owned by the learner
   // then each owned worker does that number divided by
-  const auto weightID = [&]() {
-    const Uint workID = envID + indexEndedPerEnv[envID] * nOwnEnvs;
-    return workID / batchSize_local;
-  };
+  const Uint envID = agent.workerID;
+  const Uint workID = envID + indexEndedPerEnv[envID] * nOwnEnvs;
+  return workID / batchSize_local;
+}
+
+template<typename Action_t> void CMALearner<Action_t>::
+selectAction(const MiniBatch& MB, Agent& agent)
+{
+  if(agent.agentStatus == INIT and curNumEndedPerEnv[agent.workerID]>0)
+   die("Cannot start new EP for agent unless all other agents have terminated");
 
   //const auto W = F[0]->net->sampled_weights[weightID];
   //std::vector<nnReal> WW(W->params, W->params + W->nParams);
   //printf("Using weight %u on worker %u %s\n",weightID,wrkr,print(WW).c_str());
 
-  if( agent.agentStatus <  TERM ) //non terminal state
-  {
-    //Compute policy and value on most recent element of the sequence:
-    networks[0]->load(MB, agent, weightID());
-    computeAction( agent, networks[0]->forward(agent) );
-  }
-  else
-  {
-    R[envID][ weightID() ] += agent.cumulativeRewards;
-    const auto myStep = nGradSteps();
-    data_get->terminate_seq(agent);
+  //Compute policy and value on most recent element of the sequence:
+  networks[0]->load(MB, agent, weightID(agent));
+  computeAction( agent, networks[0]->forward(agent) );
+}
 
-    //_warn("%u %u %f",wrkr, weightID, R[wrkr][weightID]);
-    curNumEndedPerEnv[envID]++; // one more agent of envID has finished
-    if(curNumEndedPerEnv[envID] == nOwnAgentsPerEnv) {
-      curNumEndedPerEnv[envID] = 0; // reset counter
-      //printf("Simulation %ld ended for worker %u\n", WnEnded[envID], wrkr);
-      indexEndedPerEnv[envID]++; // start new workload on that env
-    }
-    // now we may have increased worload counter, let's see if we are done
-    if( weightID() >= ESpopSize ) {
-      while( myStep == nGradSteps() ) usleep(1);
-      //_warn("worker %u done wait", wrkr);
-      indexEndedPerEnv[envID] = 0; // reset workload counter for next iter
-    }
+template<typename Action_t> void CMALearner<Action_t>::
+processTerminal(const MiniBatch& MB, Agent& agent)
+{
+  R[agent.workerID][ weightID(agent) ] += agent.cumulativeRewards;
+  const auto myStep = nGradSteps();
+  data_get->terminate_seq(agent);
+
+  //_warn("%u %u %f",wrkr, weightID, R[wrkr][weightID]);
+  curNumEndedPerEnv[agent.workerID]++; // one more agent of workerID has finished
+  if(curNumEndedPerEnv[agent.workerID] == nOwnAgentsPerEnv) {
+    curNumEndedPerEnv[agent.workerID] = 0; // reset counter
+    //printf("Simulation %ld ended for worker %u\n", WnEnded[workerID], wrkr);
+    indexEndedPerEnv[agent.workerID]++; // start new workload on that env
+  }
+  // now we may have increased worload counter, let's see if we are done
+  if( weightID(agent) >= ESpopSize ) {
+    while( myStep == nGradSteps() ) usleep(1);
+    //_warn("worker %u done wait", wrkr);
+    indexEndedPerEnv[agent.workerID] = 0; // reset workload counter for next iter
   }
 }
 
@@ -116,7 +111,7 @@ template<typename Action_t> void CMALearner<Action_t>::prepareCMALoss()
 
   debugL("shift counters of epochs over the stored data");
   profiler->stop_start("PRE");
-  data_proc->updateRewardsStats(0.001, 0.001);
+  MemoryProcessing::updateRewardsStats(* data.get());
   profiler->stop();
 }
 
@@ -164,13 +159,13 @@ void CMALearner<Action_t>::setupTasks(TaskQueue& tasks)
 template<typename Action_t>
 bool CMALearner<Action_t>::blockDataAcquisition() const
 {
-  return data->readNSeq() >= nSeqPerStep;
+  return data->nStoredEps() >= nSeqPerStep;
 }
 
 template<typename Action_t>
 bool CMALearner<Action_t>::blockGradientUpdates() const
 {
-  return data->readNSeq() < nSeqPerStep;
+  return data->nStoredEps() < nSeqPerStep;
 }
 
 template<>
@@ -206,7 +201,7 @@ Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI)
 }
 
 template<> CMALearner<Rvec>::
-CMALearner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_) :
+CMALearner(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_) :
 Learner_approximator(MDP_, S_, D_)
 {
   createEncoder();
@@ -227,7 +222,7 @@ Learner_approximator(MDP_, S_, D_)
 }
 
 template<> CMALearner<Uint>::
-CMALearner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_) :
+CMALearner(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_) :
 Learner_approximator(MDP_, S_, D_)
 {
   createEncoder();

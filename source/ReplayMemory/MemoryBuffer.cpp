@@ -17,11 +17,24 @@
 namespace smarties
 {
 
-MemoryBuffer::MemoryBuffer(MDPdescriptor& M, Settings& S, DistributionInfo& D) :
+MemoryBuffer::MemoryBuffer(MDPdescriptor& M, HyperParameters& S, ExecutionInfo& D) :
   MDP(M), settings(S), distrib(D),
+  StateRewRdx(distrib, LDvec(MDP.dimStateObserved * 2 + 3, 0) ),
+  globalCounterRdx(distrib, std::vector<long>{0, 0, 0, 0}),
   sampler( Sampling::prepareSampler(this, S, D) )
 {
   episodes.reserve(settings.maxTotObsNum);
+  inProgress.reserve(distrib.nAgents);
+  for (Uint i=0; i<distrib.nAgents; ++i) inProgress.push_back(MDP);
+
+  LDvec initGuessStateRewStats(MDP.dimStateObserved * 2 + 3, 0);
+  for(Uint i=0; i<MDP.dimStateObserved; ++i)
+    initGuessStateRewStats[i + MDP.dimStateObserved] = 0;
+  initGuessStateRewStats[MDP.dimStateObserved*2] = 1;
+  initGuessStateRewStats[MDP.dimStateObserved*2 + 2] = 1;
+  StateRewRdx.update(initGuessStateRewStats);
+
+  globalCounterRdx.update({(long)0,(long)0,(long)0,(long)settings.maxTotObsNum});
 }
 
 void MemoryBuffer::restart(const std::string base)
@@ -42,17 +55,19 @@ void MemoryBuffer::restart(const std::string base)
       fflush(0);
     }
 
-    const Uint dimS = MDP.dimStateObserved; assert(mean_state.size() == dimS);
+    const Uint dimS = MDP.dimStateObserved; assert(MDP.stateMean.size()==dimS);
     std::vector<double> V(dimS);
     size_t size1 = fread(V.data(), sizeof(double), dimS, wFile);
-    mean_state   = std::vector<nnReal>(V.begin(), V.end());
+    MDP.stateMean = std::vector<nnReal>(V.begin(), V.end());
     size_t size2 = fread(V.data(), sizeof(double), dimS, wFile);
-    invstd_state = std::vector<nnReal>(V.begin(), V.end());
+    MDP.stateScale = std::vector<nnReal>(V.begin(), V.end());
     size_t size3 = fread(V.data(), sizeof(double), dimS, wFile);
-    std_state    = std::vector<nnReal>(V.begin(), V.end());
+    MDP.stateStdDev = std::vector<nnReal>(V.begin(), V.end());
     V.resize(3);
     size_t size4 = fread(V.data(), sizeof(double),    3, wFile);
-    std_reward = V[0]; invstd_reward = V[1]; mean_reward = V[2];
+    MDP.rewardsStdDev = V[0];
+    MDP.rewardsScale = V[1];
+    MDP.rewardsMean = V[2];
     fclose(wFile);
     if (size1 != dimS || size2 != dimS || size3 != dimS || size4 != 3)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
@@ -87,28 +102,33 @@ void MemoryBuffer::restart(const std::string base)
   }
 
   {
-    Uint nStoredEps = 0, nStoredObs = 0, nLocalSeenEps = 0, nLocalSeenObs = 0;
-    long nInitialData = nGatheredB4Startup, doneGradSteps = 0;
+    Uint nStoredEpisodes = 0, nStoredObservations = 0;
+    Uint nLocalSeenEps = 0, nLocalSeenObs = 0;
+    long nInitialData = 0, doneGradSteps = 0;
     Uint pass = 1;
-    pass = pass && 1 == fscanf(fstat, "nStoredEps: %lu\n",    & nStoredEps);
-    pass = pass && 1 == fscanf(fstat, "nStoredObs: %lu\n",    & nStoredObs);
-    pass = pass && 1 == fscanf(fstat, "nLocalSeenEps: %lu\n", & nLocalSeenEps);
-    pass = pass && 1 == fscanf(fstat, "nLocalSeenObs: %lu\n", & nLocalSeenObs);
-    pass = pass && 1 == fscanf(fstat, "nInitialData: %ld\n",  & nInitialData);
-    pass = pass && 1 == fscanf(fstat, "nGradSteps: %ld\n",    & doneGradSteps);
-    pass = pass && 1 == fscanf(fstat, "CmaxReFER: %le\n",     & CmaxRet);
-    pass = pass && 1 == fscanf(fstat, "beta: %le\n",          & beta);
+    pass = pass && 1==fscanf(fstat, "nStoredEps: %lu\n", &nStoredEpisodes);
+    pass = pass && 1==fscanf(fstat, "nStoredObs: %lu\n", &nStoredObservations);
+    pass = pass && 1==fscanf(fstat, "nLocalSeenEps: %lu\n", &nLocalSeenEps);
+    pass = pass && 1==fscanf(fstat, "nLocalSeenObs: %lu\n", &nLocalSeenObs);
+    pass = pass && 1==fscanf(fstat, "nInitialData: %ld\n", &nInitialData);
+    pass = pass && 1==fscanf(fstat, "nGradSteps: %ld\n", &doneGradSteps);
+    pass = pass && 1==fscanf(fstat, "CmaxReFER: %le\n", &CmaxRet);
+    pass = pass && 1==fscanf(fstat, "beta: %le\n", &beta);
     assert(doneGradSteps >= 0 && pass == 1);
     fclose(fstat);
-    nSeenTransitions_loc = nLocalSeenObs; nTransitions = nStoredObs;
-    nSeenEpisodes_loc   = nLocalSeenEps; nEpisodes   = nStoredEps;
-    nGatheredB4Startup   = nInitialData;  nGradSteps   = doneGradSteps;
+    counters.nSeenTransitions_loc = nLocalSeenObs;
+    counters.nSeenEpisodes_loc = nLocalSeenEps;
+    counters.nTransitions = nStoredObservations;
+    counters.nEpisodes = nStoredEpisodes;
+    counters.nGradSteps = doneGradSteps;
+    counters.nGatheredB4Startup = nInitialData;
   }
 
   {
-    episodes.resize(nEpisodes);
-    for(Uint i = 0; i < episodes.size(); ++i) {
-      if( episodes[i].restart(fdata, MDP) )
+    episodes.reserve(counters.nEpisodes);
+    for(long i = 0; i < counters.nEpisodes; ++i) {
+      episodes.push_back(MDP);
+      if( episodes[i].restart(fdata) )
         _die("Unable to find sequence %u\n", i);
       episodes[i].updateCumulative(CmaxRet, CinvRet);
     }
@@ -122,14 +142,14 @@ void MemoryBuffer::save(const std::string base)
 {
   {
     const auto write2file = [&] (FILE * wFile) {
-      std::vector<double> V(mean_state.begin(), mean_state.end());
+      std::vector<double> V(MDP.stateMean.begin(), MDP.stateMean.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
-      V = std::vector<double>(invstd_state.begin(), invstd_state.end());
+      V = std::vector<double>(MDP.stateScale.begin(), MDP.stateScale.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
-      V = std::vector<double>(std_state.begin(), std_state.end());
+      V = std::vector<double>(MDP.stateStdDev.begin(), MDP.stateStdDev.end());
       fwrite(V.data(), sizeof(double), V.size(), wFile);
       V.resize(3);
-      V[0] = std_reward; V[1] = invstd_reward; V[2] = mean_reward;
+      V[0] = MDP.rewardsStdDev; V[1] = MDP.rewardsScale; V[2] = MDP.rewardsMean;
       fwrite(V.data(), sizeof(double), 3, wFile);
     };
 
@@ -144,12 +164,16 @@ void MemoryBuffer::save(const std::string base)
   FILE * const fstat = fopen((fName + "status_backup.raw").c_str(), "w");
   FILE * const fdata = fopen((fName + "data_backup.raw").c_str(), "wb");
 
-  const long doneGradSteps = nGradSteps;
-  const Uint nStoredObs = nTransitions, nLocalSeenObs = nSeenTransitions_loc;
-  const Uint nStoredEps = nEpisodes, nLocalSeenEps = nSeenEpisodes_loc;
+  const Uint nStoredObservations = counters.nTransitions;
+  const Uint nStoredEpisodes = counters.nEpisodes;
+  const long doneGradSteps = counters.nGradSteps;
+  const Uint nLocalSeenEps = counters.nSeenEpisodes_loc;
+  const Uint nLocalSeenObs = counters.nSeenTransitions_loc;
+  const long nGatheredB4Startup = counters.nGatheredB4Startup;
+
   assert(fstat != NULL);
-  fprintf(fstat, "nStoredEps: %lu\n",    nStoredEps);
-  fprintf(fstat, "nStoredObs: %lu\n",    nStoredObs);
+  fprintf(fstat, "nStoredEps: %lu\n",    nStoredEpisodes);
+  fprintf(fstat, "nStoredObs: %lu\n",    nStoredObservations);
   fprintf(fstat, "nLocalSeenEps: %lu\n", nLocalSeenEps);
   fprintf(fstat, "nLocalSeenObs: %lu\n", nLocalSeenObs);
   fprintf(fstat, "nInitialData: %ld\n",  nGatheredB4Startup);
@@ -159,7 +183,7 @@ void MemoryBuffer::save(const std::string base)
   fflush(fstat); fclose(fstat);
 
   assert(fdata != NULL);
-  for(Uint i = 0; i <nStoredEps; ++i) episodes[i].save(fdata, MDP);
+  for(Uint i = 0; i <nStoredEpisodes; ++i) episodes[i].save(fdata);
   fflush(fdata); fclose(fdata);
 
   Utilities::copyFile(fName + "status_backup.raw", fName + "status.raw");
@@ -171,8 +195,8 @@ void MemoryBuffer::clearAll()
   std::lock_guard<std::mutex> lock(dataset_mutex);
   //delete already-used trajectories
   episodes.clear(); //clear trajectories used for learning
-  nTransitions = 0;
-  nEpisodes = 0;
+  counters.nTransitions = 0;
+  counters.nEpisodes = 0;
   needs_pass = true;
 }
 
@@ -189,15 +213,15 @@ Uint MemoryBuffer::clearOffPol(const Real C, const Real tol)
       _nOffPol += EP.offPolicImpW[j] > 1+C || EP.offPolicImpW[j] < 1-C;
     if(_nOffPol > tol*N) {
       std::swap(episodes[i], episodes.back());
-      nEpisodes   --;
-      nTransitions -= N;
+      counters.nEpisodes --;
+      counters.nTransitions -= N;
       episodes.pop_back();
-      assert(nEpisodes == (long) episodes.size());
+      assert(nStoredEps() == (long) episodes.size());
     }
     else ++i;
   }
   needs_pass = true;
-  return readNData();
+  return nStoredSteps();
 }
 
 MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
@@ -214,7 +238,7 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     lastSampledEps.erase( std::unique(lastSampledEps.begin(), lastSampledEps.end()), lastSampledEps.end() );
   }
 
-  MiniBatch ret(batchSize, settings.gamma);
+  MiniBatch ret(batchSize);
 
   #pragma omp parallel for schedule(static)
   for(Uint b=0; b<batchSize; ++b)
@@ -258,8 +282,8 @@ MiniBatch MemoryBuffer::sampleMinibatch(const Uint batchSize,
     const Episode& EP = * sampleE[b];
     for(Sint t=ret.begTimeStep[b]; t<ret.endTimeStep[b]; ++t)
     {
-      ret.state(b, t)  = standardizedState<nnReal>(EP, t);
-      ret.reward(b, t) = scaledReward(EP, t);
+      ret.state(b, t)  = EP.standardizedState<nnReal>(t);
+      ret.reward(b, t) = EP.scaledReward(t);
       if( bReqImpSamp ) {
         const nnReal impW_undef = EP.priorityImpW[t];
         // if imp weight is 0 or less assume it was not computed and therefore
@@ -279,16 +303,16 @@ bool MemoryBuffer::bRequireImportanceSampling() const
   return sampler->requireImportanceWeights();
 }
 
-MiniBatch MemoryBuffer::agentToMinibatch(Episode & inProgress) const
+MiniBatch MemoryBuffer::agentToMinibatch(const Uint ID)
 {
-  MiniBatch ret(1, settings.gamma);
-  ret.episodes[0] = & inProgress;
+  MiniBatch ret(1);
+  ret.episodes[0] = & inProgress[ID];
   if (settings.bSampleEpisodes) {
     // we may have to update estimators from S_{0} to S_{T_1}
     ret.begTimeStep[0] = 0;        // prepare to compute for steps from init
-    ret.endTimeStep[0] = inProgress.nsteps(); // to current step
+    ret.endTimeStep[0] = inProgress[ID].nsteps(); // to current step
   } else {
-    const Uint currStep = inProgress.nsteps() - 1;
+    const Uint currStep = inProgress[ID].nsteps() - 1;
     // if t=0 always zero recurrent steps, t=1 one, and so on, up to nMaxBPTT
     const bool bRecurr = settings.bRecurrent || MDP.isPartiallyObservable;
     const Uint nRecurr = bRecurr? std::min(settings.nnBPTTseq, currStep) : 0;
@@ -296,29 +320,29 @@ MiniBatch MemoryBuffer::agentToMinibatch(Episode & inProgress) const
     ret.begTimeStep[0] = currStep - nRecurr;
     ret.endTimeStep[0] = currStep + 1;
   }
-  ret.sampledTimeStep[0] = inProgress.nsteps() - 1;
+  ret.sampledTimeStep[0] = inProgress[ID].nsteps() - 1;
   // number of states to process ( also, see why we used sampleT[b]+2 )
   const Uint nSteps = ret.endTimeStep[0] - ret.begTimeStep[0];
   ret.resizeStep(0, nSteps);
   for(Sint t=ret.begTimeStep[0]; t<ret.endTimeStep[0]; ++t)
   {
-    ret.state(0, t) = standardizedState<nnReal>(inProgress, t);
-    ret.reward(0, t) = scaledReward(inProgress, t);
+    ret.state(0, t) = inProgress[ID].standardizedState<nnReal>(t);
+    ret.reward(0, t) = inProgress[ID].scaledReward(t);
   }
   return ret;
 }
 
 void MemoryBuffer::removeEpisode(const Uint ind)
 {
-  assert(readNSeq()>0);
+  assert(counters.nEpisodes > 0);
   std::lock_guard<std::mutex> lock(dataset_mutex);
-  assert(nTransitions >= (long) episodes[ind].ndata());
-  nEpisodes--;
+  assert(counters.nTransitions >= (long) episodes[ind].ndata());
+  counters.nEpisodes --;
   needs_pass = true;
-  nTransitions -= episodes[ind].ndata();
+  counters.nTransitions -= episodes[ind].ndata();
   std::swap(episodes[ind], episodes.back());
   episodes.pop_back();
-  assert(nEpisodes == (long) episodes.size());
+  assert(counters.nEpisodes == (long) episodes.size());
 }
 
 void MemoryBuffer::pushBackEpisode(Episode & seq)
@@ -326,11 +350,11 @@ void MemoryBuffer::pushBackEpisode(Episode & seq)
   const bool logSample =  distrib.logAllSamples==1 ||
                          (distrib.logAllSamples==2 && seq.agentID==0);
   char pathRew[2048], pathObs[2048], rewArg[1024];
-
+  const long nGrads = nGradSteps();
+  const long tStamp = std::max(nLocTimeStepsTrain(), (long)0);
   if(logSample) {
     const int wrank = MPICommRank(distrib.world_comm);
-    snprintf(rewArg, 1024, "%ld %ld %ld %lu %f", nGradSteps.load(),
-              std::max(nLocTimeStepsTrain(), (long)0),
+    snprintf(rewArg, 1024, "%ld %ld %ld %lu %f", nGrads, tStamp,
               seq.agentID, seq.nsteps(), seq.totR);
     snprintf(pathRew, 2048, "%s/agent_%02lu_rank%02d_cumulative_rewards.dat",
               distrib.initial_runDir, learnID, wrank);
@@ -338,38 +362,82 @@ void MemoryBuffer::pushBackEpisode(Episode & seq)
               distrib.initial_runDir, learnID, wrank);
   }
 
-  const auto log = not logSample ? std::vector<float>(0) :
-                   seq.logToFile(sI, aI, nSeenTransitions_loc.load());
+  const auto log = logSample? seq.logToFile(tStamp) : std::vector<float>(0);
 
   std::lock_guard<std::mutex> lock(dataset_mutex);
-  assert( readNSeq() == (long) episodes.size() );
+  assert(counters.nEpisodes == (long) episodes.size());
 
   if(logSample) {
     FILE * pFile = fopen (pathRew, "a");
-    fprintf (pFile, "%s\n", rewArg);
-    fflush (pFile); fclose (pFile);
+    fprintf (pFile, "%s\n", rewArg); fflush (pFile); fclose (pFile);
     pFile = fopen (pathObs, "ab");
     fwrite (log.data(), sizeof(float), log.size(), pFile);
     fflush(pFile); fclose(pFile);
   }
 
   const size_t ind = episodes.size(), len = seq.ndata();
-  seq.ID = nSeenEpisodes.load();
+  seq.ID = tStamp;
   seq.prefix = ind>0? episodes[ind-1].prefix + episodes[ind-1].ndata() : 0;
   episodes.emplace_back(std::move(seq));
-  nEpisodes++;
-  nTransitions += len;
+  counters.nEpisodes ++;
+  counters.nTransitions += len;
   needs_pass = true;
-  assert( readNSeq() == (long) episodes.size());
+  assert(counters.nEpisodes == (long) episodes.size());
 }
 
-void MemoryBuffer::initialize()
+void MemoryBuffer::getMetrics(std::ostringstream& buff)
 {
-  { // All seqs obtained before this point should share the same time stamp
-    std::lock_guard<std::mutex> lock(dataset_mutex);
-    for(Uint i=0;i<episodes.size(); ++i) episodes[i].ID = nSeenEpisodes.load();
-  } // free mutex for sampler
-  needs_pass = true;
+  Utilities::real2SS(buff, stats.avgReturn, 9, 0);
+  Utilities::real2SS(buff, MDP.rewardsMean, 6, 0);
+  Utilities::real2SS(buff, MDP.rewardsStdDev, 6, 1);
+  Utilities::real2SS(buff, stats.avgKLdivergence, 5, 1);
+
+  static constexpr Real EPS = std::numeric_limits<float>::epsilon();
+  stats.avgSquaredErr = std::max(EPS,stats.avgSquaredErr);
+  Utilities::real2SS(buff, std::sqrt(stats.avgSquaredErr), 6, 1);
+  if(stats.countReturnsEstimateUpdates > 0) {
+    const Sint nRet = std::max((Sint) 1, stats.countReturnsEstimateUpdates);
+    const Real eRet = std::max(EPS, stats.sumReturnsEstimateErrors);
+    Utilities::real2SS(buff, std::sqrt(eRet/nRet), 6, 1);
+    stats.countReturnsEstimateUpdates = 0;
+    stats.sumReturnsEstimateErrors = 0;
+  } else {
+    stats.countReturnsEstimateUpdates = -1;
+    stats.sumReturnsEstimateErrors = 0;
+  }
+  Utilities::real2SS(buff, stats.stdevQ, 6, 1);
+  Utilities::real2SS(buff, stats.avgQ, 6, 0);
+  Utilities::real2SS(buff, stats.minQ, 6, 0);
+  Utilities::real2SS(buff, stats.maxQ, 6, 0);
+
+  buff<<" "<<std::setw(5)<<nStoredEps();
+  buff<<" "<<std::setw(7)<<nStoredSteps();
+  buff<<" "<<std::setw(7)<<nSeenEps();
+  buff<<" "<<std::setw(8)<<nSeenSteps();
+  buff<<" "<<std::setw(7)<<stats.oldestStoredTimeStamp;
+  //buff<<" "<<std::setw(4)<<stats.nPrunedEps;
+  buff<<" "<<std::setw(6)<<stats.nFarPolicySteps;
+  if(CmaxRet>1) {
+    //Utilities::real2SS(buf, alpha, 6, 1);
+    Utilities::real2SS(buff, beta, 6, 1);
+  }
+  stats.nPrunedEps = 0;
+}
+
+void MemoryBuffer::getHeaders(std::ostringstream& buff)
+{
+  buff << "|  avgR  | avgr | stdr | DKL ";
+  if(stats.countReturnsEstimateUpdates>=0)
+        buff << "| RMSE | dRet | stdQ | avgQ | minQ | maxQ ";
+  else         buff << "| RMSE | stdQ | avgQ | minQ | maxQ ";
+  //buff << "| nEp |  nObs | totEp | totObs | oldEp |nDel|nFarP ";
+  buff << "| nEp |  nObs | totEp | totObs | oldEp |nFarP ";
+  if(CmaxRet>1) buff << "| beta ";
+}
+
+void MemoryBuffer::updateSampler(const bool bForce)
+{
+  if(bForce) needs_pass = true;
   sampler->prepare(needs_pass);
 }
 
@@ -383,8 +451,8 @@ void MemoryBuffer::checkNData()
     for(Uint i=0; i<episodes.size(); ++i) {
       cntSamp += episodes[i].ndata();
     }
-    assert(cntSamp==nTransitions);
-    assert(nEpisodes==(long)episodes.size());
+    assert(counters.nTransitions == cntSamp);
+    assert(counters.nEpisodes == (long) episodes.size());
   #endif
 }
 

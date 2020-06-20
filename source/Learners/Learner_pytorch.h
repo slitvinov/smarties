@@ -37,15 +37,16 @@ class Learner_pytorch: public Learner
   std::vector<pybind11::object> Nets;
 
  public:
-  Learner_pytorch(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  Learner_pytorch(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_);
 
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {
     return 2*aI->dim();
   }
-  
-  void select(Agent& ) override;
+
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
   virtual ~Learner_pytorch() override;
 
   virtual void getMetrics(std::ostringstream& buff) const override;

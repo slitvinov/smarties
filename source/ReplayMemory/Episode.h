@@ -13,7 +13,7 @@
 #include "../Core/StateAction.h"
 
 #include <cassert>
-#include <atomic>
+#include <mutex>
 #include <cmath>
 
 namespace smarties
@@ -40,7 +40,9 @@ inline bool distFarPolicy(const Fval D, const Fval target)
 struct Episode
 {
   static constexpr Fval FVAL_EPS = std::numeric_limits<Fval>::epsilon();
-  Episode()
+  const MDPdescriptor & MDP;
+
+  Episode(const MDPdescriptor & _MDP) : MDP(_MDP)
   {
     states.reserve(MAX_SEQ_LEN);
     actions.reserve(MAX_SEQ_LEN);
@@ -54,34 +56,36 @@ struct Episode
   Episode& operator=(const Episode &p) = delete;
 
   #define MOVE_SEQUENCE() do {                                                \
-    ended            = p.ended;                     p.ended = false;          \
+    bReachedTermState= p.bReachedTermState;         p.bReachedTermState=false;\
     ID               = p.ID;                        p.ID = -1;                \
     just_sampled     = p.just_sampled;              p.just_sampled = -1;      \
     prefix           = p.prefix;                    p.prefix = 0;             \
     agentID          = p.agentID;                   p.agentID = -1;           \
     totR             = p.totR;                      p.totR = 0;               \
-    nFarOverPolSteps = p.nFarOverPolSteps.load();   p.nFarOverPolSteps = 0;   \
-    nFarUndrPolSteps = p.nFarUndrPolSteps.load();   p.nFarUndrPolSteps = 0;   \
-    sumKLDivergence  = p.sumKLDivergence.load();    p.sumKLDivergence = 0;    \
-    sumSquaredErr    = p.sumSquaredErr.load();      p.sumSquaredErr = 0;      \
     states           = std::move(p.states);         p.states.clear();         \
+    latent_states    = std::move(p.latent_states);  p.latent_states.clear();  \
     actions          = std::move(p.actions);        p.actions.clear();        \
     policies         = std::move(p.policies);       p.policies.clear();       \
     rewards          = std::move(p.rewards);        p.rewards.clear();        \
-    action_adv       = std::move(p.action_adv);     p.action_adv.clear();     \
-    state_vals       = std::move(p.state_vals);     p.state_vals.clear();     \
-    Q_RET            = std::move(p.Q_RET);          p.Q_RET.clear();          \
-    SquaredError     = std::move(p.SquaredError);   p.SquaredError.clear();   \
+    stateValue       = std::move(p.stateValue);     p.stateValue.clear();     \
+    actionAdvantage  = std::move(p.actionAdvantage);p.actionAdvantage.clear();\
+    returnEstimator  = std::move(p.returnEstimator);p.returnEstimator.clear();\
+    deltaValue       = std::move(p.deltaValue);     p.deltaValue.clear();     \
     offPolicImpW     = std::move(p.offPolicImpW);   p.offPolicImpW.clear();   \
     KullbLeibDiv     = std::move(p.KullbLeibDiv);   p.KullbLeibDiv.clear();   \
     priorityImpW     = std::move(p.priorityImpW);   p.priorityImpW.clear();   \
-    latent_states    = std::move(p.latent_states);  p.latent_states.clear();  \
+    nFarOverPolSteps = p.nFarOverPolSteps;          p.nFarOverPolSteps = 0;   \
+    nFarUndrPolSteps = p.nFarUndrPolSteps;          p.nFarUndrPolSteps = 0;   \
+    sumKLDivergence  = p.sumKLDivergence;           p.sumKLDivergence = 0;    \
+    sumSquaredErr    = p.sumSquaredErr;             p.sumSquaredErr = 0;      \
+    sumAbsError      = p.sumAbsError;               p.sumAbsError = 0;        \
+    sumSquaredQ      = p.sumSquaredQ;               p.sumSquaredQ = 0;        \
+    sumQ             = p.sumQ;                      p.sumQ = 0;               \
+    maxQ             = p.maxQ;                      p.maxQ = -1e9;            \
+    minQ             = p.minQ;                      p.minQ =  1e9;            \
   } while (0)
 
-  // minImpW          = p.minImpW.load();            p.minImpW = 1;
-  // avgImpW          = p.avgImpW.load();            p.avgImpW = 1;
-
-  Episode(Episode && p)
+  Episode(Episode && p) : MDP(p.MDP)
   {
     MOVE_SEQUENCE();
   }
@@ -93,105 +97,91 @@ struct Episode
 
   #undef MOVE_SEQUENCE
 
-  void clear()
-  {
-    ended = false; ID = -1; just_sampled = -1; prefix =0; agentID =-1; totR =0;
-    nFarOverPolSteps = 0;
-    nFarUndrPolSteps = 0;
-    sumKLDivergence  = 0;
-    sumSquaredErr    = 0;
-
-    states.clear(); actions.clear(); policies.clear(); rewards.clear();
-    SquaredError.clear(); offPolicImpW.clear(); KullbLeibDiv.clear();
-    action_adv.clear(); state_vals.clear(); Q_RET.clear();
-    priorityImpW.clear(); latent_states.clear();
-  }
-
   //////////////////////////////////////////////////////////////////////////////
   // did ep terminate (i.e. terminal state) or was a time out (i.e. V(s_end)!=0
-  bool ended = false;
-  // unique identifier of the episode, counter:
-  Sint ID = -1;
-  // used for prost processing eps: idx of latest time step sampled during past grad update
-  Sint just_sampled = -1;
-  // used for uniform sampling, prefix sum:
-  Uint prefix = 0;
-  // local agent id (agent id within environment) that generated epiosode:
-  Sint agentID = -1;
-  // sum of rewards obtained during the episode:
-  Fval totR = 0;
+  bool bReachedTermState = false;
+  Sint ID = -1; //identifier of the episode, counter
+  Sint just_sampled = -1; //largest time step sampled during latest grad update
+  Uint prefix = 0; //used for uniform sampling: prefix sum of episodes lengths
+  Sint agentID = -1; //agent id within environment which generated the epiosode
+  Fval totR = 0; // sum of rewards obtained during the episode
 
   // Fval is just a storage format, probably float while Real is prob. double
-  std::vector<Fvec> states;
-  std::vector<Rvec> actions;
-  std::vector<Rvec> policies;
+  // latent_states : auxilliary state variables, not passed to the network
+  std::vector<Fvec> states, latent_states;
+  std::vector<Rvec> actions, policies;
   std::vector<Real> rewards;
 
   // additional quantities which may be needed by algorithms:
-  NNvec action_adv, state_vals, Q_RET;
+  NNvec stateValue, actionAdvantage, returnEstimator;
   //Used for sampling, filtering, and sorting off policy data:
-  Fvec SquaredError, offPolicImpW, KullbLeibDiv;
+  Fvec deltaValue, offPolicImpW, KullbLeibDiv;
   std::vector<float> priorityImpW;
 
-  // auxilliary state variables, not passed to the network
-  std::vector<Fvec> latent_states;
-
   // some quantities needed for processing of experiences
-  std::atomic<Uint> nFarOverPolSteps{0}; // pi/mu > c
-  std::atomic<Uint> nFarUndrPolSteps{0}; // pi/mu < 1/c
-  std::atomic<Real> sumKLDivergence{0};
-  std::atomic<Real> sumSquaredErr{0};
-  //std::atomic<Real> minImpW{1};
-  //std::atomic<Real> avgImpW{1};
+  Uint nFarOverPolSteps = 0; // pi/mu > c
+  Uint nFarUndrPolSteps = 0; // pi/mu < 1/c
+  Fval sumKLDivergence = 0, sumSquaredErr = 0, sumAbsError = 0;
+  Fval sumSquaredQ = 0, sumQ = 0;
+  Fval maxQ = -1e9, minQ = 1e9;
   //////////////////////////////////////////////////////////////////////////////
 
-  void updateCumulative(const Fval C, const Fval invC)
+  void clear()
   {
-    const Uint N = ndata();
-    Uint nOverFarPol = 0, nUndrFarPol = 0;
-    //Real minRho = 9e9, avgRho = 1;
-    //const Real invN = 1.0 / N;
-    for (Uint t = 0; t < N; ++t) {
-      // float precision may cause DKL to be slightly negative:
-      assert(KullbLeibDiv[t] >= - FVAL_EPS && offPolicImpW[t] >= 0);
-      // sequence is off policy if offPol W is out of 1/C : C
-      if (offPolicImpW[t] >    C) nOverFarPol++;
-      if (offPolicImpW[t] < invC) nUndrFarPol++;
-      //if (offPolicImpW[t] < minRho) minRho = offPolicImpW[t];
-      //const Real clipRho = std::min((Fval) 1, offPolicImpW[t]);
-      //avgRho *= std::pow(clipRho, invN);
-    }
-    nFarOverPolSteps = nOverFarPol;
-    nFarUndrPolSteps = nUndrFarPol;
-    //minImpW = minRho;
-    //avgImpW = avgRho;
-
-    assert(std::fabs(rewards[0])<1e-16);
-    totR = Utilities::sum(rewards);
-    sumSquaredErr = Utilities::sum(SquaredError);
-    sumKLDivergence = Utilities::sum(KullbLeibDiv);
+    bReachedTermState = false;
+    ID = -1; just_sampled = -1; prefix =0; agentID =-1; totR =0;
+    states.clear(); latent_states.clear(); actions.clear(); policies.clear();
+    rewards.clear(); stateValue.clear(); actionAdvantage.clear();
+    returnEstimator.clear(); deltaValue.clear(); offPolicImpW.clear();
+    KullbLeibDiv.clear(); priorityImpW.clear();
+    nFarOverPolSteps = 0; nFarUndrPolSteps = 0; sumKLDivergence  = 0;
+    sumSquaredErr = 0; sumAbsError = 0;
+    sumSquaredQ = 0; sumQ = 0; maxQ = -1e9; minQ = 1e9;
   }
+
+  void clearNonTrackedAgent()
+  {
+    latent_states.clear(); actions.clear();         policies.clear();
+    stateValue.clear();    actionAdvantage.clear(); returnEstimator.clear();
+    deltaValue.clear();    offPolicImpW.clear();    KullbLeibDiv.clear();
+    assert(agentID == -1 && "Untracked sequences are not tagged to agent");
+  }
+
+  void updateCumulative(const Fval C, const Fval invC);
+
+  mutable std::mutex dataset_mutex; // used to update stats
 
   void updateCumulative_atomic(const Uint t, const Fval E, const Fval D,
                                const Fval W, const Fval C, const Fval invC)
   {
-    const Fval oldW = offPolicImpW[t];
-    const Uint wasFarOver = oldW > C, wasFarUndr = oldW < invC;
-    const Uint  isFarOver =    W > C,  isFarUndr =    W < invC;
-    //const Real clipOldW = std::min((Fval) 1, oldW);
-    //const Real clipNewW = std::min((Fval) 1,    W);
-    //const Real invN = 1.0 / ndata();
+    assert(nsteps() == deltaValue.size());
+    assert(nsteps() == KullbLeibDiv.size());
+    assert(nsteps() == offPolicImpW.size());
+    const Uint wasFarOver = offPolicImpW[t] >    C, isFarOver = W >    C;
+    const Uint wasFarUndr = offPolicImpW[t] < invC, isFarUndr = W < invC;
+    {
+      std::lock_guard<std::mutex> lock(dataset_mutex);
+      nFarOverPolSteps += isFarOver - wasFarOver;
+      nFarUndrPolSteps += isFarUndr - wasFarUndr;
+      sumKLDivergence += D - KullbLeibDiv[t];
+      sumSquaredErr += E*E - deltaValue[t]*deltaValue[t];
+      sumAbsError += std::fabs(E) - std::fabs(deltaValue[t]);
+    }
+    deltaValue[t] = E; KullbLeibDiv[t] = D; offPolicImpW[t] = W;
+  }
 
-    sumKLDivergence.store(sumKLDivergence.load() - KullbLeibDiv[t] + D);
-    sumSquaredErr.store(sumSquaredErr.load() - SquaredError[t] + E);
-    nFarOverPolSteps += isFarOver - wasFarOver;
-    nFarUndrPolSteps += isFarUndr - wasFarUndr;
-    //avgImpW.store(avgImpW.load() * std::pow(clipNewW/clipOldW, invN));
-    //if(W < minImpW.load()) minImpW = W;
-
-    SquaredError[t] = E;
-    KullbLeibDiv[t] = D;
-    offPolicImpW[t] = W;
+  void updateValues_atomic(const Uint t, const Fval V, const Fval Q)
+  {
+    assert(nsteps() == stateValue.size());
+    assert(nsteps() == actionAdvantage.size());
+    assert(nsteps() == returnEstimator.size());
+    const Fval oldQ = actionAdvantage[t] + stateValue[t];
+    {
+      std::lock_guard<std::mutex> lock(dataset_mutex);
+      sumSquaredQ += Q*Q - oldQ*oldQ; sumQ += Q - oldQ;
+      maxQ = std::max(maxQ, Q); minQ = std::min(minQ, Q);
+    }
+    stateValue[t] = V; actionAdvantage[t] = Q-V;
   }
 
   Uint ndata() const // how much data to train from? ie. not terminal
@@ -211,65 +201,61 @@ struct Episode
 
   bool isTerminal(const Uint t) const
   {
-    return t+1 == states.size() && ended;
+    return t+1 == states.size() && bReachedTermState;
   }
   bool isTruncated(const Uint t) const
   {
-    return t+1 == states.size() && not ended;
+    return t+1 == states.size() && not bReachedTermState;
   }
-  bool isEqual(const Episode & S) const;
-
   void setSampled(const int t) //update ind of latest sampled time step
   {
     if(just_sampled < t) just_sampled = t;
   }
 
-  void setRetrace(const Uint t, const Fval Q)
+  template<typename V = nnReal, typename T>
+  std::vector<V> standardizedState(const T samp) const
   {
-    assert( t < Q_RET.size() );
-    Q_RET[t] = Q;
+    const Uint dimS = MDP.dimStateObserved, nAppended = MDP.nAppendedObs;
+    std::vector<V> ret( dimS * (1+nAppended) );
+    for (Uint j=0, k=0; j <= nAppended; ++j) {
+      const Uint t = std::max((Uint) samp - j, (Uint) 0);
+      assert(states[t].size() == dimS);
+      for (Uint i=0; i<dimS; ++i, ++k)
+        ret[k] = (states[t][i] - MDP.stateMean[i]) * MDP.stateScale[i];
+    }
+    return ret;
   }
-  void setAdvantage(const Uint t, const Fval A)
+  template<typename V = Real, typename T>
+  V scaledReward(const T samp) const
   {
-    assert( t < action_adv.size() );
-    action_adv[t] = A;
+    assert((Uint) samp < rewards.size());
+    return (rewards[samp] - MDP.rewardsMean) * MDP.rewardsScale;
   }
-  void setStateValue(const Uint t, const Fval V)
+  template<typename V = Real, typename T>
+  V clippedOffPolW(const T samp) const
   {
-    assert( t < state_vals.size() );
-    state_vals[t] = V;
+    return offPolicImpW[samp]<1 ? offPolicImpW[samp] : 1;
   }
-
-  void finalize(const Uint index)
+  template<typename V = Real, typename T>
+  V SquaredError(const T samp) const
   {
-    ID = index;
-    const Uint N = states.size();
-    // whatever the meaning of SquaredError, initialize with all zeros
-    // this must be taken into account when sorting/filtering
-    SquaredError.resize(N, 0);
-    // off pol importance weights are initialized to 1s
-    offPolicImpW.resize(N, 1);
-    KullbLeibDiv.resize(N, 0);
-    priorityImpW.resize(N, 1);
-    #ifndef NDEBUG
-      Fval dbg_sumR = std::accumulate(rewards.begin(), rewards.end(), (Fval)0);
-      //Fval dbg_norm = std::max(std::fabs(totR), std::fabs(dbg_sumR));
-      Fval dbg_norm = std::max((Fval)1, std::fabs(totR));
-      assert(std::fabs(totR-dbg_sumR)/dbg_norm < 100*FVAL_EPS);
-    #endif
+    return deltaValue[samp] * deltaValue[samp];
   }
 
-  int restart(FILE * f, const MDPdescriptor& MDP);
-  void save(FILE * f, const MDPdescriptor& MDP);
+  void finalize(const Uint index);
 
-  void unpackEpisode(const std::vector<Fval>& data, const MDPdescriptor& MDP);
-  std::vector<Fval> packEpisode(const MDPdescriptor& MDP);
+  int restart(FILE * f);
+  void save(FILE * f);
+
+  void unpackEpisode(const std::vector<Fval>& data);
+  std::vector<Fval> packEpisode();
+  bool isEqual(const Episode & S) const;
 
   static Uint computeTotalEpisodeSize(const MDPdescriptor& MDP, const Uint Nstep)
   {
     const Uint tuplSize = MDP.dimState + MDP.dimAction + MDP.policyVecDim + 1;
     static constexpr Uint infoSize = 6; //adv,val,ret, mse,dkl,impW
-    //extras : ended,ID,sampled,prefix,agentID x 2 for conversion safety
+    //extras: bReachedTermState,ID,sampled,prefix,agentID x2 for safety
     static constexpr Uint extraSize = 10;
     const Uint ret = (tuplSize+infoSize)*Nstep + extraSize;
     return ret;
@@ -284,16 +270,7 @@ struct Episode
     return nStep;
   }
 
-  void propagateRetrace(const Uint t, const Fval gamma, const Fval R)
-  {
-    if(t == 0) return;
-    const Fval V = state_vals[t], A = action_adv[t];
-    const Fval clipW = offPolicImpW[t]<1 ? offPolicImpW[t] : 1;
-    Q_RET[t-1] = R + gamma * V + gamma * clipW * (Q_RET[t] - A - V);
-  }
-
-  std::vector<float> logToFile(
-    const StateInfo& sInfo, const ActionInfo& aInfo, const Uint iterStep) const;
+  std::vector<float> logToFile(const Uint iterStep) const;
 };
 
 } // namespace smarties

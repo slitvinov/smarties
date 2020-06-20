@@ -223,13 +223,13 @@ void AdamOptimizer::getHeaders(std::ostringstream&buff,const std::string nnName)
   if(tgtUpdateAlpha > 0) buff << "| dTgt ";
 }
 
-Optimizer::Optimizer(const Settings& S, const DistributionInfo& D,
+Optimizer::Optimizer(const HyperParameters& S, const ExecutionInfo& D,
                      const std::shared_ptr<Parameters>& W) :
 distrib(D), settings(S), weights(W) {
   target_weights->copy(weights);
 }
 
-AdamOptimizer::AdamOptimizer(const Settings& S, const DistributionInfo& D,
+AdamOptimizer::AdamOptimizer(const HyperParameters& S, const ExecutionInfo& D,
                              const std::shared_ptr<Parameters>& W,
                              const std::vector<std::shared_ptr<Parameters>> & G,
                              const Real beta1, const Real beta2) :

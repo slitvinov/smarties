@@ -16,8 +16,8 @@ namespace smarties
 Sampling::Sampling(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq)
 : gens(G), RM(R), episodes(RM->episodes), bSampleEpisodes(bSeq) {}
 
-long Sampling::nEpisodes() const { return RM->readNSeq(); }
-long Sampling::nTransitions() const { return RM->readNData(); }
+long Sampling::nEpisodes() const { return RM->nStoredEps(); }
+long Sampling::nTransitions() const { return RM->nStoredSteps(); }
 void Sampling::setMinMaxProb(const Real maxP, const Real minP) {
     RM->minPriorityImpW = minP;
     RM->maxPriorityImpW = maxP;
@@ -162,6 +162,31 @@ void Sample_uniform::prepare(std::atomic<bool>& needs_pass)
 bool Sample_uniform::requireImportanceWeights() { return false; }
 
 
+Sample_unifEps::Sample_unifEps(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
+void Sample_unifEps::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
+{
+  assert(seq.size() == obs.size());
+  const Uint N = obs.size(), nSeqs = nEpisodes();
+  std::uniform_int_distribution<Uint> distSeq(0, nSeqs-1);
+  std::vector<Uint>::iterator it = seq.begin();
+  while(it not_eq seq.end()) {
+    std::generate(it, seq.end(), [&]() { return distSeq(gens[0]); } );
+    std::sort( seq.begin(), seq.end() );
+    if (N > nSeqs) break;
+    it = std::unique( seq.begin(), seq.end() );
+  }
+  if(bSampleEpisodes) {
+    for (Uint i=0; i<N; ++i) obs[i] = episodes[seq[i]].ndata()-1;
+  } else {
+    std::uniform_real_distribution<Real> dist(0, 1);
+    for (Uint i=0; i<N; ++i) obs[i] = dist(gens[0]) * episodes[seq[i]].ndata();
+  }
+}
+void Sample_unifEps::prepare(std::atomic<bool>& needs_pass)
+{
+}
+bool Sample_unifEps::requireImportanceWeights() { return false; }
+
 
 Sample_impLen::Sample_impLen(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void Sample_impLen::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
@@ -221,7 +246,6 @@ void Sample_impLen::prepare(std::atomic<bool>& needs_pass)
 bool Sample_impLen::requireImportanceWeights() { return false; }
 
 
-
 TSample_shuffle::TSample_shuffle(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_shuffle::prepare(std::atomic<bool>& needs_pass)
 {
@@ -258,6 +282,7 @@ void TSample_shuffle::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 }
 bool TSample_shuffle::requireImportanceWeights() { return false; }
 
+
 TSample_impRank::TSample_impRank(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeq): Sampling(G,R,bSeq) {}
 void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
 {
@@ -283,7 +308,7 @@ void TSample_impRank::prepare(std::atomic<bool>& needs_pass)
     const auto err_i = errors.data() + locPrefix;
     locPrefix += epNsteps;
     for(unsigned j=0; j<epNsteps; ++j)
-      err_i[j] = std::make_tuple(EP.SquaredError[j], i, j);
+      err_i[j] = std::make_tuple(EP.SquaredError(j), i, j);
   }
 
   // 2)
@@ -356,7 +381,7 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
 
     for(Uint j=0; j<ndata; ++j)
     {
-      const float deltasq = (float) episodes[i].SquaredError[j];
+      const float deltasq = (float) episodes[i].SquaredError(j);
       // do sqrt(delta^2)^alpha with alpha = 0.5
       const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq+EPS)) : 0.0f;
       const float Pe = P + EPS;
@@ -410,7 +435,7 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
   const long nSeqs = nEpisodes();
   std::vector<float> probs = std::vector<float>(nSeqs, 1);
 
-  Real maxMSE = 0;
+  Fval maxMSE = 0;
   for(long i=0; i<nSeqs; ++i)
     maxMSE = std::max(maxMSE, episodes[i].sumSquaredErr / episodes[i].ndata());
 
@@ -422,7 +447,7 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
     const Uint ndata = EP.ndata();
     float sumErrors = EP.sumSquaredErr;
     for(Uint j=0; j<ndata; ++j)
-      if( std::fabs( EP.SquaredError[j] ) <= 0 ) sumErrors += maxMSE;
+      if( EP.SquaredError(j) <= 0 ) sumErrors += maxMSE;
     //sampling P is episode's RMSE to the power beta=.5 times length of episode
     const float P = std::sqrt( std::sqrt( (sumErrors + EPS)/ndata ) ) * ndata;
     std::fill(EP.priorityImpW.begin(), EP.priorityImpW.end(), P);
@@ -479,15 +504,16 @@ void Sample_impSeq::sample(std::vector<Uint>& seq, std::vector<Uint>& obs)
 bool Sample_impSeq::requireImportanceWeights() { return true; }
 
 std::unique_ptr<Sampling> Sampling::prepareSampler(MemoryBuffer* const R,
-                                                   Settings & S,
-                                                   DistributionInfo & D)
+                                                   HyperParameters & S,
+                                                   ExecutionInfo & D)
 {
   std::unique_ptr<Sampling> ret = nullptr;
 
   if(S.dataSamplingAlgo == "uniform") {
     if(D.world_rank == 0)
     printf("Experience Replay sampling algorithm: uniform probability.\n");
-    ret = std::make_unique<Sample_uniform>(D.generators,R,S.bSampleEpisodes);
+    //ret = std::make_unique<Sample_uniform>(D.generators,R,S.bSampleEpisodes);
+    ret = std::make_unique<Sample_unifEps>(D.generators,R,S.bSampleEpisodes);
   }
 
   if(S.dataSamplingAlgo == "impLen") {

@@ -282,7 +282,7 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
     agents[agentID]->unpackActionMsg(BUFF[agentID]->dataActionBuf);
   }
 
-  if(status >= TERM) {
+  if(status >= LAST) {
     agents[agentID]->learnerAvgCumulativeReward = agents[agentID]->action[0];
   }
   // we cannot control application. if we received a termination signal we abort
@@ -294,14 +294,14 @@ void Communicator::_sendState(const int agentID, const episodeStatus status,
 
 const std::vector<double> Communicator::recvAction(const int agentID) const
 {
-  assert( agents[agentID]->agentStatus < TERM && "Application read action for "
+  assert( agents[agentID]->agentStatus < LAST && "Application read action for "
     "a terminal state or truncated episode. Undefined behavior.");
   return agents[agentID]->getAction();
 }
 
 int Communicator::recvDiscreteAction(const int agentID) const
 {
-  assert( agents[agentID]->agentStatus < TERM && "Application read action for "
+  assert( agents[agentID]->agentStatus < LAST && "Application read action for "
     "a terminal state or truncated episode. Undefined behavior.");
   return (int) agents[agentID]->getDiscreteAction();
 }

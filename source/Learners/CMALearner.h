@@ -37,18 +37,19 @@ protected:
   static std::vector<Uint> count_pol_outputs(const ActionInfo*const aI);
   static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
 
+  void prepareCMALoss() override;
 
-  void prepareCMALoss();
-
+  Uint weightID(const Agent& agent) const;
   void computeAction(Agent& agent, const Rvec netOutput) const;
   void Train(const MiniBatch&MB,const Uint wID,const Uint bID) const override;
 
 public:
-  CMALearner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  CMALearner(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_);
 
   //main training functions:
-  void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 
   bool blockGradientUpdates() const override;
   bool blockDataAcquisition() const override;

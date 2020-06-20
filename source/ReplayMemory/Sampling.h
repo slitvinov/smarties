@@ -15,7 +15,7 @@
 namespace smarties
 {
 
-class MemoryBuffer;
+struct MemoryBuffer;
 
 class Sampling
 {
@@ -43,13 +43,23 @@ class Sampling
   virtual bool requireImportanceWeights() = 0;
 
   static std::unique_ptr<Sampling> prepareSampler(MemoryBuffer * const,
-                                                  Settings&, DistributionInfo&);
+                                                  HyperParameters&,
+                                                  ExecutionInfo&);
 };
 
 class Sample_uniform : public Sampling
 {
  public:
   Sample_uniform(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeqs);
+  void sample(std::vector<Uint>& seq, std::vector<Uint>& obs) override;
+  void prepare(std::atomic<bool>& needs_pass) override;
+  bool requireImportanceWeights() override;
+};
+
+class Sample_unifEps : public Sampling
+{
+ public:
+  Sample_unifEps(std::vector<std::mt19937>&G, MemoryBuffer*const R, bool bSeqs);
   void sample(std::vector<Uint>& seq, std::vector<Uint>& obs) override;
   void prepare(std::atomic<bool>& needs_pass) override;
   bool requireImportanceWeights() override;

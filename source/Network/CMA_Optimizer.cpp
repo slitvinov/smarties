@@ -15,7 +15,7 @@
 namespace smarties
 {
 
-CMA_Optimizer::CMA_Optimizer(const Settings& S, const DistributionInfo& D,
+CMA_Optimizer::CMA_Optimizer(const HyperParameters& S, const ExecutionInfo& D,
                              const std::shared_ptr<Parameters>& W):
   Optimizer(S,D,W), pStarts(computePstarts()), pCounts(computePcounts()),
   pStart(pStarts[learn_rank]), pCount(pCounts[learn_rank])

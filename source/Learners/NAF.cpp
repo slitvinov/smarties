@@ -29,7 +29,7 @@ static inline Param_advantage prepare_advantage(const Rvec&O,
   return Param_advantage(std::vector<Uint>{net_inds[1], net_inds[2]}, aI, O);
 }
 
-NAF::NAF(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D):
+NAF::NAF(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), nL( Param_advantage::compute_nL(aInfo) ),
   stdParam(Continuous_policy::initial_Stdev(aInfo, S.explNoise)[0])
 {
@@ -46,37 +46,26 @@ NAF::NAF(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D):
   assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);
   networks[0]->buildFromSettings(nOutp);
   networks[0]->initializeNetwork();
-
-  trainInfo = new TrainData("NAF", distrib, 0, "| beta | avgW ", 2);
 }
 
-void NAF::select(Agent& agent)
+void NAF::selectAction(const MiniBatch& MB, Agent& agent)
 {
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
-  const MiniBatch MB = data->agentToMinibatch(EP);
+  //Compute policy and value on most recent element of the sequence.
+  const Rvec output = networks[0]->forward(agent);
+  Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]] + nA);
+  // add stdev to the policy vector representation:
+  polvec.resize(2*nA, stdParam);
+  Continuous_policy POL({0, nA}, aInfo, polvec);
 
-  if( agent.agentStatus < TERM ) // not last of a sequence
-  {
-    networks[0]->load(MB, agent);
-    //Compute policy and value on most recent element of the sequence.
-    const Rvec output = networks[0]->forward(agent);
-    Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]] + nA);
-    // add stdev to the policy vector representation:
-    polvec.resize(2*nA, stdParam);
-    Continuous_policy POL({0, nA}, aInfo, polvec);
+  const bool bSample = settings.explNoise>0;
+  Rvec act = OrUhDecay<=0? POL.selectAction(agent, bSample) :
+      POL.selectAction_OrnsteinUhlenbeck(agent, bSample, OrUhState[agent.ID]);
+  agent.setAction(act, POL.getVector());
+}
 
-    Rvec MU = POL.getVector();
-    //cout << print(MU) << endl;
-    const bool bSample = settings.explNoise>0;
-    Rvec act = OrUhDecay<=0? POL.selectAction(agent, bSample) :
-        POL.selectAction_OrnsteinUhlenbeck(agent, bSample, OrUhState[agent.ID]);
-    agent.setAction(act);
-    data_get->add_action(agent, MU);
-  } else {
-    OrUhState[agent.ID] = Rvec(nA, 0);
-    data_get->terminate_seq(agent);
-  }
+void NAF::processTerminal(const MiniBatch& MB, Agent& agent)
+{
+  OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
 }
 
 void NAF::setupTasks(TaskQueue& tasks)
@@ -90,7 +79,7 @@ void NAF::setupTasks(TaskQueue& tasks)
   {
     // conditions to start the initialization task:
     if ( algoSubStepID >= 0 ) return; // we done with init
-    if ( data->readNData() < nObsB4StartTraining ) return; // not enough data to init
+    if ( data->nStoredSteps() < nObsB4StartTraining ) return; // not enough data to init
 
     debugL("Initialize Learner");
     initializeLearner();
@@ -108,12 +97,8 @@ void NAF::setupTasks(TaskQueue& tasks)
     profiler->stop();
     debugL("Sample the replay memory and compute the gradients");
     spawnTrainTasks();
-    debugL("Gather gradient estimates from each thread and Learner MPI rank");
-    prepareGradient();
     debugL("Search work to do in the Replay Memory");
     processMemoryBuffer();
-    debugL("Compute state/rewards stats from the replay memory");
-    finalizeMemoryProcessing(); //remove old eps, compute state/rew mean/stdev
     logStats();
     algoSubStepID = 1;
     profiler->start("MPI");
@@ -158,8 +143,11 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
   Real target = MB.reward(bID, t);
-  if (not MB.isTerminal(bID, t+1) && not isOff)
-    target += gamma * networks[0]->forward_tgt(bID, t+1) [net_indices[0]];
+  if (not MB.isTerminal(bID, t+1) && not isOff) {
+    const Rvec vNext = networks[0]->forward_tgt(bID, t+1);
+    MB.setValues(bID, t+1, vNext[net_indices[0]]);
+    target += gamma * vNext[net_indices[0]];
+  }
   const Real error = isOff? 0 : target - Qs;
   Rvec grad(networks[0]->nOutputs());
   grad[net_indices[0]] = error;
@@ -170,9 +158,8 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
       grad[net_indices[2]+i] = beta*grad[net_indices[2]+i] + (1-beta)*penG[i];
   }
 
-  trainInfo->log(Qs, error, {beta, RHO}, thrID);
-  MB.setMseDklImpw(bID, t, error*error, DKL, RHO, CmaxRet, CinvRet);
-
+  MB.setMseDklImpw(bID, t, error, DKL, RHO, CmaxRet, CinvRet);
+  MB.setValues(bID, t, output[net_indices[0]], Qs);
   networks[0]->setGradient(grad, bID, t);
 }
 

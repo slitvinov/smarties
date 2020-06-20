@@ -178,8 +178,10 @@ struct OldestDatasetEp
 };
 
 
-FORGET MemoryProcessing::readERfilterAlgo(const std::string setting, const bool bReFER)
+FORGET MemoryProcessing::readERfilterAlgo(const HyperParameters & S)
 {
+  const std::string setting = S.ERoldSeqFilter;
+  const bool bReFER = S.clipImpWeight>0;
   const int world_rank = MPICommRank(MPI_COMM_WORLD);
   if(setting == "oldest") {
     if(world_rank == 0)

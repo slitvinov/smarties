@@ -45,6 +45,8 @@ set(smarties_sources
     ${source_dir}/Utils/Warnings.cpp
     ${source_dir}/Utils/Profiler.cpp
     ${source_dir}/Utils/StatsTracker.cpp
+    ${source_dir}/Settings/ExecutionInfo.cpp
+    ${source_dir}/Settings/HyperParameters.cpp
 
     ${source_dir}/Core/Launcher.cpp
     ${source_dir}/Core/Master.cpp
@@ -52,7 +54,6 @@ set(smarties_sources
     ${source_dir}/Core/StateAction.cpp
 
     ${source_dir}/Communicator.cpp
-    ${source_dir}/Settings.cpp
     ${source_dir}/Engine.cpp
 
     ${source_dir}/Network/Approximator.cpp

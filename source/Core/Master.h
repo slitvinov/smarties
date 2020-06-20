@@ -28,7 +28,7 @@ protected:
   void waitForStateActionCallers(const std::vector<Uint> givenWorkers);
 
 public:
-  Master(DistributionInfo& );
+  Master(ExecutionInfo& );
   virtual ~Master();
   void run();
   void spawnCallsHandlers();
@@ -57,7 +57,7 @@ public:
     SOCKET_Wait(request);
   }
 
-  MasterSockets( DistributionInfo& );
+  MasterSockets( ExecutionInfo& );
   ~MasterSockets() override;
 
   void run(const environment_callback_t& callback);
@@ -87,7 +87,7 @@ public:
     MPI(Wait, &request, MPI_STATUS_IGNORE);
   }
 
-  MasterMPI( DistributionInfo& );
+  MasterMPI( ExecutionInfo& );
   ~MasterMPI() override;
 
   void run();

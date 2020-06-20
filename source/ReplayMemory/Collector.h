@@ -24,20 +24,17 @@ private:
   DataCoordinator * const sharing;
   //const MDPdescriptor & MDP = replay->MDP;
   //const Settings & settings = replay->settings;
-  const DistributionInfo & distrib = replay->distrib;
+  //const DistributionInfo & distrib = replay->distrib;
   //const StateInfo& sI = replay->sI;
   const ActionInfo& aI = replay->aI;
 
-  std::vector<Episode> inProgress;
-
-  std::atomic<long>& nSeenEpisodes_loc = replay->nSeenEpisodes_loc;
-  std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
+  std::vector<Episode> & inProgress = replay->inProgress;
 
   std::mutex envTerminationCheck;
 
 public:
   void add_state(Agent&a);
-  void add_action(const Agent& a, const Rvec pol);
+  void add_action(const Agent& a);
   void terminate_seq(Agent&a);
   void push_back(const size_t agentId);
 

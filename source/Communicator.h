@@ -79,7 +79,7 @@ public:
                              const double reward,
                              const int agentID = 0)
   {
-    return _sendState(agentID, TRNC, state, reward);
+    return _sendState(agentID, LAST, state, reward);
   }
 
   // receive action for the latest given state:

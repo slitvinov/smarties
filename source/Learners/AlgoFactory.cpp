@@ -34,7 +34,7 @@ inline static void printLogfile(std::ostringstream&o, std::string fn, int rank)
   fout.close();
 }
 
-inline static std::ifstream findSettingsFile(DistributionInfo& D, const Uint ID)
+inline static std::ifstream findSettingsFile(ExecutionInfo& D, const Uint ID)
 {
   char currDirectory[512];
   getcwd(currDirectory, 512);
@@ -58,7 +58,7 @@ inline static std::ifstream findSettingsFile(DistributionInfo& D, const Uint ID)
 }
 
 std::unique_ptr<Learner> createLearner(
-  const Uint learnerID, MDPdescriptor& MDP, DistributionInfo& distrib
+  const Uint learnerID, MDPdescriptor& MDP, ExecutionInfo& distrib
 )
 {
   char lName[256];
@@ -67,7 +67,7 @@ std::unique_ptr<Learner> createLearner(
     printf("Creating learning algorithm #%02lu\n", learnerID);
 
   const ActionInfo aInfo = ActionInfo(MDP);
-  Settings settings;
+  HyperParameters settings;
   std::ifstream ifs = findSettingsFile(distrib, learnerID);
   settings.initializeOpts(ifs, distrib);
 

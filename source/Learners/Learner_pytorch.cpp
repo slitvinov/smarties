@@ -199,41 +199,30 @@ void Learner_pytorch::spawnTrainTasks()
 }
 
 
-void Learner_pytorch::select(Agent& agent)
+void Learner_pytorch::selectAction(const MiniBatch& MB, Agent& agent)
 {
-  // std::cout << "PYTORCH: AGENT SELECTING ACTION!" << std::endl;
+  // IMPORTANT !
+  py::module::import("pybind11_embed");
 
-  data_get->add_state(agent);
-  Episode& EP = data_get->get(agent.ID);
+  // Initializing action to be taken with zeros
+  Rvec action = Rvec(aInfo.dim(), 0);
+  // Initializing mu to be taken with zeros
+  Rvec mu = Rvec(aInfo.dimPol(), 0);
 
-  const MiniBatch MB = data->agentToMinibatch(EP);
+  std::vector<const MiniBatch*> vectorMiniBatch;
+  vectorMiniBatch.push_back(&MB);
+  std::reference_wrapper<std::vector<const MiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
+  std::reference_wrapper<Rvec> action_ref{action};
+  std::reference_wrapper<Rvec> mu_ref{mu};
 
-  if( agent.agentStatus < TERM ) // not end of sequence
-  {
-    // IMPORTANT !
-    py::module::import("pybind11_embed");
+  auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "action"_a=action_ref, "mu"_a=mu_ref);
+  auto output = Nets[0].attr("selectAction")(locals);
 
-    // Initializing action to be taken with zeros
-    Rvec action = Rvec(aInfo.dim(), 0);
-    // Initializing mu to be taken with zeros
-    Rvec mu = Rvec(aInfo.dimPol(), 0);
+  agent.act(action, mu_ref);
+}
 
-    std::vector<const MiniBatch*> vectorMiniBatch;
-    vectorMiniBatch.push_back(&MB);
-    std::reference_wrapper<std::vector<const MiniBatch*>> vectorMiniBatch_ref{vectorMiniBatch};
-    std::reference_wrapper<Rvec> action_ref{action};
-    std::reference_wrapper<Rvec> mu_ref{mu};
-
-    auto locals = py::dict("vectorMiniBatch"_a=vectorMiniBatch_ref, "action"_a=action_ref, "mu"_a=mu_ref);
-    auto output = Nets[0].attr("selectAction")(locals);
-
-    agent.act(action);
-    data_get->add_action(agent, mu);
-
-  } else {
-    data_get->terminate_seq(agent);
-  }
-
+void Learner_pytorch::processTerminal(const MiniBatch& MB, Agent& agent)
+{
 }
 
 #else // not defined PY11_PYTORCH
@@ -245,14 +234,15 @@ struct object {};
 namespace smarties
 {
 
-void Learner_pytorch::select(Agent& agent) {}
+void Learner_pytorch::selectAction(const MiniBatch& MB, Agent& agent) {}
+void Learner_pytorch::processTerminal(const MiniBatch& MB, Agent& agent) {}
 
 void Learner_pytorch::spawnTrainTasks() {}
 
 void Learner_pytorch::setupTasks(TaskQueue& tasks) {}
 
-Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, Settings& S_,
-  DistributionInfo& D_) : Learner(MDP_, S_, D_)
+Learner_pytorch::Learner_pytorch(MDPdescriptor& MDP_, HyperParameters& S_,
+  ExecutionInfo& D_) : Learner(MDP_, S_, D_)
 {}
 
 #endif

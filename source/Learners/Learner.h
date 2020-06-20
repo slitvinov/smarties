@@ -10,17 +10,17 @@
 #define smarties_Learner_h
 
 #include "../Core/StateAction.h"
-#include "../Utils/Profiler.h"
 #include "../ReplayMemory/MemoryBuffer.h"
-#include "../Utils/StatsTracker.h"
 #include "../Utils/ParameterBlob.h"
+#include "../Utils/StatsTracker.h"
 #include "../Utils/TaskQueue.h"
-#include "../Settings.h"
+#include "../Utils/Profiler.h"
+#include "../Settings/ExecutionInfo.h"
+#include "../Settings/HyperParameters.h"
 
 namespace smarties
 {
 
-class MemoryProcessing;
 class DataCoordinator;
 class Collector;
 
@@ -28,8 +28,8 @@ class Learner
 {
 protected:
   const Uint freqPrint = 1000;
-  DistributionInfo & distrib;
-  Settings settings;
+  ExecutionInfo & distrib;
+  HyperParameters settings;
   MDPdescriptor & MDP;
 
 public:
@@ -59,29 +59,24 @@ protected:
   std::vector<std::mt19937>& generators = distrib.generators;
   const std::unique_ptr<MemoryBuffer> data =
                          std::make_unique<MemoryBuffer>(MDP, settings, distrib);
-  ParameterBlob params = ParameterBlob(distrib,
-                                       data->nGatheredB4Startup,
-                                       data->nGradSteps,
-                                       data->avgCumulativeReward);
+  ParameterBlob params = ParameterBlob(distrib, data->stats, data->counters);
   Real & alpha   = data->alpha;
   Real & beta    = data->beta;
   Real & CmaxRet = data->CmaxRet;
   Real & CinvRet = data->CinvRet;
 
-  MemoryProcessing * const data_proc;
   DataCoordinator * const  data_coord;
   Collector * const        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
 
-  TrainData* trainInfo = nullptr;
   mutable std::mutex buffer_mutex;
 
-  virtual void processStats();
+  virtual void processStats(const bool bPrintHeader);
 
 public:
   std::string learner_name;
 
-  Learner(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  Learner(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_);
   virtual ~Learner();
 
   void setLearnerName(const std::string lName, const Uint id) {
@@ -93,36 +88,37 @@ public:
     return data->nLocTimeStepsTrain();
   }
   long nLocTimeSteps() const {
-    return data->nLocTimeSteps();
-  }
-  long locDataSetSize() const {
-    return data->readNData();
+    return data->nLocalSeenSteps();
   }
   long nSeqsEval() const {
-    return data->readNSeenSeq_loc();
+    return data->nLocalSeenEps();
+  }
+  long locDataSetSize() const {
+    return data->nStoredSteps();
   }
   long nGradSteps() const {
-    return data->nGradSteps.load();
+    return data->nGradSteps();
   }
   Real getAvgCumulativeReward() const {
-    return data->getAvgCumulativeReward();
+    return data->getAvgReturn();
   }
 
-  virtual void select(Agent& agent) = 0;
-  virtual void setupTasks(TaskQueue& tasks) = 0;
   virtual void setupDataCollectionTasks(TaskQueue& tasks);
+
+  virtual void setupTasks(TaskQueue& tasks) = 0;
+  virtual void selectAction(const MiniBatch& MB, Agent& agent) = 0;
+  virtual void processTerminal(const MiniBatch& MB, Agent& agent) = 0;
 
   virtual void globalGradCounterUpdate();
 
   virtual bool blockDataAcquisition() const;
   virtual bool blockGradientUpdates() const;
 
+  void select(Agent& agent);
   void processMemoryBuffer();
-  void updateRetraceEstimates();
-  void finalizeMemoryProcessing();
   virtual void initializeLearner();
 
-  virtual void logStats();
+  virtual void logStats(const bool bForcePrint = false);
 
   virtual void getMetrics(std::ostringstream& buff) const;
   virtual void getHeaders(std::ostringstream& buff) const;

@@ -42,14 +42,11 @@ class PPO : public Learner_approximator
   void Train(const MiniBatch& MB, const Uint, const Uint) const override;
 
   void updatePenalizationCoef();
-  void advanceEpochCounters();
 
   static std::vector<Uint> count_pol_outputs(const ActionInfo*const aI);
   static std::vector<Uint> count_pol_starts(const ActionInfo*const aI);
 
   void updateDKL_target(const bool farPolSample, const Real DivKL) const;
-  void updateGAE(Episode& seq) const;
-  void initializeGAE();
   void setupNet();
 
   static Real annealDiscount(const Real targ,
@@ -65,14 +62,17 @@ class PPO : public Learner_approximator
 
  public:
 
-  PPO(MDPdescriptor&, Settings&, DistributionInfo&);
-
-  void select(Agent& agent) override;
+  PPO(MDPdescriptor&, HyperParameters&, ExecutionInfo&);
 
   bool blockDataAcquisition() const override;
   bool blockGradientUpdates() const override;
 
+  void getMetrics(std::ostringstream& buff) const override;
+  void getHeaders(std::ostringstream& buff) const override;
+
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

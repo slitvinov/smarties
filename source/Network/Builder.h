@@ -61,8 +61,8 @@ public:
 private:
   bool bBuilt = false;
 public:
-  const DistributionInfo& distrib;
-  const Settings & settings;
+  const ExecutionInfo & distrib;
+  const HyperParameters & settings;
   Uint nInputs=0, nOutputs=0, nLayers=0;
 
   std::vector<std::shared_ptr<Parameters>> threadGrads;
@@ -71,7 +71,7 @@ public:
   std::shared_ptr<Network> net;
   std::shared_ptr<Optimizer> opt;
 
-  Builder(const Settings& S, const DistributionInfo& D);
+  Builder(const HyperParameters& S, const ExecutionInfo& D);
 };
 
 } // end namespace smarties

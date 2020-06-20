@@ -15,7 +15,7 @@ namespace smarties
 {
 
 std::unique_ptr<Learner> createLearner(
-  const Uint learnerID, MDPdescriptor& MDP, DistributionInfo& distrib
+  const Uint learnerID, MDPdescriptor& MDP, ExecutionInfo& distrib
 );
 
 }

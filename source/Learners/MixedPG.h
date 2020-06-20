@@ -73,10 +73,11 @@ class MixedPG : public Learner_approximator
   void Train(const MiniBatch& MB, const Uint wID, const Uint bID) const override;
 
 public:
-  MixedPG(MDPdescriptor&, Settings&, DistributionInfo&);
+  MixedPG(MDPdescriptor&, HyperParameters&, ExecutionInfo&);
 
-  void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 };
 
 }

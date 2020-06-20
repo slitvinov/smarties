@@ -9,7 +9,7 @@
 #ifndef smarties_FunctionUtilities_h
 #define smarties_FunctionUtilities_h
 
-#include "Bund.h"
+#include "../Settings/Bund.h"
 #include "Warnings.h"
 
 #include <cassert>
@@ -258,6 +258,13 @@ template<typename T>
 inline T sum(const std::vector<T> & vec)
 {
   return std::accumulate(vec.begin(), vec.end(), (T) 0);
+}
+
+template<typename T>
+inline T sumSquared(const std::vector<T> & vec)
+{
+  return std::accumulate(vec.begin(), vec.end(), (T) 0,
+    [](const T partial, const T elem) { return partial + elem*elem; });
 }
 
 template<typename T>

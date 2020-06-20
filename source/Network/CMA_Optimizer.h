@@ -46,7 +46,7 @@ protected:
   }
 public:
 
-  CMA_Optimizer(const Settings& S, const DistributionInfo& D,
+  CMA_Optimizer(const HyperParameters& S, const ExecutionInfo& D,
                 const std::shared_ptr<Parameters>& W);
 
   void prepare_update(const Rvec& L) override;

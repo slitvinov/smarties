@@ -17,8 +17,8 @@ namespace smarties
 struct MiniBatch
 {
   const Uint size;
-  const Fval gamma;
-  MiniBatch(const Uint _size, const Fval G) : size(_size), gamma(G)
+
+  MiniBatch(const Uint _size) : size(_size)
   {
     episodes.resize(size);
     begTimeStep.resize(size);
@@ -45,8 +45,7 @@ struct MiniBatch
   }
   Sint mapTime2Ind(const Uint b, const Sint t) const
   {
-    assert(begTimeStep.size() >  b);
-    assert(begTimeStep[b]     <= t);
+    assert(begTimeStep.size() >  b and begTimeStep[b]     <= t);
     //ind is mapping from time stamp along trajectoy and along alloc memory
     return t - begTimeStep[b];
   }
@@ -99,27 +98,27 @@ struct MiniBatch
   {
     return episodes[b]->policies[t];
   }
-  nnReal& Q_RET(const Uint b, const Uint t) const
+  nnReal& returnEstimate(const Uint b, const Uint t) const
   {
-    return episodes[b]->Q_RET[t];
+    return episodes[b]->returnEstimator[t];
   }
-  std::vector<nnReal> Q_RET(const Uint dt = 0) const
+  std::vector<nnReal> returnEstimates(const Uint dt = 0) const
   {
     std::vector<nnReal> ret(size, 0);
     for(Uint b=0; b<size; ++b) {
       const auto t = sampledTstep(b);
       assert(t >= (Sint) dt);
-      ret[b] = episodes[b]->Q_RET[t-dt];
+      ret[b] = episodes[b]->returnEstimator[t-dt];
     }
     return ret;
   }
   nnReal& value(const Uint b, const Uint t) const
   {
-    return episodes[b]->state_vals[t];
+    return episodes[b]->stateValue[t];
   }
   nnReal& advantage(const Uint b, const Uint t) const
   {
-    return episodes[b]->action_adv[t];
+    return episodes[b]->actionAdvantage[t];
   }
 
 
@@ -142,7 +141,7 @@ struct MiniBatch
   {
     std::vector<int> ret(size, 0);
     for(Uint b=0; b<size; ++b)
-      ret[b] = episodes[b]->isTruncated(sampledTstep(b) + 1);
+      ret[b] = episodes[b]->isTruncated(sampledTstep(b)+1);
     return ret;
   }
   Uint nTimeSteps(const Uint b) const
@@ -153,6 +152,11 @@ struct MiniBatch
   {
     return episodes[b]->ndata();
   }
+  Uint indCurrStep(const Uint b=0) const
+  {
+    assert(episodes[b]->nsteps() > 0);
+    return episodes[b]->nsteps() - 1;
+  }
 
   void setMseDklImpw(const Uint b, const Uint t, // batch id and time id
     const Fval E, const Fval D, const Fval W,    // error, dkl, offpol weight
@@ -161,61 +165,61 @@ struct MiniBatch
     getEpisode(b).updateCumulative_atomic(t, E, D, W, C, invC);
   }
 
-  Fval updateRetrace(const Uint b, const Uint t,
-    const Fval A, const Fval V, const Fval W) const
+  void setValues(const Uint b, const Uint t, const Fval V) const
   {
-    assert(W >= 0);
-    if(t == 0) return 0; // at time 0, no reward, QRET is undefined
-    Episode& EP = getEpisode(b);
-    EP.action_adv[t] = A; EP.state_vals[t] = V;
-    const Fval reward = R[b][mapTime2Ind(b, t)];
-    const Fval oldRet = EP.Q_RET[t-1], clipW = W<1 ? W:1;
-    EP.Q_RET[t-1] = reward + gamma*V + gamma*clipW * (EP.Q_RET[t] - A - V);
-    return std::fabs(EP.Q_RET[t-1] - oldRet);
+    return setValues(b, t, V, V);
+  }
+  void setValues(const Uint b, const Uint t, const Fval V, const Fval Q) const
+  {
+    getEpisode(b).updateValues_atomic(t, V, Q);
+  }
+  void appendValues(const Fval V) const
+  {
+    return appendValues(V, V);
+  }
+  void appendValues(const Fval V, const Fval Q) const
+  {
+    getEpisode(0).stateValue.push_back(V);
+    getEpisode(0).actionAdvantage.push_back(Q-V);
+    assert(getEpisode(0).nsteps() == getEpisode(0).actionAdvantage.size());
+    assert(getEpisode(0).nsteps() == getEpisode(0).stateValue.size());
+    assert(size == 1 && "This should only be called by in-progress episodes");
   }
 
   template<typename T>
-  void updateAllRetrace(const std::vector<T>& advantages,
-                        const std::vector<T>& values,
-                        const std::vector<T>& rhos) const
+  void setAllValues(const T& Vs, const T& Qs) const
   {
-    assert(advantages.size() == size);
-    assert(values.size() == size);
-    assert(rhos.size() == size);
+    assert(Vs.size() == size and Qs.size() == size);
     #pragma omp parallel for schedule(static)
-    for(Uint b=0; b<size; ++b)
-      updateRetrace(b, sampledTstep(b), advantages[b], values[b], rhos[b]);
+    for(Uint b=0; b<size; ++b) setValues(b, sampledTstep(b), Vs[b], Qs[b]);
   }
 
   template<typename T>
-  void updateAllLastStepRetrace(const std::vector<T>& values) const
+  void updateAllLastStepValues(const std::vector<T>& values) const
   {
     assert(values.size() == size);
     #pragma omp parallel for schedule(static)
     for(Uint b=0; b<size; ++b) {
-      if( isTruncated(b, sampledTstep(b)+1) )
-        updateRetrace(b, sampledTstep(b)+1, 0, values[b], 0);
-      if( isTerminal (b, sampledTstep(b)+1) )
-        updateRetrace(b, sampledTstep(b)+1, 0, 0, 0);
+      const auto t = sampledTstep(b);
+      if( isTruncated(b, t+1) ) setValues(b, t+1, values[b]);
+      else if( isTerminal (b, t+1) ) setValues(b, t+1, 0);
     }
   }
 
   template<typename T>
-  void setAllMseDklImpw(const std::vector<T>& L2errs,
+  void setAllMseDklImpw(const std::vector<T>& deltaVal,
                         const std::vector<T>& DKLs,
                         const std::vector<T>& rhos,
                         const Fval C, const Fval invC) const
   {
-    assert(L2errs.size() == size);
-    assert(DKLs.size() == size);
-    assert(rhos.size() == size);
+    assert(deltaVal.size() ==size && DKLs.size() ==size && rhos.size() ==size);
     for(Uint b=0; b<size; ++b)
-      setMseDklImpw(b, sampledTstep(b), L2errs[b], DKLs[b], rhos[b], C,invC);
+      setMseDklImpw(b, sampledTstep(b), deltaVal[b], DKLs[b], rhos[b], C,invC);
   }
 
   void resizeStep(const Uint b, const Uint nSteps)
   {
-    assert( S.size()>b); assert( R.size()>b);
+    assert( S.size()>b and R.size()>b);
     S[b].resize(nSteps); R[b].resize(nSteps); PERW[b].resize(nSteps);
   }
 };

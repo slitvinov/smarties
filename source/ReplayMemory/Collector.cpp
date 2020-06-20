@@ -9,6 +9,7 @@
 #include "Collector.h"
 #include "../Utils/FunctionUtilities.h"
 #include "DataCoordinator.h"
+#include "MemoryProcessing.h"
 #include <algorithm>
 
 namespace smarties
@@ -17,7 +18,6 @@ namespace smarties
 Collector::Collector(MemoryBuffer*const RM, DataCoordinator*const C) :
 replay(RM), sharing(C)
 {
-  inProgress.resize(distrib.nAgents);
 }
 
 // Once learner receives a new observation, first this function is called
@@ -36,12 +36,8 @@ void Collector::add_state(Agent&a)
     // (this is accompained by check in approximator)
     S.states  = std::vector<Fvec>{ storedState };
     S.rewards = std::vector<Real>{ (Real) 0 };
-    S.actions.clear();      S.policies.clear();     S.latent_states.clear();
-    S.SquaredError.clear(); S.offPolicImpW.clear(); S.KullbLeibDiv.clear();
-    S.state_vals.clear();   S.action_adv.clear();   S.Q_RET.clear();
-
+    S.clearNonTrackedAgent();
     a.agentStatus = INIT; // one state stored, lie to avoid catching asserts
-    assert(S.agentID == -1 && "Untracked sequences are not tagged to agent");
     return;
   }
 
@@ -69,40 +65,40 @@ void Collector::add_state(Agent&a)
 
   // environment interface can overwrite reward. why? it can be useful.
   //env->pickReward(a);
-  S.ended = a.agentStatus == TERM;
-  S.states.push_back(storedState);
   S.latent_states.push_back( a.getLatentState<Fval>() );
+  S.bReachedTermState = a.agentStatus == TERM;
+  S.states.push_back(storedState);
   S.rewards.push_back(a.reward);
   if( a.agentStatus not_eq INIT ) S.totR += a.reward;
   else assert(std::fabs(a.reward)<2.2e-16); //rew for init state must be 0
 }
 
 // Once network picked next action, call this method
-void Collector::add_action(const Agent& a, const Rvec pol)
+void Collector::add_action(const Agent& a)
 {
-  assert(pol.size() == aI.dimPol());
-  assert(a.agentStatus < TERM);
+  assert(a.agentStatus < LAST);
   if(a.trackEpisodes == false) {
     // do not store more stuff in sequence but also do not track data counter
     inProgress[a.ID].actions = std::vector<Rvec>{ a.action };
-    inProgress[a.ID].policies = std::vector<Rvec>{ pol };
+    inProgress[a.ID].policies = std::vector<Rvec>{ a.policyVector };
     return;
   }
 
-  if(a.agentStatus not_eq INIT) nSeenTransitions_loc ++;
+  if(a.agentStatus not_eq INIT) replay->increaseLocalSeenSteps();
   inProgress[a.ID].actions.push_back( a.action );
-  inProgress[a.ID].policies.push_back(pol);
+  inProgress[a.ID].policies.push_back( a.policyVector );
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
 void Collector::terminate_seq(Agent&a)
 {
-  assert(a.agentStatus >= TERM);
-  if(a.trackEpisodes == false) return; // do not store seq
+  //either do not store episode, or algorithm already did this (e.g. CMA):
+  if(a.trackEpisodes == false or inProgress[a.ID].nsteps() == 0) return;
+  assert(a.agentStatus >= LAST);
   // fill empty action and empty policy: last step of episode never has actions
   const Rvec dummyAct = Rvec(aI.dim(), 0), dummyPol = Rvec(aI.dimPol(), 0);
   a.resetActionNoise();
-  a.setAction(dummyAct);
+  a.setAction(dummyAct, dummyPol);
   inProgress[a.ID].actions.push_back( dummyAct );
   inProgress[a.ID].policies.push_back( dummyPol );
 
@@ -115,7 +111,9 @@ void Collector::push_back(const size_t agentId)
   assert(agentId < inProgress.size());
   if(inProgress[agentId].nsteps() < 2) die("Seq must at least have s0 and sT");
 
-  inProgress[agentId].finalize( nSeenEpisodes_loc.load() );
+  const long tStamp = std::max(replay->nLocTimeStepsTrain(), (long)0);
+  inProgress[agentId].finalize(tStamp);
+  MemoryProcessing::computeReturnEstimator(* replay, inProgress[agentId]);
 
   if(sharing->bRunParameterServer)
   {
@@ -125,7 +123,7 @@ void Collector::push_back(const size_t agentId)
     // It only matters if multiple agents in env belong to same learner.
     // To ensure thread safety, we must use mutex and check that this agent is
     // last to reset the sequence.
-    assert(distrib.bIsMaster == false);
+    assert(replay->distrib.bIsMaster == false);
     bool fullEnvReset = true;
     std::unique_lock<std::mutex> lock(envTerminationCheck);
     for(Uint i=0; i<inProgress.size(); ++i){
@@ -146,8 +144,8 @@ void Collector::push_back(const size_t agentId)
     assert(inProgress[agentId].nsteps() == 0);
   }
 
-  nSeenTransitions_loc++;
-  nSeenEpisodes_loc++;
+  replay->increaseLocalSeenSteps();
+  replay->increaseLocalSeenEps();
 }
 
 Collector::~Collector() {}

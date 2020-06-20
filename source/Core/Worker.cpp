@@ -7,15 +7,17 @@
 //
 
 #include "Worker.h"
+
 #include "../Learners/AlgoFactory.h"
 #include "../Utils/SocketsLib.h"
 #include "../Utils/SstreamUtilities.h"
+
 #include <fstream>
 
 namespace smarties
 {
 
-Worker::Worker(DistributionInfo&D) : distrib(D),
+Worker::Worker(ExecutionInfo&D) : distrib(D),
   dataTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   algoTasks( [&]() { return learnersBlockingDataAcquisition(); } ),
   COMM( std::make_unique<Launcher>(this, D) ),
@@ -68,11 +70,14 @@ void Worker::runTraining()
     if(isTrainingStarted==0 && learn_rank==0) {
       const auto nCollected = learners[firstLearnerStart]->locDataSetSize();
       const int perc = nCollected * 100.0/(Real) minNdataB4Train;
-      if(nCollected >= minNdataB4Train) isTrainingStarted = 1;
-      else if(perc >= percentageReady+5) {
-       percentageReady = perc;
-       printf("\rCollected %d%% of data required to begin training. ", perc);
-       fflush(0);
+      if(nCollected >= minNdataB4Train) {
+        isTrainingStarted = 1;
+        printf("\rCollected all data required to begin training.     \n");
+        fflush(0);
+      } else if(perc >= percentageReady+5) {
+        percentageReady = perc;
+        printf("\rCollected %d%% of data required to begin training. ", perc);
+        fflush(0);
       }
     }
     if(isTrainingStarted==0) return false;
@@ -155,7 +160,7 @@ void Worker::answerStateAction(Agent& agent) const
   const Uint nSteps = std::max(algo.nLocTimeSteps(), (long) 0);
   agent.learnerTimeStepID = factor * nSteps;
   agent.learnerGradStepID = algo.nGradSteps();
-  if(agent.agentStatus >= TERM) agent.action[0] = algo.getAvgCumulativeReward();
+  if(agent.agentStatus >= LAST) agent.action[0] = algo.getAvgCumulativeReward();
   //debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
 }
 

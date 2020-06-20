@@ -10,7 +10,7 @@
 #define smarties_StatsTracker_h
 
 #include "ThreadSafeVec.h"
-#include "../Settings.h"
+#include "../Settings/ExecutionInfo.h"
 
 #include <mutex>
 
@@ -22,7 +22,7 @@ struct DelayedReductor
 {
   const MPI_Comm mpicomm;
   const Uint arysize, mpisize;
-  const DistributionInfo& distrib;
+  const ExecutionInfo & distrib;
   MPI_Request buffRequest = MPI_REQUEST_NULL;
   std::vector<T> return_ret = std::vector<T>(arysize, 0);
   std::vector<T> reduce_ret = std::vector<T>(arysize, 0);
@@ -34,7 +34,7 @@ struct DelayedReductor
     return size;
   }
 
-  DelayedReductor(const DistributionInfo&, const std::vector<T> init);
+  DelayedReductor(const ExecutionInfo &, const std::vector<T> init);
   ~DelayedReductor();
 
   std::vector<T> get(const bool accurate = false);
@@ -63,7 +63,7 @@ struct TrainData
   THRvec<long double> cntVec;
   THRvec<LDvec> qVec, pVec, eVec;
 
-  TrainData(const std::string _name, const DistributionInfo&, bool bPPol=0,
+  TrainData(const std::string _name, const ExecutionInfo &, bool bPPol=0,
     const std::string extrah = std::string(), const Uint nextra=0);
 
   ~TrainData();
@@ -103,7 +103,7 @@ struct StatsTracker
   LDvec instMean, instStdv;
   unsigned long nStep = 0;
 
-  StatsTracker(const Uint N, const DistributionInfo&);
+  StatsTracker(const Uint N, const ExecutionInfo&);
 
   void track_vector(const Rvec& grad, const Uint thrID) const;
 

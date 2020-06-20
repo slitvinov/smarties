@@ -65,7 +65,7 @@ class RACER : public Learner_approximator
   mutable std::vector<Rvec> dkls=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
   mutable std::vector<Rvec> advs=std::vector<Rvec>(batchSize,Rvec(ESpopSize,0));
 
-  void prepareCMALoss();
+  void prepareCMALoss() override;
 
   //void TrainByEpisodes(const Uint seq, const Uint wID,
   //  const Uint bID, const Uint tID) const override;
@@ -90,10 +90,11 @@ class RACER : public Learner_approximator
   static std::vector<Uint> count_adv_starts(const ActionInfo& aI);
   void setupNet();
  public:
-  RACER(MDPdescriptor& MDP_, Settings& S, DistributionInfo& D);
+  RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D);
 
-  void select(Agent& agent) override;
   void setupTasks(TaskQueue& tasks) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
   static Uint getnOutputs(const ActionInfo& aI);
   static Uint getnDimPolicy(const ActionInfo& aI);
 };

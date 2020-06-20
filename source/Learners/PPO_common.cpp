@@ -26,6 +26,20 @@ updateDKL_target(const bool farPolSample, const Real DivKL) const
 }
 
 template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::getMetrics(std::ostringstream& buf) const
+{
+  Utilities::real2SS(buf, penalCoef, 6, 1);
+  Utilities::real2SS(buf, DKL_target, 6, 1);
+  Learner_approximator::getMetrics(buf);
+}
+template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::getHeaders(std::ostringstream& buf) const
+{
+  buf << "| penl |DKLtgt";
+  Learner_approximator::getHeaders(buf);
+}
+
+template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::setupNet()
 {
   const std::type_info & actT = typeid(Action_t), & vecT = typeid(Rvec);
@@ -58,85 +72,6 @@ void PPO<Policy_t, Action_t>::setupNet()
   settings.nnOutputFunc = "Linear"; // critic must be linear
   critc->buildFromSettings(1);
   critc->initializeNetwork();
-
-  #ifdef PPO_learnDKLt
-   trainInfo = new TrainData("PPO",distrib,1,"| beta |  DKL | avgW | DKLt ",4);
-  #else
-   trainInfo = new TrainData("PPO",distrib,1,"| beta |  DKL | avgW ",3);
-  #endif
-}
-
-template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::updateGAE(Episode& seq) const
-{
-  assert(seq.states.size()==seq.state_vals.size() && seq.states.size()>0);
-
-  //this is only triggered by t = 0 (or truncated trajectories)
-  // at t=0 we do not have a reward, and we cannot compute delta
-  //(if policy was updated after prev action we treat next state as initial)
-  if(seq.state_vals.size() < 2)  return;
-  assert(seq.states.size() == 2+seq.Q_RET.size());
-  assert(seq.states.size() == 2+seq.action_adv.size());
-
-  const Sint N = seq.states.size();
-  const Fval vSold = seq.state_vals[N-2], vSnew = seq.state_vals[N-1];
-  const Fval R = data->scaledReward(seq, N-1);
-  // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
-  // received with transition to s_t+1, sometimes referred to as r_t)
-
-  const Fval delta = R + (Fval)gamma * vSnew - vSold;
-  seq.action_adv.push_back(0);
-  seq.Q_RET.push_back(0);
-
-  Fval fac_lambda = 1, fac_gamma = 1;
-  // If user selects gamma=.995 and lambda=0.97 as in Henderson2017
-  // these will start at 0.99 and 0.95 (same as original) and be quickly
-  // annealed upward in the first 1e5 steps.
-  //const Fval rGamma  =  gamma>.99? annealDiscount( gamma,.99,_nStep) :  gamma;
-  //const Fval rLambda = lambda>.95? annealDiscount(lambda,.95,_nStep) : lambda;
-  const Fval rGamma = settings.gamma, rLambda = settings.lambda;
-  // reward of i=0 is 0, because before any action
-  // adv(0) is also 0, V(0) = V(s_0)
-  for (Sint i=N-2; i>=0; --i) { //update all rewards before current step
-    //will contain MC sum of returns:
-    seq.Q_RET[i] += fac_gamma * R;
-    //#ifndef IGNORE_CRITIC
-    seq.action_adv[i] += fac_lambda * delta;
-    //#else
-    //  seq.action_adv[i] += fac_gamma * R;
-    //#endif
-    fac_lambda *= rLambda*rGamma;
-    fac_gamma *= rGamma;
-  }
-}
-
-template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::initializeGAE()
-{
-  // Rewards second moment is computed right before actual training begins
-  // therefore we need to recompute (rescaled) GAE and MC cumulative rewards
-  // This assumes V(s) is initialized small, so we just rescale by std(rew)
-  debugL("Rescale GAE est. after gathering initial dataset");
-  // placed here because on 1st step we just computed first rewards statistics
-
-  const Uint setSize = data->readNSeq();
-  const Fval invstdR = data->scaledReward(1);
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < setSize; ++i) {
-    Episode& EP = data->get(i);
-    assert(EP.ndata() >= 1 && EP.state_vals.size() == EP.ndata()+1);
-    assert(EP.action_adv.size() >= EP.ndata() && EP.Q_RET.size() >= EP.ndata());
-    for (Uint j=0; j<EP.action_adv.size(); ++j) EP.action_adv[j] *= invstdR;
-    for (Uint j=0; j<EP.Q_RET.size();      ++j) EP.Q_RET[j]      *= invstdR;
-  }
-
-  const Uint todoSize = data_get->nInProgress();
-  for(Uint i = 0; i < todoSize; ++i) {
-    Episode& EP = data_get->get(i);
-    if(EP.states.size() <= 1) continue;
-    for (Uint j=0; j<EP.action_adv.size(); ++j) EP.action_adv[j] *= invstdR;
-    for (Uint j=0; j<EP.Q_RET.size();      ++j) EP.Q_RET[j]      *= invstdR;
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -160,7 +95,7 @@ getnDimPolicy(const ActionInfo*const aI)
 }
 
 template<> PPO<Continuous_policy, Rvec>::
-PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+PPO(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
   setupNet();
@@ -187,7 +122,7 @@ getnDimPolicy(const ActionInfo*const aI)
 }
 
 template<> PPO<Discrete_policy, Uint>::
-PPO(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_):
+PPO(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   Learner_approximator(MDP_, S_, D_), pol_outputs(count_pol_outputs(&aInfo)), penal_reduce(D_, LDvec{0.,1.})
 {
   setupNet();

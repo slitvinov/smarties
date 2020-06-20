@@ -15,41 +15,93 @@
 namespace smarties
 {
 
-MemoryProcessing::MemoryProcessing(MemoryBuffer*const _RM) : RM(_RM),
-  StateRewRdx(distrib, LDvec(MDP.dimStateObserved * 2 + 3, 0) ),
-  globalStep_reduce(distrib, std::vector<long>{0, 0}),
-  ReFER_reduce(distrib, LDvec{0.,1.})
+namespace MemoryProcessing
 {
-    LDvec initGuessStateRewStats(MDP.dimStateObserved * 2 + 3, 0);
-    for(Uint i=0; i<MDP.dimStateObserved; ++i)
-      initGuessStateRewStats[i + MDP.dimStateObserved] = 0;
-    initGuessStateRewStats[MDP.dimStateObserved*2] = 1;
-    initGuessStateRewStats[MDP.dimStateObserved*2 + 2] = 1;
-    StateRewRdx.update(initGuessStateRewStats);
 
-    globalStep_reduce.update( { nSeenEpisodes_loc.load(),
-                                nSeenTransitions_loc.load() } );
+using returnsEstimator_f = std::function<Fval(const Episode& EP, const Uint t)>;
+returnsEstimator_f createReturnEstimator(const MemoryBuffer & RM);
 
-    ReFER_reduce.update({(long double)0, (long double) settings.maxTotObsNum });
+inline Fval updateReturnEstimator(
+  Episode & EP, const Uint lastUpdated, const returnsEstimator_f & compute)
+{
+  assert(EP.stateValue.size() == EP.nsteps());
+  assert(EP.offPolicImpW.size() == EP.nsteps());
+  assert(EP.actionAdvantage.size() == EP.nsteps());
+  assert(EP.returnEstimator.size() == EP.nsteps());
+  assert(std::fabs(EP.actionAdvantage.back()) < 1e-16);
+  if (EP.bReachedTermState) {
+    assert(std::fabs(EP.returnEstimator.back()) < 1e-16);
+    assert(std::fabs(EP.stateValue     .back()) < 1e-16);
+  } else EP.returnEstimator.back() = EP.stateValue.back();
+
+  Fval sumErr2 = 0;
+  for(Sint t = lastUpdated; t>=0; --t) {
+    const Fval oldEstimate = EP.returnEstimator[t];
+    EP.returnEstimator[t] = compute(EP, t);
+    sumErr2 += std::pow(oldEstimate - EP.returnEstimator[t], 2);
+  }
+  return sumErr2;
 }
 
-void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
+void updateCounters(MemoryBuffer& RM, const bool bInit)
+{
+  // use result from prev AllReduce to update rewards (before new reduce).
+  // Assumption is that the number of off Pol trajectories does not change
+  // much each step. Especially because here we update the off pol W only
+  // if an obs is actually sampled. Therefore at most this fraction
+  // is wrong by batchSize / nTransitions ( ~ 0 )
+  // In exchange we skip an mpi implicit barrier point.
+
+  //_warn("globalStep_reduce %ld %ld", nSeenEpisodes_loc.load(), nSeenTransitions_loc.load());
+  RM.globalCounterRdx.update( { RM.nLocalSeenEps(),   RM.nLocalSeenSteps(),
+                                RM.nFarPolicySteps(), RM.nStoredSteps() } );
+  const std::vector<long> nDataGlobal = RM.globalCounterRdx.get(bInit);
+  //_warn("nDataGlobal %ld %ld", nDataGlobal[0], nDataGlobal[1]);
+  RM.counters.nSeenEpisodes = nDataGlobal[0];
+  RM.counters.nSeenTransitions = nDataGlobal[1];
+  assert(nDataGlobal[3]>=nDataGlobal[2]);
+  Real fracOffPol = nDataGlobal[2] / (Real) std::max(nDataGlobal[3], (long) 1);
+
+  // In the ReF-ER paper we learn ReF-ER penalization coefficient beta with the
+  // network's learning rate eta (was 1e-4). In reality, beta should not depend
+  // on eta. beta should reflect estimate of far-policy samples. Accuracy of
+  // this estimate depends on: batch size B (bigger B increases accuracy
+  // because samples importance weight rho are updated more often) and data set
+  // size N (bigger N decreases accuracy because there are more samples to
+  // update). We pick coef 0.1 to match learning rate chosen in original paper:
+  // we had B=256 and N=2^18 and eta=1e-4. 0.1*B*N \approx 1e-4
+  const long maxN = RM.settings.maxTotObsNum, BS = RM.settings.batchSize;
+  const Real nDataSize = std::max((long) maxN, nDataGlobal[3]);
+  const Real learnRefer = 0.1 * BS / nDataSize;
+  const auto fixPointIter = [&] (const Real val, const bool goTo0) {
+    if (goTo0) // fixed point iter converging to 0:
+      return (1 - std::min(learnRefer, val)) * val;
+    else       // fixed point iter converging to 1:
+      return (1 - std::min(learnRefer, val)) * val + std::min(learnRefer, 1-val);
+  };
+
+  // if too much far policy data, increase weight of Dkl penalty
+  const bool bDecreaseBeta = fracOffPol > RM.settings.penalTol;
+  RM.beta = fixPointIter(RM.beta, bDecreaseBeta);
+
+  // USED ONLY FOR CMA: how do we weight cirit cost and policy cost?
+  // if we satisfy too strictly far-pol constrain, reduce weight of policy
+  // TODO work in progress
+  const bool bDecreaseAlpha = std::fabs(RM.settings.penalTol-fracOffPol) < 1e-3;
+  RM.alpha = fixPointIter(RM.alpha, bDecreaseAlpha);
+}
+
+void updateRewardsStats(MemoryBuffer& RM, const bool bInit)
 {
   // Update the second order moment of the rewards and means and stdev of states
   // contained in the memory buffer. Used for rescaling and numerical safety.
+  if(not RM.distrib.bTrain) return; //if not training, keep the stored values
 
-  //////////////////////////////////////////////////////////////////////////////
-  //_warn("globalStep_reduce %ld %ld", nSeenEpisodes_loc.load(), nSeenTransitions_loc.load());
-  globalStep_reduce.update( { nSeenEpisodes_loc.load(),
-                              nSeenTransitions_loc.load() } );
-  const std::vector<long> nDataGlobal = globalStep_reduce.get(bInit);
-  //_warn("nDataGlobal %ld %ld", nDataGlobal[0], nDataGlobal[1]);
-  nSeenEpisodes = nDataGlobal[0];
-  nSeenTransitions = nDataGlobal[1];
-  //////////////////////////////////////////////////////////////////////////////
-
-  if(not distrib.bTrain) return; //if not training, keep the stored values
-  const Uint setSize = RM->readNSeq(), dimS = MDP.dimStateObserved;
+  MDPdescriptor & MDP = RM.MDP;
+  const Uint setSize = RM.nStoredEps(), dimS = MDP.dimStateObserved;
+  const Real learnR = std::min((Real) 1, RM.settings.learnrate);
+  const Real WR = bInit? 1 : learnR;
+  const Real WS = bInit? 1 : learnR * (SMARTIES_OFFPOL_ADAPT_STSCALE > 0);
 
   if(WR>0 or WS>0)
   {
@@ -60,14 +112,14 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
       #pragma omp for schedule(dynamic, 1) nowait
       for(Uint i=0; i<setSize; ++i) {
-        const Episode & EP = episodes[i];
+        const Episode & EP = RM.get(i);
         const Uint N = EP.ndata();
         count += N;
         for(Uint j=0; j<N; ++j) {
-          const long double drk = EP.rewards[j+1] - mean_reward;
+          const long double drk = EP.rewards[j+1] - MDP.rewardsMean;
           newRSum += drk; newRSqSum += drk * drk;
           for(Uint k=0; k<dimS && WS>0; ++k) {
-            const long double dsk = EP.states[j][k] - mean_state[k];
+            const long double dsk = EP.states[j][k] - MDP.stateMean[k];
             thNewSSum[k] += dsk; thNewSSqSum[k] += dsk * dsk;
           }
         }
@@ -90,10 +142,10 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     newSRstats.push_back(newRSum);
     newSRstats.push_back(newRSqSum);
     assert(newSRstats.size() == 2*dimS + 3);
-    StateRewRdx.update(newSRstats);
+    RM.StateRewRdx.update(newSRstats);
   }
 
-  const auto newSRstats = StateRewRdx.get(bInit);
+  const auto newSRstats = RM.StateRewRdx.get(bInit);
   assert(newSRstats.size() == 2*dimS + 3);
   const auto count = newSRstats[2*dimS];
 
@@ -111,12 +163,12 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     static constexpr long double EPS = std::numeric_limits<nnReal>::epsilon();
     variance = std::max(variance, EPS); //large sum may be neg machine precision
     stdev += learnRate * (std::sqrt(variance) - stdev);
-    invstdev = 1/stdev;
+    invstdev = 1 / stdev;
   };
 
   if(WR>0)
   {
-      updateStats(mean_reward, std_reward, invstd_reward, WR,
+      updateStats(MDP.rewardsMean, MDP.rewardsStdDev, MDP.rewardsScale, WR,
                   newSRstats[2*dimS+1] / count, newSRstats[2*dimS+2] / count);
   }
 
@@ -125,81 +177,45 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     const LDvec SSum1(& newSRstats[0], & newSRstats[dimS]);
     const LDvec SSum2(& newSRstats[dimS], & newSRstats[2 * dimS]);
     for(Uint k=0; k<dimS; ++k)
-      updateStats(mean_state[k], std_state[k], invstd_state[k],
-                  WS, SSum1[k] / count, SSum2[k] / count);
+      updateStats(MDP.stateMean[k], MDP.stateStdDev[k], MDP.stateScale[k], WS,
+                  SSum1[k] / count, SSum2[k] / count);
   }
 }
 
-void MemoryProcessing::updateReFERpenalization()
+void selectEpisodeToDelete(MemoryBuffer& RM, const FORGET ALGO)
 {
-  // use result from prev AllReduce to update rewards (before new reduce).
-  // Assumption is that the number of off Pol trajectories does not change
-  // much each step. Especially because here we update the off pol W only
-  // if an obs is actually sampled. Therefore at most this fraction
-  // is wrong by batchSize / nTransitions ( ~ 0 )
-  // In exchange we skip an mpi implicit barrier point.
-  const auto dataSetSize = nTransitions.load();
-  ReFER_reduce.update({(long double)nFarPolicySteps, (long double)dataSetSize});
-  const LDvec nFarGlobal = ReFER_reduce.get();
-  assert(nFarGlobal[1] + 1 > dataSetSize);
-  const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
-
-  // In the ReF-ER paper we learn ReF-ER penalization coefficient beta with the
-  // network's learning rate eta (was 1e-4). In reality, beta should not depend
-  // on eta. beta should reflect estimate of far-policy samples. Accuracy of
-  // this estimate depends on: batch size B (bigger B increases accuracy
-  // because samples importance weight rho are updated more often) and data set
-  // size N (bigger N decreases accuracy because there are more samples to
-  // update). We pick coef 0.1 to match learning rate chosen in original paper:
-  // we had B=256 and N=2^18 and eta=1e-4. 0.1*B*N \approx 1e-4
-  Real nDataSize = std::max((long double) settings.maxTotObsNum, nFarGlobal[1]);
-  const Real learnRefer = 0.1 * settings.batchSize / nDataSize;
-  const auto fixPointIter = [&] (const Real val, const bool goTo0) {
-    if (goTo0) // fixed point iter converging to 0:
-      return (1 - std::min(learnRefer, val)) * val;
-    else       // fixed point iter converging to 1:
-      return (1 - std::min(learnRefer, val)) * val + std::min(learnRefer, 1-val);
-  };
-
-  // if too much far policy data, increase weight of Dkl penalty
-  beta = fixPointIter(beta, fracOffPol > settings.penalTol);
-
-  // USED ONLY FOR CMA: how do we weight cirit cost and policy cost?
-  // if we satisfy too strictly far-pol constrain, reduce weight of policy
-  alpha = fixPointIter(alpha,std::fabs(settings.penalTol - fracOffPol) < 0.001);
-}
-
-void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
-{
-  const bool bRecomputeProperties = ( (nGradSteps + 1) % 100) == 0;
+  const Uint nGradSteps = RM.nGradSteps() + 1;
+  const bool bRecomputeProperties = ( nGradSteps % 1000) == 0;
   //shift data / gradient counters to maintain grad stepping to sample
   // collection ratio prescirbed by obsPerStep
-  const Real C = settings.clipImpWeight, D = settings.penalTol;
+  const Real C = RM.settings.clipImpWeight, D = RM.settings.penalTol;
 
   if(ALGO == BATCHRL) {
-    const Real maxObsNum = settings.maxTotObsNum_local, E = settings.epsAnneal;
-    const Real factorUp = std::max((Real) 1, nTransitions.load() / maxObsNum);
+    const Real maxObsNum = RM.settings.maxTotObsNum_local;
+    const Real E = RM.settings.epsAnneal;
+    const Real factorUp = std::max((Real) 1, RM.nStoredSteps() / maxObsNum);
     //const Real factorDw = std::min((Real)1, maxObsNum / obsNum);
-    //D *= factorUp;
-    //CmaxRet = 1 + C * factorDw
-    CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, E) * factorUp;
+    //D *= factorUp; //CmaxRet = 1 + C * factorDw
+    RM.CmaxRet = 1 + Utilities::annealRate(C, nGradSteps, E) * factorUp;
   } else {
     //CmaxRet = 1 + Utilities::annealRate(C, nGradSteps +1, settings.epsAnneal);
-    CmaxRet = 1 + C;
+    RM.CmaxRet = 1 + C;
   }
+  RM.CinvRet = 1 / RM.CmaxRet;
+  if(RM.CmaxRet <= 1 and C > 0) die("Unallowed ReF-ER annealing values.");
 
-  CinvRet = 1 / CmaxRet;
-  if(CmaxRet <= 1 and C > 0) die("Unallowed ReF-ER annealing values.");
-  assert(CmaxRet>=1);
+  const bool bNeedsReturnEst = RM.settings.returnsEstimator not_eq "none";
+  const returnsEstimator_f returnsCompute = createReturnEstimator(RM);
 
   MostOffPolicyEp totMostOff(D); OldestDatasetEp totFirstIn;
   MostFarPolicyEp totMostFar;    HighestAvgDklEp totHighDkl;
 
-  Real _avgR = 0;
-  Real _totDKL = 0;
-  Uint _nOffPol = 0;
-  const Uint setSize = RM->readNSeq();
-  #pragma omp parallel reduction(+ : _avgR, _totDKL, _nOffPol)
+  Uint nOffPol = 0, nRetUpdates = 0;
+  Real sumR=0, sumDKL=0, sumE2=0, sumAbsE=0, sumQ2=0, sumQ1=0, sumERet=0;
+  Fval maxQ = -1e9, minQ =  1e9;
+  const Uint setSize = RM.nStoredEps();
+  #pragma omp parallel reduction(max: maxQ) reduction(min: minQ) reduction(+: \
+      nOffPol, nRetUpdates, sumDKL, sumE2, sumAbsE, sumQ2, sumQ1, sumR, sumERet)
   {
     OldestDatasetEp locFirstIn; MostOffPolicyEp locMostOff(D);
     MostFarPolicyEp locMostFar; HighestAvgDklEp locHighDkl;
@@ -207,15 +223,26 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
     #pragma omp for schedule(static, 1) nowait
     for (Uint i = 0; i < setSize; ++i)
     {
-      Episode & EP = episodes[i];
-      if (bRecomputeProperties) EP.updateCumulative(CmaxRet, CinvRet);
-      _nOffPol += EP.nFarPolicySteps();
-      _totDKL  += EP.sumKLDivergence;
-      _avgR    += EP.totR;
+      Episode & EP = RM.get(i);
+      if (bRecomputeProperties) {
+        EP.updateCumulative(RM.CmaxRet, RM.CinvRet);
+        if (bNeedsReturnEst) {
+          sumERet += updateReturnEstimator(EP, EP.nsteps()-2, returnsCompute);
+          nRetUpdates += EP.nsteps()-1;
+        }
+      } else if (bNeedsReturnEst and EP.just_sampled > 0) {
+        sumERet += updateReturnEstimator(EP, EP.just_sampled-1, returnsCompute);
+        nRetUpdates += EP.just_sampled;
+      }
+
+      nOffPol += EP.nFarPolicySteps();    sumDKL  += EP.sumKLDivergence;
+      sumE2   += EP.sumSquaredErr;        sumAbsE += EP.sumAbsError;
+      sumQ2   += EP.sumSquaredQ;          sumQ1   += EP.sumQ; sumR += EP.totR;
+      maxQ     = std::max(EP.maxQ, maxQ); minQ     = std::min(EP.minQ, minQ);
       locFirstIn.compare(EP, i); locMostOff.compare(EP, i);
       locMostFar.compare(EP, i); locHighDkl.compare(EP, i);
+      EP.just_sampled = -1;
     }
-
     #pragma omp critical
     {
       totFirstIn.compare(locFirstIn); totMostOff.compare(locMostOff);
@@ -223,110 +250,82 @@ void MemoryProcessing::selectEpisodeToDelete(const FORGET ALGO)
     }
   }
 
-  if (CmaxRet<=1) nFarPolicySteps = 0; //then this counter and its effects are skipped
-  avgKLdivergence = _totDKL / RM->readNData();
-  nFarPolicySteps = _nOffPol;
-  RM->avgCumulativeReward = _avgR / setSize;
-  oldestStoresTimeStamp = totFirstIn.timestamp;
+  ReplayStats & stats = RM.stats;
+  if (RM.CmaxRet<=1) nOffPol = 0; //then this counter and its effects are skipped
+  const Uint nData = RM.nStoredSteps();
+  stats.oldestStoredTimeStamp = totFirstIn.timestamp;
+  stats.nFarPolicySteps = nOffPol;
 
+  stats.avgKLdivergence = sumDKL / nData;
+  stats.avgSquaredErr = sumE2 / nData;
+  stats.avgAbsError = sumAbsE / nData;
+
+  stats.avgReturn = sumR / setSize;
+  stats.avgQ = sumQ1 / nData;
+  stats.maxQ = maxQ;
+  stats.minQ = minQ;
+  stats.stdevQ = sumQ2 / nData  - stats.avgQ * stats.avgQ; // variance
+  stats.stdevQ = std::sqrt(std::max(stats.stdevQ, 1e-16)); // anti-nan
+  if (bNeedsReturnEst) {
+    if(stats.countReturnsEstimateUpdates<0)
+      stats.countReturnsEstimateUpdates = 0;
+    stats.countReturnsEstimateUpdates += nRetUpdates;
+    stats.sumReturnsEstimateErrors += sumERet;
+  } else {
+    stats.countReturnsEstimateUpdates = -1;
+    stats.sumReturnsEstimateErrors = 0;
+  }
   assert(totMostFar.ind >= 0 && totMostFar.ind < (int) setSize);
   assert(totHighDkl.ind >= 0 && totHighDkl.ind < (int) setSize);
   assert(totFirstIn.ind >= 0 && totFirstIn.ind < (int) setSize);
 
-  indexOfEpisodeToDelete = -1;
   //if (recompute) printf("min imp w:%e\n", totMostOff.avgClipImpW);
-  switch (ALGO)
-  {
-    case OLDEST:      indexOfEpisodeToDelete = totFirstIn(); break;
-
-    case FARPOLFRAC: indexOfEpisodeToDelete = totMostFar(); break;
-
-    case MAXKLDIV: indexOfEpisodeToDelete = totHighDkl(); break;
-
-    case BATCHRL: indexOfEpisodeToDelete = totMostOff(); break;
+  stats.indexOfEpisodeToDelete = -1;
+  switch (ALGO) {
+    case OLDEST:      stats.indexOfEpisodeToDelete = totFirstIn(); break;
+    case FARPOLFRAC: stats.indexOfEpisodeToDelete = totMostFar(); break;
+    case MAXKLDIV:  stats.indexOfEpisodeToDelete = totHighDkl(); break;
+    case BATCHRL:  stats.indexOfEpisodeToDelete = totMostOff(); break;
   }
 
-  if (indexOfEpisodeToDelete >= 0) {
+  if (stats.indexOfEpisodeToDelete >= 0) {
     // prevent any race condition from causing deletion of newest data:
-    const Episode & EP2delete = episodes[indexOfEpisodeToDelete];
-    if (episodes[totFirstIn.ind].ID + (Sint) setSize < EP2delete.ID)
-        indexOfEpisodeToDelete = totFirstIn.ind;
+    const Episode & EP2delete = RM.get(stats.indexOfEpisodeToDelete);
+    const Episode & EPoldest = RM.get(totFirstIn.ind);
+    if (EPoldest.ID + (Sint) setSize < EP2delete.ID)
+        stats.indexOfEpisodeToDelete = totFirstIn.ind;
   }
 }
 
-void MemoryProcessing::prepareNextBatchAndDeleteStaleEp()
+void prepareNextBatchAndDeleteStaleEp(MemoryBuffer & RM)
 {
+  ReplayStats & stats = RM.stats;
   // Here we:
-  // 1) Reset flags that signal request to update estimators. This step could
-  //    be eliminated and bundled in with next minibatch sampling step.
-  // 2) Remove episodes from the RM if needed.
-  // 3) Update minibatch sampling distributions, must be done right after
+  // 1) Remove episodes from the RM if needed.
+  // 2) Update minibatch sampling distributions, must be done right after
   //    removal of data from RM. This is reason why we bundle these 3 steps.
-
-  const std::vector<Uint>& sampled = RM->lastSampledEpisodes();
-  const Uint sampledSize = sampled.size();
-  for(Uint i = 0; i < sampledSize; ++i) {
-    Episode & S = RM->get(sampled[i]);
-    assert(S.just_sampled >= 0);
-    S.just_sampled = -1;
-  }
-  const long setSize = RM->readNSeq();
-  for(long i=0; i<setSize; ++i) assert(RM->get(i).just_sampled < 0);
 
   // Safety measure: we don't use as delete condition "if Nobs > maxTotObsNum",
   // We use "if Nobs - toDeleteEpisode.ndata() > maxTotObsNum".
   // This avoids bugs if any single sequence is longer than maxTotObsNum.
   // Has negligible effect if hyperparam maxTotObsNum is chosen appropriately.
-  if(indexOfEpisodeToDelete >= 0)
+  if(stats.indexOfEpisodeToDelete >= 0)
   {
-    const Uint maxTotObs = settings.maxTotObsNum_local; // for MPI-learners
-    if(RM->readNData() - episodes[indexOfEpisodeToDelete].ndata() > maxTotObs)
+    const long maxTotObs = RM.settings.maxTotObsNum_local; // for MPI-learners
+    const long nDataToDelete = RM.get(stats.indexOfEpisodeToDelete).ndata();
+    if(RM.nStoredSteps() - nDataToDelete > maxTotObs)
     {
       //warn("Deleting episode");
-      RM->removeEpisode(indexOfEpisodeToDelete);
-      nPrunedEps ++;
+      RM.removeEpisode(stats.indexOfEpisodeToDelete);
+      RM.stats.nPrunedEps ++;
     }
-    indexOfEpisodeToDelete = -1;
+    RM.stats.indexOfEpisodeToDelete = -1;
   }
 
-  RM->sampler->prepare(RM->needs_pass); // update sampling algorithm
+  RM.sampler->prepare(RM.needs_pass); // update sampling algorithm
 }
 
-void MemoryProcessing::getMetrics(std::ostringstream& buff)
-{
-  Utilities::real2SS(buff, RM->avgCumulativeReward, 9, 0);
-  Utilities::real2SS(buff, mean_reward, 6, 0);
-  Utilities::real2SS(buff, 1/invstd_reward, 6, 1);
-  Utilities::real2SS(buff, avgKLdivergence, 5, 1);
-
-  buff<<" "<<std::setw(5)<<nEpisodes.load();
-  buff<<" "<<std::setw(7)<<nTransitions.load();
-  buff<<" "<<std::setw(7)<<nSeenEpisodes.load();
-  buff<<" "<<std::setw(8)<<nSeenTransitions.load();
-  //buff<<" "<<std::setw(7)<<nSeenEpisodes_loc.load();
-  //buff<<" "<<std::setw(8)<<nSeenTransitions_loc.load();
-  buff<<" "<<std::setw(7)<<oldestStoresTimeStamp;
-  buff<<" "<<std::setw(4)<<nPrunedEps;
-  buff<<" "<<std::setw(6)<<nFarPolicySteps;
-  if(CmaxRet>1) {
-    //Utilities::real2SS(buf, alpha, 6, 1);
-    Utilities::real2SS(buff, beta, 6, 1);
-  }
-  nPrunedEps = 0;
-}
-
-void MemoryProcessing::getHeaders(std::ostringstream& buff)
-{
-  buff <<
-  //"|  avgR  | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
-  "|  avgR  | avgr | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nDel|nFarP ";
-  if(CmaxRet>1) {
-    //buf << "| alph | beta ";
-    buff << "| beta ";
-  }
-}
-
-void MemoryProcessing::histogramImportanceWeights()
+void histogramImportanceWeights(const MemoryBuffer & RM)
 {
   static constexpr Uint nBins = 81;
   const Real beg = std::log(1e-3), end = std::log(50.0);
@@ -336,10 +335,10 @@ void MemoryProcessing::histogramImportanceWeights()
       bounds[i] = std::exp(beg + (end-beg) * (i-1.0)/(nBins-2.0) );
   bounds[nBins] = std::numeric_limits<Fval>::max()-1e2; // -100 avoids inf later
 
-  const Uint setSize = RM->readNSeq();
+  const Uint setSize = RM.nStoredEps();
   #pragma omp parallel for schedule(dynamic, 1) reduction(+ : counts[:nBins])
   for (Uint i = 0; i < setSize; ++i) {
-    const auto & EP = episodes[i];
+    const auto & EP = RM.get(i);
     for (Uint j=0; j < EP.ndata(); ++j) {
       const auto rho = EP.offPolicImpW[j];
       for (Uint b = 0; b < nBins; ++b)
@@ -356,7 +355,7 @@ void MemoryProcessing::histogramImportanceWeights()
   for (Uint b = 0; b < nBins; ++b)
     Utilities::real2SS(buff, harmonicMean(bounds[b], bounds[b+1]), 6, 1);
   buff<<"\nfraction of dataset:\n";
-  const Real dataSize = RM->readNData();
+  const Real dataSize = RM.nStoredSteps();
   for (Uint b = 0; b < nBins; ++b)
     Utilities::real2SS(buff, counts[b]/dataSize, 6, 1);
   buff<<"\n";
@@ -364,4 +363,94 @@ void MemoryProcessing::histogramImportanceWeights()
   printf("%s\n\n", buff.str().c_str());
 }
 
+inline Fval computeRetrace(const Episode& EP, const Uint t,
+                    const Fval gamma, const Fval lambda)
+{
+  assert(t+1 < EP.actionAdvantage.size() and t+1 < EP.stateValue.size());
+  assert(t+1 < EP.returnEstimator.size() and t+1 < EP.offPolicImpW.size());
+  // From Schulman et al. 2016, https://arxiv.org/abs/1606.02647
+  const Fval R = EP.scaledReward<Fval>(t+1), Q = EP.returnEstimator[t+1];
+  const Fval V = EP.stateValue[t+1], A = EP.actionAdvantage[t+1];
+  return R + gamma * (V + lambda * EP.clippedOffPolW<Fval>(t+1) * (Q - A - V));
+}
+
+inline Fval computeRetraceExplBonus(const Episode& EP, const Uint t,
+                    const Fval avgE, const Fval gamma, const Fval lambda)
+{
+  const Fval V = EP.stateValue[t+1], A = EP.actionAdvantage[t+1];
+  const Fval E = std::fabs(EP.returnEstimator[t+1] - A - V);
+  return (1-gamma) * E + computeRetrace(EP, t, gamma, lambda);
+}
+
+inline Fval computeGAE(const Episode& EP, const Uint t,
+                const Fval gamma, const Fval lambda)
+{
+  // From Munos et al. 2016, https://arxiv.org/pdf/1506.02438.pdf
+  const Fval R = EP.scaledReward<Fval>(t+1), V = EP.stateValue[t+1];
+  return R + gamma * (V + lambda * (EP.returnEstimator[t+1] - V));
+}
+
+returnsEstimator_f createReturnEstimator(const MemoryBuffer & RM)
+{
+  const Fval gamma = RM.settings.gamma, lambda = RM.settings.lambda;
+
+  std::function<Fval(const Episode& EP, const Uint t)> ret;
+  if(RM.settings.returnsEstimator == "retrace") {
+    ret = [=](const Episode& EP, const Uint t) {
+      return computeRetrace(EP, t, gamma, lambda);
+    };
+  }
+  else
+  if(RM.settings.returnsEstimator == "retraceExplore") {
+    const Fval baselineBonus = RM.stats.avgAbsError;
+    ret = [=](const Episode& EP, const Uint t) {
+      return computeRetraceExplBonus(EP, t, baselineBonus, gamma, lambda);
+    };
+  }
+  else
+  if(RM.settings.returnsEstimator == "GAE") {
+    ret = [=](const Episode& EP, const Uint t) {
+      return computeGAE(EP, t, gamma, lambda);
+    };
+  }
+  else {
+    ret = [=](const Episode& EP, const Uint t) {
+      return computeRetrace(EP, t, gamma, lambda);
+    };
+  }
+  return ret;
+}
+
+void computeReturnEstimator(const MemoryBuffer & RM, Episode & EP)
+{
+  const Uint epLen = EP.nsteps();
+  if (RM.settings.returnsEstimator == "none") return;
+  const returnsEstimator_f returnsCompute = createReturnEstimator(RM);
+  updateReturnEstimator(EP, epLen-2, returnsCompute);
+}
+
+void rescaleAllReturnEstimator(MemoryBuffer & RM)
+{
+  if (RM.settings.returnsEstimator == "none") return;
+  const returnsEstimator_f returnsCompute = createReturnEstimator(RM);
+
+  #pragma omp parallel
+  {
+    const Uint setSize = RM.nStoredEps();
+    #pragma omp for schedule(dynamic, 1) nowait
+    for(Uint i=0; i<setSize; ++i) {
+      Episode& EP = RM.get(i);
+      updateReturnEstimator(EP, EP.nsteps()-2, returnsCompute);
+    }
+    const Uint todoSize = RM.nInProgress();
+    #pragma omp for schedule(dynamic, 1) nowait
+    for(Uint i=0; i<todoSize; ++i) {
+      Episode& EP = RM.getInProgress(i);
+      if(EP.returnEstimator.size() == 0) continue;
+      updateReturnEstimator(EP, EP.nsteps()-2, returnsCompute);
+    }
+  }
+}
+
+}
 }

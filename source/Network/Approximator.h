@@ -67,7 +67,7 @@ struct Approximator
     gradStats->reduce_stats(base+"_"+name, iter);
   }
 
-  Approximator(std::string name_, const Settings&S, const DistributionInfo&D,
+  Approximator(std::string name_, const HyperParameters&, const ExecutionInfo&,
                const MemoryBuffer* const replay_,
                const Approximator* const preprocessing_ = nullptr,
                const Approximator* const auxInputNet_ = nullptr);
@@ -342,8 +342,8 @@ struct Approximator
   }
 
 private:
-  const Settings& settings;
-  const DistributionInfo & distrib;
+  const HyperParameters & settings;
+  const ExecutionInfo & distrib;
   std::string name;
   const Uint   nAgents =  distrib.nAgents,    nThreads =  distrib.nThreads;
   const Uint ESpopSize = settings.ESpopSize, batchSize = settings.batchSize;

@@ -14,7 +14,7 @@
 namespace smarties
 {
 
-struct DistributionInfo;
+struct ExecutionInfo;
 
 #define VISIBLE __attribute__((visibility("default")))
 
@@ -71,7 +71,7 @@ public:
   VISIBLE void setRedirectAppScreenOutput(const bool redirect = true);
 
 private:
-  DistributionInfo * const distrib;
+  ExecutionInfo * const distrib;
 
   void init();
 };

@@ -19,7 +19,7 @@
 namespace smarties
 {
 
-Launcher::Launcher(Worker* const W, DistributionInfo& D) :
+Launcher::Launcher(Worker* const W, ExecutionInfo& D) :
   Communicator(W, D.generators[0], D.bTrain), distrib(D)
 {
   initArgumentFileNames();

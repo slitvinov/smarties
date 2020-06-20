@@ -10,7 +10,9 @@
 #define smarties_ParameterBlob_h
 
 #include "Warnings.h"
-#include "../Settings.h"
+#include "../Settings/ExecutionInfo.h"
+#include "../ReplayMemory/ReplayStatsCounters.h"
+
 #include <utility>
 #include <vector>
 #include <atomic>
@@ -35,12 +37,11 @@ namespace smarties
 class ParameterBlob
 {
   using dataInfo = std::pair<Uint, nnReal*>;
-  const DistributionInfo& distrib;
+  const ExecutionInfo & distrib;
   const MPI_Comm comm = distrib.master_workers_comm;
+  ReplayStats & stats;
+  ReplayCounters & counters;
   std::vector<dataInfo> dataList;
-  long & nDataGatheredB4Startup;
-  std::atomic<long>& nGradSteps;
-  Real& avgCumulativeRew;
 
   struct {
     long nDataB4startup;
@@ -49,8 +50,8 @@ class ParameterBlob
   } counterMsg;
 
 public:
-  ParameterBlob(const DistributionInfo& D, long& nDataB4, std::atomic<long>& nG, Real& avgR)
-    : distrib(D), nDataGatheredB4Startup(nDataB4), nGradSteps(nG), avgCumulativeRew(avgR) {}
+  ParameterBlob(const ExecutionInfo& D, ReplayStats& S, ReplayCounters& C)
+    : distrib(D), stats(S), counters(C) {}
 
   void add(const Uint size, nnReal * const data) {
     dataList.emplace_back(std::make_pair(size, data));
@@ -60,9 +61,9 @@ public:
   {
     MPI(Recv, (void *) & counterMsg, sizeof(counterMsg), MPI_BYTE,
         0, 72726 + MDP_ID, comm, MPI_STATUS_IGNORE);
-    nDataGatheredB4Startup = counterMsg.nDataB4startup;
-    nGradSteps             = counterMsg.nGradSteps;
-    avgCumulativeRew       = counterMsg.avgCumulativeRew;
+    counters.nGatheredB4Startup = counterMsg.nDataB4startup;
+    counters.nGradSteps         = counterMsg.nGradSteps;
+    stats.avgReturn             = counterMsg.avgCumulativeRew;
 
     // workers always recv params from learner (rank 0)
     for(const auto& data : dataList ) {
@@ -73,9 +74,9 @@ public:
 
   void send(const Uint toRank, const Uint MDP_ID)
   {
-    counterMsg.nDataB4startup = nDataGatheredB4Startup;
-    counterMsg.nGradSteps = nGradSteps.load();
-    counterMsg.avgCumulativeRew = avgCumulativeRew;
+    counterMsg.nDataB4startup = counters.nGatheredB4Startup;
+    counterMsg.nGradSteps = counters.nGradSteps.load();
+    counterMsg.avgCumulativeRew = stats.avgReturn;
     MPI(Send, (void *) & counterMsg, sizeof(counterMsg), MPI_BYTE,
         toRank, 72726 + MDP_ID, comm);
 

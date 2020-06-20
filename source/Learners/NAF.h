@@ -28,10 +28,11 @@ class NAF : public Learner_approximator
   void Train(const MiniBatch&MB, const Uint wID,const Uint bID) const override;
 
 public:
-  NAF(MDPdescriptor& MDP_, Settings& S_, DistributionInfo& D_);
+  NAF(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_);
 
   void setupTasks(TaskQueue& tasks) override;
-  void select(Agent& agent) override;
+  void selectAction(const MiniBatch& MB, Agent& agent) override;
+  void processTerminal(const MiniBatch& MB, Agent& agent) override;
 
   void test();
 };
