@@ -10,6 +10,7 @@
 #define smarties_SstreamUtilities_h
 
 #include "../Settings/Definitions.h"
+#include <cmath>
 #include <vector>
 #include <sstream>
 #include <iomanip> // setprecision

@@ -11,7 +11,7 @@
 
 #include "MiniBatch.h"
 #include "../Core/Agent.h"
-#include "../Utils/StatsTracker.h"
+#include "../Utils/DelayedReductor.h"
 #include "../Settings/ExecutionInfo.h"
 #include "../Settings/HyperParameters.h"
 #include "ReplayStatsCounters.h"

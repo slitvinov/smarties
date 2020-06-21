@@ -95,6 +95,7 @@ OBJ_FILES = \
 	Optimizer.o \
 	CMA_Optimizer.o \
 	StatsTracker.o \
+	DelayedReductor.o \
 	Communicator.o \
 	Approximator.o \
 	Launcher.o \
