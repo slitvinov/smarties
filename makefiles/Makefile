@@ -118,7 +118,7 @@ CPPFLAGS+= $(shell python3 -m pybind11 --includes)
 
 PYBINDSUF:=$(shell python3-config --extension-suffix)
 
-PATH_COMM_PY11=../source/smarties_pybind11.cpp
+PATH_COMM_PY11=../source/smarties/smarties_pybind11.cpp
 smarties_pybind11.o:
 	$(MPICXX) $(CPPFLAGS) $(NOWARNP11) -fPIC -c $(PATH_COMM_PY11) -o $@
 
