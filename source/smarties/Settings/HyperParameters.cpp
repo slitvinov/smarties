@@ -11,7 +11,7 @@
 #include "ExecutionInfo.h"
 #include "../Utils/Warnings.h"
 
-#include "../extern/json.hpp"
+#include "../../extern/json.hpp"
 #include <cassert>
 #include <fstream>
 #include <unistd.h>

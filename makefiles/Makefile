@@ -68,7 +68,7 @@ CPPFLAGS+= -DPY11_PYTORCH
 LIBS+= $(shell python3-config --ldflags)
 endif
 
-DIRS = $(sort $(dir $(wildcard ../source/*/)))
+DIRS = $(sort $(dir $(wildcard ../source/smarties/*/)))
 
 OBJ_FILES = \
 	PPO.o \

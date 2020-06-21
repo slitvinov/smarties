@@ -8,7 +8,7 @@
 
 #include "Optimizer.h"
 #include "../Utils/SstreamUtilities.h"
-#include "../extern/saruprng.h"
+#include "../../extern/saruprng.h"
 #include <unistd.h>
 
 namespace smarties

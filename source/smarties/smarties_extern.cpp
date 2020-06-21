@@ -19,7 +19,7 @@
 
 
 //=============================================================================
-#include "../include/smarties_extern.h"
+#include "../../include/smarties_extern.h"
 
 //=============================================================================
 extern "C" void smarties_sendInitState(void*const ptr2comm,
