@@ -375,11 +375,11 @@ inline Fval computeRetrace(const Episode& EP, const Uint t,
 }
 
 inline Fval computeRetraceExplBonus(const Episode& EP, const Uint t,
-                    const Fval avgE, const Fval gamma, const Fval lambda)
+                const Fval B, const Fval C, const Fval G, const Fval L)
 {
   const Fval V = EP.stateValue[t+1], A = EP.actionAdvantage[t+1];
-  const Fval E = std::fabs(EP.returnEstimator[t+1] - A - V);
-  return (1-gamma) * E + computeRetrace(EP, t, gamma, lambda);
+  const Fval E = std::fabs(EP.returnEstimator[t+1] - A - V) - B;
+  return C * E + computeRetrace(EP, t, G, L);
 }
 
 inline Fval computeGAE(const Episode& EP, const Uint t,
@@ -402,9 +402,12 @@ returnsEstimator_f createReturnEstimator(const MemoryBuffer & RM)
   }
   else
   if(RM.settings.returnsEstimator == "retraceExplore") {
-    const Fval baselineBonus = RM.stats.avgAbsError;
+    const Fval coef = (1-gamma);
+    const Fval baseline = RM.stats.avgAbsError;
+    //static constexpr Real EPS = std::numeric_limits<float>::epsilon();
+    //const Fval baseline = std::sqrt(std::max(EPS, RM.stats.avgSquaredErr));
     ret = [=](const Episode& EP, const Uint t) {
-      return computeRetraceExplBonus(EP, t, baselineBonus, gamma, lambda);
+      return computeRetraceExplBonus(EP, t, baseline, coef, gamma, lambda);
     };
   }
   else
