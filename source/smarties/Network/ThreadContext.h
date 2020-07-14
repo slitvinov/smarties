@@ -54,10 +54,17 @@ struct ThreadContext
     _addedInputType.resize(allSamplCnt, NONE);
   }
 
-  void setSampleAddedInputType(const Sint sample, ADDED_INPUT type)
+  void setAddedInputType(const ADDED_INPUT type, const Sint sample = 0)
   {
-    if(sample < 0) _addedInputType.back() = type;
-    else _addedInputType[sample] = type;
+    addedInputType(sample) = type;
+  }
+
+  template<typename T>
+  void setAddedInput(const std::vector<T>& addedInput,
+                     const Uint t, Sint sample = 0)
+  {
+    addedInputType(sample) = VECTOR;
+    addedInputVec(sample) = NNvec(addedInput.begin(), addedInput.end());
   }
 
   void load(const std::shared_ptr<Network> NET,
@@ -162,36 +169,48 @@ struct AgentContext
   static constexpr Uint nAddedSamples = 0;
   const Uint agentID;
   const MiniBatch* batch;
+  const Agent* agent;
   //vector over time:
   std::vector<std::unique_ptr<Activation>> activations;
   //std::shared_ptr<Parameters>> partialGradient;
   ADDED_INPUT _addedInputType = NONE;
-  std::vector<NNvec> _addedInputVec;
+  NNvec _addedInputVec;
   Sint lastGradTstep;
   Sint weightIndex;
 
   AgentContext(const Uint aID) : agentID(aID)
   {
     activations.reserve(MAX_SEQ_LEN);
-    _addedInputVec.reserve(MAX_SEQ_LEN);
   }
 
-  void setAddedInputType(const Sint sample, const ADDED_INPUT type)
+  void setAddedInputType(const ADDED_INPUT type, const Sint sample = 0)
   {
-    _addedInputType = type;
+    if(type == ACTION) {
+      _addedInputType = VECTOR;
+      _addedInputVec = NNvec(agent->action.begin(), agent->action.end());
+    } else
+      _addedInputType = type;
+  }
+
+  template<typename T>
+  void setAddedInput(const std::vector<T>& addedInput,
+                     const Uint t, Sint sample = 0)
+  {
+    assert(addedInput.size());
+    _addedInputType = VECTOR;
+    _addedInputVec = NNvec(addedInput.begin(), addedInput.end());
   }
 
   void load(const std::shared_ptr<Network> NET,
-            const MiniBatch& B,
-            const Agent& agent,
+            const MiniBatch& B, const Agent& A,
             const Uint weightID)
   {
     batch = & B;
-    assert(agent.ID == agentID);
+    agent = & A;
+    assert(A.ID == agentID);
     lastGradTstep = -1;
     weightIndex = weightID;
     NET->allocTimeSeries(activations, batch->sampledNumSteps(0));
-    _addedInputVec.resize(batch->sampledNumSteps(0));
   }
 
   void overwrite(const Sint t, const Sint sample = -1) const
@@ -210,8 +229,10 @@ struct AgentContext
   }
   NNvec& addedInputVec(const Sint t, const Sint sample = -1)
   {
-    return _addedInputVec[ mapTime2Ind(t) ];
+    assert(t+1 == (Sint) episode()->nsteps());
+    return _addedInputVec;
   }
+
   const Sint& endBackPropStep(const Sint sample =-1) const {
     return lastGradTstep;
   }
@@ -222,7 +243,8 @@ struct AgentContext
     return _addedInputType;
   }
   const NNvec& addedInputVec(const Sint t, const Sint sample = -1) const {
-    return _addedInputVec[ mapTime2Ind(t) ];
+    assert(t+1 == (Sint) episode()->nsteps());
+    return _addedInputVec;
   }
 
   Activation* activation(const Sint t, const Sint sample = -1) const

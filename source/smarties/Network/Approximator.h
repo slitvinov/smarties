@@ -100,17 +100,14 @@ struct Approximator
                      const contextid_t& contextID,
                      const Uint t, Sint sampID = 0) const
   {
-    assert(addedInput.size());
-    getContext(contextID).addedInputType(sampID) = VECTOR;
-    getContext(contextID).addedInputVec(t, sampID) = NNvec( addedInput.begin(),
-                                                            addedInput.end() );
+    getContext(contextID).setAddedInput(addedInput, t, sampID);
   }
   template< typename contextid_t>
   void setAddedInputType(const ADDED_INPUT& type,
                          const contextid_t& contextID,
                          const Uint t, Sint sampID = 0) const
   {
-    getContext(contextID).addedInputType(sampID) = type;
+    getContext(contextID).setAddedInputType(type, sampID);
   }
 
   // forward: compute net output taking care also to gather additional required
@@ -121,7 +118,7 @@ struct Approximator
   Rvec forward(const contextid_t& contextID,
                const Uint t, Sint sampID=0, const bool overwrite=false) const
   {
-    const auto& C = getContext(contextID);
+    auto& C = getContext(contextID);
     if(sampID > (Sint) C.nAddedSamples) { sampID = 0; }
     if(overwrite)
        C.activation(t, sampID)->written = false;
@@ -133,7 +130,12 @@ struct Approximator
     // we do for target net / additional samples?
     // next line assumes we want to use curr W and sample 0 for recurrencies:
     if(ind>0) assert(t>0);
-    if(ind>0 && not C.activation(t-1, 0)->written) forward(contextID, t-1, 0);
+    if(ind>0 && not C.activation(t-1, 0)->written) {
+      const auto myInputType = C.addedInputType(0);
+      C.addedInputType(0) = ACTION;
+      forward(contextID, t-1, 0);
+      C.addedInputType(0) = myInputType;
+    }
     //if(ind>0 && not C.net(t, samp)->written) forward(C, t-1, samp);
     const Activation* const recur = ind>0? C.activation(t-1, 0) : nullptr;
     const Activation* const activation = C.activation(t, sampID);
