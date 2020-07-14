@@ -11,9 +11,7 @@
 
 #include "../Core/StateAction.h"
 #include "../ReplayMemory/MemoryBuffer.h"
-#include "../Utils/ParameterBlob.h"
 #include "../Utils/StatsTracker.h"
-#include "../Utils/TaskQueue.h"
 #include "../Utils/Profiler.h"
 #include "../Settings/ExecutionInfo.h"
 #include "../Settings/HyperParameters.h"
@@ -57,16 +55,15 @@ protected:
   int algoSubStepID = -1;
 
   std::vector<std::mt19937>& generators = distrib.generators;
-  const std::unique_ptr<MemoryBuffer> data =
-                         std::make_unique<MemoryBuffer>(MDP, settings, distrib);
-  ParameterBlob params = ParameterBlob(distrib, data->stats, data->counters);
+
+  const std::unique_ptr<MemoryBuffer> data;
+
   Real & alpha   = data->alpha;
   Real & beta    = data->beta;
   Real & CmaxRet = data->CmaxRet;
   Real & CinvRet = data->CinvRet;
+  ParameterBlob & params = data->params;
 
-  DataCoordinator * const  data_coord;
-  Collector * const        data_get;
   const std::unique_ptr<Profiler> profiler  = std::make_unique<Profiler>();
 
   mutable std::mutex buffer_mutex;

@@ -10,7 +10,9 @@
 #define smarties_Sampling_h
 
 #include "../Core/StateAction.h"
+
 #include <random>
+#include <memory>
 
 namespace smarties
 {

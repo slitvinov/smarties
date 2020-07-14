@@ -8,11 +8,10 @@
 #include "MixedPG.h"
 
 #include "../Network/Builder.h"
-#include "../Utils/StatsTracker.h"
-#include "../Math/Continuous_policy.h"
 #include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
+#include "../Utils/StatsTracker.h"
 #include "../Utils/SstreamUtilities.h"
+#include "../Math/Continuous_policy.h"
 
 namespace smarties
 {

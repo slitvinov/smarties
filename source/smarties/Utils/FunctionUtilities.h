@@ -296,16 +296,16 @@ inline Real minAbsValue(const Real v, const Real w)
 
 inline void copyFile(const std::string& fileFrom, const std::string& fileTo)
 {
-  FILE* sorc = fopen(fileFrom.c_str(), "rb");
-  FILE* dest = fopen(fileTo.c_str(), "wb");
+  FILE* sorc = fopen(fileFrom.c_str(), "rb"); assert(sorc != NULL);
+  FILE* dest = fopen(fileTo.c_str(), "wb"); assert(dest != NULL);
   static constexpr size_t BUFSIZE = 4096;
   char buf[BUFSIZE];
   while (true) {
     const size_t size = fread(buf, 1, BUFSIZE, sorc);
-    fwrite(buf, 1, size, dest);
-    if(size < BUFSIZE) break;
+    if (size > 0) fwrite(buf, 1, size, dest);
+    if (size < BUFSIZE) break;
   }
-  fflush(dest); fclose(dest); fclose(sorc);
+  fclose(sorc); fflush(dest); fclose(dest);
 }
 
 template <typename T>

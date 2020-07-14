@@ -85,7 +85,6 @@ OBJ_FILES = \
 	Episode.o \
 	Learner.o \
 	Sampling.o \
-	Collector.o \
 	Math_tests.o \
 	MemoryBuffer.o \
 	DataCoordinator.o \

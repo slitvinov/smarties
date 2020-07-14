@@ -36,7 +36,6 @@ set(smarties_sources
 
     ${source_dir}/smarties/ReplayMemory/Episode.cpp
     ${source_dir}/smarties/ReplayMemory/Sampling.cpp
-    ${source_dir}/smarties/ReplayMemory/Collector.cpp
     ${source_dir}/smarties/ReplayMemory/MemoryBuffer.cpp
     ${source_dir}/smarties/ReplayMemory/DataCoordinator.cpp
     ${source_dir}/smarties/ReplayMemory/MemoryProcessing.cpp

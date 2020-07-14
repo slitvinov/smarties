@@ -8,15 +8,14 @@
 #include "DPG.h"
 
 #include "../Network/Builder.h"
-#include "../Utils/StatsTracker.h"
-#include "../Math/Continuous_policy.h"
 #include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
+#include "../Utils/StatsTracker.h"
 #include "../Utils/SstreamUtilities.h"
+#include "../Math/Continuous_policy.h"
 
 //#define DKL_filter
-#define DPG_RETRACE_TGT
-#define DPG_LEARN_STDEV
+//#define DPG_RETRACE_TGT
+//#define DPG_LEARN_STDEV
 
 namespace smarties
 {
@@ -96,27 +95,23 @@ void DPG::selectAction(const MiniBatch& MB, Agent& agent)
       POL.selectAction_OrnsteinUhlenbeck(agent, distrib.bTrain, OrUhState[agent.ID]);
   agent.setAction(action, POL.getVector());
 
-  #ifdef DPG_RETRACE_TGT
-    //careful! act may be scaled to agent's action space, mean/sampAct aren't
-    critc->setAddedInputType(ACTION, agent, MB.indCurrStep());
-    const Rvec qval = critc->forward(agent);
-    critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
-    const Rvec sval = critc->forward(agent, true); // overwrite = true
-    MB.appendValues(sval[0], qval[0]);
-  #endif
+  //careful! act may be scaled to agent's action space, mean/sampAct aren't
+  critc->setAddedInputType(ACTION, agent, MB.indCurrStep());
+  const Rvec qval = critc->forward(agent);
+  critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
+  const Rvec sval = critc->forward(agent, true); // overwrite = true
+  MB.appendValues(sval[0], qval[0]);
 }
 
 void DPG::processTerminal(const MiniBatch& MB, Agent& agent)
 {
-  #ifdef DPG_RETRACE_TGT
+  // whether episode is truncated or terminated, action advantage is 0
+  if( agent.agentStatus == LAST ) {
     for (const auto & net : networks ) net->load(MB, agent, 0);
-    // whether episode is truncated or terminated, action advantage is 0
-    if( agent.agentStatus == LAST ) {
-      const Rvec pvec = actor->forward(agent); // grab pol mean
-      critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
-      MB.appendValues(critc->forward(agent)[0]); // not a terminal state
-    } else MB.appendValues(0); // value of terminal state is 0
-  #endif
+    const Rvec pvec = actor->forward(agent); // grab pol mean
+    critc->setAddedInputType(NETWORK, agent, MB.indCurrStep());
+    MB.appendValues(critc->forward(agent)[0]); // not a terminal state
+  } else MB.appendValues(0); // value of terminal state is 0
   OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
 }
 

@@ -7,9 +7,9 @@
 //
 
 #include "DQN.h"
+
 #include "../Utils/StatsTracker.h"
 #include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
 #include "../Utils/FunctionUtilities.h"
 
 #define DQN_USE_POLICY

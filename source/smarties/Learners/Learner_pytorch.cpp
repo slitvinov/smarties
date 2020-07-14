@@ -6,7 +6,6 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "../ReplayMemory/Collector.h"
 #include "Learner_pytorch.h"
 #include <chrono>
 

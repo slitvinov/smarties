@@ -20,7 +20,6 @@
 
 #include "../Utils/StatsTracker.h"
 #include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
 
 #include "RACER_common.cpp"
 #include "RACER_train.cpp"

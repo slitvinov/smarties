@@ -7,9 +7,12 @@
 //
 
 #include "MemoryBuffer.h"
-#include "Sampling.h"
+
+#include "DataCoordinator.h"
+#include "MemoryProcessing.h"
 #include "../Utils/FunctionUtilities.h"
 #include "../Utils/SstreamUtilities.h"
+
 #include <iterator>
 #include <algorithm>
 #include <unistd.h>
@@ -18,7 +21,7 @@ namespace smarties
 {
 
 MemoryBuffer::MemoryBuffer(MDPdescriptor& M, HyperParameters& S, ExecutionInfo& D) :
-  MDP(M), settings(S), distrib(D),
+  MDP(M), settings(S), distrib(D), sharing( new DataCoordinator(this, params) ),
   StateRewRdx(distrib, LDvec(MDP.dimStateObserved * 2 + 3, 0) ),
   globalCounterRdx(distrib, std::vector<long>{0, 0, 0, 0}),
   sampler( Sampling::prepareSampler(this, S, D) )
@@ -35,6 +38,137 @@ MemoryBuffer::MemoryBuffer(MDPdescriptor& M, HyperParameters& S, ExecutionInfo& 
   StateRewRdx.update(initGuessStateRewStats);
 
   globalCounterRdx.update({(long)0,(long)0,(long)0,(long)settings.maxTotObsNum});
+
+  if(settings.returnsEstimator not_eq "none")
+    printf("Returns estimation method: %s.\n", S.returnsEstimator.c_str());
+}
+
+// Once learner receives a new observation, first this function is called
+// to add the state and reward to the memory buffer
+// this is called first also bcz memory buffer is used by net to pick new action
+void MemoryBuffer::storeState(Agent&a)
+{
+  assert(a.ID < inProgress.size());
+  //assert(replay->MDP.localID == a.localID);
+  Episode & S = inProgress[a.ID];
+  const Fvec storedState = a.getObservedState<Fval>();
+
+  if(a.trackEpisodes == false) {
+    // contain only one state and do not add more. to not store rewards either
+    // RNNs then become automatically not supported because no time series!
+    // (this is accompained by check in approximator)
+    S.states  = std::vector<Fvec>{ storedState };
+    S.rewards = std::vector<Real>{ (Real) 0 };
+    S.clearNonTrackedAgent();
+    a.agentStatus = INIT; // one state stored, lie to avoid catching asserts
+    return;
+  }
+
+  // assign or check id of agent generating episode
+  if (a.agentStatus == INIT) S.agentID = a.localID;
+  else assert(S.agentID == a.localID);
+
+  // if no tuples, init state. if tuples, cannot be initial state:
+  assert( (S.nsteps() == 0) == (a.agentStatus == INIT) );
+  #ifndef NDEBUG // check that last new state and new old state are the same
+    if( S.nsteps() ) {
+      bool same = true;
+      const Fvec vecSold = a.getObservedOldState<Fval>();
+      const Fvec memSold = S.states.back();
+      static constexpr Fval fEPS = std::numeric_limits<Fval>::epsilon();
+      for (Uint i=0; i<vecSold.size() && same; ++i) {
+        auto D = std::max({std::fabs(memSold[i]), std::fabs(vecSold[i]), fEPS});
+        same = same && std::fabs(memSold[i]-vecSold[i])/D < 100*fEPS;
+      }
+      //debugS("Agent %s and %s",print(vecSold).c_str(),print(memSold).c_str());
+      if (!same) _die("Unexpected termination of EP a %u step %u seqT %lu\n",
+        a.ID, a.timeStepInEpisode, S.nsteps());
+    }
+  #endif
+
+  // environment interface can overwrite reward. why? it can be useful.
+  //env->pickReward(a);
+  S.latent_states.push_back( a.getLatentState<Fval>() );
+  S.bReachedTermState = a.agentStatus == TERM;
+  S.states.push_back(storedState);
+  S.rewards.push_back(a.reward);
+  if( a.agentStatus not_eq INIT ) S.totR += a.reward;
+  else assert(std::fabs(a.reward)<2.2e-16); //rew for init state must be 0
+}
+
+// Once network picked next action, call this method
+void MemoryBuffer::storeAction(const Agent& a)
+{
+  assert(a.agentStatus < LAST);
+  if(a.trackEpisodes == false) {
+    // do not store more stuff in sequence but also do not track data counter
+    inProgress[a.ID].actions = std::vector<Rvec>{ a.action };
+    inProgress[a.ID].policies = std::vector<Rvec>{ a.policyVector };
+    return;
+  }
+
+  if(a.agentStatus not_eq INIT) increaseLocalSeenSteps();
+  inProgress[a.ID].actions.push_back( a.action );
+  inProgress[a.ID].policies.push_back( a.policyVector );
+}
+
+// If the state is terminal, instead of calling `add_action`, call this:
+void MemoryBuffer::terminateCurrentEpisode(Agent&a)
+{
+  //either do not store episode, or algorithm already did this (e.g. CMA):
+  if(a.trackEpisodes == false or inProgress[a.ID].nsteps() == 0) return;
+  assert(a.agentStatus >= LAST);
+  // fill empty action and empty policy: last step of episode never has actions
+  const Rvec dummyAct = Rvec(aI.dim(), 0), dummyPol = Rvec(aI.dimPol(), 0);
+  a.resetActionNoise();
+  a.setAction(dummyAct, dummyPol);
+  inProgress[a.ID].actions.push_back( dummyAct );
+  inProgress[a.ID].policies.push_back( dummyPol );
+
+  addEpisodeToTrainingSet(a);
+}
+
+// Transfer a completed trajectory from the `inProgress` buffer to the data set
+void MemoryBuffer::addEpisodeToTrainingSet(const Agent& a)
+{
+  assert(a.ID < inProgress.size());
+  if(inProgress[a.ID].nsteps() < 2) die("Seq must at least have s0 and sT");
+
+  const long tStamp = std::max(nLocTimeStepsTrain(), (long)0);
+  inProgress[a.ID].finalize(tStamp);
+  MemoryProcessing::computeReturnEstimator(* this, inProgress[a.ID]);
+
+  if(sharing->bRunParameterServer)
+  {
+    // Check whether this agent is last agent of environment to call terminate.
+    // This is only relevant in the case of learners on workers who receive
+    // params from master, therefore bool can be incorrect in all other cases.
+    // It only matters if multiple agents in env belong to same learner.
+    // To ensure thread safety, we must use mutex and check that this agent is
+    // last to reset the sequence.
+    assert(distrib.bIsMaster == false);
+    bool fullEnvReset = true;
+    std::unique_lock<std::mutex> lock(envTerminationCheck);
+    for(Uint i=0; i<inProgress.size(); ++i){
+      //printf("%lu ", inProgress[i].nsteps());
+      if (i == a.ID or inProgress[i].agentID < 0) continue;
+      fullEnvReset = fullEnvReset && inProgress[i].nsteps() == 0;
+    }
+    //printf("\n");
+    Episode EP = std::move(inProgress[a.ID]);
+    assert(inProgress[a.ID].nsteps() == 0);
+    //Unlock with empy inProgress, such that next agent can check if it is last.
+    lock.unlock();
+    sharing->addComplete(EP, fullEnvReset);
+  }
+  else
+  {
+    sharing->addComplete(inProgress[a.ID], true);
+    assert(inProgress[a.ID].nsteps() == 0);
+  }
+
+  increaseLocalSeenSteps();
+  increaseLocalSeenEps();
 }
 
 void MemoryBuffer::restart(const std::string base)
@@ -102,8 +236,8 @@ void MemoryBuffer::restart(const std::string base)
   }
 
   {
-    Uint nStoredEpisodes = 0, nStoredObservations = 0;
-    Uint nLocalSeenEps = 0, nLocalSeenObs = 0;
+    unsigned long nStoredEpisodes = 0, nStoredObservations = 0;
+    unsigned long nLocalSeenEps = 0, nLocalSeenObs = 0;
     long nInitialData = 0, doneGradSteps = 0;
     Uint pass = 1;
     pass = pass && 1==fscanf(fstat, "nStoredEps: %lu\n", &nStoredEpisodes);
@@ -161,16 +295,15 @@ void MemoryBuffer::save(const std::string base)
 
   const Uint rank = MPICommRank(distrib.learners_train_comm);
   std::string fName = base + "_rank_" +Utilities::num2str(rank,3)+ "_learner_";
-  FILE * const fstat = fopen((fName + "status_backup.raw").c_str(), "w");
-  FILE * const fdata = fopen((fName + "data_backup.raw").c_str(), "wb");
 
-  const Uint nStoredObservations = counters.nTransitions;
-  const Uint nStoredEpisodes = counters.nEpisodes;
-  const long doneGradSteps = counters.nGradSteps;
-  const Uint nLocalSeenEps = counters.nSeenEpisodes_loc;
-  const Uint nLocalSeenObs = counters.nSeenTransitions_loc;
+  const unsigned long nStoredEpisodes = counters.nEpisodes;
+  const unsigned long nStoredObservations = counters.nTransitions;
+  const unsigned long nLocalSeenEps = counters.nSeenEpisodes_loc;
+  const unsigned long nLocalSeenObs = counters.nSeenTransitions_loc;
   const long nGatheredB4Startup = counters.nGatheredB4Startup;
+  const long doneGradSteps = counters.nGradSteps;
 
+  FILE * const fstat = fopen((fName + "status_backup.raw").c_str(), "w");
   assert(fstat != NULL);
   fprintf(fstat, "nStoredEps: %lu\n",    nStoredEpisodes);
   fprintf(fstat, "nStoredObs: %lu\n",    nStoredObservations);
@@ -182,6 +315,7 @@ void MemoryBuffer::save(const std::string base)
   fprintf(fstat, "beta: %le\n",          beta);
   fflush(fstat); fclose(fstat);
 
+  FILE * const fdata = fopen((fName + "data_backup.raw").c_str(), "wb");
   assert(fdata != NULL);
   for(Uint i = 0; i <nStoredEpisodes; ++i) episodes[i].save(fdata);
   fflush(fdata); fclose(fdata);
@@ -395,6 +529,7 @@ void MemoryBuffer::getMetrics(std::ostringstream& buff)
   static constexpr Real EPS = std::numeric_limits<float>::epsilon();
   stats.avgSquaredErr = std::max(EPS,stats.avgSquaredErr);
   Utilities::real2SS(buff, std::sqrt(stats.avgSquaredErr), 6, 1);
+  //Utilities::real2SS(buff, stats.avgAbsError, 6, 1);
   if(stats.countReturnsEstimateUpdates > 0) {
     const Sint nRet = std::max((Sint) 1, stats.countReturnsEstimateUpdates);
     const Real eRet = std::max(EPS, stats.sumReturnsEstimateErrors);
@@ -439,6 +574,11 @@ void MemoryBuffer::updateSampler(const bool bForce)
 {
   if(bForce) needs_pass = true;
   sampler->prepare(needs_pass);
+}
+
+void MemoryBuffer::setupDataCollectionTasks(TaskQueue& tasks)
+{
+  sharing->setupTasks(tasks);
 }
 
 MemoryBuffer::~MemoryBuffer()

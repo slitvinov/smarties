@@ -7,15 +7,17 @@
 //
 
 #include "CMALearner.h"
+
 #include "../Utils/StatsTracker.h"
-#include "../ReplayMemory/Collector.h"
+#include "../Network/Approximator.h"
 #include "../ReplayMemory/MemoryProcessing.h"
+
 #ifdef SMARTIES_EXTRACT_COVAR
 #undef SMARTIES_EXTRACT_COVAR
 #endif
+
 #include "../Math/Continuous_policy.h"
 #include "../Math/Discrete_policy.h"
-#include "../Network/Approximator.h"
 
 #include <unistd.h> // usleep
 
@@ -80,7 +82,7 @@ processTerminal(const MiniBatch& MB, Agent& agent)
 {
   R[agent.workerID][ weightID(agent) ] += agent.cumulativeRewards;
   const auto myStep = nGradSteps();
-  data_get->terminate_seq(agent);
+  data->terminateCurrentEpisode(agent);
 
   //_warn("%u %u %f",wrkr, weightID, R[wrkr][weightID]);
   curNumEndedPerEnv[agent.workerID]++; // one more agent of workerID has finished

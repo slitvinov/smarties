@@ -7,11 +7,11 @@
 //
 
 #include "Learner.h"
+
 #include "../Utils/FunctionUtilities.h"
 #include "../Utils/SstreamUtilities.h"
 #include "../ReplayMemory/MemoryProcessing.h"
-#include "../ReplayMemory/DataCoordinator.h"
-#include "../ReplayMemory/Collector.h"
+
 #include <unistd.h>
 
 namespace smarties
@@ -20,29 +20,26 @@ namespace smarties
 Learner::Learner(MDPdescriptor& MD, HyperParameters& S, ExecutionInfo& D):
   distrib(D), settings(S), MDP(MD),
   ERFILTER(MemoryProcessing::readERfilterAlgo(S)),
-  data_coord( new DataCoordinator( data.get(), params ) ),
-  data_get ( new Collector       ( data.get(), data_coord ) ) {}
+  data(std::make_unique<MemoryBuffer>(MDP, settings, distrib)) {}
 
 Learner::~Learner()
 {
-  delete data_get;
-  delete data_coord;
 }
 
 void Learner::select(Agent& agent)
 {
-  data_get->add_state(agent);
+  data->storeState(agent);
   const MiniBatch MB = data->agentToMinibatch(agent.ID);
 
   if( agent.agentStatus < LAST ) // not end of episode
   {
     selectAction(MB, agent);
-    data_get->add_action(agent);
+    data->storeAction(agent);
   }
   else // either terminal or truncation state
   {
     processTerminal(MB, agent);
-    data_get->terminate_seq(agent);
+    data->terminateCurrentEpisode(agent);
   }
 }
 
@@ -116,7 +113,7 @@ bool Learner::blockGradientUpdates() const
 
 void Learner::setupDataCollectionTasks(TaskQueue& tasks)
 {
-  data_coord->setupTasks(tasks);
+  data->setupDataCollectionTasks(tasks);
 }
 
 void Learner::globalGradCounterUpdate()

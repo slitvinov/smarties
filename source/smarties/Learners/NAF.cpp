@@ -7,10 +7,10 @@
 //
 
 #include "NAF.h"
+
+#include "../Utils/FunctionUtilities.h"
 #include "../Utils/StatsTracker.h"
 #include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
-#include "../Utils/FunctionUtilities.h"
 
 #ifdef NAF_ADV_GAUS
 #include "../Math/Gaus_advantage.h"

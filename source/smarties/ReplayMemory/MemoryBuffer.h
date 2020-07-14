@@ -11,10 +11,13 @@
 
 #include "MiniBatch.h"
 #include "../Core/Agent.h"
+#include "../Utils/TaskQueue.h"
+#include "../Utils/ParameterBlob.h"
 #include "../Utils/DelayedReductor.h"
 #include "../Settings/ExecutionInfo.h"
 #include "../Settings/HyperParameters.h"
 #include "ReplayStatsCounters.h"
+#include "Sampling.h"
 
 #include <memory>
 #include <mutex>
@@ -22,7 +25,8 @@
 namespace smarties
 {
 
-class Sampling;
+class DataCoordinator;
+
 // algorithm to filter past episodes:
 enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV, BATCHRL};
 
@@ -44,11 +48,15 @@ struct MemoryBuffer
 
   ReplayStats stats;
   ReplayCounters counters;
+  ParameterBlob params = ParameterBlob(distrib, stats, counters);
+
+  DataCoordinator * const sharing;
 
   DelayedReductor<long double> StateRewRdx;
   DelayedReductor<long> globalCounterRdx;
 
   std::mutex dataset_mutex; // accessed by some samplers
+  std::mutex envTerminationCheck; // accessed when terminating episodes
 
   friend class Learner;
   friend class Sampling;
@@ -63,7 +71,9 @@ struct MemoryBuffer
   std::atomic<bool> needs_pass {false};
   nnReal minPriorityImpW = 1;
   nnReal maxPriorityImpW = 1;
+
   void updateSampler(const bool bForce);
+  void setupDataCollectionTasks(TaskQueue& tasks);
 
   void checkNData();
 
@@ -108,6 +118,11 @@ struct MemoryBuffer
   long nLocTimeStepsTrain() const {
     return nLocalSeenSteps() - counters.nGatheredB4Startup;
   }
+
+  void storeState(Agent&a);
+  void storeAction(const Agent& a);
+  void terminateCurrentEpisode(Agent& a);
+  void addEpisodeToTrainingSet(const Agent& a);
 
   void removeEpisode(const Uint ind);
   void pushBackEpisode(Episode & seq);

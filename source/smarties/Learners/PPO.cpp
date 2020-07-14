@@ -15,10 +15,9 @@
 #include "../Math/Continuous_policy.h"
 #include "../Math/Discrete_policy.h"
 
+#include "../Network/Approximator.h"
 #include "../Network/Builder.h"
 #include "../Utils/StatsTracker.h"
-#include "../Network/Approximator.h"
-#include "../ReplayMemory/Collector.h"
 #include "../Utils/SstreamUtilities.h"
 #include "../ReplayMemory/MemoryProcessing.h"
 

@@ -12,9 +12,10 @@
 #include "../Utils/StatsTracker.h"
 #include "../Network/Approximator.h"
 #include "../Math/Continuous_policy.h"
-#include "../ReplayMemory/Collector.h"
 #include "../Utils/SstreamUtilities.h"
+
 #include<memory>
+
 #define SEQ_CUTOFF 200
 
 namespace smarties
