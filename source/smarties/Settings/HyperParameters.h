@@ -22,6 +22,10 @@ struct ExecutionInfo;
 
 struct HyperParameters
 {
+  const Uint dimS, dimA;
+
+  HyperParameters(const Uint nS, const Uint nA) : dimS(nS), dimA(nA) {}
+
   void check();
   static std::string printArgComments();
   void initializeOpts(std::ifstream & , ExecutionInfo & );
@@ -39,14 +43,14 @@ struct HyperParameters
   Real gamma = 0.995;
   Real lambda = 1;
   Real obsPerStep = 1;
-  Real clipImpWeight = 4;
+  Real clipImpWeight = std::sqrt(dimA / 2.0);
   Real penalTol = 0.1;
   Real klDivConstraint = 0.01;
   Real targetDelay = 0;
   Real epsAnneal = 5e-7;
 
-  Uint minTotObsNum =  65536;
-  Uint maxTotObsNum = 262144;
+  Uint minTotObsNum = 0;
+  Uint maxTotObsNum = std::pow(2, 14) * std::sqrt(dimA + dimS);
   Uint saveFreq = 200000;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -68,9 +72,9 @@ struct HyperParameters
   std::string nnFunc = "SoftSign";
   std::string nnType = "FFNN";
 
-  ///////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   //SETTINGS THAT ARE NOT READ FROM FILE
-  ///////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // rank-local data-acquisition goals:
   Uint batchSize_local = 0;
   Real obsPerStep_local = 0;

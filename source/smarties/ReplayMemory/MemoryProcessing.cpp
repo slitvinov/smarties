@@ -91,7 +91,7 @@ void updateCounters(MemoryBuffer& RM, const bool bInit)
   RM.alpha = fixPointIter(RM.alpha, bDecreaseAlpha);
 }
 
-void updateRewardsStats(MemoryBuffer& RM, const bool bInit)
+void updateRewardsStats(MemoryBuffer& RM, const bool bInit, const Real rRateFac)
 {
   // Update the second order moment of the rewards and means and stdev of states
   // contained in the memory buffer. Used for rescaling and numerical safety.
@@ -99,9 +99,11 @@ void updateRewardsStats(MemoryBuffer& RM, const bool bInit)
 
   MDPdescriptor & MDP = RM.MDP;
   const Uint setSize = RM.nStoredEps(), dimS = MDP.dimStateObserved;
-  const Real learnR = std::min((Real) 1, RM.settings.learnrate);
-  const Real WR = bInit? 1 : learnR;
-  const Real WS = bInit? 1 : learnR * (SMARTIES_OFFPOL_ADAPT_STSCALE > 0);
+  const Real eta = RM.settings.learnrate, epsAnneal = RM.settings.epsAnneal;
+  const Real learnR = Utilities::annealRate(eta, RM.nGradSteps(), epsAnneal);
+  const Real annealLearnR = std::min((Real) 1, rRateFac * learnR);
+  const Real WS = bInit? 1 : annealLearnR * (SMARTIES_OFFPOL_ADAPT_STSCALE > 0);
+  const Real WR = bInit? 1 : annealLearnR;
 
   if(WR>0 or WS>0)
   {

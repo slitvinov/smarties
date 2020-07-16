@@ -193,7 +193,7 @@ inline T noiseMap_inverse(T val)
 }
 
 template<typename T>
-inline T clip(const T val, const T ub, const T lb)
+inline T clipInInterval(const T val, const T lb, const T ub)
 {
   assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));
   assert(!std::isinf(val) && !std::isinf(ub) && !std::isinf(lb));

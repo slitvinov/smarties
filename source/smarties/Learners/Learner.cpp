@@ -80,10 +80,20 @@ void Learner::processMemoryBuffer()
   if(currStep%1000==0) {
     profiler->stop_start("PRE");
     // update state mean/std with net's learning rate
-    MemoryProcessing::updateRewardsStats(* data.get());
+    MemoryProcessing::updateRewardsStats(* data.get(), false, 10);
+    //MemoryProcessing::updateRewardsStats(* data.get());
   }
   profiler->stop_start("FIND");
   MemoryProcessing::prepareNextBatchAndDeleteStaleEp(* data.get());
+
+  if(0){ // This would act like a PID controller to keep Q mean 0 stdev 1
+    const Real eta = settings.learnrate, epsAnneal = settings.epsAnneal;
+    const Real learnR = Utilities::annealRate(eta,nGradSteps(),epsAnneal);
+    MDP.rewardsMean += learnR/10 * data->stats.avgQ;
+    MDP.rewardsStdDev += learnR/100 * (data->stats.stdevQ - 1);
+    MDP.rewardsScale = 1 / MDP.rewardsStdDev;
+  }
+
   MemoryProcessing::updateCounters(* data.get());
   profiler->stop();
 }

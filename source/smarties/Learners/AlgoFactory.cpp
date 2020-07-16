@@ -67,7 +67,7 @@ std::unique_ptr<Learner> createLearner(
     printf("Creating learning algorithm #%02lu\n", learnerID);
 
   const ActionInfo aInfo = ActionInfo(MDP);
-  HyperParameters settings;
+  HyperParameters settings(MDP.dimObs(), MDP.dimAct());
   std::ifstream ifs = findSettingsFile(distrib, learnerID);
   settings.initializeOpts(ifs, distrib);
 
@@ -188,7 +188,7 @@ std::unique_ptr<Learner> createLearner(
     ret = std::make_unique<MixedPG>(MDP, settings, distrib);
   }
   else
-  if (settings.learner == "GAE" || settings.learner == "PPO")
+  if (settings.learner == "PPO")
   {
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "GAE";
@@ -240,7 +240,7 @@ std::unique_ptr<Learner> createLearner(
     ret = std::make_unique<ACER>(MDP, settings, distrib);
   }
   else
-  if(settings.learner=="DQN" || settings.learner=="NFQ")
+  if (settings.learner=="DQN")
   {
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "none";
@@ -259,7 +259,7 @@ std::unique_ptr<Learner> createLearner(
     ret = std::make_unique<DQN>(MDP, settings, distrib);
   }
   else
-  if (settings.learner == "NA" || settings.learner == "NAF")
+  if (settings.learner == "NAF")
   {
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "none";
@@ -323,7 +323,7 @@ std::unique_ptr<Learner> createLearner(
   }
   /*
   */
-  else die("Learning algorithm not recognized");
+  else die("Learning algorithm not recognized.");
 
   ret->setLearnerName(std::string(lName), learnerID);
 

@@ -178,9 +178,12 @@ void MixedPG::setupTasks(TaskQueue& tasks)
   tasks.add(stepComplete);
 }
 
-MixedPG::MixedPG(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
-  Learner_approximator(MDP_, S_, D_)
+MixedPG::MixedPG(MDPdescriptor& M, HyperParameters& S, ExecutionInfo& D):
+  Learner_approximator(M, S, D)
 {
+  if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
   const bool bCreatedEncorder = createEncoder();
   assert(networks.size() == bCreatedEncorder? 1 : 0);
   Approximator* const encoder = bCreatedEncorder? networks[0] : nullptr;

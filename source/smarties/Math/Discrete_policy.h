@@ -10,7 +10,6 @@
 #define smarties_Discrete_policy_h
 
 #include "../Network/Layers/Functions.h"
-//#include <algorithm>
 
 namespace smarties
 {
@@ -122,9 +121,12 @@ struct Discrete_policy
     return policyGradient(option, factor);
   }
   Rvec policyGradient(const Uint option, const Real factor) const {
-    Rvec ret(nO);
-    for (Uint i=0; i<nO; ++i) ret[i] = -factor/normalization;
-    ret[option] += factor/unnorm[option];
+    Rvec ret(nO, 0);
+    ret[option] = factor/unnorm[option];
+    for (Uint i=0; i<nO; ++i) {
+      ret[i] -= factor/normalization;
+      ret[i] *= PosDefFunction::_evalDiff(netOutputs[startProbs + i]);
+    }
     return ret;
   }
 
@@ -135,16 +137,16 @@ struct Discrete_policy
   Rvec KLDivGradient(const Rvec& beta, const Real fac = 1) const {
     Rvec ret(nO, 0);
     for (Uint j=0; j<nO; ++j){
-      const Real tmp = fac*(1+std::log(probs[j]/beta[j]))/normalization;
-      for (Uint i=0; i<nO; ++i) ret[i] += tmp*((i==j)-probs[j]);
+      const Real tmp = fac * (1 + std::log(probs[j]/beta[j])) / normalization;
+      for (Uint i=0; i<nO; ++i) ret[i] += tmp * ((i==j) - probs[j]);
+      ret[j] *= PosDefFunction::_evalDiff(netOutputs[startProbs + j]);
     }
     return ret;
   }
 
   void makeNetworkGrad(Rvec& netGradient, const Rvec& totPolicyG) const {
     assert(netGradient.size() >= startProbs+nO && totPolicyG.size() == nO);
-    for (Uint j=0, k=startProbs; j<nO; ++j, ++k)
-      netGradient[k] = totPolicyG[j] * PosDefFunction::_evalDiff(netOutputs[k]);
+    for (Uint j=0; j<nO; ++j) netGradient[startProbs + j] = totPolicyG[j];
   }
   Rvec makeNetworkGrad(const Rvec& totPolicyGrad) const {
     Rvec ret(nO);
@@ -168,8 +170,10 @@ struct Discrete_policy
   template<typename Advantage_t>
   Rvec control_grad(const Advantage_t*const adv, const Real eta) const {
     Rvec ret(nO, 0);
-    for (Uint j=0; j<nO; ++j)
+    for (Uint j=0; j<nO; ++j) {
       ret[j] = eta * adv->computeAdvantage(j)/normalization;
+      ret[j] *= PosDefFunction::_evalDiff(netOutputs[startProbs + j]);
+    }
     return ret;
   }
 

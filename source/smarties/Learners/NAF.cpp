@@ -32,6 +32,9 @@ static inline Param_advantage prepare_advantage(const Rvec& O,
 NAF::NAF(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), nL(Param_advantage::compute_nL(aInfo))
 {
+  if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
   createEncoder();
   assert(networks.size() <= 1);
   if(networks.size()>0) {

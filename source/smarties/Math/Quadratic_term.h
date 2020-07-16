@@ -108,45 +108,6 @@ protected:
     }
     return ret;
   }
-
-  void grad_matrix(const Rvec&dErrdP, Rvec&netGradient) const
-  {
-    assert(netGradient.size() >= start_matrix+nL);
-    for (Uint il=0; il<nL; il++)
-    {
-      Uint kL = 0;
-      Rvec _dLdl(nA*nA, 0);
-      for (Uint j=0; j<nA; ++j)
-      for (Uint i=0; i<nA; ++i)
-        if(i<=j) if(kL++==il) _dLdl[nA*j+i]=1;
-      assert(kL==nL);
-
-      netGradient[start_matrix+il] = 0;
-      //_dPdl = dLdl' * L + L' * dLdl
-      for (Uint j=0; j<nA; ++j)
-      for (Uint i=0; i<nA; ++i)
-      {
-        Real dPijdl = 0;
-        for (Uint k=0; k<nA; ++k)
-        {
-          const Uint k1 = nA*j + k;
-          const Uint k2 = nA*i + k;
-          dPijdl += _dLdl[k1]*L[k2] + L[k1]*_dLdl[k2];
-        }
-        netGradient[start_matrix+il] += dPijdl*dErrdP[nA*j+i];
-      }
-    }
-    {
-      Uint kl = start_matrix;
-      for (Uint j=0; j<nA; ++j)
-      for (Uint i=0; i<nA; ++i) {
-        if (i==j) netGradient[kl] *= PosDefFunction::_evalDiff(netOutputs[kl]);
-        if (i<j)  netGradient[kl] *= 1;
-        if (i<=j) kl++;
-      }
-      assert(kl==start_matrix+nL);
-    }
-  }
 };
 
 } // end namespace smarties

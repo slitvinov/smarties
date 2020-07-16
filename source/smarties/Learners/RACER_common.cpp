@@ -132,6 +132,9 @@ RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {
+  if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
   if(D.world_rank == 0) {
     using Utilities::vec2string;
     printf(
@@ -186,6 +189,9 @@ RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {
+  if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
   if(D.world_rank == 0) {
     using Utilities::vec2string;
     printf(
@@ -237,6 +243,9 @@ RACER(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   Learner_approximator(MDP_, S, D), net_outputs(count_outputs(aInfo)),
   pol_start(count_pol_starts(aInfo)), adv_start(count_adv_starts(aInfo))
 {
+  if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
   if(D.world_rank == 0) {
     using Utilities::vec2string;
     printf(

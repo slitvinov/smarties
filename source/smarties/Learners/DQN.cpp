@@ -22,9 +22,14 @@
 namespace smarties
 {
 
-DQN::DQN(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
-  Learner_approximator(MDP_, S_, D_)
+DQN::DQN(MDPdescriptor& M, HyperParameters& S, ExecutionInfo& D):
+  Learner_approximator(M, S, D)
 {
+  #ifdef DQN_USE_POLICY
+    if(settings.clipImpWeight > 0)
+    printf("Using ReF-ER with clipping parameter C=%f, tolerance D=%f "
+           "and annealing E=%f\n", S.clipImpWeight, S.penalTol, S.epsAnneal);
+  #endif
   createEncoder();
   assert(networks.size() <= 1);
   if(networks.size()>0) {
@@ -168,7 +173,7 @@ void DQN::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
     if(CmaxRet>1) { // then refer
       if(isOff) gradient = Rvec(nA, 0); // grad clipping as if pol gradient
-      const Rvec penGrad = POL.makeNetworkGrad(POL.KLDivGradient(MB.mu(bID,t), -1));
+      const Rvec penGrad = POL.KLDivGradient(MB.mu(bID,t), -1);
       for(Uint i=0; i<nA; ++i)
         gradient[i] = beta * gradient[i] + (1-beta) * penGrad[i];
     }

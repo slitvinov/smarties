@@ -373,11 +373,9 @@ struct BetaPolicy : public Base1Dpolicy
     std::gamma_distribution<Real> gamma_alpha(alpha, 1);
     std::gamma_distribution<Real> gamma_beta(beta, 1);
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-    const Real sampleAlpha = std::max(EPS, gamma_alpha(gen));
-    const Real sampleBeta  = std::max(EPS, gamma_beta(gen) );
-    const Real sample = sampleAlpha/(sampleAlpha + sampleBeta);
-    assert(sample > 0 && sample < 1);
-    return sample;
+    const Real sampleAlpha = gamma_alpha(gen), sampleBeta = gamma_beta(gen);
+    const Real sample = sampleAlpha/std::max(EPS, sampleAlpha + sampleBeta);
+    return Utilities::clipInInterval(sample, EPS, 1-EPS);
   }
 
   Real sample(std::mt19937& gen) const {
