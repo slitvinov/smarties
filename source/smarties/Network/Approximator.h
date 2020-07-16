@@ -126,15 +126,16 @@ struct Approximator
       return C.activation(t, sampID)->getOutput();
     const Uint ind = C.mapTime2Ind(t);
 
-    // compute previous outputs if needed by recurrencies. limitation. what should
-    // we do for target net / additional samples?
-    // next line assumes we want to use curr W and sample 0 for recurrencies:
+    // Compute previous outputs if needed by recurrencies. LIMITATION:
+    // What should we do for target net / additional samples?
+    // next line assumes we want to use curr W and sample 0 for recurrencies
+    // as well as using actions as added input instead of vectors/networks
     if(ind>0) assert(t>0);
     if(ind>0 && not C.activation(t-1, 0)->written) {
       const auto myInputType = C.addedInputType(0);
-      C.addedInputType(0) = ACTION;
+      if(myInputType not_eq NONE) C.addedInputType(0) = ACTION;
       forward(contextID, t-1, 0);
-      C.addedInputType(0) = myInputType;
+      if(myInputType not_eq NONE) C.addedInputType(0) = myInputType;
     }
     //if(ind>0 && not C.net(t, samp)->written) forward(C, t-1, samp);
     const Activation* const recur = ind>0? C.activation(t-1, 0) : nullptr;
@@ -359,9 +360,9 @@ private:
   bool m_UseTargetNetwork = false;
   bool m_bTargetNetUsesTargetWeights = true;
   Sint m_targetNetworkSampleID = -1;
-  // whether to backprop gradients in the input network.
-  // work by DeepMind (eg in D4PG) indicates it's best to not propagate
-  // policy net gradients towards input conv layers
+
+  // Whether to backprop gradients in the input network.
+  // Some papers do not propagate policy gradients towards encoding layers
   bool m_blockInpGrad = false;
 
   std::shared_ptr<Network> net;

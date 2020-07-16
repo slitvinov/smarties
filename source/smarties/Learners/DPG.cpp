@@ -13,8 +13,6 @@
 #include "../Utils/SstreamUtilities.h"
 #include "../Math/Continuous_policy.h"
 
-//#define DKL_filter
-//#define DPG_RETRACE_TGT
 //#define DPG_LEARN_STDEV
 
 namespace smarties
@@ -26,6 +24,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
 
   if(thrID==0) profiler->start("FWD");
   const Rvec pvec = actor->forward(bID, t); // network compute
+  if(thrID==0) profiler->stop_start("CMP");
   const Continuous_policy POL({0, aInfo.dim()}, aInfo, pvec);
   const Real RHO = POL.importanceWeight(MB.action(bID,t), MB.mu(bID,t));
   const Real DKL = POL.KLDivergence(MB.mu(bID,t));
@@ -36,15 +35,16 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   critc->setAddedInputType(NETWORK, bID, t, -1); //-1 flags to write on separate
   const Rvec pval = critc->forward(bID, t, -1); //net alloc, with target wegiths
 
-  #ifdef DPG_RETRACE_TGT
+  Real target = 0;
+  if(settings.returnsEstimator not_eq "none") {
     if( MB.isTruncated(bID, t+1) ) {
       actor->forward(bID, t+1);
       critc->setAddedInputType(NETWORK, bID, t+1); // retrace : skip tgt weights
       MB.setValues(bID, t+1, critc->forward(bID, t+1)[0]);
     }
-    const Real target = MB.returnEstimate(bID, t);
-  #else
-    Real target = MB.reward(bID, t);
+    target = MB.returnEstimate(bID, t);
+  } else {
+    target = MB.reward(bID, t);
     if (not MB.isTerminal(bID, t+1) && not isOff) {
       actor->forward_tgt(bID, t+1); // policy at next step, with tgt weights
       critc->setAddedInputType(NETWORK, bID, t+1, -1);
@@ -52,7 +52,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
       MB.setValues(bID, t+1, v_next[0]);
       target += gamma * v_next[0];
     }
-  #endif
+  }
 
   //code to compute deterministic policy grad:
   Rvec polGrad = isOff? Rvec(nA,0) : critc->oneStepBackProp({1}, bID, t, -1);
@@ -64,7 +64,7 @@ void DPG::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     for (Uint i=0; i<nA; ++i) polGrad[i+nA] = isOff? 0 : SPG[i+nA];
   #else
     // Next line keeps stdev at user's value, else NN penal might cause drift.
-    const Rvec fixGrad = POL.fixExplorationGrad(explNoise);
+    const Rvec fixGrad = POL.fixExplorationGrad(settings.explNoise);
     for (Uint i=0; i<nA; ++i) polGrad[i+nA] = fixGrad[i+nA];
   #endif
 
@@ -91,8 +91,9 @@ void DPG::selectAction(const MiniBatch& MB, Agent& agent)
   // if explNoise is 0, we just act according to policy
   // since explNoise is initial value of diagonal std vectors
   // this should only be used for evaluating a learned policy
-  Rvec action = OrUhDecay<=0? POL.selectAction(agent, distrib.bTrain) :
-      POL.selectAction_OrnsteinUhlenbeck(agent, distrib.bTrain, OrUhState[agent.ID]);
+  const bool bSample = settings.explNoise>0;
+  Rvec action = OrUhDecay<=0? POL.selectAction(agent, bSample) :
+      POL.selectAction_OrnsteinUhlenbeck(agent, bSample, OrUhState[agent.ID]);
   agent.setAction(action, POL.getVector());
 
   //careful! act may be scaled to agent's action space, mean/sampAct aren't
@@ -162,8 +163,8 @@ void DPG::setupTasks(TaskQueue& tasks)
     profiler->stop();
     debugL("Apply SGD update after reduction of gradients");
     applyGradient();
-    algoSubStepID = 0; // rinse and repeat
     globalGradCounterUpdate(); // step ++
+    algoSubStepID = 0; // rinse and repeat
     profiler->start("DATA");
   };
   tasks.add(stepComplete);
@@ -183,7 +184,7 @@ DPG::DPG(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   actor = networks.back();
   actor->buildFromSettings(nA);
   actor->setUseTargetNetworks();
-  const Rvec stdParam = Continuous_policy::initial_Stdev(aInfo, explNoise);
+  Rvec stdParam = Continuous_policy::initial_Stdev(aInfo, settings.explNoise);
   actor->getBuilder().addParamLayer(nA, "Linear", stdParam);
   actor->initializeNetwork();
 
@@ -199,10 +200,6 @@ DPG::DPG(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   settings.nnOutputFunc = "Linear"; // critic must be linear
   critc->buildFromSettings(1);
   critc->initializeNetwork();
-
-  #ifdef DPG_RETRACE_TGT
-    computeQretrace = true;
-  #endif
 }
 
 }

@@ -33,7 +33,7 @@ struct HyperParameters
   std::string learner = "VRACER";
   std::string ERoldSeqFilter = "oldest";
   std::string dataSamplingAlgo = "uniform";
-  std::string returnsEstimator = "retrace";
+  std::string returnsEstimator = "default";
 
   Real explNoise = std::sqrt(0.2);
   Real gamma = 0.995;

@@ -45,7 +45,6 @@ public:
   const long nObsB4StartTraining = settings.minTotObsNum_local;
   long _nObsB4StartTraining = std::numeric_limits<long>::max();
   const bool bTrain = distrib.bTrain;
-  bool computeQretrace = false;
 
   // some algorithm hyper-parameters:
   const Real gamma = settings.gamma;

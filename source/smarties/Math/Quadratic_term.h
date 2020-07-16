@@ -16,8 +16,11 @@ namespace smarties
 
 struct Quadratic_term
 {
+  const ActionInfo& aInfo;
   using PosDefFunction = SoftPlus;
-  const Uint start_matrix, start_mean, nA, nL;
+  using BoundedActFunction = HardSigmoid;
+
+  const Uint start_matrix, start_mean, nA = aInfo.dim(), nL = compute_nL(aInfo);
   const Rvec netOutputs;
   const Rvec L, mean, matrix;
   static Uint compute_nL(const ActionInfo& aI)
@@ -35,17 +38,16 @@ struct Quadratic_term
      return ret;
   }
 
-  Quadratic_term(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
-    const Rvec& out, const Rvec _m = Rvec()) :
-    start_matrix(_startMat), start_mean(_startMean), nA(_nA), nL(_nL),
-    netOutputs(out), L(extract_L()), mean(extract_mean(_m)),
-    matrix(extract_matrix())
-    {
-      //printf("Quadratic_term: %u %u %u %u %lu %lu %lu %lu\n", start_matrix,start_mean,nA,nL,
-      //netOutputs.size(), L.size(), mean.size(), matrix.size());
-      assert(L.size()==nA*nA && mean.size()==nA && matrix.size()==nA*nA);
-      assert(netOutputs.size()>=start_matrix+nL && netOutputs.size()>=start_mean+nA);
-    }
+  Quadratic_term(const ActionInfo& aI, Uint _startMat, Uint _startMean,
+    const Rvec& out, const Rvec _m = Rvec()) : aInfo(aI),
+    start_matrix(_startMat), start_mean(_startMean), netOutputs(out),
+    L(extract_L()), mean(extract_mean(_m)), matrix(extract_matrix())
+  {
+    //printf("Quadratic_term: %u %u %u %u %lu %lu %lu %lu\n", start_matrix,start_mean,nA,nL,
+    //netOutputs.size(), L.size(), mean.size(), matrix.size());
+    assert(L.size()==nA*nA && mean.size()==nA && matrix.size()==nA*nA);
+    assert(netOutputs.size()>=start_matrix+nL && netOutputs.size()>=start_mean+nA);
+  }
 
 protected:
   Real quadMatMul(const Rvec& act, const Rvec& mat) const
@@ -78,12 +80,19 @@ protected:
     return ret;
   }
 
-  Rvec extract_mean(const Rvec tmp) const
+  Rvec extract_mean(const Rvec meanGottenFromPolicy) const
   {
-    //printf("%lu vec:%s\n", tmp.size(), print(tmp).c_str()); fflush(0);
-    if(tmp.size() == nA) { assert(start_mean==0); return tmp; }
-    assert(start_mean!=0 && netOutputs.size()>=start_mean+nA);
-    return Rvec(&(netOutputs[start_mean]), &(netOutputs[start_mean])+nA);
+    // If arg is not empty, then mean is obtained from a policy
+    if(meanGottenFromPolicy.size() == nA) {
+      assert(start_mean == 0);
+      return meanGottenFromPolicy;
+    } else { // else from network output
+      assert(start_mean!=0 && netOutputs.size()>=start_mean+nA);
+      Rvec ret = Rvec(&(netOutputs[start_mean]), &(netOutputs[start_mean])+nA);
+      for (Uint i=0; i<nA; ++i)
+        if(aInfo.isBounded(i)) ret[i] = BoundedActFunction::_eval(ret[i]);
+      return ret;
+    }
   }
 
   Rvec extract_matrix() const //fill positive definite matrix P == L * L'

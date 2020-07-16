@@ -17,7 +17,6 @@ namespace smarties
 
 struct Quadratic_advantage: public Quadratic_term
 {
-  const ActionInfo& aInfo;
   const Continuous_policy* const policy;
 
   //Normalized quadratic advantage, with own mean
@@ -25,12 +24,8 @@ struct Quadratic_advantage: public Quadratic_term
                       const ActionInfo& aI,
                       const Rvec& out,
                       const Continuous_policy*const pol = nullptr) :
-    Quadratic_term(starts[0], starts.size()>1? starts[1] : 0,
-                   aI.dim(), compute_nL(aI), out,
-                   pol==nullptr ? Rvec(): pol->getMean()),
-                   aInfo(aI), policy(pol)
-  {
-  }
+    Quadratic_term(aI, starts[0], starts.size()>1? starts[1] : 0, out,
+                   pol==nullptr ? Rvec(): pol->getMean()), policy(pol) { }
 
   void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
@@ -50,34 +45,28 @@ struct Quadratic_advantage: public Quadratic_term
     }
 
     for (Uint j=0, kl = start_matrix; j<nA; ++j)
-    for (Uint i=0; i<=j; ++i) {
-      Real dErrdL = 0;
-      for (Uint k=i; k<nA; ++k) dErrdL += dErrdP[nA*j +k] * L[nA*k +i];
+      for (Uint i=0; i<=j; ++i) {
+        Real dErrdL = 0;
+        for (Uint k=i; k<nA; ++k) dErrdL += dErrdP[nA*j +k] * L[nA*k +i];
 
-      if(i==j)
-        netGradient[kl] = dErrdL * PosDefFunction::_evalDiff(netOutputs[kl]);
-      else
-      if(i<j)
-        netGradient[kl] = dErrdL;
-      kl++;
-    }
+        if(i==j)
+          netGradient[kl] = dErrdL * PosDefFunction::_evalDiff(netOutputs[kl]);
+        else if(i<j)
+          netGradient[kl] = dErrdL;
+        kl++;
+      }
 
     if(start_mean>0) {
       assert(netGradient.size() >= start_mean+nA);
-      for (Uint a=0; a<nA; a++) {
+      for (Uint a=0, ka=start_mean; a<nA; ++a, ++ka)
+      {
         Real val = 0;
         for (Uint i=0; i<nA; ++i)
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
 
-        netGradient[start_mean+a] = val;
-        if ( aInfo.isBounded(a) )
-        {
-          if(mean[a]> BOUNDACT_MAX && netGradient[start_mean+a]>0)
-            netGradient[start_mean+a] = 0;
-          else
-          if(mean[a]<-BOUNDACT_MAX && netGradient[start_mean+a]<0)
-            netGradient[start_mean+a] = 0;
-        }
+        netGradient[ka] = val;
+        if(aInfo.isBounded(a))
+          netGradient[ka] *= BoundedActFunction::_evalDiff(netOutputs[ka]);
       }
     }
   }

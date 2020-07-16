@@ -512,8 +512,8 @@ std::unique_ptr<Sampling> Sampling::prepareSampler(MemoryBuffer* const R,
   if(S.dataSamplingAlgo == "uniform") {
     if(D.world_rank == 0)
     printf("Experience Replay sampling algorithm: uniform probability.\n");
-    //ret = std::make_unique<Sample_uniform>(D.generators,R,S.bSampleEpisodes);
-    ret = std::make_unique<Sample_unifEps>(D.generators,R,S.bSampleEpisodes);
+    ret = std::make_unique<Sample_uniform>(D.generators,R,S.bSampleEpisodes);
+    //ret = std::make_unique<Sample_unifEps>(D.generators,R,S.bSampleEpisodes);
   }
 
   if(S.dataSamplingAlgo == "impLen") {

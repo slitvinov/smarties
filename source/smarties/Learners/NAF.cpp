@@ -23,15 +23,14 @@
 namespace smarties
 {
 
-static inline Param_advantage prepare_advantage(const Rvec&O,
+static inline Param_advantage prepare_advantage(const Rvec& O,
   const ActionInfo& aI, const std::vector<Uint>& net_inds)
 {
   return Param_advantage(std::vector<Uint>{net_inds[1], net_inds[2]}, aI, O);
 }
 
 NAF::NAF(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
-  Learner_approximator(MDP_, S, D), nL( Param_advantage::compute_nL(aInfo) ),
-  stdParam(Continuous_policy::initial_Stdev(aInfo, S.explNoise)[0])
+  Learner_approximator(MDP_, S, D), nL(Param_advantage::compute_nL(aInfo))
 {
   createEncoder();
   assert(networks.size() <= 1);
@@ -45,26 +44,33 @@ NAF::NAF(MDPdescriptor& MDP_, HyperParameters& S, ExecutionInfo& D):
   const Uint nOutp = 1 + aInfo.dim() + Param_advantage::compute_nL(aInfo);
   assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);
   networks[0]->buildFromSettings(nOutp);
+  Rvec stdParam = Continuous_policy::initial_Stdev(aInfo, settings.explNoise);
+  networks[0]->getBuilder().addParamLayer(nA, "Linear", stdParam);
   networks[0]->initializeNetwork();
 }
 
 void NAF::selectAction(const MiniBatch& MB, Agent& agent)
 {
-  //Compute policy and value on most recent element of the sequence.
+  networks[0]->load(MB, agent, 0);
   const Rvec output = networks[0]->forward(agent);
-  Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]] + nA);
-  // add stdev to the policy vector representation:
-  polvec.resize(2*nA, stdParam);
-  Continuous_policy POL({0, nA}, aInfo, polvec);
+  const Continuous_policy POL({net_indices[2], net_indices[3]}, aInfo, output);
+  const auto ADV = prepare_advantage(output, aInfo, net_indices);
 
   const bool bSample = settings.explNoise>0;
   Rvec act = OrUhDecay<=0? POL.selectAction(agent, bSample) :
       POL.selectAction_OrnsteinUhlenbeck(agent, bSample, OrUhState[agent.ID]);
   agent.setAction(act, POL.getVector());
+
+  const Real V = output[0], Q = V + ADV.computeAdvantage(agent.action);
+  MB.appendValues(V, Q);
 }
 
 void NAF::processTerminal(const MiniBatch& MB, Agent& agent)
 {
+  if( agent.agentStatus == LAST ) {
+    networks[0]->load(MB, agent, 0);
+    MB.appendValues(networks[0]->forward(agent)[0]); // not a terminal state
+  } else MB.appendValues(0); // value of terminal state is 0
   OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
 }
 
@@ -126,15 +132,10 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Uint t = MB.sampledTstep(bID), thrID = omp_get_thread_num();
 
   if(thrID==0) profiler->start("FWD");
-
   const Rvec output = networks[0]->forward(bID, t);
-
   if(thrID==0) profiler->stop_start("CMP");
-  // prepare advantage and policy
   const auto ADV = prepare_advantage(output, aInfo, net_indices);
-  Rvec polvec = ADV.getMean();           assert(polvec.size() == 1 * nA);
-  polvec.resize(policyVecDim, stdParam); assert(polvec.size() == 2 * nA);
-  Continuous_policy POL({0, nA}, aInfo, polvec);
+  const Continuous_policy POL({net_indices[2], net_indices[3]}, aInfo, output);
   const Real RHO = POL.importanceWeight(MB.action(bID,t), MB.mu(bID,t));
   const Real DKL = POL.KLDivergence(MB.mu(bID,t));
   //cout << POL.sampImpWeight << " " << POL.sampKLdiv << " " << CmaxRet << endl;
@@ -142,12 +143,20 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
   const Real Qs = output[net_indices[0]] + ADV.computeAdvantage(MB.action(bID,t));
   const bool isOff = isFarPolicy(RHO, CmaxRet, CinvRet);
 
-  Real target = MB.reward(bID, t);
-  if (not MB.isTerminal(bID, t+1) && not isOff) {
-    const Rvec vNext = networks[0]->forward_tgt(bID, t+1);
-    MB.setValues(bID, t+1, vNext[net_indices[0]]);
-    target += gamma * vNext[net_indices[0]];
+  Real target = 0;
+  if(settings.returnsEstimator not_eq "none") {
+    if (MB.isTruncated(bID, t+1))
+      MB.setValues(bID, t+1, networks[0]->forward(bID, t+1)[net_indices[0]]);
+    target = MB.returnEstimate(bID, t);
+  } else {
+    target = MB.reward(bID, t);
+    if (not MB.isTerminal(bID, t+1) && not isOff) {
+      const Rvec vNext = networks[0]->forward_tgt(bID, t+1);
+      MB.setValues(bID, t+1, vNext[net_indices[0]]);
+      target += gamma * vNext[net_indices[0]];
+    }
   }
+
   const Real error = isOff? 0 : target - Qs;
   Rvec grad(networks[0]->nOutputs());
   grad[net_indices[0]] = error;
@@ -157,6 +166,8 @@ void NAF::Train(const MiniBatch& MB, const Uint wID, const Uint bID) const
     for(Uint i=0; i<nA; ++i)
       grad[net_indices[2]+i] = beta*grad[net_indices[2]+i] + (1-beta)*penG[i];
   }
+  const Rvec fixGrad = POL.fixExplorationGrad(settings.explNoise);
+  for(Uint i=0; i<nA; ++i) grad[net_indices[3]+i] = fixGrad[nA+i];
 
   MB.setMseDklImpw(bID, t, error, DKL, RHO, CmaxRet, CinvRet);
   MB.setValues(bID, t, output[net_indices[0]], Qs);

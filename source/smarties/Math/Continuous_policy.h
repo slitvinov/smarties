@@ -51,18 +51,18 @@ struct Base1Dpolicy
 
   virtual Real KLdivergence(const Rvec& beta_vec) const  = 0;
 
-  virtual std::array<Real,2> gradLogP(const Rvec& act, const Real factor) const = 0;
-  virtual std::array<Real,2> gradKLdiv(const Rvec& act, const Real factor) const = 0;
-  virtual std::array<Real,2> fixExplorationGrad(const Real targetNoise) const = 0;
+  virtual std::array<Real,2> gradLogP(
+              const Rvec& act, const Real factor, const Rvec& nnOut) const = 0;
+  virtual std::array<Real,2> gradKLdiv(
+              const Rvec& act, const Real factor, const Rvec& nnOut) const = 0;
+  virtual std::array<Real,2> fixExplorationGrad(
+              const Real targetNoise, const Rvec& nnOut) const = 0;
 
   virtual Real sample(const Real noise) const = 0;
   virtual Real sample(std::mt19937& gen) const = 0;
 
   virtual Real sample_OrnsteinUhlenbeck(Rvec& state, const Real noise) const = 0;
   virtual Real sample_OrnsteinUhlenbeck(Rvec& state, std::mt19937& gen) const = 0;
-
-
-  virtual void makeNetGrad(Rvec& nnGrad, const Rvec& nnOut, const Rvec& pGrad) const = 0;
 };
 
 struct NormalPolicy : public Base1Dpolicy
@@ -72,10 +72,12 @@ struct NormalPolicy : public Base1Dpolicy
 
   Real getMean() const { return mean; }
   Real getStdev() const { return stdev; }
-  Real linearNetToMean(const Rvec& nnOut) const {
+  Real linearNetToMean(const Rvec& nnOut) const
+  {
     return nnOut[nnIndMean + component_id];
   }
-  Real linearNetToStdev(const Rvec& nnOut) const {
+  Real linearNetToStdev(const Rvec& nnOut) const
+  {
     return PosDefFunction::_eval(nnOut[nnIndStdev + component_id]);
   }
 
@@ -86,41 +88,48 @@ struct NormalPolicy : public Base1Dpolicy
   {
   }
 
-  static Real logProb(const Real a, const Real _mean, const Real _invStdev) {
+  static Real logProb(const Real a, const Real _mean, const Real _invStdev)
+  {
     const Real arg = - std::pow( (a - _mean) * _invStdev, 2) / 2;
     //const Real fac = std::log(2 * M_PI) / 2; //log is not constexpr, equal:
     static constexpr Real fac = 9.1893853320467266954096885456237942e-01;
     return arg + std::log(_invStdev) - fac;
   }
 
-  static Real prob(const Real a, const Real _mean, const Real _invStdev) {
+  static Real prob(const Real a, const Real _mean, const Real _invStdev)
+  {
     const Real arg = - std::pow( (a - _mean) * _invStdev, 2) / 2;
     //const Real fac = std::sqrt(1.0 / M_PI / 2); //sqrt is not constexpr, equal:
     static constexpr Real fac = 3.989422804014326857328237574407125976e-01;
     return _invStdev * fac * std::exp(arg);
   }
 
-  Real prob(const Rvec & act, const Rvec & beta_vec) const {
+  Real prob(const Rvec & act, const Rvec & beta_vec) const
+  {
     const Real beta_mean = beta_vec[component_id];
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
     return prob(act[component_id], beta_mean, 1/beta_stdev);
   }
 
-  Real prob(const Rvec & act) const {
+  Real prob(const Rvec & act) const
+  {
     return prob(act[component_id], mean, invStdev);
   }
 
-  Real logProb(const Rvec& act, const Rvec& beta_vec) const {
+  Real logProb(const Rvec& act, const Rvec& beta_vec) const
+  {
     const Real beta_mean = beta_vec[component_id];
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
     return logProb(act[component_id], beta_mean, 1/beta_stdev);
   }
 
-  Real logProb(const Rvec& act) const {
+  Real logProb(const Rvec& act) const
+  {
     return logProb(act[component_id], mean, invStdev);
   }
 
-  Real KLdivergence(const Rvec& beta_vec) const {
+  Real KLdivergence(const Rvec& beta_vec) const
+  {
     const Real beta_mean = beta_vec[component_id];
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
     #ifndef SMARTIES_OPPOSITE_KL // do Dkl(mu||pi) :
@@ -133,13 +142,18 @@ struct NormalPolicy : public Base1Dpolicy
     return ( CmuCpi-1 + sumDmeanC - std::log(CmuCpi) )/2;
   }
 
-  std::array<Real, 2> gradLogP(const Rvec& act, const Real factor) const {
+  std::array<Real, 2> gradLogP(
+              const Rvec& act, const Real factor, const Rvec& nnOut) const
+  {
     const Real u = (act[component_id] - mean) * invStdev;
     const Real dLogPdMean = u * invStdev, dLogPdStdv = (u*u - 1) * invStdev;
-    return {factor * dLogPdMean, factor * dLogPdStdv};
+    const Real dPosdNet = PosDefFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return {factor * dLogPdMean, dPosdNet * factor * dLogPdStdv};
   }
 
-  std::array<Real, 2> gradKLdiv(const Rvec& beta_vec, const Real factor) const {
+  std::array<Real, 2> gradKLdiv(
+              const Rvec& beta_vec, const Real factor, const Rvec& nnOut) const
+  {
     const Real beta_mean = beta_vec[component_id], dMean = mean - beta_mean;
     const Real beta_stdev = beta_vec[component_id + aInfo.dim()];
     #ifndef SMARTIES_OPPOSITE_KL // do grad Dkl(mu||pi) :
@@ -151,18 +165,23 @@ struct NormalPolicy : public Base1Dpolicy
       const Real dDKLdMean = dMean * invVarMu;
       const Real dDKLdStdv = (invVarMu - std::pow(invStdev,2)) * stdev;
     #endif
-    return {factor * dDKLdMean, factor * dDKLdStdv};
+    const Real dPosdNet = PosDefFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return {factor * dDKLdMean,dPosdNet *  factor * dDKLdStdv};
   }
 
-  std::array<Real, 2> fixExplorationGrad(const Real targetNoise) const {
-    return {0, (targetNoise - stdev) / 2};
+  std::array<Real, 2> fixExplorationGrad(
+              const Real targetNoise, const Rvec& nnOut) const
+  {
+    const Real dPosdNet = PosDefFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return {0, dPosdNet * (targetNoise - stdev) / 2};
   }
 
   static Real initial_Stdev(const ActionInfo& aI, Real explNoise) {
     return PosDefFunction::_inv(explNoise);
   }
 
-  static Real sampleClippedGaussian(std::mt19937& gen) {
+  static Real sampleClippedGaussian(std::mt19937& gen)
+  {
     std::normal_distribution<Real> dist(0, 1);
     std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
     Real noise = dist(gen);
@@ -187,17 +206,6 @@ struct NormalPolicy : public Base1Dpolicy
   Real sample_OrnsteinUhlenbeck(Rvec& state, std::mt19937& gen) const {
     const Real noise = sampleClippedGaussian(gen);
     return sample_OrnsteinUhlenbeck(state, noise);
-  }
-
-  void makeNetGrad(Rvec& nnGrad, const Rvec& nnOut, const Rvec& pGrad) const {
-    assert(pGrad.size() == 2 * aInfo.dim());
-    const auto indMean= nnIndMean+component_id, indStd= nnIndStdev+component_id;
-    assert(nnOut.size() > indMean && nnGrad.size() > indMean);
-    nnGrad[indMean] = pGrad[component_id];
-    if(nnIndStdev == 0) return;
-    assert(nnOut.size() > indStd && nnGrad.size() > indStd);
-    const Real dPosdNet = PosDefFunction::_evalDiff(nnOut[indStd]);
-    nnGrad[indStd] = dPosdNet * pGrad[component_id + aInfo.dim()];
   }
 };
 
@@ -287,7 +295,8 @@ struct BetaPolicy : public Base1Dpolicy
     return logProb(act[component_id], alpha, beta, M_logB);
   }
 
-  Real KLdivergence(const Rvec & beta_vec) const {
+  Real KLdivergence(const Rvec & beta_vec) const
+  {
     betaVec2alphaBeta(beta_vec);
     const Real term1 = M_logB - M_Beta_logB;
     const Real term2 = (M_BetaA - alpha) * M_BetaDiGa;
@@ -296,7 +305,9 @@ struct BetaPolicy : public Base1Dpolicy
     return term1 + term2 + term3 + term4;
   }
 
-  std::array<Real, 2> gradLogP(const Rvec& act, const Real factor) const {
+  std::array<Real, 2> gradLogP(
+                const Rvec& act, const Real factor, const Rvec& nnOut) const
+  {
     const Real u = act[component_id];
     const Real dLogPdAlpha = M_DiGab + std::log(u) - M_DiGa;
     const Real dLogPdBeta = M_DiGab + std::log(1-u) - M_DiGb;
@@ -306,10 +317,14 @@ struct BetaPolicy : public Base1Dpolicy
     const Real dBetadVarC  = (mean-1)/(varCoef*varCoef);
     const Real dLogPdMean = dLogPdAlpha*dAlphadMean + dLogPdBeta*dBetadMean;
     const Real dLogPdVarC = dLogPdAlpha*dAlphadVarC + dLogPdBeta*dBetadVarC;
-    return {factor * dLogPdMean, factor * dLogPdVarC};
+    const Real dClipMdNet = ClipFunction::_evalDiff(nnOut[nnIndMean+component_id]);
+    const Real dClipVdNet = ClipFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return {dClipMdNet * factor * dLogPdMean, dClipVdNet * factor * dLogPdVarC};
   }
 
-  std::array<Real, 2> gradKLdiv(const Rvec& mu_vec, const Real factor) const {
+  std::array<Real, 2> gradKLdiv(
+                const Rvec& mu_vec, const Real factor, const Rvec& nnOut) const
+  {
     betaVec2alphaBeta(mu_vec);
     const Real dDKLdAlpha = M_DiGa - M_DiGab - M_BetaDiGa + M_BetaDiGab;
     const Real dDKLdBeta = M_DiGb - M_DiGab - M_BetaDiGb + M_BetaDiGab;
@@ -319,16 +334,22 @@ struct BetaPolicy : public Base1Dpolicy
     const Real dBetadVarC  = (mean-1)/(varCoef*varCoef);
     const Real dDKLdMean = dDKLdAlpha*dAlphadMean + dDKLdBeta*dBetadMean;
     const Real dDKLdVarC = dDKLdAlpha*dAlphadVarC + dDKLdBeta*dBetadVarC;
-    return {factor * dDKLdMean, factor * dDKLdVarC};
+    const Real dClipMdNet = ClipFunction::_evalDiff(nnOut[nnIndMean+component_id]);
+    const Real dClipVdNet = ClipFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return {dClipMdNet * factor * dDKLdMean, dClipVdNet * factor * dDKLdVarC};
   }
 
-  std::array<Real, 2> fixExplorationGrad(const Real targetNoise) const {
+  std::array<Real, 2> fixExplorationGrad(
+                const Real targetNoise, const Rvec& nnOut) const
+  {
     const Real dLossdStdev = (targetNoise - stdev) / 2;
     const Real dStdevdVarC = std::sqrt(varCoef * mean*(1-mean)) / varCoef / 2;
-    return { (Real) 0, dLossdStdev * dStdevdVarC};
+    const Real dClipVdNet = ClipFunction::_evalDiff(nnOut[nnIndStdev+component_id]);
+    return { (Real) 0, dClipVdNet * dLossdStdev * dStdevdVarC};
   }
 
-  static Real initial_Stdev(const ActionInfo& aI, Real explNoise) {
+  static Real initial_Stdev(const ActionInfo& aI, Real explNoise)
+  {
     static constexpr Real EPS = std::numeric_limits<float>::epsilon();
     if(explNoise > 1 - EPS) {
       printf("Exploration factor for Beta distribution (settings parameter "
@@ -347,7 +368,8 @@ struct BetaPolicy : public Base1Dpolicy
     return noise;
   }
 
-  static Real sampleBeta(std::mt19937& gen, const Real alpha, const Real beta) {
+  static Real sampleBeta(std::mt19937& gen, const Real alpha, const Real beta)
+  {
     std::gamma_distribution<Real> gamma_alpha(alpha, 1);
     std::gamma_distribution<Real> gamma_beta(beta, 1);
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
@@ -362,7 +384,8 @@ struct BetaPolicy : public Base1Dpolicy
     return sampleBeta(gen, alpha, beta);
   }
 
-  Real sample_OrnsteinUhlenbeck(Rvec& state, std::mt19937& gen) const {
+  Real sample_OrnsteinUhlenbeck(Rvec& state, std::mt19937& gen) const
+  {
     const Real noise = sampleBeta(gen, alpha, beta);
     const Real force = 0.15 * (state[component_id] - noise);
     // if force>0 (i.e. OrnUhl state > noise) then move state closer to 0
@@ -370,18 +393,6 @@ struct BetaPolicy : public Base1Dpolicy
     // if force<0 (i.e. OrnUhl state < noise) then move state closer to 1
     else        state[component_id] = (1+force) * state[component_id] - force;
     return noise + force;
-  }
-
-  void makeNetGrad(Rvec& nnGrad, const Rvec& nnOut, const Rvec& pGrad) const {
-    assert(pGrad.size() == 2*aInfo.dim());
-    const auto indMean= nnIndMean+component_id, indStd= nnIndStdev+component_id;
-    assert(nnOut.size() > indMean && nnGrad.size() > indMean);
-    const Real dClipMdNet = ClipFunction::_evalDiff(nnOut[indMean]);
-    nnGrad[indMean] = dClipMdNet * pGrad[component_id];
-    if(nnIndStdev == 0) return;
-    assert(nnOut.size() > indStd && nnGrad.size() > indStd);
-    const Real dClipVdNet = ClipFunction::_evalDiff(nnOut[indStd]);
-    nnGrad[indStd] = dClipVdNet * pGrad[component_id + aInfo.dim()];
   }
 };
 
@@ -393,7 +404,8 @@ struct Continuous_policy
   const Rvec netOutputs;
   const std::vector<std::unique_ptr<Base1Dpolicy>> policiesVector;
 
-  std::vector<std::unique_ptr<Base1Dpolicy>> make_policies() {
+  std::vector<std::unique_ptr<Base1Dpolicy>> make_policies()
+  {
     std::vector<std::unique_ptr<Base1Dpolicy>> ret;
     for (Uint i=0; i<aInfo.dim(); ++i) {
       if(aInfo.isBounded(i))
@@ -501,7 +513,7 @@ struct Continuous_policy
   Rvec policyGradient(const Rvec& act, const Real coef) const {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; ++i) {
-      const std::array<Real,2> PGi = policiesVector[i]->gradLogP(act, coef);
+      const auto PGi = policiesVector[i]->gradLogP(act, coef, netOutputs);
       ret[i] = PGi[0]; ret[i + nA] = PGi[1];
     }
     return ret;
@@ -515,7 +527,7 @@ struct Continuous_policy
   Rvec KLDivGradient(const Rvec& beta, const Real coef = 1) const {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; ++i) {
-      const std::array<Real,2> PGi = policiesVector[i]->gradKLdiv(beta, coef);
+      const auto PGi = policiesVector[i]->gradKLdiv(beta, coef, netOutputs);
       ret[i] = PGi[0]; ret[i + nA] = PGi[1];
     }
     return ret;
@@ -524,23 +536,30 @@ struct Continuous_policy
   Rvec fixExplorationGrad(const Real target) const {
     Rvec ret(2*nA);
     for (Uint i=0; i<nA; ++i) {
-      const auto PGi = policiesVector[i]->fixExplorationGrad(target);
+      const auto PGi = policiesVector[i]->fixExplorationGrad(target,netOutputs);
       ret[i] = PGi[0]; ret[i + nA] = PGi[1];
     }
     return ret;
   }
 
-  void makeNetworkGrad(Rvec& netGradient, const Rvec& totPolicyGrad) const {
+  void makeNetworkGrad(Rvec& netGradient, const Rvec& totPolicyGrad) const
+  {
     assert(netGradient.size()>=startMean+nA && totPolicyGrad.size() == 2*nA);
-    for (const auto & pol : policiesVector)
-      pol->makeNetGrad(netGradient, netOutputs, totPolicyGrad);
+    for (Uint i=0; i<nA; ++i) {
+      const auto indMean = startMean + i, indStd = startStdev + i;
+      assert(netOutputs.size() > indMean && netGradient.size() > indMean);
+      netGradient[indMean] = totPolicyGrad[i];
+      if(startStdev == 0) continue;
+      assert(netOutputs.size() > indStd && netGradient.size() > indStd);
+      netGradient[indStd] = totPolicyGrad[i + nA];
+    }
   }
 
-  Rvec makeNetworkGrad(const Rvec& totPolicyGrad) const {
+  Rvec makeNetworkGrad(const Rvec& totPolicyGrad) const
+  {
     Rvec netGradient = totPolicyGrad;
     assert(startMean == 0 && totPolicyGrad.size() == 2*nA);
-    for (const auto & pol : policiesVector)
-      pol->makeNetGrad(netGradient, netOutputs, totPolicyGrad);
+    makeNetworkGrad(netGradient, totPolicyGrad);
     return netGradient;
   }
 

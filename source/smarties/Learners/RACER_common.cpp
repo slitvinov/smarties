@@ -92,7 +92,6 @@ void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
   if(networks.size() > 1) die("");
   networks[0]->initializeNetwork();
   //networks[0]->opt->bAnnealLearnRate= true;
-  computeQretrace = true;
 }
 
 // Template specializations. From now on, nothing relevant to algorithm itself.

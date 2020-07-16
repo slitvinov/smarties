@@ -207,8 +207,6 @@ MixedPG::MixedPG(MDPdescriptor& MDP_, HyperParameters& S_, ExecutionInfo& D_):
   settings.nnOutputFunc = "Linear"; // critic must be linear
   critc->buildFromSettings(1);
   critc->initializeNetwork();
-
-  computeQretrace = true;
 }
 
 }

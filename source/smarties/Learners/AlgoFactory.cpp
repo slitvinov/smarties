@@ -84,6 +84,9 @@ std::unique_ptr<Learner> createLearner(
 
   if (settings.learner == "PYTORCH")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "retrace";
+
     MDP.policyVecDim = Learner_pytorch::getnDimPolicy(&aInfo);
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
@@ -92,6 +95,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "RACER")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "retrace";
+
     if(MDP.bDiscreteActions)
     {
       if(distrib.world_rank == 0) printf(
@@ -125,6 +131,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "VRACER")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "retrace";
+
     if(MDP.bDiscreteActions) die("impossible");
     else
     {
@@ -145,6 +154,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "DDPG" || settings.learner == "DPG")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "none";
+
     if(MPICommRank(distrib.world_comm) == 0) printf(
     "==========================================================================\n"
     "                DDPG : Deep Deterministic Policy Gradients                \n"
@@ -162,6 +174,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "MixedPG")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "retrace";
+
     if(MPICommRank(distrib.world_comm) == 0) printf(
     "==========================================================================\n"
     "     MixedPG : Balancing stochastic and deterministic policy gradients \n"
@@ -175,6 +190,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "GAE" || settings.learner == "PPO")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "GAE";
+
     if(MDP.bDiscreteActions)
     {
       if(MPICommRank(distrib.world_comm) == 0) printf(
@@ -205,6 +223,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "ACER")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "none";
+
     if(MPICommRank(distrib.world_comm) == 0) printf(
     "==========================================================================\n"
     "                          Continuous-action ACER                          \n"
@@ -221,6 +242,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if(settings.learner=="DQN" || settings.learner=="NFQ")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "none";
+
     if(distrib.world_rank == 0) printf(
     "==========================================================================\n"
     "                          DQN : Deep Q Networks                           \n"
@@ -237,6 +261,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "NA" || settings.learner == "NAF")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "none";
+
     if(distrib.world_rank == 0) printf(
     "==========================================================================\n"
     "                   NAF : Normalized Advantage Functions                   \n"
@@ -252,6 +279,9 @@ std::unique_ptr<Learner> createLearner(
   else
   if (settings.learner == "CMA")
   {
+    if (settings.returnsEstimator == "default")
+        settings.returnsEstimator =  "none";
+
     //if(settings.ESpopSize<2)
     //  die("Must be coupled with CMA. Set ESpopSize>1");
     //if( settings.nWorkers % settings.learner_size )
