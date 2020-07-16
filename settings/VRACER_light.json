@@ -1,13 +1,12 @@
 {
   "learner": "VRACER",
-  "batchSize": 32,
-  "clipImpWeight": 4,
+  "batchSize": 24,
   "epsAnneal": 5e-7,
   "explNoise": 0.447214,
   "gamma": 0.99,
-  "learnrate": 0.00001,
-  "maxTotObsNum": 262144,
-  "nnLayerSizes": [32, 32],
+  "learnrate": 0.000001,
+  "nnLayerSizes": [0],
   "obsPerStep": 1,
+  "returnsEstimator": "retraceExplore",
   "outWeightsPrefac": 0.01
 }
