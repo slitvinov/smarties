@@ -282,8 +282,17 @@ std::unique_ptr<Learner> createLearner(
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "none";
 
-    //if(settings.ESpopSize<2)
-    //  die("Must be coupled with CMA. Set ESpopSize>1");
+    if(settings.ESpopSize<2)
+      die("Must be coupled with CMA. Set ESpopSize>1");
+
+    const auto remain = settings.batchSize_local % distrib.nOwnedEnvironments;
+    if (remain) {
+      settings.batchSize_local += distrib.nOwnedEnvironments - remain;
+      _warn("Increased batchsize to %u (multiple of # envs, option -e).",
+            (unsigned) settings.batchSize_local);
+      assert(settings.batchSize_local % distrib.nOwnedEnvironments == 0);
+    }
+
     //if( settings.nWorkers % settings.learner_size )
     //  die("nWorkers must be multiple of learner ranks");
     //if( settings.ESpopSize % settings.learner_size )

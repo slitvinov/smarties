@@ -105,7 +105,7 @@ struct Agent
    */
   void setAction(const Uint label, const Rvec& policyVec) {
     action = aInfo.label2actionMessage<double>(label);
-    assert(policyVec.size() == MDP.dimAction);
+    assert(policyVec.size() == MDP.policyVecDim);
     policyVector = policyVec;
   }
   Uint getDiscreteAction() const {
