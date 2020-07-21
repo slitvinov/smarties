@@ -9,6 +9,7 @@
 #include "CMALearner.h"
 
 #include "../Utils/StatsTracker.h"
+//#include "../Utils/SstreamUtilities.h"
 #include "../Network/Approximator.h"
 #include "../ReplayMemory/MemoryProcessing.h"
 
@@ -24,23 +25,6 @@
 
 namespace smarties
 {
-
-template<> void CMALearner<Uint>::
-computeAction(Agent& agent, const Rvec netOutput) const
-{
-  Discrete_policy POL({0}, aInfo, netOutput);
-  Uint act = POL.selectAction(agent, settings.explNoise>0);
-  agent.setAction(act, POL.getVector());
-}
-
-template<> void CMALearner<Rvec>::
-computeAction(Agent& agent, const Rvec netOutput) const
-{
-  Continuous_policy POL({0, aInfo.dim()}, aInfo, netOutput);
-  const bool bSamplePol = settings.explNoise>0 && agent.trackEpisodes;
-  Rvec act = bSamplePol? POL.selectAction(agent, bSamplePol) : POL.getVector();
-  agent.setAction(act, POL.getVector());
-}
 
 template<typename Action_t> void CMALearner<Action_t>::
 assignWeightID(const Agent& agent)
@@ -61,9 +45,6 @@ selectAction(const MiniBatch& MB, Agent& agent)
     die("CMA: cannot start new EP unless all other agents have terminated");
 
   if(agent.agentStatus == INIT) assignWeightID(agent);
-  //const auto W = F[0]->net->sampled_weights[weightID];
-  //std::vector<nnReal> WW(W->params, W->params + W->nParams);
-  //printf("Using weight %u on worker %u %s\n",weightID,wrkr,print(WW).c_str());
 
   //Compute policy and value on most recent element of the sequence:
   networks[0]->load(MB, agent, weightIDs[agent.workerID]);
@@ -92,7 +73,7 @@ template<typename Action_t> void CMALearner<Action_t>::prepareCMALoss()
 {
   profiler->start("LOSS");
   std::vector<Uint> allN(ESpopSize, 0);
-  //#pragma omp parallel for schedule(static)
+
   for (Uint w=0; w<ESpopSize; ++w) {
     for (Uint b=0; b<nOwnEnvs; ++b) {
       networks[0]->ESloss(w) -= R[b][w];
@@ -181,6 +162,23 @@ bool CMALearner<Action_t>::blockGradientUpdates() const
 {
   const long nSeqPerStep = nOwnAgentsPerEnv * settings.batchSize_local * ESpopSize;
   return data->nStoredEps() < nSeqPerStep;
+}
+
+template<> void CMALearner<Uint>::
+computeAction(Agent& agent, const Rvec netOutput) const
+{
+  Discrete_policy POL({0}, aInfo, netOutput);
+  Uint act = POL.selectAction(agent, settings.explNoise>0);
+  agent.setAction(act, POL.getVector());
+}
+
+template<> void CMALearner<Rvec>::
+computeAction(Agent& agent, const Rvec netOutput) const
+{
+  Continuous_policy POL({0, aInfo.dim()}, aInfo, netOutput);
+  const bool bSamplePol = settings.explNoise>0 && agent.trackEpisodes;
+  Rvec act = bSamplePol? POL.selectAction(agent, bSamplePol) : POL.getVector();
+  agent.setAction(act, POL.getVector());
 }
 
 template<>

@@ -17,8 +17,6 @@ namespace smarties
 template<typename Action_t>
 class CMALearner: public Learner_approximator
 {
-
-protected:
   const Uint ESpopSize = settings.ESpopSize;
   const Uint nOwnEnvs = distrib.nOwnedEnvironments;
   const Uint nOwnAgents = distrib.nOwnedAgentsPerAlgo;
@@ -31,7 +29,6 @@ protected:
 
   std::mutex workload_mutex;
   Uint lastWorkLoadStarted = 0;
-  //mutable std::mutex dataset_mutex; // used to update stats
 
   std::vector<Uint> weightIDs = std::vector<Uint>(nOwnEnvs, 0);
 
