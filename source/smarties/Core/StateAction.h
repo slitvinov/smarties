@@ -325,19 +325,11 @@ struct ActionInfo
     std::vector<T> action( MDP.dimAction );
     for (Uint i = MDP.dimAction; i>0; --i) {
       const Uint index_i = label / MDP.discreteActionShifts[i-1];
-      assert(index_i < MDP.discreteActionValues[i]);
+      assert(index_i < MDP.discreteActionValues[i-1]);
       action[i-1] = index_i + (T)0.1; // convert to real to move around
       label = label % MDP.discreteActionShifts[i-1];
     }
     return action;
-  }
-
-  void testDiscrete()
-  {
-    //for(Uint i=0; i<MDP.maxActionLabel; ++i)
-    //  if(i != action2label(label2action(i)))
-    //    _die("label %u does not match for action [%s]. returned %u",
-    //      i, print(label2action(i)).c_str(), action2label(label2action(i)) );
   }
   //////////////////////////// DISCRETE ACTIONS END ////////////////////////////
 };
