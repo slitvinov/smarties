@@ -15,7 +15,6 @@ TEST (Core, ActionInfoDiscrete)
   MDP.dimState = 1;
   MDP.dimAction = 2;              //2 action components
   MDP.discreteActionValues = {5, 3}; //5 and 3 action options
-  MDP.bDiscreteActions = true;
   const auto sync = [](void* buffer, size_t size) {}; //no op
   MDP.synchronize(sync);
 

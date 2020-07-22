@@ -121,7 +121,8 @@ void Builder::build(const bool isInputNet)
   bBuilt = true;
 
   nLayers = layers.size();
-  unsigned long lsize = MPICommSize(distrib.learners_train_comm);
+  unsigned long lsize = distrib.learners_train_comm == MPI_COMM_NULL? 1 :
+                        MPICommSize(distrib.learners_train_comm);
   const MPI_Comm & tmpComm = distrib.learnersOnWorkers ? distrib.world_comm :
                              distrib.learners_train_comm;
   MPI_Bcast( &lsize, 1, MPI_UNSIGNED_LONG, 0, tmpComm);

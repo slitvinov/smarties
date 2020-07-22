@@ -34,3 +34,5 @@ function (add_test_executable dirName nodes)
 endfunction()
 
 add_test_executable(Core 1)
+add_test_executable(Math 1)
+add_test_executable(Network 1)

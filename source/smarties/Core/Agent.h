@@ -124,7 +124,7 @@ struct Agent
   }
   template<typename T = double>
   std::vector<T> getAction() const {
-    if(MDP.bDiscreteActions)
+    if(MDP.bDiscreteActions())
       return std::vector<double>(action.begin(), action.end());
     else return aInfo.learnerAction2envAction(action);
   }

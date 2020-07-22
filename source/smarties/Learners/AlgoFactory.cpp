@@ -75,7 +75,7 @@ std::unique_ptr<Learner> createLearner(
   std::ostringstream o;
   o << MDP.dimState << " ";
 
-  if(settings.learner == "VRACER" and MDP.bDiscreteActions)
+  if(settings.learner == "VRACER" and MDP.bDiscreteActions())
   {
     warn("V-RACER makes little sense with discrete action-spaces. Code will "
         "override user and add parameterization for action advantage.");
@@ -98,7 +98,7 @@ std::unique_ptr<Learner> createLearner(
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "retrace";
 
-    if(MDP.bDiscreteActions)
+    if(MDP.bDiscreteActions())
     {
       if(distrib.world_rank == 0) printf(
       "==========================================================================\n"
@@ -134,7 +134,7 @@ std::unique_ptr<Learner> createLearner(
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "retrace";
 
-    if(MDP.bDiscreteActions) die("impossible");
+    if(MDP.bDiscreteActions()) die("impossible");
     else
     {
       if(distrib.world_rank == 0) printf(
@@ -193,7 +193,7 @@ std::unique_ptr<Learner> createLearner(
     if (settings.returnsEstimator == "default")
         settings.returnsEstimator =  "GAE";
 
-    if(MDP.bDiscreteActions)
+    if(MDP.bDiscreteActions())
     {
       if(MPICommRank(distrib.world_comm) == 0) printf(
       "==========================================================================\n"
@@ -232,7 +232,7 @@ std::unique_ptr<Learner> createLearner(
     "==========================================================================\n"
     );
     settings.bSampleEpisodes = true;
-    if(MDP.bDiscreteActions)
+    if(MDP.bDiscreteActions())
       die("implemented ACER supports only continuous-action problems");
     MDP.policyVecDim = ACER::getnDimPolicy(&aInfo);
     o << MDP.dimAction << " " << MDP.policyVecDim;
@@ -251,7 +251,7 @@ std::unique_ptr<Learner> createLearner(
     "==========================================================================\n"
     );
 
-    if(not MDP.bDiscreteActions)
+    if(not MDP.bDiscreteActions())
       die("DQN supports only discrete-action problems");
     o << MDP.dimAction << " " << MDP.maxActionLabel;
     printLogfile(o, "problem_size.log", distrib.world_rank);
@@ -271,7 +271,7 @@ std::unique_ptr<Learner> createLearner(
     );
 
     MDP.policyVecDim = 2*MDP.dimAction;
-    assert(not MDP.bDiscreteActions);
+    assert(not MDP.bDiscreteActions());
     o << MDP.dimAction << " " << MDP.policyVecDim;
     printLogfile(o, "problem_size.log", distrib.world_rank);
     ret = std::make_unique<NAF>(MDP, settings, distrib);
@@ -300,7 +300,7 @@ std::unique_ptr<Learner> createLearner(
     //if( settings.ESpopSize % settings.nWorkers )
     //  die("CMA pop size must be multiple of nWorkers");
 
-    if(MDP.bDiscreteActions)
+    if(MDP.bDiscreteActions())
     {
       if(distrib.world_rank == 0) printf(
       "==========================================================================\n"
