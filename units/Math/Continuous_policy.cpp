@@ -52,8 +52,8 @@ inline void testPolicy(const smarties::ActionInfo & aI)
     auto polFinDiff = (p_2-p_1)/(2*flttol);
     auto dklScale = std::max({std::fabs(dklGrad[i]), std::fabs(dklFinDiff), 1.0});
     auto polScale = std::max({std::fabs(polGrad[i]), std::fabs(polFinDiff), 1.0});
-    std::cout << polFinDiff << " " << polGrad[i] << std::endl;
-    std::cout << dklFinDiff << " " << dklGrad[i] << std::endl;
+    //std::cout << polFinDiff << " " << polGrad[i] << std::endl;
+    //std::cout << dklFinDiff << " " << dklGrad[i] << std::endl;
     ASSERT_LT(std::fabs(dklGrad[i] - dklFinDiff)/dklScale, flttol);
     ASSERT_LT(std::fabs(polGrad[i] - polFinDiff)/polScale, flttol);
   }
@@ -83,6 +83,10 @@ TEST (Math, Continuous_policy)
   smarties::MDPdescriptor MDP;
   MDP.dimState = 1;
   MDP.dimAction = 2;              //2 action components
+  MDP.lowerActionValue = {1, -4};
+  MDP.upperActionValue = {2, 8};
+  // 1 component is a gaussian, other is a beta
+  MDP.bActionSpaceBounded = {false, true};
   const auto sync = [](void* buffer, size_t size) {}; //no op
   MDP.synchronize(sync);
   smarties::ActionInfo aI(MDP);
@@ -90,8 +94,10 @@ TEST (Math, Continuous_policy)
   // smarties assumes that the network output is always in linear space
   std::vector<double> network_output(2 * aI.dim(), 0);
   smarties::Continuous_policy pol(aI, network_output);
+  //zero input vector corresponds to 0 mean in gaussian, 0.5 in beta
+  //(beta is always bound in 0 to 1, rescaling is done after)
   ASSERT_LT(std::fabs(pol.getMean()[0]), dbltol);
-  ASSERT_LT(std::fabs(pol.getMean()[1]), dbltol);
+  ASSERT_LT(std::fabs(pol.getMean()[1]-0.5), dbltol);
   ASSERT_GT(pol.getVariance()[0], 0);
   ASSERT_GT(pol.getVariance()[1], 0);
   testPolicy<smarties::Continuous_policy>(aI);
