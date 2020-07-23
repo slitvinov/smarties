@@ -144,12 +144,27 @@ TEST (Core, Network)
   }
   {
     smarties::Builder network_build(HP, * info.get());
-    network_build.addInput(6 * 3 * 2);
+    static constexpr int inp_x = 6, inp_y = 3, inp_n = 2;
+    network_build.addInput(inp_x * inp_y * inp_n);
     static constexpr int filter_x = 3,  filter_y = 2, filter_n = 2;
     static constexpr int stride_x = 1,  stride_y = 1, pad_x = 0, pad_y = 0;
-    static constexpr int out_x = (6 - filter_x + 2*pad_x)/stride_x + 1;
-    static constexpr int out_y = (3 - filter_y + 2*pad_y)/stride_y + 1;
-    smarties::makeConv2D<6, 3, 2, filter_x, filter_y, filter_n,
+    static constexpr int out_x = (inp_x - filter_x + 2*pad_x)/stride_x + 1;
+    static constexpr int out_y = (inp_y - filter_y + 2*pad_y)/stride_y + 1;
+    smarties::makeConv2D<inp_x, inp_y, inp_n, filter_x, filter_y, filter_n,
+               stride_x, stride_y, pad_x, pad_y, out_x, out_y>(network_build);
+    network_build.addLayer(1, "Linear", true);
+    network_build.build();
+    checkGrads(* network_build.net.get() );
+  }
+  {
+    smarties::Builder network_build(HP, * info.get());
+    static constexpr int inp_x = 8, inp_y = 10, inp_n = 2;
+    network_build.addInput(inp_x * inp_y * inp_n);
+    static constexpr int filter_x = 4,  filter_y = 5, filter_n = 3;
+    static constexpr int stride_x = 2,  stride_y = 3, pad_x = 1, pad_y = 1;
+    static constexpr int out_x = (inp_x - filter_x + 2*pad_x)/stride_x + 1;
+    static constexpr int out_y = (inp_y - filter_y + 2*pad_y)/stride_y + 1;
+    smarties::makeConv2D<inp_x, inp_y, inp_n, filter_x, filter_y, filter_n,
                stride_x, stride_y, pad_x, pad_y, out_x, out_y>(network_build);
     network_build.addLayer(1, "Linear", true);
     network_build.build();

@@ -24,12 +24,13 @@ void makeConv2D(Builder & build,
 {
   assert(KnC*OpX*OpY > 0);
   #ifndef USE_OMPSIMD_BLAS
-    build.layers.emplace_back(std::make_unique<
-      Mat2ImLayer<InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
-        (build.layers.size(), false, iLink) );
+  build.layers.emplace_back(std::make_unique<
+    Mat2ImLayer<InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
+      (build.layers.size(), false, iLink) );
   #endif
   build.layers.emplace_back(std::make_unique<
-    Conv2DLayer<SoftSign, InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
+    Conv2DLayer<SoftSign,
+                InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
       (build.layers.size(), bOutput, 1) );
 }
 
@@ -52,12 +53,13 @@ bool ifMatchAddConv2D(const Conv2D_Descriptor & DESCR,
   if(sameInp && sameOut && sameFilter && sameStride && samePadding)
   {
     #ifndef USE_OMPSIMD_BLAS
-      layers.emplace_back(std::make_unique<
-        Mat2ImLayer<InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
-          (layers.size(), false, iLink) );
+    layers.emplace_back(std::make_unique<
+      Mat2ImLayer<InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
+        (layers.size(), false, iLink) );
     #endif
     layers.emplace_back(std::make_unique<
-      Conv2DLayer<SoftSign, InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
+      Conv2DLayer<SoftSign,
+                  InX,InY,InC, KnX,KnY,KnC, Sx,Sy, Px,Py, OpX,OpY> >
         (layers.size(), bOutput, 1) );
     return true;
   }
