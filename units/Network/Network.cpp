@@ -117,13 +117,30 @@ TEST (Core, Network)
   MDP.synchronize(sync);
   smarties::HyperParameters HP(MDP.dimState,  MDP.dimAction);
 
-  smarties::Builder network_build(HP, * info.get());
-  network_build.addInput(9);
-  network_build.addLayer(8, "Tanh");
-  network_build.addLayer(1, "Linear", true);
-  network_build.build();
-
-  checkGrads(* network_build.net.get() );
+  {
+    smarties::Builder network_build(HP, * info.get());
+    network_build.addInput(9);
+    network_build.addLayer(8, "Tanh");
+    network_build.addLayer(1, "Linear", true);
+    network_build.build();
+    checkGrads(* network_build.net.get() );
+  }
+  {
+    smarties::Builder network_build(HP, * info.get());
+    network_build.addInput(9);
+    network_build.addLayer(8, "Tanh", false, "GRU");
+    network_build.addLayer(1, "Linear", true);
+    network_build.build();
+    checkGrads(* network_build.net.get() );
+  }
+  {
+    smarties::Builder network_build(HP, * info.get());
+    network_build.addInput(9);
+    network_build.addLayer(8, "Tanh", false, "LSTM");
+    network_build.addLayer(1, "Linear", true);
+    network_build.build();
+    checkGrads(* network_build.net.get() );
+  }
 }
 
 int main(int argc, char **argv)
