@@ -2,7 +2,7 @@
   "learner": "VRACER",
   "batchSize": 128,
   "clipImpWeight": 1,
-  "penalTol": 0.05,
+  "penalTol": 0.1,
   "epsAnneal": 0,
   "explNoise": 0.2,
   "gamma": 0.99,
@@ -11,6 +11,7 @@
   "maxTotObsNum": 32768,
   "nnLayerSizes": [32, 32],
   "nnType": "GRU",
+  "saveFreq": 10000,
   "obsPerStep": 1,
   "outWeightsPrefac": 0.01
 }

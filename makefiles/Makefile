@@ -68,11 +68,11 @@ CPPFLAGS+= -DPY11_PYTORCH
 LIBS+= $(shell python3-config --ldflags)
 endif
 
-DIRS = $(sort $(dir $(wildcard ../source/*/)))
+DIRS = $(sort $(dir $(wildcard ../source/smarties/*/)))
 
 OBJ_FILES = \
 	PPO.o \
-	SAC.o \
+	MixedPG.o \
 	NAF.o \
 	DPG.o \
 	DQN.o \
@@ -82,11 +82,9 @@ OBJ_FILES = \
 	Learner_pytorch.o \
 	Learner_approximator.o \
 	AlgoFactory.o \
-	Sequence.o \
+	Episode.o \
 	Learner.o \
 	Sampling.o \
-	Collector.o \
-	Math_tests.o \
 	MemoryBuffer.o \
 	DataCoordinator.o \
 	MemoryProcessing.o \
@@ -95,16 +93,20 @@ OBJ_FILES = \
 	Optimizer.o \
 	CMA_Optimizer.o \
 	StatsTracker.o \
+	DelayedReductor.o \
 	Communicator.o \
 	Approximator.o \
 	Launcher.o \
-	Settings.o \
+	ExecutionInfo.o \
+	HyperParameters.o \
 	Profiler.o \
 	Master.o \
 	Worker.o \
+	StateAction.o \
 	Engine.o \
 	Warnings.o \
 	smarties_extern.o
+
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
@@ -114,7 +116,7 @@ CPPFLAGS+= $(shell python3 -m pybind11 --includes)
 
 PYBINDSUF:=$(shell python3-config --extension-suffix)
 
-PATH_COMM_PY11=../source/smarties_pybind11.cpp
+PATH_COMM_PY11=../source/smarties/smarties_pybind11.cpp
 smarties_pybind11.o:
 	$(MPICXX) $(CPPFLAGS) $(NOWARNP11) -fPIC -c $(PATH_COMM_PY11) -o $@
 

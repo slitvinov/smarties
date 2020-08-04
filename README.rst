@@ -48,13 +48,13 @@ On Mac, ``LD_LIBRARY_PATH`` has to be replaced with ``DYLD_LIBRARY_PATH``.
 The environment variable ``SMARTIES_ROOT`` is used to compile most of the applications in the 'apps' folder.
 
 Linux
-------
+-----
 
 Smarties requires gcc version 6.1 or greater, a thread-safe (at least ``MPI_THREAD_SERIALIZED``) implementation of MPI, and a serial BLAS implementation with CBLAS interface. Furthermore, in order to test on the benchmark problems, OpenAI gym or the DeepMind Control Suite with python>=3.5. MPI and OpenBLAS can be installed by running the ``install_dependencies.sh`` script.
 
 .. code:: shell
 
-    git clone https://github.com/cselab/smarties.git
+    git clone --recursive https://github.com/cselab/smarties.git
     cd smarties
     mkdir -p build
     cd build
@@ -73,19 +73,18 @@ Now, we have to switch from Apple's LLVM compiler to the most recent LLVM compil
 
 .. code:: shell
 
-    echo "alias cc='/usr/local/opt/llvm/bin/clang'" >> ~/.bash_profile
-    echo "alias gcc='/usr/local/opt/llvm/bin/clang'" >> ~/.bash_profile
-    echo "alias g++='/usr/local/opt/llvm/bin/clang++'" >> ~/.bash_profile
-    echo "alias c++='/usr/local/opt/llvm/bin/clang++'" >> ~/.bash_profile
-    echo "export PATH=/usr/local/opt/llvm/bin:\${PATH}" >> ~/.bash_profile
+    echo "export OMPI_CXX=/usr/local/opt/llvm/bin/clang++" >> ~/.bash_profile
 
-Then we are ready to get and install smarties:
+Then we are ready to get and install smarties with the same commands as for Linux.
+The compilation should take few minutes.
+*Alternative*: if mpic++ still points to the Apple clang binary, you may try:
 
 .. code:: shell
 
-    git clone https://github.com/cselab/smarties.git
-    cd smarties/makefiles
-    make -j
+    ln -s /usr/local/opt/llvm/bin/clang++ /usr/local/opt/llvm/bin/g++
+    ln -s /usr/local/opt/llvm/bin/clang++ /usr/local/opt/llvm/bin/c++
+    echo "export PATH=/usr/local/opt/llvm/bin:\${PATH}" >> ~/.bash_profile
+
 
 
 Environment code samples
@@ -215,7 +214,7 @@ Most useful options:
 
 * ``--runname RUNNAME`` will execute the training run from folder ``RUNNAME`` and create all output and setup files therein. The path of the folder is by default ``SMARTIES_ROOT/runs/RUNNAME``, but may be modified for example as ``--runprefix ./``, which will create ``RUNNAME`` in the current directory.
 
-* ``--nEvalSeqs N`` tells smarties that it should evaluate and not modify an already trained policy for ``N`` sequences (the smarties-generated restart files should be already located in the run directory or at path ``--restart /path/to/restart/``).
+* ``--nEvalEpisodes N`` tells smarties that it should evaluate and not modify an already trained policy for ``N`` sequences (the smarties-generated restart files should be already located in the run directory or at path ``--restart /path/to/restart/``).
 
 * ``--args "arg1 arg2 ..`` in order to pass line arguments to the application.
 
@@ -263,6 +262,8 @@ The applications that are already included are:
 
 - ``apps/CUP2D_2fish``: and similarly named applications require `CubismUP 2D <https://github.com/novatig/CubismUP_2D>`_.
 
+- ``apps/CUP3D_LES_HIT``: requires `CubismUP 3D <https://github.com/cselab/CubismUP_3D>`_. Refer to the README file therein for more information and to access pre-trained models.  
+
 Examples of solved problems
 ---------------------------
 
@@ -292,6 +293,82 @@ Examples of solved problems
 * The fourth is from  G. Novati, S. Verma, D. Alexeev, D. Rossinelli, W. M. van Rees, and P. Koumoutsakos, “Synchronisation through learning for two self-propelled swimmers," Bioinspiration & biomimetics, vol. 12, iss. 3, p. 36001, 2017.
 * Se also G. Novati, L. Mahadevan, and P. Koumoutsakos, “Controlled gliding and perching through deep-reinforcement-learning," Physical review fluids, vol. 4, iss. 9, 2019 for an introduction to using deep RL to obtain optimal control policies in fluid mechanics problems.
 
+Learner settings (.json) files
+------------------------------
+
+The second argument when launching ``smarties`` is the settings file describing the learning algorithm. If unset, ``settings/VRACER.json`` is selected. I will run through each variable:
+
+|
+
+- "learner": Chosen learning algorithm. One of: 'VRACER', 'RACER', 'PPO', 'DPG', 'ACER', 'NAF', 'DQN', 'CMA', 'PYTORCH'. Default is VRACER.
+    
+- "returnsEstimator": Algorithm used to compute return estimates. Accepts: 'retrace', 'retraceExplore' (which adds (1-gamma)*|qRet - qNet| to rewards), 'GAE', 'default' (which is default and yields retrace for (V)RACER and GAE for PPO), 'none'. Only NAF and DPG are compatible with all options. PPO and (V)RACER are incompatible with 'none'. ACER and DQN are not affected.
+
+- "ERoldSeqFilter": Filter algorithm to remove old episodes from memory buffer. Accepts: 'oldest', 'farpolfrac', 'maxkldiv'. Oldest is default and corresponds to first-in-first-out.
+    
+- "dataSamplingAlgo": Algorithm for sampling the Replay Buffer. Accepts 'uniform', 'PERrank', 'PERerr' (prioritized experience replay), and other experimental implementations of uniform sampling. Uniform is default (and best).
+    
+|
+
+- "gamma": Discount factor. Defaults to 0.995.
+    
+- "lambda": Lambda for off-policy return-based estimators (used in retrace and GAE). Defaults to 1.
+    
+|
+
+- "clipImpWeight": Clipping range for off-policy importance weights. Triggers usage of ReF-ER when selected with (V)RACER, DDPG, NAF, DQN. Corresponds to: C in ReF-ER's Rule 1, epsilon in PPO's surrogate policy objective, c in ACER's truncation and bias correction. Defaults to sqrt(dim(action) / 2.0).
+    
+- "klDivConstraint": Constraint on max KL div. USed by PPO and ACER. Corresponds to: d_targ in PPO's penalization, delta in ACER's truncation and bias correction. Defaults to 0.01.
+    
+- "explNoise": Noise added to policy. For discrete policies it may be the probability of picking a random action (detail depend on learning algo), for continuous policies it is the (initial) standard deviation. Defaults to sqrt(0.2).
+    
+- "penalTol": Tolerance used for adaptive off-policy penalization methods. Currently corresponds only to D in ReF-ER's Rule 2. Defaults to 0.1.
+    
+|
+
+- "maxTotObsNum": Max number of transitions in training buffer. Defaults to 2^14 * sqrt(dim(action) + dim(state)).
+    
+- "minTotObsNum": Min number of transitions in training buffer before training starts. If minTotObsNum=0, is set equal to maxTotObsNum i.e. fill RM before training starts. Defaults to 0.
+    
+- "obsPerStep": Ratio of observed *transitions* to gradient steps. E.g. 0.1 means that for every observation learner does 10 gradient steps. Defaults to 1.
+    
+|
+
+- "learnrate": Learning rate. Defaults to 1e-4.
+    
+- "ESpopSize": Population size for CMA-ES algorithm. Only compatible with (V)RACER. If unset, or set to <2, we use Adam to optimize network parameters. Defaults to 1.
+    
+- "batchSize": Network training batch size. Defaults to 256.
+    
+- "epsAnneal": Annealing rate for network learning rate and ReF-ER clipping parameters (if enabled). Defaults to 5e-7, which halves the learn rate in 2e6 grad steps.
+    
+- "nnLambda": Penalization factor for network weights. It will be multiplied by learn rate: w -= eta * nnLambda * w. 
+    
+- "targetDelay": Copy delay for Target Nets (TNs). If 0, TNs are disabled. If 'val'>1: every 'val' grad steps network's W copied onto TN (like DQN). If 'val'<1: every grad step TN updated by exp. averaging with rate 'val' (like DPG). Only compatible with ACER, DQN, DDPG, and NAF.
+  
+|
+
+- "nnType": Type of non-output layers read from settings. Accepts 'RNN', 'GRU', 'LSTM', everything else maps to feed-forward NN. Conv2D layers need to be built in environment directly with the API described below. Defaults to 'FFNN'.
+    
+- "nnLayerSizes": Sizes of non-convolutional layers (LSTM/RNN/FFNN). Defaults to [128, 128]. 
+    
+- "encoderLayerSizes": Sizes of non-convolutional encoder layers (LSTM/RNN/FFNN). E.g. '64 64'. This only applies to networks which have multiple networks (e.g. policy and value). The encoder layers (and any Conv2D layers) are shared by all networks. For example, when using PPO, setting "encoderLayerSizes" to 64 and "nnLayerSizes" to 64 means that an encoder layer of size 64 will be created. The policy and value network will have one layer of size 64 and take as input the output of the encoder. Defaults to [0].
+  
+|
+
+- "nnBPTTseq": Number of previous steps considered by RNN's back-propagation through time window. No effect if using FFNN. Defaults to 16.
+    
+- "nnFunc": Activation function for non-output layers (which is almost always linear) which are built from settings. ('Relu', 'Tanh', 'Sigm', 'PRelu', 'softSign', 'softPlus', ...). Defaults to 'SoftSign'.
+    
+- "nnOutputFunc": Activation function for output layers. Defaults to 'Linear'.
+    
+- "outWeightsPrefac": Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal Xavier initialization. Defaults to 0.1.
+  
+|
+
+- "saveFreq": Number of gradient steps between writing of checkpoint file of learner's state. Defaults to 200000.
+
+In ``settings/default.json`` we list all values the hyper-parameters take if the fields are left empty in the .json file.
 
 Outputs and postprocessing
 ==========================

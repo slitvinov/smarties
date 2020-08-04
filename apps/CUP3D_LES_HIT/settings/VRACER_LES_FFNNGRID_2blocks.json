@@ -4,7 +4,7 @@
   "clipImpWeight": 0.5,
   "epsAnneal": 1e-7,
   "penalTol": 0.05,
-  "explNoise": 0.2,
+  "explNoise": 0.1,
   "gamma": 0.995,
   "learnrate": 0.000003,
   "minTotObsNum": 1048576,

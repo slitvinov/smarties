@@ -29,7 +29,7 @@ def getSettings(nu, eps, cs, run):
     if bDoUpWind: options = options + '-Advection3rdOrder 1 '
     tAnalysis = np.sqrt(nu / eps)
     tDump = (run == 0) * 10 * tAnalysis
-    tEnd = 1000 * tAnalysis
+    tEnd = 10000 * tAnalysis # abort in code
     return options + '-extentx 6.2831853072 -dump2D 0 -dump3D 1 ' \
        '-tdump %f -BC_x periodic -BC_y periodic -BC_z periodic ' \
        '-spectralIC fromFit -initCond HITurbulence -tAnalysis %f ' \

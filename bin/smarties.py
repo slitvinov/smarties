@@ -82,7 +82,7 @@ def applicationSetup(parsed, absRunPath):
     return
 
   # Else user created app. First find its folder.
-  if os.path.isdir( parsed.app ) :
+  if os.path.isdir( parsed.app ) or is_exe(parsed.app) :
     app = parsed.app
   elif os.path.isdir( SMARTIES_ROOT + '/apps/' + parsed.app ) :
     app = SMARTIES_ROOT + '/apps/' + parsed.app
@@ -113,11 +113,14 @@ def applicationSetup(parsed, absRunPath):
                "Contradiction between application setup and cmd line parsing"
       parsed.mpiProcsPerEnv = mpiProcsPerEnv
 
-    if len(setout[-1]) and parsed.execname is not 'exec':
+    if len(setout[-1]) and parsed.execname == 'exec': # if user did not specify
       execn = str(setout[-1], 'utf-8')
       print("app setup.sh: set executable name '%s'." % execn)
       parsed.execname = execn
 
+  elif is_exe(app):
+    shutil.copy(app, absRunPath + '/exec')
+    parsed.execname = 'exec'
   elif is_exe(app+'/'+parsed.execname):
     shutil.copy(app+'/'+parsed.execname, absRunPath + '/')
   elif is_exe(app+'/'+parsed.execname+'.py'):
@@ -129,7 +132,8 @@ def applicationSetup(parsed, absRunPath):
     print('WARNING: Using python executable already located in run directory.')
     parsed.execname = parsed.execname + '.py'
   else:
-    print('FATAL: Unable to locate application executable')
+    print('FATAL: Unable to locate application executable %s or %s.py'
+          % (parsed.execname, parsed.execname))
 
   #if os.path.getmtime(app) < os.path.getmtime( SMARTIES_ROOT + '/lib/libsmarties.so'):
   #  print("WARNING: Application is older then smarties, make sure used libraries still match.")
@@ -169,14 +173,23 @@ def setComputationalResources(parsed):
                  " --workerProcessesPerEnv %d " % (parsed.nEnvironments, \
                  parsed.nLearners, parsed.nThreads, parsed.mpiProcsPerEnv)
 
-  if parsed.nEvalSeqs == 0:
-    parsed.args += " --bTrain 1 --nTrainSteps %d " % parsed.nTrainSteps
+  if parsed.nEvalEpisodes == 0:
+    parsed.args += " --nTrainSteps %d " % parsed.nTrainSteps
     if parsed.restart is None: parsed.args += " --restart none "
     else: parsed.args += " --restart %s " % parsed.restart
   else:
-    parsed.args += " --bTrain 0 --totNumSteps %d " % parsed.nEvalSeqs
+    parsed.args += " --nEvalEpisodes %d " % parsed.nEvalEpisodes
     if parsed.restart is None: parsed.args += " --restart ./ "
-    else: parsed.args += " --restart %s " % parsed.restart
+    else:
+      if os.path.isdir( parsed.runprefix + "/" + parsed.restart ):
+        absRestartPath = os.path.abspath(parsed.runprefix+"/"+parsed.restart)
+        parsed.args += " --restart %s " % absRestartPath
+      elif os.path.isdir( parsed.restart ):
+        absRestartPath = os.path.abspath(parsed.restart)
+        parsed.args += " --restart %s " % absRestartPath
+      else:
+        print('FATAL: Did not find the restart dir %s' % parsed.restart)
+        exit()
 
   if parsed.netsOnlyLearners:
     parsed.args += " --learnersOnWorkers 0 "
@@ -257,7 +270,8 @@ def setLaunchCommand(parsed, absRunPath):
 if __name__ == '__main__':
   assert len(SMARTIES_ROOT)>0, \
          "FATAL: Environment variable SMARTIES_ROOT is unset. Read the README"
-  assert os.path.isfile(SMARTIES_ROOT+'/lib/libsmarties.so'), \
+  assert os.path.isfile(SMARTIES_ROOT+'/lib/libsmarties.so') or \
+         os.path.isfile(SMARTIES_ROOT+'/lib/libsmarties.dylib'), \
          "FATAL: smarties library not found."
 
   runprefix, nThreads = getDefaults()
@@ -322,9 +336,9 @@ if __name__ == '__main__':
   parser.add_argument('--restart', default=None,
       help="Path to existing directory which contains smarties output files "
            "needed to restart already trained agents.")
-  parser.add_argument('-t','--nTrainSteps', type=int, default=10000000,
+  parser.add_argument('-t','--nTrainSteps', type=int, default=100000000,
       help="Total number of time steps before end of learning.")
-  parser.add_argument('--nEvalSeqs', type=int, default=0,
+  parser.add_argument('--nEvalEpisodes', type=int, default=0,
       help="Number of environment episodes to evaluate trained policy. " \
            "This option automatically disables training.")
 

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 import re, argparse, numpy as np, glob
 from os import path
 
-nBins = 16 * 16//2 - 1
+#nBins = 24 * 16//2 - 1
 
 '''
 def tkeFit(nu, eps): return 2.87657077 * np.power(eps, 2/3.0)
@@ -38,16 +38,21 @@ def computeIntTimeScale(tau_integral):
 
 def getAllData(dirn, eps, nu, nBins, fSkip=1):
     fname = dirn + '/spectralAnalysis.raw'
-    if  path.exists(fname) :
-      f = np.fromfile(fname, dtype=np.float64)
+    rl_fname = dirn + '/simulation_000_00000/run_00000000/spectralAnalysis.raw'
+    if   path.exists(fname)    : f = np.fromfile(fname, dtype=np.float64)
+    elif path.exists(rl_fname) : f = np.fromfile(rl_fname, dtype=np.float64)
     else :
       f = np.zeros([nBins + 13])
       print('File %s does not exist. Simulation did not start?' % fname)
-    f = f.reshape([f.size//(nBins + 13), nBins + 13])
+    nFullRows = f.size // (nBins + 13)
+    nFull = nFullRows * (nBins + 13)
+    print(nFullRows, nFull, f.size)
+    f = f[:nFull].reshape([nFullRows, nBins + 13])
+    #f = f.reshape([nFullRows, nBins + 13])
     nSamples = f.shape[0]
     tIntegral = computeIntTimeScale(f[:,8])
     tAnalysis = np.sqrt(nu / eps) # time space between data files
-    ind0 = int(5 * tIntegral / tAnalysis) # skip initial integral times
+    ind0 = int(10 * tIntegral / tAnalysis) # skip initial integral times
     if ind0 == 0 or ind0 > nSamples: ind0 = nSamples
     data = {
         'dt'           : f[ind0:, 1], 'tke'          : f[ind0:, 3],
@@ -56,30 +61,39 @@ def getAllData(dirn, eps, nu, nBins, fSkip=1):
         't_integral'   : f[ind0:, 8], 'grad_mean'    : f[ind0:,11],
         'grad_std'     : f[ind0:,12], 'spectra'      : f[ind0:,13:]
     }
+    print('n spectra = %d %f %f' % (nFullRows, tIntegral, tAnalysis))
     return data
 
-def main(path, fSkip, nBlocks=16, nBlocksRL=4):
+def gatherAllData(path, re, eps, nu, nBins, fSkip):
+  data = None
+  #for run in [0, 1, 2, 3, 4]:
+  #for run in [5, 6, 7, 8, 9]:
+  #for run in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+  for run in range(40):
+    dirn = '%sRE%04d_RUN%d' % (path, re, run)
+    runData = getAllData(dirn, eps, nu, nBins, fSkip)
+    if data is None: data = runData
+    else:
+      for key in runData:
+        data[key] = np.append(data[key], runData[key], 0)
+
+  if data['dt'].size < 2: data = None
+
+  return data
+
+def main(path, fSkip, nBlocks, nBlocksRL):
   nBinsTgt = nBlocksRL * 16 // 2 - 1
   nBins = nBlocks * 16//2 - 1
   REs = findAllParams(path)
   #REs =  [60, 70, 82, 95, 110, 130, 150, 176, 206, 240, 280, 325, 380]
   EPSs, NUs = len(REs) * [0], len(REs) * [0] # will be overwritten
+
   for j in range(len(REs)):
     EPSs[j], NUs[j] = epsNuFromRe(REs[j])
     print('Re %e nu %e eps %e' % (REs[j], NUs[j], EPSs[j]))
-    data = None
-    #for run in [0, 1, 2, 3, 4]:
-    #for run in [5, 6, 7, 8, 9]:
-    for run in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-      dirn = '%sRE%04d_RUN%d' % (path, REs[j], run)
-      runData = getAllData(dirn, EPSs[j], NUs[j], nBins, fSkip)
-      if data is None: data = runData
-      else:
-        for key in runData:
-          data[key] = np.append(data[key], runData[key], 0)
-
-    if data == None or data['dt'].size < 2:
-      print('skipped eps:%f nu:%f' % (EPSs[j], NUs[j]))
+    data = gatherAllData(path, REs[j], EPSs[j], NUs[j], nBins, fSkip=fSkip)
+    if data == None:
+      print('skipped eps:%f nu:%f' % (eps, nu))
       continue
 
     logE = np.log(data['spectra'])
@@ -134,9 +148,11 @@ if __name__ == '__main__':
       help="Simulation directory containing the 'Analysis' folder")
   parser.add_argument('--fSkip', type=int, default=1,
     help="Sampling frequency for analysis files. If 1, take all. If 2, take 1 skip 1, If 3, take 1, skip 2, and so on.")
-  parser.add_argument('--nBlocksRL', type=int, default=4,
+  parser.add_argument('--nBlocks', type=int, default=32,
+    help="Number of CubismUP 3D blocks in the target runs.")
+  parser.add_argument('--nBlocksRL', type=int, default=2,
     help="Number of CubismUP 3D blocks in the training runs.")
   args = parser.parse_args()
 
-  main(args.simdir, args.fSkip, nBlocksRL=args.nBlocksRL)
+  main(args.simdir, args.fSkip, args.nBlocks, args.nBlocksRL)
 
