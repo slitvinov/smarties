@@ -14,12 +14,12 @@ module app_main_module
       integer, parameter :: NUM_ACTIONS = 1
       integer, parameter :: STATE_SIZE = 6
       integer, parameter :: AGENT_ID = 0
-      real(c_double),  dimension(NUM_ACTIONS), target :: upper_action_bound, lower_action_bound
-      logical(c_bool), dimension(STATE_SIZE),  target :: b_observable
-      real(c_double),  dimension(STATE_SIZE),  target :: upper_state_bound, lower_state_bound
-      real(c_double),  dimension(NUM_ACTIONS), target :: action
+      real(c_double),  dimension(NUM_ACTIONS) :: upper_action_bound, lower_action_bound
+      logical(c_bool), dimension(STATE_SIZE) :: b_observable
+      real(c_double),  dimension(STATE_SIZE) :: upper_state_bound, lower_state_bound
+      real(c_double),  dimension(NUM_ACTIONS) :: action
       logical :: terminated
-      real(c_double), dimension(STATE_SIZE), target :: state
+      real(c_double), dimension(STATE_SIZE) :: state
       real(c_double) :: reward
       double precision :: getReward
       logical :: advance
@@ -30,40 +30,40 @@ module app_main_module
       call mpi_comm_size(f_mpicomm, numProcs, mpiIerr)
       write(6,*) 'rank #', rank, ' of ', numProcs, ' is alive in Fortran'
       ! inform Smarties about the size of the state and the number of actions it can take
-      call smarties2_setstateactiondims(smarties_comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
+      call smarties_setstateactiondims(smarties_comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
 
       ! OPTIONAL: aciton bounds
       bounded = .true.
       upper_action_bound = (/ 10/)
       lower_action_bound = (/-10/)
-      call smarties2_setactionscales(smarties_comm, &
+      call smarties_setactionscales(smarties_comm, &
            upper_action_bound, lower_action_bound, &
            bounded, NUM_ACTIONS, AGENT_ID)
 
       ! OPTIONAL: hide state variables.
       ! e.g. show cosine/sine but not angle
       b_observable = (/.true., .true., .true., .false., .true., .true./)
-      call smarties2_setStateObservable(smarties_comm, b_observable, STATE_SIZE, AGENT_ID)
+      call smarties_setStateObservable(smarties_comm, b_observable, STATE_SIZE, AGENT_ID)
 
       ! OPTIONAL: set space bounds
       upper_state_bound = (/ 1,  1,  1,  1,  1,  1/)
       lower_state_bound = (/-1, -1, -1, -1, -1, -1/)
-      call smarties2_setStateScales(smarties_comm, upper_state_bound, lower_state_bound, STATE_SIZE, AGENT_ID)
+      call smarties_setStateScales(smarties_comm, upper_state_bound, lower_state_bound, STATE_SIZE, AGENT_ID)
 
       do while (.true.)
          call reset()
          call getState(state)
-         call smarties2_sendInitState(smarties_comm, state, STATE_SIZE, AGENT_ID)
+         call smarties_sendInitState(smarties_comm, state, STATE_SIZE, AGENT_ID)
          do while (.true.)
-            call smarties2_recvAction(smarties_comm, action, NUM_ACTIONS, AGENT_ID)
+            call smarties_recvAction(smarties_comm, action, NUM_ACTIONS, AGENT_ID)
             terminated = advance(action)
             call getState(state)
             reward = getReward()
             if (terminated) then
-               call smarties2_sendTermState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
+               call smarties_sendTermState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
                exit
             else
-               call smarties2_sendState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
+               call smarties_sendState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
             end if
          end do
       end do
