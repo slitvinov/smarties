@@ -192,12 +192,8 @@ void smarties_setnumagents_(void *const ptr2comm, int num_agents) {
 
 void smarties2_setstateactiondims_(void **ptr2comm, int *state_dim,
                                   int *action_dim, int *agent_id) {
-  FILE *f;
-  f = fopen("log", "w");
-  fprintf(f, "%d %d %d\n", *state_dim, *action_dim, *agent_id);
   static_cast<smarties::Communicator *>(*ptr2comm)->setStateActionDims(
       *state_dim, *action_dim, *agent_id);
-  fclose(f);
 }
 
 void smarties2_setactionscales_(void *const ptr2comm,
