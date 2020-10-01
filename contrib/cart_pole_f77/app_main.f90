@@ -16,33 +16,26 @@ function app_main(smarties_comm, f_mpicomm)
   double precision :: reward
   double precision :: getReward
   logical :: advance
+  integer :: rank
+  integer :: numProcs
+  integer :: mpiIerr
 
-  integer :: rank, numProcs, mpiIerr
   write(6,*) 'Fortran side begins'
   call mpi_comm_rank(f_mpicomm, rank, mpiIerr)
   call mpi_comm_size(f_mpicomm, numProcs, mpiIerr)
   write(6,*) 'rank #', rank, ' of ', numProcs, ' is alive in Fortran'
-  ! inform Smarties about the size of the state and the number of actions it can take
   call smarties_setstateactiondims(smarties_comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
-
-  ! OPTIONAL: aciton bounds
   bounded = .true.
   upper_action_bound = (/ 10/)
   lower_action_bound = (/-10/)
   call smarties_setactionscales(smarties_comm, &
        upper_action_bound, lower_action_bound, &
        bounded, NUM_ACTIONS, AGENT_ID)
-
-  ! OPTIONAL: hide state variables.
-  ! e.g. show cosine/sine but not angle
   b_observable = (/.true., .true., .true., .false., .true., .true./)
   call smarties_setStateObservable(smarties_comm, b_observable, STATE_SIZE, AGENT_ID)
-
-  ! OPTIONAL: set space bounds
   upper_state_bound = (/ 1,  1,  1,  1,  1,  1/)
   lower_state_bound = (/-1, -1, -1, -1, -1, -1/)
   call smarties_setStateScales(smarties_comm, upper_state_bound, lower_state_bound, STATE_SIZE, AGENT_ID)
-
   do while (.true.)
      call reset()
      call getState(state)
@@ -65,6 +58,7 @@ function app_main(smarties_comm, f_mpicomm)
 end function app_main
 
 subroutine reset()
+  implicit none
   integer :: step
   double precision, dimension(4) :: u
   double precision :: F
@@ -78,6 +72,7 @@ subroutine reset()
 end subroutine reset
 
 function is_over()
+  implicit none
   logical :: is_over
   double precision, parameter :: pi = 3.1415926535897931d0
   integer :: step
@@ -85,11 +80,13 @@ function is_over()
   double precision :: F
   double precision :: t
   common /global/ u, step, F, t
+
   is_over = .false.
   if (step>=500 .or. abs(u(1))>2.4 .or. abs(u(3))>pi/15 ) is_over = .true.
 end function is_over
 
 subroutine getState(state)
+  implicit none
   integer,          parameter :: STATE_SIZE = 6
   double precision, dimension(STATE_SIZE) :: state
   integer :: step
@@ -97,13 +94,17 @@ subroutine getState(state)
   double precision :: F
   double precision :: t
   common /global/ u, step, F, t
+
   state(1:4) = u
   state(5)   = cos(u(3))
   state(6)   = sin(u(3))
 end subroutine getState
 
 subroutine rk46_nl(t0, dt, F, u0)
-  double precision, intent(in) :: t0, dt, F
+  implicit none
+  double precision, intent(in) :: t0
+  double precision, intent(in) :: dt
+  double precision, intent(in) :: F
   double precision, dimension(4), intent(inout) :: u0
   double precision, dimension(4) :: u
   integer :: i
@@ -117,7 +118,7 @@ subroutine rk46_nl(t0, dt, F, u0)
   double precision, dimension(6), parameter :: c = (/0.000000000000,  0.032918605146,  0.249351723343, &
        0.466911705055,  0.582030414044,  0.847252983783/)
   double precision, dimension(4) :: res
-  !
+
   u = u0
   do i = 1, s
      t = t0 + dt*c(i)
@@ -129,15 +130,22 @@ subroutine rk46_nl(t0, dt, F, u0)
 end subroutine rk46_nl
 
 subroutine Diff(u, F, res)
+  implicit none
   double precision, dimension(4), intent(in) :: u
   double precision, intent(in) :: F
   double precision, dimension(4) :: res
-  double precision :: cosy, siny, w
-  double precision :: fac1, fac2, totMass, F1
+  double precision :: cosy
+  double precision :: siny
+  double precision :: w
+  double precision :: fac1
+  double precision :: fac2
+  double precision :: totMass
+  double precision :: F1
   double precision, parameter :: mp = 0.1
   double precision, parameter :: mc = 1.
   double precision, parameter :: l  = 0.5
   double precision, parameter :: g  = 9.81
+
   res = 0
   cosy = cos(u(3))
   siny = sin(u(3))
@@ -179,6 +187,7 @@ function advance(action)
   double precision :: F
   double precision :: t
   common /global/ u, step, F, t
+
   F = action(1)
   step = step+1
   do i = 1, nsteps
