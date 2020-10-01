@@ -5,13 +5,14 @@
 PREFIX = $(HOME)/.local
 CXXFLAGS = -Ofast -g
 FCFLAGS = -Ofast -g
-FC = mpif90
+FC = mpifort
 CXX = mpicxx
 LINK = $(FC)
 
 M_CXXFLAGS = -I$(PREFIX)/include
 M_FCFLAGS = -I$(PREFIX)/include -I.
-M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties -lgfortran -lmpi++ -lstdc++
+MPI_EXTRA_LIB = -lmpi_cxx -lstdc++
+M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties $(MPI_EXTRA_LIB)
 
 O = \
 app_main.o\
