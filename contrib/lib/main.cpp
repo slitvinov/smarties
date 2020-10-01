@@ -71,19 +71,19 @@ void smarties_setactionoptionsperdim_(void *ptr2comm, int *noptions,
                                                                     agent_id);
 }
 
-void smarties_setstateobservable_(void *ptr2comm, int *bobservable,
-                                 int state_dim, int agent_id) {
-  std::vector<bool> optionsvec(bobservable, bobservable + state_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->setStateObservable(
-      optionsvec, agent_id);
+void smarties2_setstateobservable_(void **ptr2comm, int *bobservable,
+                                 int *state_dim, int *agent_id) {
+  std::vector<bool> optionsvec(bobservable, bobservable + *state_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->setStateObservable(
+      optionsvec, *agent_id);
 }
 
-void smarties_setstatescales_(void *ptr2comm, double *upper_scale,
-                             double *lower_scale, int state_dim, int agent_id) {
-  std::vector<double> upper(upper_scale, upper_scale + state_dim);
-  std::vector<double> lower(lower_scale, lower_scale + state_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->setStateScales(upper, lower,
-                                                                  agent_id);
+void smarties2_setstatescales_(void **ptr2comm, double *upper_scale,
+                             double *lower_scale, int *state_dim, int *agent_id) {
+  std::vector<double> upper(upper_scale, upper_scale + *state_dim);
+  std::vector<double> lower(lower_scale, lower_scale + *state_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->setStateScales(upper, lower,
+                                                                  *agent_id);
 }
 
 void smarties_setispartiallyobservable_(void *ptr2comm, int agent_id) {

@@ -312,12 +312,12 @@ module app_main_module
       ! OPTIONAL: hide state variables.
       ! e.g. show cosine/sine but not angle
       b_observable = (/.true., .true., .true., .false., .true., .true./)
-      call smarties_setStateObservable(smarties_comm, c_loc(b_observable), STATE_SIZE, AGENT_ID)
+      call smarties2_setStateObservable(smarties_comm, b_observable, STATE_SIZE, AGENT_ID)
 
       ! OPTIONAL: set space bounds
       upper_state_bound = (/ 1,  1,  1,  1,  1,  1/)
       lower_state_bound = (/-1, -1, -1, -1, -1, -1/)
-      call smarties_setStateScales(smarties_comm, c_loc(upper_state_bound), c_loc(lower_state_bound), STATE_SIZE, AGENT_ID)
+      call smarties2_setStateScales(smarties_comm, upper_state_bound, lower_state_bound, STATE_SIZE, AGENT_ID)
 
       do while (.true.)
          call reset()
