@@ -1,10 +1,277 @@
-  module app_main_module
+module smarties
+
+  implicit none
+
+  interface
+    subroutine smarties_sendInitState( &
+        ptr2comm, state, state_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: state
+      integer(c_int), intent(in), value :: state_dim
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_sendInitState
+  end interface
+
+  interface
+    subroutine smarties_sendState( &
+        ptr2comm, state, state_dim, reward, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: state
+      integer(c_int), intent(in), value :: state_dim
+      real(c_double), intent(in), value :: reward
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_sendState
+  end interface
+
+  interface
+    subroutine smarties_sendTermState( &
+        ptr2comm, state, state_dim, reward, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: state
+      integer(c_int), intent(in), value :: state_dim
+      real(c_double), intent(in), value :: reward
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_sendTermState
+  end interface
+
+  interface
+    subroutine smarties_sendLastState( &
+        ptr2comm, state, state_dim, reward, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: state
+      integer(c_int), intent(in), value :: state_dim
+      real(c_double), intent(in), value :: reward
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_sendLastState
+  end interface
+
+  interface
+    subroutine smarties_recvAction( &
+        ptr2comm, action, action_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: action
+      integer(c_int), intent(in), value :: action_dim
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_recvAction
+  end interface
+
+  interface
+    subroutine smarties_setNumAgents( &
+        ptr2comm, num_agents)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), value :: num_agents
+    end subroutine smarties_setNumAgents
+  end interface
+
+  interface
+    subroutine smarties_setStateActionDims( &
+        ptr2comm, state_dim, action_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), value :: state_dim
+      integer(c_int), intent(in), value :: action_dim
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setStateActionDims
+  end interface
+
+
+  interface
+    subroutine smarties_setActionScales( &
+        ptr2comm, upper_act_bound, lower_act_bound, &
+        bounded, action_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),     intent(in), value :: ptr2comm
+      type(c_ptr),     intent(in), value :: upper_act_bound
+      type(c_ptr),     intent(in), value :: lower_act_bound
+      logical(c_bool), intent(in), value :: bounded
+      integer(c_int),  intent(in), value :: action_dim
+      integer(c_int),  intent(in), optional :: agentID
+    end subroutine smarties_setActionScales
+  end interface
+
+  interface
+    subroutine smarties_setActionScalesBounds( &
+        ptr2comm, upper_act_bound, lower_act_bound, &
+        bounded, action_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),     intent(in), value :: ptr2comm
+      type(c_ptr),     intent(in), value :: upper_act_bound
+      type(c_ptr),     intent(in), value :: lower_act_bound
+      type(c_ptr),     intent(in), value :: bounded
+      integer(c_int),  intent(in), value :: action_dim
+      integer(c_int),  intent(in), optional :: agentID
+    end subroutine smarties_setActionScalesBounds
+  end interface
+
+
+  interface
+    subroutine smarties_setActionOptions( &
+        ptr2comm, num_options, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),     intent(in), value :: ptr2comm
+      integer(c_int),  intent(in), value :: num_options
+      integer(c_int),  intent(in), optional :: agentID
+    end subroutine smarties_setActionOptions
+  end interface
+
+  interface
+    subroutine smarties_setActionOptionsPerDim( &
+        ptr2comm, num_options, action_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),     intent(in), value :: ptr2comm
+      type(c_ptr),     intent(in), value :: num_options
+      integer(c_int),  intent(in), value :: action_dim
+      integer(c_int),  intent(in), optional :: agentID
+    end subroutine smarties_setActionOptionsPerDim
+  end interface
+
+  interface
+    subroutine smarties_setStateObservable( &
+        ptr2comm, b_observable, state_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: b_observable
+      integer(c_int), intent(in), value :: state_dim
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setStateObservable
+  end interface
+
+  interface
+    subroutine smarties_setStateScales( &
+        ptr2comm, upper_state_bound, lower_state_bound, state_dim, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      type(c_ptr),    intent(in), value :: upper_state_bound
+      type(c_ptr),    intent(in), value :: lower_state_bound
+      integer(c_int), intent(in), value :: state_dim
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setStateScales
+  end interface
+
+  interface
+    subroutine smarties_setIsPartiallyObservable(ptr2comm, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setIsPartiallyObservable
+  end interface
+
+  interface
+    subroutine smarties_finalizeProblemDescription(ptr2comm)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+    end subroutine smarties_finalizeProblemDescription
+  end interface
+
+  interface
+    subroutine smarties_envHasDistributedAgents(ptr2comm)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+    end subroutine smarties_envHasDistributedAgents
+  end interface
+
+  interface
+    subroutine smarties_agentsDefineDifferentMDP(ptr2comm)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+    end subroutine smarties_agentsDefineDifferentMDP
+  end interface
+
+  interface
+    subroutine smarties_disableDataTrackingForAgents( &
+        ptr2comm, agentStart, agentEnd)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), value :: agentStart
+      integer(c_int), intent(in), value :: agentEnd
+    end subroutine smarties_disableDataTrackingForAgents
+  end interface
+
+  interface
+    subroutine smarties_setPreprocessingConv2d( &
+        ptr2comm, input_width, input_height, input_features, &
+        kernels_num, filters_size, stride, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), value :: input_width
+      integer(c_int), intent(in), value :: input_height
+      integer(c_int), intent(in), value :: input_features
+      integer(c_int), intent(in), value :: kernels_num
+      integer(c_int), intent(in), value :: filters_size
+      integer(c_int), intent(in), value :: stride
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setPreprocessingConv2d
+  end interface
+
+  interface
+    subroutine smarties_setNumAppendedPastObservations( &
+        ptr2comm, n_appended, agentID)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in), value :: ptr2comm
+      integer(c_int), intent(in), value :: n_appended
+      integer(c_int), intent(in), optional :: agentID
+    end subroutine smarties_setNumAppendedPastObservations
+  end interface
+
+  interface
+    subroutine smarties_getUniformRandom( &
+        ptr2comm, range_begin, range_end, sampled)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in),  value    :: ptr2comm
+      real(c_double), intent(in),  optional :: range_begin
+      real(c_double), intent(in),  optional :: range_end
+      real(c_double), intent(out), optional :: sampled(*)
+    end subroutine smarties_getUniformRandom
+  end interface
+
+  interface
+    subroutine smarties_getNormalRandom( &
+        ptr2comm, mean, stdev, sampled)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      type(c_ptr),    intent(in),  value    :: ptr2comm
+      real(c_double), intent(in),  optional :: mean
+      real(c_double), intent(in),  optional :: stdev
+      real(c_double), intent(out), optional :: sampled(*)
+    end subroutine smarties_getNormalRandom
+  end interface
+
+end module smarties
+  
+module app_main_module
     implicit none
     include 'mpif.h'
     public app_main
   contains
     function app_main(smarties_comm, f_mpicomm) result(result_value) &
-         bind(c, name='app_main')
+         bind(c, name='app_main')      
       use, intrinsic :: iso_c_binding
       use smarties
       implicit none
