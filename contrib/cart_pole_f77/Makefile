@@ -10,7 +10,7 @@ CXX = mpicxx
 LINK = $(FC)
 
 M_CXXFLAGS = -I$(PREFIX)/include
-M_FCFLAGS = -ffree-form -std=legacy -Wall -Wextra -I$(PREFIX)/include -I. -Wno-align-commons
+M_FCFLAGS = -std=legacy -Wall -Wextra -I$(PREFIX)/include -I. -Wno-align-commons
 M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lmpi_cxx -lstdc++
 
 O = \
