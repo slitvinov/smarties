@@ -140,7 +140,6 @@ subroutine Diff(u, F, res)
   double precision :: cosy
   double precision :: siny
   double precision :: w
-  double precision :: fac1
   double precision :: fac2
   double precision :: totMass
   double precision :: F1
@@ -164,7 +163,6 @@ end subroutine Diff
 
 function getReward()
   implicit none
-  double precision :: angle
   double precision :: getReward
   double precision, parameter :: pi = 3.1415926535897931d0
   integer :: step
