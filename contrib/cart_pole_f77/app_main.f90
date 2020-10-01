@@ -1,4 +1,3 @@
-  include 'smarties.f90'
   module app_main_module
     implicit none
     include 'mpif.h'
