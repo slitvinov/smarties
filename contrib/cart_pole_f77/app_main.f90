@@ -10,7 +10,7 @@ module smarties
       type(c_ptr),    intent(in), value :: ptr2comm
       type(c_ptr),    intent(in), value :: state
       integer(c_int), intent(in), value :: state_dim
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_sendInitState
   end interface
 
@@ -23,7 +23,7 @@ module smarties
       type(c_ptr),    intent(in), value :: state
       integer(c_int), intent(in), value :: state_dim
       real(c_double), intent(in), value :: reward
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_sendState
   end interface
 
@@ -36,7 +36,7 @@ module smarties
       type(c_ptr),    intent(in), value :: state
       integer(c_int), intent(in), value :: state_dim
       real(c_double), intent(in), value :: reward
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_sendTermState
   end interface
 
@@ -49,7 +49,7 @@ module smarties
       type(c_ptr),    intent(in), value :: state
       integer(c_int), intent(in), value :: state_dim
       real(c_double), intent(in), value :: reward
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_sendLastState
   end interface
 
@@ -61,7 +61,7 @@ module smarties
       type(c_ptr),    intent(in), value :: ptr2comm
       type(c_ptr),    intent(in), value :: action
       integer(c_int), intent(in), value :: action_dim
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_recvAction
   end interface
 
@@ -83,7 +83,7 @@ module smarties
       type(c_ptr),    intent(in), value :: ptr2comm
       integer(c_int), intent(in), value :: state_dim
       integer(c_int), intent(in), value :: action_dim
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setStateActionDims
   end interface
 
@@ -99,7 +99,7 @@ module smarties
       type(c_ptr),     intent(in), value :: lower_act_bound
       logical(c_bool), intent(in), value :: bounded
       integer(c_int),  intent(in), value :: action_dim
-      integer(c_int),  intent(in), optional :: agentID
+      integer(c_int),  intent(in), value :: agentID
     end subroutine smarties_setActionScales
   end interface
 
@@ -114,7 +114,7 @@ module smarties
       type(c_ptr),     intent(in), value :: lower_act_bound
       type(c_ptr),     intent(in), value :: bounded
       integer(c_int),  intent(in), value :: action_dim
-      integer(c_int),  intent(in), optional :: agentID
+      integer(c_int),  intent(in), value :: agentID
     end subroutine smarties_setActionScalesBounds
   end interface
 
@@ -126,7 +126,7 @@ module smarties
       implicit none
       type(c_ptr),     intent(in), value :: ptr2comm
       integer(c_int),  intent(in), value :: num_options
-      integer(c_int),  intent(in), optional :: agentID
+      integer(c_int),  intent(in), value :: agentID
     end subroutine smarties_setActionOptions
   end interface
 
@@ -138,7 +138,7 @@ module smarties
       type(c_ptr),     intent(in), value :: ptr2comm
       type(c_ptr),     intent(in), value :: num_options
       integer(c_int),  intent(in), value :: action_dim
-      integer(c_int),  intent(in), optional :: agentID
+      integer(c_int),  intent(in), value :: agentID
     end subroutine smarties_setActionOptionsPerDim
   end interface
 
@@ -150,7 +150,7 @@ module smarties
       type(c_ptr),    intent(in), value :: ptr2comm
       type(c_ptr),    intent(in), value :: b_observable
       integer(c_int), intent(in), value :: state_dim
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setStateObservable
   end interface
 
@@ -163,7 +163,7 @@ module smarties
       type(c_ptr),    intent(in), value :: upper_state_bound
       type(c_ptr),    intent(in), value :: lower_state_bound
       integer(c_int), intent(in), value :: state_dim
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setStateScales
   end interface
 
@@ -172,7 +172,7 @@ module smarties
       use, intrinsic :: iso_c_binding
       implicit none
       type(c_ptr),    intent(in), value :: ptr2comm
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setIsPartiallyObservable
   end interface
 
@@ -224,7 +224,7 @@ module smarties
       integer(c_int), intent(in), value :: kernels_num
       integer(c_int), intent(in), value :: filters_size
       integer(c_int), intent(in), value :: stride
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setPreprocessingConv2d
   end interface
 
@@ -235,7 +235,7 @@ module smarties
       implicit none
       type(c_ptr),    intent(in), value :: ptr2comm
       integer(c_int), intent(in), value :: n_appended
-      integer(c_int), intent(in), optional :: agentID
+      integer(c_int), intent(in), value :: agentID
     end subroutine smarties_setNumAppendedPastObservations
   end interface
 
@@ -245,8 +245,8 @@ module smarties
       use, intrinsic :: iso_c_binding
       implicit none
       type(c_ptr),    intent(in),  value    :: ptr2comm
-      real(c_double), intent(in),  optional :: range_begin
-      real(c_double), intent(in),  optional :: range_end
+      real(c_double), intent(in),  value :: range_begin
+      real(c_double), intent(in),  value :: range_end
       real(c_double), intent(out), optional :: sampled(*)
     end subroutine smarties_getUniformRandom
   end interface
@@ -257,9 +257,9 @@ module smarties
       use, intrinsic :: iso_c_binding
       implicit none
       type(c_ptr),    intent(in),  value    :: ptr2comm
-      real(c_double), intent(in),  optional :: mean
-      real(c_double), intent(in),  optional :: stdev
-      real(c_double), intent(out), optional :: sampled(*)
+      real(c_double), intent(in),  value :: mean
+      real(c_double), intent(in),  value :: stdev
+      real(c_double), intent(out) :: sampled(*)
     end subroutine smarties_getNormalRandom
   end interface
 
@@ -307,32 +307,32 @@ module app_main_module
       lower_action_bound = (/-10/)
       call smarties_setactionscales(smarties_comm, &
            c_loc(upper_action_bound), c_loc(lower_action_bound), &
-           bounded, NUM_ACTIONS)
+           bounded, NUM_ACTIONS, AGENT_ID)
 
       ! OPTIONAL: hide state variables.
       ! e.g. show cosine/sine but not angle
       b_observable = (/.true., .true., .true., .false., .true., .true./)
-      call smarties_setStateObservable(smarties_comm, c_loc(b_observable), STATE_SIZE)
+      call smarties_setStateObservable(smarties_comm, c_loc(b_observable), STATE_SIZE, AGENT_ID)
 
       ! OPTIONAL: set space bounds
       upper_state_bound = (/ 1,  1,  1,  1,  1,  1/)
       lower_state_bound = (/-1, -1, -1, -1, -1, -1/)
-      call smarties_setStateScales(smarties_comm, c_loc(upper_state_bound), c_loc(lower_state_bound), STATE_SIZE)
+      call smarties_setStateScales(smarties_comm, c_loc(upper_state_bound), c_loc(lower_state_bound), STATE_SIZE, AGENT_ID)
 
       do while (.true.)
          call reset()
          call getState(state)
-         call smarties_sendInitState(smarties_comm, c_loc(state), STATE_SIZE)
+         call smarties_sendInitState(smarties_comm, c_loc(state), STATE_SIZE, AGENT_ID)
          do while (.true.)
-            call smarties_recvAction(smarties_comm, c_loc(action), NUM_ACTIONS)
+            call smarties_recvAction(smarties_comm, c_loc(action), NUM_ACTIONS, AGENT_ID)
             terminated = advance(action)
             call getState(state)
             reward = getReward()
             if (terminated) then
-               call smarties_sendTermState(smarties_comm, c_loc(state), STATE_SIZE, reward)
+               call smarties_sendTermState(smarties_comm, c_loc(state), STATE_SIZE, reward, AGENT_ID)
                exit
             else
-               call smarties_sendState(smarties_comm, c_loc(state), STATE_SIZE, reward)
+               call smarties_sendState(smarties_comm, c_loc(state), STATE_SIZE, reward, AGENT_ID)
             end if
          end do
       end do
