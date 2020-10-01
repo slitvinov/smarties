@@ -1,26 +1,29 @@
       function app_main(comm, mpicomm)
       implicit none
-      integer, parameter :: AGENT_ID = 0
-      integer, parameter :: NUM_ACTIONS = 1
-      integer, parameter :: STATE_SIZE = 6
-      integer*8 :: comm
-      integer   :: mpicomm
-      double precision, dimension(NUM_ACTIONS) :: action
-      double precision, dimension(NUM_ACTIONS) :: lower_action
-      double precision, dimension(NUM_ACTIONS) :: upper_action
-      double precision, dimension(STATE_SIZE) :: lower_state
-      double precision, dimension(STATE_SIZE) :: state
-      double precision, dimension(STATE_SIZE) :: upper_state
-      double precision :: getReward
-      double precision :: reward
-      integer :: app_main
-      integer :: mpiIerr
-      integer :: numProcs
-      integer :: rank
-      logical :: advance
-      logical :: bounded
-      logical, dimension(STATE_SIZE) :: b_observable
-      logical :: terminated
+      integer AGENT_ID
+      integer NUM_ACTIONS
+      integer STATE_SIZE
+      parameter (AGENT_ID = 0)
+      parameter (NUM_ACTIONS = 1)
+      parameter (STATE_SIZE = 6)
+      double precision action(NUM_ACTIONS)
+      double precision getReward
+      double precision lower_action(NUM_ACTIONS)
+      double precision lower_state(STATE_SIZE)
+      double precision reward
+      double precision state(STATE_SIZE)
+      double precision upper_action(NUM_ACTIONS)
+      double precision upper_state(STATE_SIZE)
+      integer*8 comm
+      integer app_main
+      integer   mpicomm
+      integer mpiIerr
+      integer numProcs
+      integer rank
+      logical advance
+      logical b_observable(STATE_SIZE)
+      logical bounded
+      logical terminated
 
       write(6,*) 'Fortran side begins'
       call mpi_comm_rank(mpicomm, rank, mpiIerr)
@@ -67,11 +70,12 @@
 
       subroutine reset()
       implicit none
-      integer :: step
-      double precision, dimension(4) :: u
-      double precision :: F
-      double precision :: t
+      double precision F
+      double precision t
+      double precision u(4)
+      integer step
       common /global/ u, step, F, t
+
       call random_number(u)
       u = (u-0.5)*2.*0.05       ! [-0.05, 0.05)
       F = 0
@@ -81,12 +85,13 @@
 
       function is_over()
       implicit none
-      logical :: is_over
-      double precision, parameter :: pi = 3.1415926535897931d0
-      integer :: step
-      double precision, dimension(4) :: u
-      double precision :: F
-      double precision :: t
+      double precision pi
+      parameter(pi = 3.1415926535897931d0)
+      double precision F
+      double precision t
+      double precision u(4)
+      integer step
+      logical is_over
       common /global/ u, step, F, t
 
       is_over = .false.
@@ -96,12 +101,13 @@
 
       subroutine getState(state)
       implicit none
-      integer,          parameter :: STATE_SIZE = 6
-      double precision, dimension(STATE_SIZE) :: state
-      integer :: step
-      double precision, dimension(4) :: u
-      double precision :: F
-      double precision :: t
+      integer STATE_SIZE
+      parameter (STATE_SIZE = 6)
+      double precision F
+      double precision state(STATE_SIZE)
+      double precision t
+      double precision u(4)
+      integer step
       common /global/ u, step, F, t
 
       state(1:4) = u
@@ -111,26 +117,30 @@
 
       subroutine rk46_nl(t0, dt, F, u0)
       implicit none
-      double precision, intent(in) :: t0
-      double precision, intent(in) :: dt
-      double precision, intent(in) :: F
-      double precision, dimension(4), intent(inout) :: u0
-      double precision, dimension(4) :: u
-      integer :: i
-      double precision :: t
-      double precision, dimension(4) :: w=0
-      integer, parameter :: s = 6
-      double precision, dimension(6), parameter :: a =
+      double precision t0
+      double precision dt
+      double precision F
+      double precision u0(4)
+      double precision u(4)
+      integer i
+      double precision t
+      double precision w(4)
+      integer s
+      parameter(s = 6)
+      double precision res(4)
+      double precision a(6)
+      double precision b(6)
+      double precision c(6)
+      a =
      + (/0.000000000000, -0.737101392796, -1.634740794341,
-     + -0.744739003780, -1.469897351522, -2.813971388035/)
-      double precision, dimension(6), parameter :: b =
+     +     -0.744739003780, -1.469897351522, -2.813971388035/)
+      b =
      + (/0.032918605146,  0.823256998200,  0.381530948900,
      + 0.200092213184,  1.718581042715,  0.270000000000/)
-      double precision, dimension(6), parameter :: c =
+      c =
      + (/0.000000000000,  0.032918605146,  0.249351723343,
-     + 0.466911705055,  0.582030414044,  0.847252983783/)
-      double precision, dimension(4) :: res
-
+     +     0.466911705055,  0.582030414044,  0.847252983783/)
+      w = 0
       u = u0
       do i = 1, s
          t = t0 + dt*c(i)
@@ -143,19 +153,23 @@
 
       subroutine Diff(u, F, res)
       implicit none
-      double precision, dimension(4), intent(in) :: u
-      double precision, intent(in) :: F
-      double precision, dimension(4) :: res
-      double precision :: cosy
-      double precision :: siny
-      double precision :: w
-      double precision :: fac2
-      double precision :: totMass
-      double precision :: F1
-      double precision, parameter :: mp = 0.1
-      double precision, parameter :: mc = 1.
-      double precision, parameter :: l  = 0.5
-      double precision, parameter :: g  = 9.81
+      double precision mc
+      double precision mp
+      double precision l
+      double precision g
+      parameter (mp = 0.1)
+      parameter (mc = 1.0)
+      parameter (l  = 0.5)
+      parameter (g  = 9.81)
+      double precision u(4)
+      double precision F
+      double precision res(4)
+      double precision cosy
+      double precision siny
+      double precision w
+      double precision fac2
+      double precision totMass
+      double precision F1
 
       res = 0
       cosy = cos(u(3))
@@ -172,12 +186,13 @@
 
       function getReward()
       implicit none
-      double precision :: getReward
-      double precision, parameter :: pi = 3.1415926535897931d0
-      integer :: step
-      double precision, dimension(4) :: u
-      double precision :: F
-      double precision :: t
+      double precision getReward
+      double precision pi
+      parameter (pi = 3.1415926535897931d0)
+      integer step
+      double precision u(4)
+      double precision F
+      double precision t
       common /global/ u, step, F, t
       getReward = 0
       if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) getReward = 1
@@ -185,17 +200,20 @@
 
       function advance(action)
       implicit none
-      integer, parameter :: NUM_ACTIONS = 1
-      double precision, dimension(NUM_ACTIONS) :: action
-      logical :: advance
-      logical :: is_over
-      integer :: i
-      double precision :: dt = 4e-4
-      integer :: nsteps = 50
-      integer :: step
-      double precision, dimension(4) :: u
-      double precision :: F
-      double precision :: t
+      integer NUM_ACTIONS
+      parameter(NUM_ACTIONS = 1)
+      double precision action(NUM_ACTIONS)
+      logical advance
+      logical is_over
+      integer i
+      double precision dt
+      parameter(dt = 4e-4)
+      integer nsteps
+      parameter(nsteps = 50)
+      integer step
+      double precision u(4)
+      double precision F
+      double precision t
       common /global/ u, step, F, t
 
       F = action(1)
