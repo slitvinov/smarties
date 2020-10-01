@@ -1,6 +1,6 @@
 .POSIX:
 .SUFFIXES: .o .cpp
-.PHONY: clean all
+.PHONY: clean all install
 
 PREFIX = $(HOME)/.local
 CXXFLAGS = -Ofast -g
@@ -16,4 +16,5 @@ L = libsmarties_f77.a
 
 $L: $O; ar rv $@ $O && ranlib $@
 .cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $<
+install: $L; mkdir -p $(PREFIX)/lib && cp $L $(PREFIX)/lib/
 clean:; rm -f -- $L $O

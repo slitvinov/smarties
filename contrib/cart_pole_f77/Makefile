@@ -11,12 +11,11 @@ LINK = $(FC)
 
 M_CXXFLAGS = -I$(PREFIX)/include
 M_FCFLAGS = -I$(PREFIX)/include -I. -Wno-align-commons
-M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties -lgfortran -lmpi++ -lstdc++
+M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lgfortran -lmpi++ -lstdc++
 
 O = \
 app_main.o\
 main.o\
-smarties_extern.o\
 
 M = \
 app_main\
