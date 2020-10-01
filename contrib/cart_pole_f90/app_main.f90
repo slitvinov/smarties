@@ -76,7 +76,7 @@ contains
 
 
     ! inform Smarties about the size of the state and the number of actions it can take
-    call smarties_setStateActionDims(smarties_comm, STATE_SIZE, NUM_ACTIONS, 0)
+    call smarties_setStateActionDims(smarties_comm, STATE_SIZE, NUM_ACTIONS)
   
     ! OPTIONAL: aciton bounds
     bounded = .true.
