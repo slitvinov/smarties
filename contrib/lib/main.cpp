@@ -40,12 +40,6 @@ void smarties_setnumagents_(void *ptr2comm, int num_agents) {
   static_cast<smarties::Communicator *>(ptr2comm)->setNumAgents(num_agents);
 }
 
-void smarties_setstateactiondims_(void *ptr2comm, int state_dim, int action_dim,
-                                 int agent_id) {
-  static_cast<smarties::Communicator *>(ptr2comm)->setStateActionDims(
-      state_dim, action_dim, agent_id);
-}
-
 void smarties_setactionscales_(void *ptr2comm, double *upper_scale,
                               double *lower_scale, int are_bounds,
                               int action_dim, int agent_id) {
