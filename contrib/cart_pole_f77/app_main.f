@@ -3,9 +3,8 @@
       integer, parameter :: AGENT_ID = 0
       integer, parameter :: NUM_ACTIONS = 1
       integer, parameter :: STATE_SIZE = 6
-      integer*8,    intent(in), value :: comm
-      integer, intent(in), value :: mpicomm
-
+      integer*8 :: comm
+      integer   :: mpicomm
       double precision, dimension(NUM_ACTIONS) :: action
       double precision, dimension(NUM_ACTIONS) :: lower_action
       double precision, dimension(NUM_ACTIONS) :: upper_action
