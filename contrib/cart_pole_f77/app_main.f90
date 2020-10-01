@@ -305,8 +305,8 @@ module app_main_module
       bounded = .true.
       upper_action_bound = (/ 10/)
       lower_action_bound = (/-10/)
-      call smarties_setactionscales(smarties_comm, &
-           c_loc(upper_action_bound), c_loc(lower_action_bound), &
+      call smarties2_setactionscales(smarties_comm, &
+           upper_action_bound, lower_action_bound, &
            bounded, NUM_ACTIONS, AGENT_ID)
 
       ! OPTIONAL: hide state variables.

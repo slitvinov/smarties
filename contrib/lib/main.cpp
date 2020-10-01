@@ -40,13 +40,13 @@ void smarties_setnumagents_(void *ptr2comm, int num_agents) {
   static_cast<smarties::Communicator *>(ptr2comm)->setNumAgents(num_agents);
 }
 
-void smarties_setactionscales_(void *ptr2comm, double *upper_scale,
-                              double *lower_scale, int are_bounds,
-                              int action_dim, int agent_id) {
-  std::vector<double> upper(upper_scale, upper_scale + action_dim);
-  std::vector<double> lower(lower_scale, lower_scale + action_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->setActionScales(
-      upper, lower, are_bounds, agent_id);
+void smarties2_setactionscales_(void **ptr2comm, double *upper_scale,
+                              double *lower_scale, int *are_bounds,
+                              int *action_dim, int *agent_id) {
+  std::vector<double> upper(upper_scale, upper_scale + *action_dim);
+  std::vector<double> lower(lower_scale, lower_scale + *action_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->setActionScales(
+      upper, lower, *are_bounds, *agent_id);
 }
 
 void smarties_setactionscalesbounds_(void *ptr2comm, double *upper_scale,
