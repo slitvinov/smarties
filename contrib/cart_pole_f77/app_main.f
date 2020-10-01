@@ -1,55 +1,58 @@
-function app_main(smarties_comm, f_mpicomm)
+function app_main(comm, mpicomm)
   implicit none
-  integer*8,    intent(in), value :: smarties_comm
-  integer, intent(in), value :: f_mpicomm
-  integer :: app_main
-  logical :: bounded
+  integer, parameter :: AGENT_ID = 0
   integer, parameter :: NUM_ACTIONS = 1
   integer, parameter :: STATE_SIZE = 6
-  integer, parameter :: AGENT_ID = 0
-  double precision,  dimension(NUM_ACTIONS) :: upper_action_bound, lower_action_bound
-  logical, dimension(STATE_SIZE) :: b_observable
-  double precision,  dimension(STATE_SIZE) :: upper_state_bound, lower_state_bound
-  double precision,  dimension(NUM_ACTIONS) :: action
-  logical :: terminated
+  integer*8,    intent(in), value :: comm
+  integer, intent(in), value :: mpicomm
+  
+  double precision, dimension(NUM_ACTIONS) :: action
+  double precision, dimension(NUM_ACTIONS) :: lower_action
+  double precision, dimension(NUM_ACTIONS) :: upper_action
+  double precision, dimension(STATE_SIZE) :: lower_state
   double precision, dimension(STATE_SIZE) :: state
-  double precision :: reward
+  double precision, dimension(STATE_SIZE) :: upper_state
   double precision :: getReward
-  logical :: advance
-  integer :: rank
-  integer :: numProcs
+  double precision :: reward
+  integer :: app_main
   integer :: mpiIerr
+  integer :: numProcs
+  integer :: rank
+  logical :: advance
+  logical :: bounded
+  logical, dimension(STATE_SIZE) :: b_observable
+  logical :: terminated
 
   write(6,*) 'Fortran side begins'
-  call mpi_comm_rank(f_mpicomm, rank, mpiIerr)
-  call mpi_comm_size(f_mpicomm, numProcs, mpiIerr)
+  call mpi_comm_rank(mpicomm, rank, mpiIerr)
+  call mpi_comm_size(mpicomm, numProcs, mpiIerr)
   write(6,*) 'rank #', rank, ' of ', numProcs, ' is alive in Fortran'
-  call smarties_setstateactiondims(smarties_comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
+  call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
   bounded = .true.
-  upper_action_bound = (/ 10/)
-  lower_action_bound = (/-10/)
-  call smarties_setactionscales(smarties_comm, &
-       upper_action_bound, lower_action_bound, &
+  upper_action = (/ 10/)
+  lower_action = (/-10/)
+  call smarties_setactionscales(comm, &
+       upper_action, lower_action, &
        bounded, NUM_ACTIONS, AGENT_ID)
   b_observable = (/.true., .true., .true., .false., .true., .true./)
-  call smarties_setStateObservable(smarties_comm, b_observable, STATE_SIZE, AGENT_ID)
-  upper_state_bound = (/ 1,  1,  1,  1,  1,  1/)
-  lower_state_bound = (/-1, -1, -1, -1, -1, -1/)
-  call smarties_setStateScales(smarties_comm, upper_state_bound, lower_state_bound, STATE_SIZE, AGENT_ID)
+  call smarties_setStateObservable(comm, b_observable, STATE_SIZE, AGENT_ID)
+  upper_state = (/ 1,  1,  1,  1,  1,  1/)
+  lower_state = (/-1, -1, -1, -1, -1, -1/)
+  call smarties_setStateScales(comm, upper_state, lower_state, STATE_SIZE, AGENT_ID)
   do while (.true.)
      call reset()
      call getState(state)
-     call smarties_sendInitState(smarties_comm, state, STATE_SIZE, AGENT_ID)
+     call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
      do while (.true.)
-        call smarties_recvAction(smarties_comm, action, NUM_ACTIONS, AGENT_ID)
+        call smarties_recvAction(comm, action, NUM_ACTIONS, AGENT_ID)
         terminated = advance(action)
         call getState(state)
         reward = getReward()
         if (terminated) then
-           call smarties_sendTermState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
+           call smarties_sendTermState(comm, state, STATE_SIZE, reward, AGENT_ID)
            exit
         else
-           call smarties_sendState(smarties_comm, state, STATE_SIZE, reward, AGENT_ID)
+           call smarties_sendState(comm, state, STATE_SIZE, reward, AGENT_ID)
         end if
      end do
   end do
