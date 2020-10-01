@@ -16,6 +16,7 @@
       logical(c_bool) :: bounded
       integer, parameter :: NUM_ACTIONS = 1
       integer, parameter :: STATE_SIZE = 6
+      integer, parameter :: AGENT_ID = 0
       real(c_double),  dimension(NUM_ACTIONS), target :: upper_action_bound, lower_action_bound
       logical(c_bool), dimension(STATE_SIZE),  target :: b_observable
       real(c_double),  dimension(STATE_SIZE),  target :: upper_state_bound, lower_state_bound
@@ -32,13 +33,13 @@
       call mpi_comm_size(f_mpicomm, numProcs, mpiIerr)
       write(6,*) 'rank #', rank, ' of ', numProcs, ' is alive in Fortran'
       ! inform Smarties about the size of the state and the number of actions it can take
-      call smarties_setStateActionDims(smarties_comm, STATE_SIZE, NUM_ACTIONS)
+      call smarties2_setstateactiondims(smarties_comm, STATE_SIZE, NUM_ACTIONS, AGENT_ID)
 
       ! OPTIONAL: aciton bounds
       bounded = .true.
       upper_action_bound = (/ 10/)
       lower_action_bound = (/-10/)
-      call smarties_setActionScales(smarties_comm, &
+      call smarties_setactionscales(smarties_comm, &
            c_loc(upper_action_bound), c_loc(lower_action_bound), &
            bounded, NUM_ACTIONS)
 
