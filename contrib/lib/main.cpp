@@ -2,17 +2,17 @@
 
 extern "C" {
 
-void smarties_sendinitstate_(void *ptr2comm, double *S, int state_dim,
-                            int agentID) {
-  std::vector<double> svec(S, S + state_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->sendInitState(svec, agentID);
+void smarties2_sendinitstate_(void **ptr2comm, double *S, int *state_dim,
+                            int *agentID) {
+  std::vector<double> svec(S, S + *state_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->sendInitState(svec, *agentID);
 }
 
-void smarties_sendtermstate_(void *ptr2comm, double *S, int state_dim, double R,
-                            int agentID) {
-  std::vector<double> svec(S, S + state_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->sendTermState(svec, R,
-                                                                 agentID);
+void smarties2_sendtermstate_(void **ptr2comm, double *S, int *state_dim, double *R,
+                            int *agentID) {
+  std::vector<double> svec(S, S + *state_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->sendTermState(svec, *R,
+                                                                 *agentID);
 }
 
 void smarties_sendlaststate_(void *ptr2comm, double *S, int state_dim, double R,
@@ -22,17 +22,17 @@ void smarties_sendlaststate_(void *ptr2comm, double *S, int state_dim, double R,
                                                                  agentID);
 }
 
-void smarties_sendstate_(void *ptr2comm, double *S, int state_dim, double R,
-                        int agentID) {
-  std::vector<double> svec(S, S + state_dim);
-  static_cast<smarties::Communicator *>(ptr2comm)->sendState(svec, R, agentID);
+void smarties2_sendstate_(void **ptr2comm, double *S, int *state_dim, double *R,
+                        int *agentID) {
+  std::vector<double> svec(S, S + *state_dim);
+  static_cast<smarties::Communicator *>(*ptr2comm)->sendState(svec, *R, *agentID);
 }
 
-void smarties_recvaction_(void *ptr2comm, double *A, int action_dim,
-                         int agentID) {
+void smarties2_recvaction_(void **ptr2comm, double *A, int *action_dim,
+			   int *agentID) {
   std::vector<double> avec =
-      static_cast<smarties::Communicator *>(ptr2comm)->recvAction(agentID);
-  assert(action_dim == static_cast<int>(avec.size()));
+      static_cast<smarties::Communicator *>(*ptr2comm)->recvAction(*agentID);
+  assert(*action_dim == static_cast<int>(avec.size()));
   std::copy(avec.begin(), avec.end(), A);
 }
   
