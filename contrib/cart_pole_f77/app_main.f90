@@ -6,21 +6,20 @@ module app_main_module
          bind(c, name='app_main')      
       use, intrinsic :: iso_c_binding
       implicit none
-
       type(c_ptr),    intent(in), value :: smarties_comm
-      integer(c_int), intent(in), value :: f_mpicomm
-      integer(c_int) :: result_value
-      logical(c_bool) :: bounded
+      integer, intent(in), value :: f_mpicomm
+      integer :: result_value
+      logical :: bounded
       integer, parameter :: NUM_ACTIONS = 1
       integer, parameter :: STATE_SIZE = 6
       integer, parameter :: AGENT_ID = 0
-      real(c_double),  dimension(NUM_ACTIONS) :: upper_action_bound, lower_action_bound
-      logical(c_bool), dimension(STATE_SIZE) :: b_observable
-      real(c_double),  dimension(STATE_SIZE) :: upper_state_bound, lower_state_bound
-      real(c_double),  dimension(NUM_ACTIONS) :: action
+      double precision,  dimension(NUM_ACTIONS) :: upper_action_bound, lower_action_bound
+      logical, dimension(STATE_SIZE) :: b_observable
+      double precision,  dimension(STATE_SIZE) :: upper_state_bound, lower_state_bound
+      double precision,  dimension(NUM_ACTIONS) :: action
       logical :: terminated
-      real(c_double), dimension(STATE_SIZE) :: state
-      real(c_double) :: reward
+      double precision, dimension(STATE_SIZE) :: state
+      double precision :: reward
       double precision :: getReward
       logical :: advance
 
@@ -174,9 +173,8 @@ module app_main_module
     end function getReward
 
     function advance(action) result(terminated)
-      use, intrinsic :: iso_c_binding
       integer, parameter :: NUM_ACTIONS = 1
-      real(c_double), dimension(NUM_ACTIONS) :: action
+      double precision, dimension(NUM_ACTIONS) :: action
       logical :: terminated
       logical :: is_over
       integer :: i
