@@ -1,8 +1,8 @@
-function app_main(smarties_comm, f_mpicomm) result(result_value)
+function app_main(smarties_comm, f_mpicomm)
   implicit none
   integer*8,    intent(in), value :: smarties_comm
   integer, intent(in), value :: f_mpicomm
-  integer :: result_value
+  integer :: app_main
   logical :: bounded
   integer, parameter :: NUM_ACTIONS = 1
   integer, parameter :: STATE_SIZE = 6
@@ -60,7 +60,7 @@ function app_main(smarties_comm, f_mpicomm) result(result_value)
         end if
      end do
   end do
-  result_value = 0
+  app_main = 0
   write(6,*) 'Fortran side ends'
 end function app_main
 
@@ -77,18 +77,17 @@ subroutine reset()
   step = 0
 end subroutine reset
 
-function is_over() result(answer)
-  logical :: answer
+function is_over()
+  logical :: is_over
   double precision, parameter :: pi = 3.1415926535897931d0
   integer :: step
   double precision, dimension(4) :: u
   double precision :: F
   double precision :: t
   common /global/ u, step, F, t
-  answer=.false.
-  if (step>=500 .or. abs(u(1))>2.4 .or. abs(u(3))>pi/15 ) answer = .true.
+  is_over = .false.
+  if (step>=500 .or. abs(u(1))>2.4 .or. abs(u(3))>pi/15 ) is_over = .true.
 end function is_over
-
 
 subroutine getState(state)
   integer,          parameter :: STATE_SIZE = 6
@@ -152,23 +151,25 @@ subroutine Diff(u, F, res)
   res(3) = u(4)
 end subroutine Diff
 
-function getReward() result(reward)
+function getReward()
+  implicit none
   double precision :: angle
-  double precision :: reward
+  double precision :: getReward
   double precision, parameter :: pi = 3.1415926535897931d0
   integer :: step
   double precision, dimension(4) :: u
   double precision :: F
   double precision :: t
   common /global/ u, step, F, t
-  reward = 0
-  if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) reward = 1
+  getReward = 0
+  if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) getReward = 1
 end function getReward
 
-function advance(action) result(terminated)
+function advance(action)
+  implicit none
   integer, parameter :: NUM_ACTIONS = 1
   double precision, dimension(NUM_ACTIONS) :: action
-  logical :: terminated
+  logical :: advance
   logical :: is_over
   integer :: i
   double precision :: dt = 4e-4
@@ -184,9 +185,9 @@ function advance(action) result(terminated)
      call rk46_nl(t, dt, F, u)
      t = t + dt
      if (is_over()) then
-        terminated = .true.
+        advance = .true.
         return
      end if
   end do
-  terminated = .false.
+  advance = .false.
 end function advance
