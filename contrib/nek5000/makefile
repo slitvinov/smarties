@@ -33,6 +33,11 @@ PARRSB_IFLAGS=
 
 
 PREFIX = $(HOME)/.local
+CXXFLAGS = -Ofast -g
+FCFLAGS = -Ofast -g
+CXX = mpicxx
+LINK = $(FC)
+
 M_CXXFLAGS = -I$(PREFIX)/include
 M_FCFLAGS = -I$(PREFIX)/include -I.
 MPI_EXTRA_LIB = -lmpi_cxx -lstdc++
@@ -133,14 +138,14 @@ objdir:
 	@mkdir $(OBJDIR) 2>/dev/null; cat /dev/null 
 
 cppfile: 
-	mpicxx -c -Ofast -g -I/cluster/home/janbae/.local/include main.cpp 
+	$(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) main.cpp 
 
 usrfile:
 	@env CASENAME=$(CASENAME) PPS="$(PPS)" $S/mkuserfile
 	$(FC) $(FL2) $(VISITNEK_INCLUDES) -c $(CASEDIR)/${CASENAME}.f
 
 appmain: 
-	$(FC) -c -Ofast -g -I/cluster/home/janbae/.local/include -I. app_main.f 
+	$(FC) -c $(FCFLAGS) $(M_FCFLAGS) app_main.f
 
 nek5000: lib usrfile appmain cppfile
 	$(FC) $(FL2) -o ${BINNAME} $(CASEDIR)/${CASENAME}.o app_main.o main.o ${LIBNAME} $(USR_LFLAGS) $(LDFLAGS) $(M_LDFLAGS)
