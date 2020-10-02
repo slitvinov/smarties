@@ -13,9 +13,10 @@ c mesh dimensions
 #define PI (4.*atan(1.))
 #define XLEN (2.*PI)
 #define ZLEN PI
-#define NUMBER_ELEMENTS_X 16
-#define NUMBER_ELEMENTS_Y 12
-#define NUMBER_ELEMENTS_Z 8
+#define NUMBER_ELEMENTS_X 8
+#define NUMBER_ELEMENTS_Y 6
+#define NUMBER_ELEMENTS_Z 4
+#define DPDX 0.00239166557 
 
 c-----------------------------------------------------------------------
       subroutine uservp (ix,iy,iz,ieg)
@@ -41,7 +42,7 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       include 'NEKUSE'
 
-      ffx = 0.0 
+      ffx = DPDX 
       ffy = 0.0
       ffz = 0.0
 
@@ -116,15 +117,17 @@ c-----------------------------------------------------------------------
       nelz  = NUMBER_ELEMENTS_Z
 
       if (istep.eq.0) then
-         call getState()
+         call getStateReward()
+         write(*,*) state
+         write(*,*) smarties_comm, state, STATE_SIZE, AGENT_ID 
          call smarties_sendInitState(smarties_comm, state, 
      &                               STATE_SIZE, AGENT_ID)
+         write(*,*) state
       end if 
 
       call smarties_recvAction(smarties_comm, action, 
      &                         NUM_ACTIONS, AGENT_ID)
-      call getState()
-      call getReward()
+      call getStateReward()
       call smarties_sendState(smarties_comm, state, STATE_SIZE,
      &       reward, AGENT_ID)
 
@@ -298,10 +301,11 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
       include 'NEKUSE'
+      include 'SMARTIES'
 
-      if (y.lt.0) temp = 1.0
-      if (y.gt.0) temp = 0.0
-
+      TRX = action(1)
+      TRZ = action(1)
+   
       return
       end
 c-----------------------------------------------------------------------
@@ -391,28 +395,72 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      param(54) = -1  ! use >0 for const flowrate or <0 bulk vel
+      param(54) = 0   ! use >0 for const flowrate or <0 bulk vel
                       ! flow direction is given by (1=x, 2=y, 3=z) 
-      param(55) = 1.0 ! flowrate/bulk-velocity 
+      param(55) = 0   ! flowrate/bulk-velocity 
 
       return
       end
 c-----------------------------------------------------------------------
-      subroutine getState()
+      subroutine getStateReward()
       include 'SMARTIES'
-      state(1) = 1 ! mean u at wall
-      state(2) = 2 ! mean w at wall
-      state(3) = 3 ! mean dudy at wall
-      state(4) = 4 ! mean tau_w
-      state(5) = 5 ! mean u at matching location 
-      state(6) = 6 ! mean w at matching location
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine getReward()
-      include 'SMARTIES'
+      include 'SIZE'
+      include 'TOTAL'
 
-      reward = 0 ! difference between DNS
+      common /gaaa/    wo1(lx1,ly1,lz1,lelv)
+     &              ,  wo2(lx1,ly1,lz1,lelv)
+     &              ,  wo3(lx1,ly1,lz1,lelv)
+      integer iel, ifc, i0, i1, j0, j1, k0, k1
+      save iel, i0, j0, j1, k0
+      integer igs_x, igs_z
+      save igs_x, igs_z
+      real dnu
+ 
+      dnu = param(2)
+
+      nelx  = NUMBER_ELEMENTS_X
+      nely  = NUMBER_ELEMENTS_Y
+      nelz  = NUMBER_ELEMENTS_Z
+
+      if (istep.eq.0) then
+         call gtpp_gs_setup(igs_x,nelx     ,nely,nelz,1) ! x-avx
+         call gtpp_gs_setup(igs_z,nelx*nely,1   ,nelz,3) ! z-avg
+         do iel=1,nelt
+         do ifc=1,2*ndim
+            if (cbc(ifc,iel,1) .eq. 'sh ') then 
+               call facind (i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+               if (j0 .eq.   1) j1 = 2
+               if (j0 .eq. ly1) j1 = ly1-1
+               goto 1001 
+            end if
+         enddo
+         enddo
+      if (nid.eq.0) write(*,*) 'ERROR: no wall for ',nid
+ 1001 end if
+
+      call planar_avg(wo1,vx,igs_x)
+      call planar_avg(wo2,wo1,igs_z)
+
+      state(1) = wo2(i0,j0,k0,iel) ! mean u at wall 
+      state(2) = wo2(i0,j1,k0,iel) ! mean u off wall 
+       
+      call opgrad(wo1,wo2,wo3,vx)
+      call dssum(wo2,lx1,ly1,lz1)
+      call col2(wo2,binvm1,n)
+      call planar_avg(wo1,wo2,igs_x)
+      call planar_avg(wo2,wo1,igs_z)
+
+      state(3) = wo2(i0,j0,k0,iel) ! mean dudy at wall
+      state(4) = wo2(i0,j1,k0,iel) ! mean dudy off wall
+
+      call planar_avg(wo1,vz,igs_x)
+      call planar_avg(wo2,wo1,igs_z)
+
+      state(5) = wo2(i0,j0,k0,iel) ! mean w at wall
+      state(6) = wo2(i0,j1,k0,iel) ! mean w off wall
+
+      reward = 1.0/abs((-dnu*state(3))**0.5 - (DPDX)**0.5) 
+      if (isnan(reward)) reward = 1e5
 
       return
       end
