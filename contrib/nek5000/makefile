@@ -161,7 +161,7 @@ nek5000: lib usrfile appmain cppfile
 	echo -e "ERROR: Cannot find ${BINNAME}!"; \
 	echo -e ""; \
 	fi
-	@rm -f ${CASENAME}.o ${LIBNAME} main.o *.i
+	@rm -f ${CASENAME}.o ${LIBNAME} app_main.o main.o *.i
 
 lib:	objdir $(NOBJS)
 	@printf "building ${LIBNAME} ... "
