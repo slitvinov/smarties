@@ -13,7 +13,7 @@ generic:
 
 euler:
 
-    $ (env2lmod && module load cmake gcc openmpi openblas && ./contrib/install.sh )
+    $ (env2lmod && module load cmake gcc openmpi openblas && make install)
     $ (env2lmod && module load gcc openmpi openblas && cd contrib/lib && make install)
     $ (env2lmod && module load gcc openmpi openblas && cd contrib/cart_pole_f90 && make)
     $ (env2lmod && module load gcc openmpi openblas && cd contrib/cart_pole_f77 && make)
