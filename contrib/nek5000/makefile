@@ -2,9 +2,9 @@
 BINNAME=nek5000
 LIBNAME=libnek5000.a
 CASENAME:=turbChannel
-CASEDIR:=/cluster/home/janbae/smarties/contrib/nek5000
-S=/cluster/home/janbae/Nek5000/core
-SCMT=/cluster/home/janbae/Nek5000/core/cmt
+CASEDIR:=$(SMARTIES_ROOT)/contrib/nek5000
+S=$(NEK5000_DIR)/core
+SCMT=$(NEK5000_DIR)/core/cmt
 OPT_INCDIR=./
 OBJDIR=obj
 
@@ -18,7 +18,7 @@ PPPO=
 PPS= MPI UNDERSCORE GLOBAL_LONG_LONG TIMER
 
 USR=
-USR_LFLAGS= -L/cluster/home/janbae/Nek5000/3rd_party/blasLapack -lblasLapack -L/cluster/home/janbae/Nek5000/3rd_party/gslib/lib -lgs
+USR_LFLAGS= -L$(NEK5000_DIR)/3rd_party/blasLapack -lblasLapack -L$(NEK5000_DIR)/3rd_party/gslib/lib -lgs
 
 MPI=1
 CMT=0
@@ -28,7 +28,7 @@ VISIT=0
 VISIT_IFLAGS=
 VISIT_LFLAGS=
 HYPRE_IFLAGS=
-GSLIB_IFLAGS:= -I/cluster/home/janbae/Nek5000/3rd_party/gslib/include
+GSLIB_IFLAGS:= -I$(NEK5000_DIR)/3rd_party/gslib/include
 PARRSB_IFLAGS=
 
 
