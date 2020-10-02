@@ -24,6 +24,12 @@
       logical b_observable(STATE_SIZE)
       logical bounded
       logical terminated
+      data upper_action /10/
+      data lower_action /-10/
+      data b_observable /.true.,.true.,.true.,.false.,.true.,.true./
+      data upper_state / 1,  1,  1,  1,  1,  1/
+      data lower_state /-1, -1, -1, -1, -1, -1/
+
 
       write(6,*) 'Fortran side begins'
       call mpi_comm_rank(mpicomm, rank, mpiIerr)
@@ -33,16 +39,11 @@
       call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
      + AGENT_ID)
       bounded = .true.
-      upper_action = (/ 10/)
-      lower_action = (/-10/)
       call smarties_setactionscales(comm,
      +      upper_action, lower_action,
      +      bounded, NUM_ACTIONS, AGENT_ID)
-      b_observable = (/.true., .true., .true., .false., .true., .true./)
       call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
      +                                 AGENT_ID)
-      upper_state = (/ 1,  1,  1,  1,  1,  1/)
-      lower_state = (/-1, -1, -1, -1, -1, -1/)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +                             STATE_SIZE, AGENT_ID)
       do while (.true.)
@@ -66,7 +67,7 @@
       end do
       app_main = 0
       write(6,*) 'Fortran side ends'
-      end function app_main
+      end
 
       subroutine reset()
       implicit none
@@ -74,14 +75,17 @@
       double precision t
       double precision u(4)
       integer step
+      integer i
       common /global/ u, step, F, t
 
       call random_number(u)
-      u = (u-0.5)*2.*0.05       ! [-0.05, 0.05)
+      do i = 1, 4
+         u(i) = (u(i)-0.5)*2.*0.05
+      end do
       F = 0
       t = 0
       step = 0
-      end subroutine reset
+      end
 
       function is_over()
       implicit none
@@ -97,7 +101,7 @@
       is_over = .false.
       if (step>=500 .or. abs(u(1))>2.4 .or. abs(u(3))>pi/15 )
      +     is_over = .true.
-      end function is_over
+      end
 
       subroutine getState(state)
       implicit none
@@ -108,12 +112,15 @@
       double precision t
       double precision u(4)
       integer step
+      integer i
       common /global/ u, step, F, t
 
-      state(1:4) = u
+      do i = 1, 4
+         state(i) = u(i)
+      end do
       state(5)   = cos(u(3))
       state(6)   = sin(u(3))
-      end subroutine getState
+      end
 
       subroutine rk46_nl(t0, dt, F, u0)
       implicit none
@@ -123,6 +130,7 @@
       double precision u0(4)
       double precision u(4)
       integer i
+      integer j
       double precision t
       double precision w(4)
       integer s
@@ -131,25 +139,32 @@
       double precision a(6)
       double precision b(6)
       double precision c(6)
-      a =
-     + (/0.000000000000, -0.737101392796, -1.634740794341,
-     +     -0.744739003780, -1.469897351522, -2.813971388035/)
-      b =
-     + (/0.032918605146,  0.823256998200,  0.381530948900,
-     + 0.200092213184,  1.718581042715,  0.270000000000/)
-      c =
-     + (/0.000000000000,  0.032918605146,  0.249351723343,
-     +     0.466911705055,  0.582030414044,  0.847252983783/)
-      w = 0
-      u = u0
+      data a/
+     +  0.000000000000, -0.737101392796, -1.634740794341,
+     + -0.744739003780, -1.469897351522, -2.813971388035/
+      data b/
+     +  0.032918605146,  0.823256998200,  0.381530948900,
+     +  0.200092213184,  1.718581042715,  0.270000000000/
+      data c/
+     +  0.000000000000,  0.032918605146,  0.249351723343,
+     +  0.466911705055,  0.582030414044,  0.847252983783/
+
+      do i = 1, 4
+         w(i) = 0
+         u(i) = u0(i)
+      end do
       do i = 1, s
          t = t0 + dt*c(i)
          call Diff(u, F, res)
-         w = w*a(i) + res*dt
-         u = u + w*b(i)
+         do j = 1, 4
+            w(j) = w(j)*a(i) + res(j)*dt
+            u(j) = u(j) + w(j)*b(i)
+         end do
       end do
-      u0 = u
-      end subroutine rk46_nl
+      do i = 1, 4
+         u0(i) = u(i)
+      end do
+      end
 
       subroutine Diff(u, F, res)
       implicit none
@@ -170,8 +185,11 @@
       double precision fac2
       double precision totMass
       double precision F1
+      integer i
 
-      res = 0
+      do i = 1, 4
+         res(i) = 0
+      end do
       cosy = cos(u(3))
       siny = sin(u(3))
       w = u(4)
@@ -182,7 +200,7 @@
       res(2) = (F1 - mp*l*res(4)*cosy)/totMass
       res(1) = u(2)
       res(3) = u(4)
-      end subroutine Diff
+      end
 
       function getReward()
       implicit none
@@ -196,7 +214,7 @@
       common /global/ u, step, F, t
       getReward = 0
       if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) getReward = 1
-      end function getReward
+      end
 
       function advance(action)
       implicit none
@@ -227,4 +245,4 @@
       end if
       end do
       advance = .false.
-      end function advance
+      end
