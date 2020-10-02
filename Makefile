@@ -3,6 +3,7 @@
 .PHONY: clean all install
 
 PREFIX = $(HOME)/.local
+CXX = mpicxx
 CXXFLAGS = -O3 -g
 M_CXXFLAGS = -Dlibsmarties_EXPORTS -DNDEBUG -pthread -fopenmp
 
