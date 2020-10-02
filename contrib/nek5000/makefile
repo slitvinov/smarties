@@ -161,7 +161,7 @@ nek5000: lib usrfile appmain cppfile
 	echo -e "ERROR: Cannot find ${BINNAME}!"; \
 	echo -e ""; \
 	fi
-	@rm -f ${CASENAME}.o ${LIBNAME} app_main.o *.i
+	@rm -f ${CASENAME}.o ${LIBNAME} main.o *.i
 
 lib:	objdir $(NOBJS)
 	@printf "building ${LIBNAME} ... "
@@ -178,7 +178,7 @@ lib:	objdir $(NOBJS)
 clean::
 	@rm -rf ${LIBNAME}  ${CASENAME}.o ${CASENAME}.f obj ${BINNAME}
 
-$(NOBJS) : ./SIZE
+$(NOBJS) : ./SIZE ./SMARTIES
 
 # NEK CORE     ##################################################################
 $(OBJDIR)/drive1.o	:$S/drive1.f;			$(FC) -c $(FL2) $< -o $@
