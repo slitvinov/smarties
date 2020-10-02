@@ -8,6 +8,8 @@ err () {
     exit 2
 }
 
+: ${CMAKEFLAGS=-DCOMPILE_PY_SO=NO}
+
 # find source/smarties -name '*.h' | sort
 H='
 include/smarties_extern.h
@@ -94,7 +96,7 @@ source/smarties/Utils
 '
 mkdir -p build
 (cd build
- cmake .. -DCOMPILE_PY_SO=NO || err 'cmake failed'
+ cmake .. $CMAKEFLAGS || err 'cmake failed'
  make || err 'make failed'
 ) || exit 2
 
