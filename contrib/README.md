@@ -1,6 +1,6 @@
 # Fetch
 
-   $ git clone -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
+   $ git clone --depth 1 -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
    $ cd smarties
 
 # Install
