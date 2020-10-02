@@ -7,7 +7,7 @@
 
 generic:
 
-   $ contrib/install.sh
+   $ make install
    $ (cd contrib/lib && make install)
    $ (cd contrib/cart_pole_f77 && make)
 
