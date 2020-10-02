@@ -10,9 +10,7 @@ M_CXXFLAGS = -Dlibsmarties_EXPORTS -DNDEBUG -pthread -fopenmp
 include obj.mk
 include hdr.mk
 include dir.mk
-all:; echo $D
 L = libsmarties.a
-
 $L: $O; ar rv $@ $O && ranlib $@
 .cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $< -o $@
 install: $L $H
