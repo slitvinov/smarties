@@ -94,7 +94,7 @@ source/smarties/Utils
 '
 mkdir -p build
 (cd build
- cmake .. || err 'cmake failed'
+ cmake .. -DCOMPILE_PY_SO=NO || err 'cmake failed'
  make || err 'make failed'
 ) || exit 2
 
