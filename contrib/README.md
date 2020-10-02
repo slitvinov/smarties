@@ -5,13 +5,13 @@
 
 # Install
 
-generic:
+generic
 
    $ make install
    $ (cd contrib/lib && make install)
    $ (cd contrib/cart_pole_f77 && make)
 
-euler:
+euler
 
     $ (env2lmod && module load gcc openmpi && make -j 12 install)
     $ (env2lmod && module load gcc openmpi && cd contrib/lib && make install)
