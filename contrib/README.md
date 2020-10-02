@@ -1,15 +1,15 @@
 # Fetch
 
-   $ git clone --depth 1 -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
-   $ cd smarties
+    $ git clone --depth 1 -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
+    $ cd smarties
 
 # Install
 
 generic
 
-   $ make install
-   $ (cd contrib/lib && make install)
-   $ (cd contrib/cart_pole_f77 && make)
+    $ make install
+    $ (cd contrib/lib && make install)
+    $ (cd contrib/cart_pole_f77 && make)
 
 euler
 
