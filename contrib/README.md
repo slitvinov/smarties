@@ -8,7 +8,7 @@
 generic
 
     $ make install
-    $ (cd contrib/lib && make install)
+    $ (cd contrib/lib/f77 && make install)
     $ (cd contrib/cart_pole_f77 && make)
 
 euler
