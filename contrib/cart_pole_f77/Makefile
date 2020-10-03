@@ -10,7 +10,6 @@ CXX = mpicxx
 LINK = $(FC)
 
 M_CXXFLAGS = -I$(PREFIX)/include
-M_FCFLAGS =
 MPI_EXTRA_LIB = -lmpi_cxx -lstdc++
 M_LDFLAGS = -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lgomp $(MPI_EXTRA_LIB)
 
@@ -24,6 +23,6 @@ app_main\
 all: $M
 $M: $O
 .cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $<
-.f.o:; $(FC) -c $(FCFLAGS) $(M_FCFLAGS) $<
+.f.o:; $(FC) -c $(FCFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
 clean:; rm -f -- $M $O
