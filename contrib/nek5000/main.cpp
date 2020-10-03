@@ -1,13 +1,13 @@
 #include "smarties.h"
 
-extern "C" void app_main_(void **smarties_comm, int *f_mpicomm);
+extern "C" void app_main_(uintptr_t*, int*);
 static int app_main_interface(smarties::Communicator *const smarties_comm,
                               MPI_Comm c_mpicomm, int argc, char **argv) {
   MPI_Fint f_mpicomm;
-  void *comm;
+  uintptr_t i;
   f_mpicomm = MPI_Comm_c2f(c_mpicomm);
-  comm = smarties_comm;
-  app_main_(&comm, &f_mpicomm);
+  i = (uintptr_t)(smarties_comm);
+  app_main_(&i, &f_mpicomm);
   return 0;
 }
 
