@@ -30,22 +30,21 @@
       data upper_state / 1,  1,  1,  1,  1,  1/
       data lower_state /-1, -1, -1, -1, -1, -1/
 
-
       write(6,*) 'Fortran side begins'
       call mpi_comm_rank(mpicomm, rank, mpiIerr)
       call mpi_comm_size(mpicomm, numProcs, mpiIerr)
       write(6,*) 'rank #', rank, ' of ', numProcs,
      +      ' is alive in Fortran'
       call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
-     + AGENT_ID)
+     +     AGENT_ID)
       bounded = .true.
       call smarties_setactionscales(comm,
      +      upper_action, lower_action,
-     +      bounded, NUM_ACTIONS, AGENT_ID)
+     +     bounded, NUM_ACTIONS, AGENT_ID)
       call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
-     +                                 AGENT_ID)
+     +     AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
-     +                             STATE_SIZE, AGENT_ID)
+     +     STATE_SIZE, AGENT_ID)
       do while (.true.)
       call reset()
       call getState(state)
@@ -57,11 +56,11 @@
          reward = getReward()
          if (terminated) then
             call smarties_sendTermState(comm, state, STATE_SIZE,
-     +                                 reward, AGENT_ID)
+     +           reward, AGENT_ID)
             exit
          else
             call smarties_sendState(comm, state, STATE_SIZE,
-     +       reward, AGENT_ID)
+     +           reward, AGENT_ID)
          end if
        end do
       end do
