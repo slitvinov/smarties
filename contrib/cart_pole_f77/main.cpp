@@ -1,4 +1,4 @@
-#include "smarties.h"
+#include <smarties.h>
 
 extern "C" void app_main_(uintptr_t*, int *);
 static int app_main_interface(smarties::Communicator *const smarties_comm,
