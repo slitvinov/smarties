@@ -10,6 +10,9 @@ core/plan5.o\
 core/navier5.o\
 core/navier4.o\
 core/partitioner.o\
+core/3rd_party/iniparser.o\
+core/3rd_party/dictionary.o\
+core/3rd_party/finiparser.o\
 core/subs1.o\
 core/conduct.o\
 core/iniparser.o\
