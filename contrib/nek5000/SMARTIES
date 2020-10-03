@@ -5,13 +5,13 @@
       parameter (NUM_ACTIONS=1)
       parameter (STATE_SIZE=6)
 
-      real reward
-      real lower_action(NUM_ACTIONS)
-      real lower_state(STATE_SIZE)
-      real state(STATE_SIZE)
-      real action(NUM_ACTIONS)
-      real upper_action(NUM_ACTIONS)
-      real upper_state(STATE_SIZE)
+      double precision reward
+      double precision lower_action(NUM_ACTIONS)
+      double precision lower_state(STATE_SIZE)
+      double precision state(STATE_SIZE)
+      double precision action(NUM_ACTIONS)
+      double precision upper_action(NUM_ACTIONS)
+      double precision upper_state(STATE_SIZE)
       logical b_observable(STATE_SIZE)
 
       data upper_action /0.01/
