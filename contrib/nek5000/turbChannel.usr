@@ -118,11 +118,8 @@ c-----------------------------------------------------------------------
 
       if (istep.eq.0) then
          call getStateReward()
-         write(*,*) state
-         write(*,*) smarties_comm, state, STATE_SIZE, AGENT_ID 
          call smarties_sendInitState(smarties_comm, state, 
      &                               STATE_SIZE, AGENT_ID)
-         write(*,*) state
       end if 
 
       call smarties_recvAction(smarties_comm, action, 
@@ -131,8 +128,7 @@ c-----------------------------------------------------------------------
       call smarties_sendState(smarties_comm, state, STATE_SIZE,
      &       reward, AGENT_ID)
 
-
-      if (istep.eq.0) then
+      if ((istep.eq.0).and.(nobj.eq.0)) then
          bIDs(1) = 1
          call create_obj(iobj_wall,bIDs,1)
          nm = iglsum(nmember(iobj_wall),1)

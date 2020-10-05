@@ -145,7 +145,7 @@ usrfile:
 	$(FC) $(FL2) $(VISITNEK_INCLUDES) -c $(CASEDIR)/${CASENAME}.f
 
 appmain: 
-	$(FC) -c $(FCFLAGS) $(M_FCFLAGS) app_main.f
+	$(FC) $(FL2) -c $(FCFLAGS) $(M_FCFLAGS) app_main.f
 
 nek5000: lib usrfile appmain cppfile
 	$(FC) $(FL2) -o ${BINNAME} $(CASEDIR)/${CASENAME}.o app_main.o main.o ${LIBNAME} $(USR_LFLAGS) $(LDFLAGS) $(M_LDFLAGS)
