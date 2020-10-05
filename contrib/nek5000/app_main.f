@@ -30,7 +30,6 @@
      +                                 AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +                             STATE_SIZE, AGENT_ID)
-      call nek_init(mpicomm)
       do while (.true.)
          time = 0
          call nek_init(mpicomm)
