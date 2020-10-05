@@ -5,9 +5,9 @@
 PREFIX = $(HOME)/.local
 CXXFLAGS = -Ofast -g
 FCFLAGS = -Ofast -g
-FC = mpifort
+FC = gfortran
 CXX = mpicxx
-LINK = $(FC)
+LINK = mpifort
 
 M_CXXFLAGS = -I$(PREFIX)/include
 MPI_EXTRA_LIB = -lmpi_cxx -lstdc++

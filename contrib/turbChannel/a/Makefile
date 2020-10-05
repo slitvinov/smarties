@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 FCFLAGS = -w -Ofast -g
-FC = f77
+FC = gfortran
 LINK = $(FC)
 
 M_FCFLAGS = -Ilib/core

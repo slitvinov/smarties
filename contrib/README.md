@@ -15,7 +15,9 @@ euler
 
     $ (env2lmod && module load gcc openmpi && make -j 12 install)
     $ (env2lmod && module load gcc openmpi && cd contrib/lib/f77 && make install)
+    $ (env2lmod && module load gcc && cd contrib/lib/gslib && make -j 12 install)
     $ (env2lmod && module load gcc openmpi && cd contrib/cart_pole_f77 && make)
+    $ (env2lmod && module load gcc && cd contrib/turbChannel/a && make -j 12)
 
 daint
 
