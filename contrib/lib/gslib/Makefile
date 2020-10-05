@@ -1,3 +1,4 @@
+PREFIX = $(HOME)/.local
 ADDUS ?= 1
 USREXIT ?= 0
 NBC ?= 0
@@ -16,14 +17,7 @@ SRCDIR=$(SRCROOT)/src
 INCDIR=$(SRCROOT)/src
 LIBDIR=$(SRCROOT)/lib
 
-ifneq (,$(strip $(DESTDIR)))
-INSTALL_ROOT = $(DESTDIR)
-else
-INSTALL_ROOT = $(SRCROOT)/build
-endif
-
 $(shell >config.h)
-
 ifneq (0,$(ADDUS))
   SN=UNDERSCORE
   G:=$(G) -D$(SN)
@@ -98,19 +92,19 @@ lib: $(GS) $(FWRAPPER) $(INTP)
 	@ranlib $(SRCDIR)/lib$(LIBNAME).a
 
 install: lib
-	@mkdir -p $(INSTALL_ROOT)/lib 2>/dev/null
-	@cp -v $(SRCDIR)/lib$(LIBNAME).a $(INSTALL_ROOT)/lib 2>/dev/null
-	@mkdir -p $(INSTALL_ROOT)/include 2>/dev/null
-	@cp $(SRCDIR)/*.h $(INSTALL_ROOT)/include 2>/dev/null
-	@cp $(SRCDIR)/*.h $(INSTALL_ROOT)/include 2>/dev/null
-	@mv config.h $(INSTALL_ROOT)/include 2>/dev/null
+	mkdir -p $(PREFIX)/lib 2>/dev/null
+	cp -v $(SRCDIR)/lib$(LIBNAME).a $(PREFIX)/lib 2>/dev/null
+	mkdir -p $(PREFIX)/include 2>/dev/null
+	cp $(SRCDIR)/*.h $(PREFIX)/include 2>/dev/null
+	cp $(SRCDIR)/*.h $(PREFIX)/include 2>/dev/null
+	mv config.h $(PREFIX)/include 2>/dev/null
 
 tests: $(TESTS)
 
 clean: ; @$(RM) config.h $(SRCDIR)/*.o $(SRCDIR)/*.s $(SRCDIR)/*.a $(TESTDIR)/*.o $(FTESTDIR)/*.o $(TESTS)
 
 $(TESTS): % : %.c | lib install
-	$(CC) $(CFLAGS) -I$(INSTALL_ROOT)/include $< -o $@ -L$(INSTALL_ROOT)/lib -l$(LIBNAME) -lm $(LDFLAGS) 
+	$(CC) $(CFLAGS) -I$(PREFIX)/include $< -o $@ -L$(PREFIX)/lib -l$(LIBNAME) -lm $(LDFLAGS) 
 
 $(FTESTS): % : %.o | lib install
 	$(FCCMD) $^ -o $@ -L$(SRCDIR) -l$(LIBNAME)
