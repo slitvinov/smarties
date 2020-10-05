@@ -12,6 +12,8 @@
       integer numProcs
       integer rank
       logical bounded
+      
+      character*128 cwd
 
       smarties_comm = comm
 
@@ -30,6 +32,16 @@
      +                                 AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +                             STATE_SIZE, AGENT_ID)
+
+      open(unit=1,file='SESSION.NAME')
+      call getcwd(cwd)
+      write(1,'(A)') 'turbChannel' 
+      write(1,'(A)') trim(cwd) 
+      write(*,*) cwd
+      close(1)
+      call system('cp ../turbChannel.re2 .')
+      call system('cp ../turbChannel.ma2 .')
+      call system('cp ../turbChannel.par .')
       do while (.true.)
          time = 0
          call nek_init(mpicomm)
