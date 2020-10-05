@@ -3,6 +3,7 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
+BLAS_LIBS = -lblas -llapack
 FCFLAGS = -w -Ofast -g
 CXXFLAGS = -Ofast -g
 CXX = mpicxx
@@ -11,7 +12,7 @@ LINK = $(CXX)
 
 M_CXXFLAGS = -I$(PREFIX)/include
 M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DNOMPIIO -DTIMER -Ilib -Ilib/core -I$(PREFIX)/include
-M_LDFLAGS = -L$(PREFIX)/lib -Llib -Wl,--allow-multiple-definition -lsmarties_f77 -lsmarties -lgomp -lnek5000 -lgs -lblas -llapack -lgfortran
+M_LDFLAGS = -L$(PREFIX)/lib -Llib -Wl,--allow-multiple-definition -lsmarties_f77 -lsmarties -lgomp -lnek5000 -lgs $(BLAS_LIBS) -lgfortran
 
 O = \
 app_main.o\

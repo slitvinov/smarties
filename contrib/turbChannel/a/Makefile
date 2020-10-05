@@ -7,8 +7,9 @@ FCFLAGS = -w -Ofast -g
 FC = gfortran
 LINK = $(FC)
 
+BLAS_LIBS = -lblas -llapack
 M_FCFLAGS = -Ilib/core
-M_LDFLAGS = -L$(PREFIX)/lib -Llib -lnek5000 -lgs -lblas -llapack
+M_LDFLAGS = -L$(PREFIX)/lib -Llib -lnek5000 -lgs $(BLAS_LIBS)
 
 O = \
 drive.o
