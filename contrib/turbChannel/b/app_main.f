@@ -25,14 +25,12 @@
      +     AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +     STATE_SIZE, AGENT_ID)
-      do while (.true.)
-         call nek_init(mpicomm)
-         call nek_solve()
-         call smarties_sendTermState(comm, state, STATE_SIZE,
-     +        reward, AGENT_ID)
-         call nek_end()
-      end do
+      call nek_init(mpicomm)
+      call nek_solve()
+      call smarties_sendTermState(comm, state, STATE_SIZE,
+     +     reward, AGENT_ID)
+      call nek_end()
 
-      app_main = 0
       write(6,*) 'Fortran side ends'
+      app_main = 0
       end
