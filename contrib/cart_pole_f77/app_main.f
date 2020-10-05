@@ -17,7 +17,6 @@
       integer*8 comm
       integer app_main
       integer   mpicomm
-      integer mpiIerr
       integer numProcs
       integer rank
       logical advance
@@ -31,10 +30,6 @@
       data lower_state /-1, -1, -1, -1, -1, -1/
 
       write(6,*) 'Fortran side begins'
-      call mpi_comm_rank(mpicomm, rank, mpiIerr)
-      call mpi_comm_size(mpicomm, numProcs, mpiIerr)
-      write(6,*) 'rank #', rank, ' of ', numProcs,
-     +      ' is alive in Fortran'
       call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
      +     AGENT_ID)
       bounded = .true.
