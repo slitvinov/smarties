@@ -39,6 +39,9 @@
       write(1,'(A)') trim(cwd) 
       write(*,*) cwd
       close(1)
+      call system('cp ../turbChannel.re2 .')
+      call system('cp ../turbChannel.ma2 .')
+      call system('cp ../turbChannel.par .')
       do while (.true.)
          time = 0
          call nek_init(mpicomm)
