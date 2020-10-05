@@ -1364,34 +1364,3 @@ core/subs2.o: core/subs2.f SIZE core/SIZE.inc core/WZ SIZE core/SIZE.inc \
  core/TSTEP
 core/vprops.o: core/vprops.f SIZE core/SIZE.inc core/INPUT core/SOLN \
  core/TSTEP
-core/turbChannel.o: turbChannel.f SIZE core/SIZE.inc core/TOTAL core/DXYZ \
- core/DEALIAS core/EIGEN core/GEOM core/INPUT core/IXYZ core/MASS \
- core/MVGEOM core/PARALLEL core/SOLN core/STEADY core/TOPOL core/TSTEP \
- core/ESOLV core/WZ core/WZF core/OBJDATA core/NEKUSE SIZE core/SIZE.inc \
- core/TOTAL core/DXYZ core/DEALIAS core/EIGEN core/GEOM core/INPUT \
- core/IXYZ core/MASS core/MVGEOM core/PARALLEL core/SOLN core/STEADY \
- core/TOPOL core/TSTEP core/ESOLV core/WZ core/WZF core/OBJDATA \
- core/NEKUSE SIZE core/SIZE.inc core/TOTAL core/DXYZ core/DEALIAS \
- core/EIGEN core/GEOM core/INPUT core/IXYZ core/MASS core/MVGEOM \
- core/PARALLEL core/SOLN core/STEADY core/TOPOL core/TSTEP core/ESOLV \
- core/WZ core/WZF core/OBJDATA core/NEKUSE SIZE core/SIZE.inc core/TOTAL \
- core/DXYZ core/DEALIAS core/EIGEN core/GEOM core/INPUT core/IXYZ \
- core/MASS core/MVGEOM core/PARALLEL core/SOLN core/STEADY core/TOPOL \
- core/TSTEP core/ESOLV core/WZ core/WZF core/OBJDATA SIZE core/SIZE.inc \
- core/TOTAL core/DXYZ core/DEALIAS core/EIGEN core/GEOM core/INPUT \
- core/IXYZ core/MASS core/MVGEOM core/PARALLEL core/SOLN core/STEADY \
- core/TOPOL core/TSTEP core/ESOLV core/WZ core/WZF core/OBJDATA \
- core/NEKUSE SIZE core/SIZE.inc core/TOTAL core/DXYZ core/DEALIAS \
- core/EIGEN core/GEOM core/INPUT core/IXYZ core/MASS core/MVGEOM \
- core/PARALLEL core/SOLN core/STEADY core/TOPOL core/TSTEP core/ESOLV \
- core/WZ core/WZF core/OBJDATA core/NEKUSE SIZE core/SIZE.inc core/TOTAL \
- core/DXYZ core/DEALIAS core/EIGEN core/GEOM core/INPUT core/IXYZ \
- core/MASS core/MVGEOM core/PARALLEL core/SOLN core/STEADY core/TOPOL \
- core/TSTEP core/ESOLV core/WZ core/WZF core/OBJDATA SIZE core/SIZE.inc \
- core/TOTAL core/DXYZ core/DEALIAS core/EIGEN core/GEOM core/INPUT \
- core/IXYZ core/MASS core/MVGEOM core/PARALLEL core/SOLN core/STEADY \
- core/TOPOL core/TSTEP core/ESOLV core/WZ core/WZF core/OBJDATA SIZE \
- core/SIZE.inc core/TOTAL core/DXYZ core/DEALIAS core/EIGEN core/GEOM \
- core/INPUT core/IXYZ core/MASS core/MVGEOM core/PARALLEL core/SOLN \
- core/STEADY core/TOPOL core/TSTEP core/ESOLV core/WZ core/WZF \
- core/OBJDATA

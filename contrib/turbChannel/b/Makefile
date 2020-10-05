@@ -1,23 +1,31 @@
 .POSIX:
-.SUFFIXES: .o .f
+.SUFFIXES: .o .f .cpp
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
 FCFLAGS = -w -Ofast -g
+CXXFLAGS = -Ofast -g
+CXX = mpicxx
 FC = f77
-LINK = $(FC)
+LINK = $(CXX)
 
-M_FCFLAGS = -Ilib/core
-M_LDFLAGS = -L$(PREFIX)/lib -Llib -lnek5000 -lgs -lblas -llapack
+M_CXXFLAGS = -I$(PREFIX)/include
+M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DNOMPIIO -DTIMER -Ilib -Ilib/core -I$(PREFIX)/include
+M_LDFLAGS = -L$(PREFIX)/lib -Llib -Wl,--allow-multiple-definition -lsmarties_f77 -lsmarties -lgomp -lnek5000 -lgs -lblas -llapack -lgfortran
 
 O = \
-drive.o
+app_main.o\
+main.o\
+turbChannel.o\
 
 M = \
-drive \
+app_main \
 
 all: $M
 $M: $O
 .f.o:; $(FC) -c $(FCFLAGS) $(M_FCFLAGS) $<
+.cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
-clean:; rm -f -- $O $M
+turbChannel.f: turbChannel.usr
+	PPS='UNDERSCORE GLOBAL_LONG_LONG TIMER' CASENAME=turbChannel lib/core/mkuserfile
+clean:; rm -f -- $O $M turbChannel.o turbChannel.f
