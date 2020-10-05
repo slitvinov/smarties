@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 CXX = mpicxx
-CXXFLAGS = -O3 -g
+CXXFLAGS = -Ofast -g
 M_CXXFLAGS = -Dlibsmarties_EXPORTS -DNDEBUG -pthread -fopenmp
 
 include obj.mk
