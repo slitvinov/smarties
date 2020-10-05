@@ -8,8 +8,8 @@ CC = c99
 
 FCFLAGS = -w -g -O2
 CFLAGS = -w -g -O2
-M_CFLAGS  = -DMPI -DUNDERSCORE -DGLOBAL_LONG_LONG -DTIMER -Icore -Icore/3rd_party -Icore/experimental -I$(PREFIX)/include
-M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DMPI -DUNDERSCORE -DGLOBAL_LONG_LONG -DTIMER -I. -Icore -I$(PREFIX)/include
+M_CFLAGS  = -DUNDERSCORE -DGLOBAL_LONG_LONG -DTIMER -Icore -Icore/3rd_party -Icore/experimental -I$(PREFIX)/include
+M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DUNDERSCORE -DGLOBAL_LONG_LONG -DTIMER -I. -Icore -I$(PREFIX)/include
 
 include obj.mk
 L = libnek5000.a
@@ -18,5 +18,5 @@ $L: $O turbChannel.o; ar rv $@ $O turbChannel.o && ranlib $@
 .f.o:; $(FC) -c $(FCFLAGS) $(M_FCFLAGS) $< -o $@
 
 turbChannel.f: turbChannel.usr
-	PPS='MPI UNDERSCORE GLOBAL_LONG_LONG TIMER' CASENAME=turbChannel core/mkuserfile
+	PPS='UNDERSCORE GLOBAL_LONG_LONG TIMER' CASENAME=turbChannel core/mkuserfile
 clean:; rm -f -- $L $O turbChannel.o turbChannel.f
