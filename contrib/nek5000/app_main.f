@@ -1,6 +1,8 @@
       function app_main(comm, mpicomm)
       include 'mpif.h'
       include 'SMARTIES'
+      include 'SIZE'
+      include 'TOTAL'
 
       integer app_main
 
@@ -28,12 +30,15 @@
      +                                 AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +                             STATE_SIZE, AGENT_ID)
+      call nek_init(mpicomm)
       do while (.true.)
+         time = 0
          call nek_init(mpicomm)
          call nek_solve()
          call smarties_sendTermState(comm, state, STATE_SIZE,
      +                                 reward, AGENT_ID)
          call nek_end()
+         write(*,*) 'done with nek'
       end do
 
       app_main = 0
