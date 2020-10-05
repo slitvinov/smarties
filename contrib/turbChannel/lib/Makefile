@@ -3,8 +3,8 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-FC = mpif77
-CC = mpicc
+FC = gfortran
+CC = c99
 
 FCFLAGS = -w -g -O2
 CFLAGS = -w -g -O2

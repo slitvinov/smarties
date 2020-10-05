@@ -1,4 +1,3 @@
-MPI ?= 1
 ADDUS ?= 1
 USREXIT ?= 0
 NBC ?= 0
@@ -24,17 +23,6 @@ INSTALL_ROOT = $(SRCROOT)/build
 endif
 
 $(shell >config.h)
-ifneq (0,$(MPI))
-  SN=MPI
-  G:=$(G) -D$(SN)
-  ifeq ($(origin CC),default)
-    CC = mpicc
-  endif
-  ifeq ($(origin FC),default)
-    FC = mpif77
-  endif
-  $(shell printf "#ifndef ${SN}\n#define ${SN}\n#endif\n" >>config.h)
-endif
 
 ifneq (0,$(ADDUS))
   SN=UNDERSCORE
