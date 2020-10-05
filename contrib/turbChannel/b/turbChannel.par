@@ -8,7 +8,7 @@ minNumProcesses = 4
 
 #startFrom = restart.fld time=0 
 stopAt = endTime
-endTime = 2 
+endTime = 0.1
 
 dt = 0
 timeStepper = bdf2
