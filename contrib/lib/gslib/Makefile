@@ -92,12 +92,12 @@ lib: $(GS) $(FWRAPPER) $(INTP)
 	@ranlib $(SRCDIR)/lib$(LIBNAME).a
 
 install: lib
-	mkdir -p $(PREFIX)/lib 2>/dev/null
-	cp -v $(SRCDIR)/lib$(LIBNAME).a $(PREFIX)/lib 2>/dev/null
-	mkdir -p $(PREFIX)/include 2>/dev/null
-	cp $(SRCDIR)/*.h $(PREFIX)/include 2>/dev/null
-	cp $(SRCDIR)/*.h $(PREFIX)/include 2>/dev/null
-	mv config.h $(PREFIX)/include 2>/dev/null
+	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/include
+	cp -v $(SRCDIR)/lib$(LIBNAME).a $(PREFIX)/lib/
+	cp $(SRCDIR)/*.h $(PREFIX)/include/
+	cp $(SRCDIR)/*.h $(PREFIX)/include/
+	cp config.h $(PREFIX)/include
 
 tests: $(TESTS)
 
