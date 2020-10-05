@@ -7,7 +7,7 @@ FC = f77
 CC = c99
 
 FCFLAGS = -w -Ofast -g
-CFLAGS = -w -Ofast -g-w -g -O2
+CFLAGS = -w -Ofast -g
 M_CFLAGS  = -DUNDERSCORE -DTIMER -Icore -Icore/3rd_party -Icore/experimental -I$(PREFIX)/include
 M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DNOMPIIO -DTIMER -I. -Icore -I$(PREFIX)/include
 
@@ -19,5 +19,7 @@ $L: $O turbChannel.o; ar rv $@ $O turbChannel.o && ranlib $@
 
 turbChannel.f: turbChannel.usr
 	PPS='UNDERSCORE GLOBAL_LONG_LONG TIMER' CASENAME=turbChannel core/mkuserfile
+
+### f77 -cpp -Icore -I. -MM core/*.f *.f | awk '/:/{print "core/" $0; next}; 1' > dep.mk
 include dep.mk
 clean:; rm -f -- $L $O turbChannel.o turbChannel.f
