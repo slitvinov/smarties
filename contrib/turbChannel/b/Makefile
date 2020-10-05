@@ -7,7 +7,7 @@ BLAS_LIBS = -lblas -llapack
 FCFLAGS = -w -Ofast -g
 CXXFLAGS = -Ofast -g
 CXX = mpicxx
-FC = f77
+FC = gfortran
 LINK = $(CXX)
 
 M_CXXFLAGS = -I$(PREFIX)/include

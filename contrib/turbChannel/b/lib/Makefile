@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 FC = gfortran
-CC = c99
+CC = gcc
 
 FCFLAGS = -w -Ofast -g
 CFLAGS = -w -Ofast -g

@@ -13,7 +13,7 @@
       integer status
 
       smarties_comm = comm
-      status = system("/u/setup.sh")
+      status = system("sh -c $HOME/setup.sh")
       write(6,*) 'Fortran side begins'
       call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
      +     AGENT_ID)
