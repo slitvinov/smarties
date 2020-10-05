@@ -3,11 +3,11 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-FC = gfortran
+FC = f77
 CC = c99
 
-FCFLAGS = -w -g -O2
-CFLAGS = -w -g -O2
+FCFLAGS = -w -Ofast -g
+CFLAGS = -w -Ofast -g-w -g -O2
 M_CFLAGS  = -DUNDERSCORE -DTIMER -Icore -Icore/3rd_party -Icore/experimental -I$(PREFIX)/include
 M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DNOMPIIO -DTIMER -I. -Icore -I$(PREFIX)/include
 

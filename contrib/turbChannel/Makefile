@@ -3,7 +3,7 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-FCFLAGS = -Ofast -g
+FCFLAGS = -w -Ofast -g
 FC = f77
 LINK = $(FC)
 
