@@ -34,30 +34,30 @@
      +     AGENT_ID)
       bounded = .true.
       call smarties_setactionscales(comm,
-     +      upper_action, lower_action,
+     +     upper_action, lower_action,
      +     bounded, NUM_ACTIONS, AGENT_ID)
       call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
      +     AGENT_ID)
       call smarties_setStateScales(comm, upper_state, lower_state,
      +     STATE_SIZE, AGENT_ID)
       do while (.true.)
-      call reset()
-      call getState(state)
-      call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
-      do while (.true.)
-         call smarties_recvAction(comm, action, NUM_ACTIONS, AGENT_ID)
-         terminated = advance(action)
+         call reset()
          call getState(state)
-         reward = getReward()
-         if (terminated) then
-            call smarties_sendTermState(comm, state, STATE_SIZE,
-     +           reward, AGENT_ID)
-            exit
-         else
-            call smarties_sendState(comm, state, STATE_SIZE,
-     +           reward, AGENT_ID)
-         end if
-       end do
+         call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
+         do while (.true.)
+            call smarties_recvAction(comm, action, NUM_ACTIONS, AGENT_ID)
+            terminated = advance(action)
+            call getState(state)
+            reward = getReward()
+            if (terminated) then
+               call smarties_sendTermState(comm, state, STATE_SIZE,
+     +              reward, AGENT_ID)
+               exit
+            else
+               call smarties_sendState(comm, state, STATE_SIZE,
+     +              reward, AGENT_ID)
+            end if
+         end do
       end do
       app_main = 0
       write(6,*) 'Fortran side ends'
@@ -134,14 +134,14 @@
       double precision b(6)
       double precision c(6)
       data a/
-     +  0.000000000000, -0.737101392796, -1.634740794341,
-     + -0.744739003780, -1.469897351522, -2.813971388035/
+     +     0.000000000000, -0.737101392796, -1.634740794341,
+     +     -0.744739003780, -1.469897351522, -2.813971388035/
       data b/
-     +  0.032918605146,  0.823256998200,  0.381530948900,
-     +  0.200092213184,  1.718581042715,  0.270000000000/
+     +     0.032918605146,  0.823256998200,  0.381530948900,
+     +     0.200092213184,  1.718581042715,  0.270000000000/
       data c/
-     +  0.000000000000,  0.032918605146,  0.249351723343,
-     +  0.466911705055,  0.582030414044,  0.847252983783/
+     +     0.000000000000,  0.032918605146,  0.249351723343,
+     +     0.466911705055,  0.582030414044,  0.847252983783/
 
       do i = 1, 4
          w(i) = 0
@@ -206,6 +206,7 @@
       double precision F
       double precision t
       common /global/ u, step, F, t
+      
       getReward = 0
       if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) getReward = 1
       end
@@ -231,12 +232,12 @@
       F = action(1)
       step = step+1
       do i = 1, nsteps
-      call rk46_nl(t, dt, F, u)
-      t = t + dt
-      if (is_over()) then
-         advance = .true.
-         return
-      end if
+         call rk46_nl(t, dt, F, u)
+         t = t + dt
+         if (is_over()) then
+            advance = .true.
+            return
+         end if
       end do
       advance = .false.
       end
