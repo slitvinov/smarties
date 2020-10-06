@@ -3,7 +3,7 @@
 #include <mpi.h>
 #include <smarties_f77.h>
 
-extern int app_main_(uintptr_t*, int *);
+extern int app_main_(uintptr_t*, int*);
 static int
 main0(uintptr_t *smarties, void *mpi0, void *p)
 {
@@ -19,7 +19,8 @@ main0(uintptr_t *smarties, void *mpi0, void *p)
     return app_main_(smarties, &f_mpicomm);
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
     int i;
 
