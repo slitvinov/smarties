@@ -18,10 +18,6 @@
       smarties_comm = comm
 
       write(6,*) 'Fortran side begins'
-      call mpi_comm_rank(mpicomm, rank, mpiIerr)
-      call mpi_comm_size(mpicomm, numProcs, mpiIerr)
-      write(6,*) 'rank #', rank, ' of ', numProcs,
-     +      ' is alive in Fortran'
       call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
      + AGENT_ID)
       bounded = .true.
@@ -33,24 +29,44 @@
       call smarties_setStateScales(comm, upper_state, lower_state,
      +                             STATE_SIZE, AGENT_ID)
 
+      ! copies necessary file to working directory
       open(unit=1,file='SESSION.NAME')
       call getcwd(cwd)
       write(1,'(A)') 'turbChannel' 
-      write(1,'(A)') trim(cwd) 
-      write(*,*) cwd
+      write(1,'(A)') trim(cwd)//trim('/') 
       close(1)
       call system('cp ../turbChannel.re2 .')
       call system('cp ../turbChannel.ma2 .')
       call system('cp ../turbChannel.par .')
+      ! training loop
+      smarties_step = 0
+      call nek_init(mpicomm)
       do while (.true.)
+         smarties_step = smarties_step + 1
          time = 0
-         call nek_init(mpicomm)
+
+         etimes = dnekclock()
+         istep  = 0
+
+         call setvar          ! Initialize most variables
+         call setics
+         call setprop
+         call userchk
+         call setprop      ! call again because input has changed in userchk
+
+         jp = 0  ! Set perturbation field count to 0 for baseline flow
+         p0thn = p0th
+
+         call time00       !     Initalize timers to ZERO
+
+         ! solve loop (see turbChannel.usr for details)
          call nek_solve()
+         ! send final state after finishing
          call smarties_sendTermState(comm, state, STATE_SIZE,
      +                                 reward, AGENT_ID)
-         call nek_end()
-         write(*,*) 'done with nek'
       end do
+      call nek_end()
+      ! finalize only after full loop
 
       app_main = 0
       write(6,*) 'Fortran side ends'
