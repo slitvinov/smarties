@@ -104,7 +104,7 @@ static int main0(smarties::Communicator *const smarties_comm,
   return 0;
 }
 
-int smarties_main(int argc, char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
+int smarties_main_(int argc, char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
   enum {SIZE = 9999};
   struct Data d;
   char string[SIZE];

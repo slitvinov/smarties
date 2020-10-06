@@ -13,7 +13,7 @@ void smarties_setstateobservable_(uintptr_t *, int *bobs, int *dim, int *);
 void smarties_setstatescales_(uintptr_t *, double *hi, double *lo, int *dim,
                               int *);
 void smarties_setstateactiondims_(uintptr_t *, int *sdim, int *adim, int *);
-int smarties_main(int argc, char **, int (*f)(uintptr_t*, void *mpi_comm, void*), void *);
+int smarties_main_(int argc, char **, int (*f)(uintptr_t*, void *mpi_comm, void*), void *);
 
 #ifdef __cplusplus
 }

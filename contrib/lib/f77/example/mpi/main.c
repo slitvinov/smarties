@@ -40,5 +40,5 @@ main(int argc, char **argv)
     int i;
 
     i = 42;
-    smarties_main(argc, argv, main0, &i);
+    smarties_main_(argc, argv, main0, &i);
 }
