@@ -30,10 +30,10 @@
       data lower_state /-1, -1, -1, -1, -1, -1/
 
       write(6,*) 'Fortran side begins'
-      call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
+      call smarties_setStateActiondims(comm, STATE_SIZE, NUM_ACTIONS,
      +     AGENT_ID)
       bounded = .true.
-      call smarties_setactionscales(comm,
+      call smarties_setActionScales(comm,
      +     upper_action, lower_action,
      +     bounded, NUM_ACTIONS, AGENT_ID)
       call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
@@ -45,7 +45,8 @@
          call getState(state)
          call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
          do while (.true.)
-            call smarties_recvAction(comm, action, NUM_ACTIONS, AGENT_ID)
+            call smarties_recvAction(comm, action, NUM_ACTIONS,
+     +           AGENT_ID)
             terminated = advance(action)
             call getState(state)
             reward = getReward()
