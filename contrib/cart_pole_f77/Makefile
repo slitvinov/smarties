@@ -1,15 +1,15 @@
 .POSIX:
-.SUFFIXES: .o .cpp .f
+.SUFFIXES: .o .f
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
+CCFLAGS = -Ofast -g
 FCFLAGS = -Ofast -g
 FC = gfortran
-CXX = mpicxx
-LINK = $(CXX)
+CC = mpicc
+LINK = mpicxx
 
-M_CXXFLAGS = -I$(PREFIX)/include
+M_CCFLAGS = -I$(PREFIX)/include
 MPI_EXTRA_LIB = -lgfortran
 M_LDFLAGS = -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lgomp $(MPI_EXTRA_LIB)
 
@@ -22,7 +22,7 @@ app_main\
 
 all: $M
 $M: $O
-.cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $<
+.c.o:; $(CC) -c $(CCFLAGS) $(M_CCFLAGS) $<
 .f.o:; $(FC) -c $(FCFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
 clean:; rm -f -- $M $O
