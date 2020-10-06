@@ -427,31 +427,24 @@ c-----------------------------------------------------------------------
       call planar_avg(wo1,vx,igs_x)
       call planar_avg(wo2,wo1,igs_z)
 
-      write(*,*) 'state', state 
       state(1) = wo2(i0,j0,k0,iel) ! mean u at wall 
       state(2) = wo2(i0,j1,k0,iel) ! mean u off wall 
        
-      write(*,*) 'state', state 
       call opgrad(wo1,wo2,wo3,vx)
       call dssum(wo2,lx1,ly1,lz1)
       call col2(wo2,binvm1,lx1*ly1*lz1*lelv)
       call planar_avg(wo1,wo2,igs_x)
       call planar_avg(wo2,wo1,igs_z)
 
-      write(*,*) 'state', state 
       state(3) = wo2(i0,j0,k0,iel) ! mean dudy at wall
       state(4) = wo2(i0,j1,k0,iel) ! mean dudy off wall
-      write(*,*) 'state', state 
 
       call planar_avg(wo1,vz,igs_x)
       call planar_avg(wo2,wo1,igs_z)
 
-      write(*,*) 'state', state 
       state(5) = wo2(i0,j0,k0,iel) ! mean w at wall
       state(6) = wo2(i0,j1,k0,iel) ! mean w off wall
-      write(*,*) 'state', state 
 
-      write(*,*) 'state', state 
       reward = 10-3000.*abs(-dnu*state(3) - DPDX)*rho
       write(*,*) 'reward', reward
       if (isnan(reward)) reward = -10000
