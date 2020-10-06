@@ -44,20 +44,16 @@
       do while (.true.)
          smarties_step = smarties_step + 1
          time = 0
-
          etimes = dnekclock()
          istep  = 0
-
-         call setvar          ! Initialize most variables
-         call setics
-         call setprop
-         call userchk
+         call setvar       ! initialize most variables
+         call setics       ! sets initial conditions
+         call setprop      ! sets variable properties of arrays 
+         call userchk      ! calls user defined userchk
          call setprop      ! call again because input has changed in userchk
-
-         jp = 0  ! Set perturbation field count to 0 for baseline flow
+         jp = 0  
          p0thn = p0th
-
-         call time00       !     Initalize timers to ZERO
+         call time00       ! initalize timers to ZERO
 
          ! solve loop (see turbChannel.usr for details)
          call nek_solve()
@@ -65,8 +61,8 @@
          call smarties_sendTermState(comm, state, STATE_SIZE,
      +                                 reward, AGENT_ID)
       end do
-      call nek_end()
       ! finalize only after full loop
+      call nek_end()
 
       app_main = 0
       write(6,*) 'Fortran side ends'
