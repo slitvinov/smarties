@@ -116,6 +116,9 @@ c-----------------------------------------------------------------------
       nely  = NUMBER_ELEMENTS_Y
       nelz  = NUMBER_ELEMENTS_Z
 
+      if (any(isnan(vx))) lastep = 1
+
+
       if (istep.eq.0) then
          call getStateReward()
          call smarties_sendInitState(smarties_comm, state, 
@@ -128,7 +131,7 @@ c-----------------------------------------------------------------------
       call smarties_sendState(smarties_comm, state, STATE_SIZE,
      &       reward, AGENT_ID)
 
-      if ((istep.eq.0).and.(nobj.eq.0)) then
+      if ((istep.eq.0).and.(smarties_step.eq.0)) then
          bIDs(1) = 1
          call create_obj(iobj_wall,bIDs,1)
          nm = iglsum(nmember(iobj_wall),1)
@@ -455,8 +458,8 @@ c-----------------------------------------------------------------------
       state(5) = wo2(i0,j0,k0,iel) ! mean w at wall
       state(6) = wo2(i0,j1,k0,iel) ! mean w off wall
 
-      reward = 1.0/abs((-dnu*state(3))**0.5 - (DPDX)**0.5) 
-      if (isnan(reward)) reward = 1e5
+      reward = 1.-abs((-dnu*state(3))**0.5 - (DPDX)**0.5) 
+      if (isnan(reward)) reward = -10000
 
       return
       end
