@@ -1,7 +1,5 @@
 #include "../source/smarties/Communicator.h"
-
-extern "C" {
-
+#include "smarties_f77.h"
 void smarties_sendinitstate_(uintptr_t *i, double *S, int *state_dim,
                              int *agent) {
   void *p;
@@ -72,5 +70,4 @@ void smarties_setstateactiondims_(uintptr_t *i, int *state_dim, int *action_dim,
   p = (void *)(*i);
   static_cast<smarties::Communicator *>(p)->setStateActionDims(
       *state_dim, *action_dim, *agent);
-}
 }
