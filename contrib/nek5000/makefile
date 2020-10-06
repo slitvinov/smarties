@@ -1,5 +1,5 @@
 ### makefile automatically created by makenek 10/02/2020 22:21:47 ###
-BINNAME=nek5000
+BINNAME=exec
 LIBNAME=libnek5000.a
 CASENAME:=turbChannel
 CASEDIR:=$(SMARTIES_ROOT)/contrib/nek5000
@@ -15,12 +15,12 @@ CFLAGS+=
 LDFLAGS+= -Wl,--allow-multiple-definition
 
 PPPO=
-PPS= MPI UNDERSCORE GLOBAL_LONG_LONG TIMER
+PPS= NOMPIIO UNDERSCORE GLOBAL_LONG_LONG TIMER
 
 USR=
 USR_LFLAGS= -L$(NEK5000_DIR)/3rd_party/blasLapack -lblasLapack -L$(NEK5000_DIR)/3rd_party/gslib/lib -lgs
 
-MPI=1
+MPI=0
 CMT=0
 DPROCMAP=0
 VISIT=0
