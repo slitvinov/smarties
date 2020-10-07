@@ -85,7 +85,6 @@ static int main0(smarties::Communicator *const smarties_comm,
                  MPI_Comm mpi, int argc, char **argv) {
   int rc;
   struct Data *d;
-  void *v;
   uintptr_t i;
 
   i = (uintptr_t)(smarties_comm);
@@ -105,13 +104,12 @@ static int main0(smarties::Communicator *const smarties_comm,
   return 0;
 }
 
-int smarties_main_(int argc, const char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
+int smarties_main_(int argc, char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
   enum {M_STR = 99, M_ARGC};
   struct Data d;
   char string[M_STR];
   const char *argv[999];
   int i;
-  int rc;
 
   if (argc > M_ARGC - 1) {
     fprintf(stderr, "%s:%d: argc=%d is two big\n", __FILE__, __LINE__, argc);
@@ -127,6 +125,7 @@ int smarties_main_(int argc, const char **argv0, int (*function)(uintptr_t*, voi
     return 1;
   }
   argv[argc] = string;
+  argv[argc + 1] = NULL;
   smarties::Engine e(argc + 1, (char**)argv);
   if (e.parse())
     return 1;
