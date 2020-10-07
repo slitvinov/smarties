@@ -46,14 +46,95 @@
          time = 0
          etimes = dnekclock()
          istep  = 0
-         call setvar       ! initialize most variables
-         call setics       ! sets initial conditions
-         call setprop      ! sets variable properties of arrays 
-         call userchk      ! calls user defined userchk
+
+         call opcount(1)
+
+         call initdim         ! Initialize / set default values.
+         call initdat
+         call files
+
+         call readat          ! Read .rea +map file
+         call setvar          ! Initialize most variables
+
+         instep=1             ! Check for zero steps
+         if (nsteps.eq.0 .and. fintim.eq.0.) instep=0
+
+         igeom = 2
+         call setup_topo      ! Setup domain topology  
+
+         call genwz           ! Compute GLL points, weights, etc.
+
+         if(nio.eq.0) write(6,*) 'call usrdat'
+         call usrdat
+         if(nio.eq.0) write(6,'(A,/)') ' done :: usrdat' 
+
+         call gengeom(igeom)  ! Generate geometry, after usrdat 
+
+         if (ifmvbd) call setup_mesh_dssum ! Set mesh dssum (needs geom)
+
+         if(nio.eq.0) write(6,*) 'call usrdat2'
+         call usrdat2
+         if(nio.eq.0) write(6,'(A,/)') ' done :: usrdat2' 
+
+         call fix_geom
+         call geom_reset(1)    ! recompute Jacobians, etc.
+
+         call vrdsmsh          ! verify mesh topology
+         call mesh_metrics     ! print some metrics
+
+         call setlog(.true.)   ! Initalize logical flags
+
+         if (ifneknekc) call neknek_setup
+
+         call bcmask  ! Set BC masks for Dirichlet boundaries.
+
+         if (fintim.ne.0.0 .or. nsteps.ne.0) 
+     $      call geneig(igeom) ! eigvals for tolerances
+
+         call dg_setup ! Setup DG, if dg flag is set.
+
+         if (ifflow.and.iftran) then ! Init pressure solver 
+            if (fintim.ne.0 .or. nsteps.ne.0) call prinit
+         endif
+
+         if(ifcvode) call cv_setsize
+
+         if(nio.eq.0) write(6,*) 'call usrdat3'
+         call usrdat3
+         if(nio.eq.0) write(6,'(A,/)') ' done :: usrdat3'
+
+#ifdef CMTNEK
+         call nek_cmt_init
+#endif   
+
+         call setics
+         call setprop
+
+         if (instep.ne.0) then
+            if (ifneknekc) call neknek_exchange
+            if (ifneknekc) call chk_outflow
+
+            if (nio.eq.0) write(6,*) 'call userchk'
+            call userchk
+            if(nio.eq.0) write(6,'(A,/)') ' done :: userchk' 
+         endif
+
          call setprop      ! call again because input has changed in userchk
-         jp = 0  
+
+         if (ifcvode .and. nsteps.gt.0) call cv_init
+
+         call comment
+         call sstest (isss) 
+
+         call dofcnt
+
+         jp = 0  ! Set perturbation field count to 0 for baseline flow
          p0thn = p0th
-         call time00       ! initalize timers to ZERO
+
+         call in_situ_init()
+
+         call time00       !     Initalize timers to ZERO
+         call opcount(2)
 
          ! solve loop (see turbChannel.usr for details)
          call nek_solve()
