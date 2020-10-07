@@ -4,11 +4,11 @@
 [GENERAL] 
 polynomialOrder = 8
 PnPnFormulation = yes
-minNumProcesses = 4
+minNumProcesses = 1
 
 #startFrom = restart.fld time=0 
 stopAt = endTime
-endTime = 2 
+endTime = 5 
 
 dt = 0
 timeStepper = bdf2
@@ -17,10 +17,10 @@ variableDt = yes
 targetCFL = 3.5
 
 writeControl = runTime
-writeInterval = 0.1 
+writeInterval = 5 
 
-userParam01 = 0.5    # start time collecting statistics
-userParam02 = 0.1     # writeInterval 1D statistics 
+userParam01 = 2    # start time collecting statistics
+userParam02 = 2     # writeInterval 1D statistics 
 
 filtering = hpfrt
 filterWeight = 10
@@ -32,7 +32,6 @@ equation = incompNS
 stressFormulation = yes
 
 [PRESSURE]
-#preconditioner = semg_amg
 residualTol = 1e-4 
 residualProj = yes
 
@@ -40,8 +39,3 @@ residualProj = yes
 residualTol = 1e-6 
 density = 1
 viscosity = -11800
-
-#[TEMPERATURE]
-#rhoCp = 1.
-#conductivity = -10000
-#residualTol = 1e-6 
