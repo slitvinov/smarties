@@ -15,7 +15,7 @@ main0(uintptr_t *smarties, void *mpi, void *p)
 }
 
 int
-main(int argc, char **argv)
+main(int argc, const char **argv)
 {
     int i;
     i = 42;
