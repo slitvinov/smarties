@@ -11,7 +11,7 @@ LINK = mpicxx
 
 M_CCFLAGS = -I$(PREFIX)/include
 MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lgomp $(MPI_EXTRA_LIB)
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
 
 O = \
 app_main.o\
