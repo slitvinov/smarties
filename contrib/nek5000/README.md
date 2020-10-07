@@ -12,6 +12,14 @@ An example of a turbulent channel flow with smarties using Nek5000
     open makenek and uncomment "MPI=0" (turn off MPI for now) 	
     $ makenek -build-dep 
 
+# (optional) Building the turbChannel case 
+# not necessary--only if you want to change domain parameters
+    $ cd $SMARTIES_ROOT/contrib/nek5000
+    make changes to turbChannel.box, SIZE, turbChannel.par
+    $ ./genbox (sys input: turbChannel.box)
+    $ mv box.re2 turbChannel.re2
+    $ ./genmap (sys input: turbChannel)
+    
 # Run case
     $ cd $SMARTIES_ROOT/contrib/nek5000 
     open submit.sh and change run directed as needed 
