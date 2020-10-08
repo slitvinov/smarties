@@ -6,7 +6,7 @@ PREFIX = $(HOME)/.local
 CXXFLAGS = -Ofast -g
 FCFLAGS = -Ofast -g
 FC = gfortran
-CXX = mpicc
+CXX = mpicxx
 LINK = mpicxx
 
 M_CXXFLAGS = -I$(PREFIX)/include
