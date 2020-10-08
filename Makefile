@@ -24,3 +24,6 @@ install: $L $H
 	done
 
 clean:; rm -f -- $L $O
+
+# ./contrib/tool/dep > dep.mk
+include dep.mk
