@@ -1,4 +1,4 @@
-#include <cmath>
+#include <math.h>
 #include <functional>
 #include <random>
 #include <smarties.h>
