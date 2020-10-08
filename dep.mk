@@ -153,5 +153,6 @@ source/smarties/Utils/StatsTracker.o : source/smarties/Settings/ExecutionInfo.h
 source/smarties/Utils/StatsTracker.o : source/smarties/Utils/SstreamUtilities.h
 source/smarties/Utils/StatsTracker.o : source/smarties/Utils/StatsTracker.h
 source/smarties/Utils/StatsTracker.o : source/smarties/Utils/Warnings.h
+source/smarties/Utils/Warnings.o : source/extern/backward.hpp
 source/smarties/Utils/Warnings.o : source/smarties/Utils/MPIUtilities.h
 source/smarties/Utils/Warnings.o : source/smarties/Utils/Warnings.h
