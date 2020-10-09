@@ -9,14 +9,14 @@ generic
 
     $ make install
     $ (cd contrib/lib/f77 && make install)
-    $ (cd contrib/cart_pole_f77 && make)
+    $ (cd contrib/example/f77 && make)
 
 euler
 
     $ (env2lmod && module load gcc openmpi && make -j 12 install)
     $ (env2lmod && module load gcc openmpi && cd contrib/lib/f77 && make install)
     $ (env2lmod && module load gcc && cd contrib/lib/gslib && make -j 12 install)
-    $ (env2lmod && module load gcc openmpi && cd contrib/cart_pole_f77 && make)
+    $ (env2lmod && module load gcc openmpi && cd contrib/example/f77 && make)
     $ (env2lmod && module load gcc && cd contrib/turbChannel/a/lib && make -j 12)
     $ (env2lmod && module load gcc && cd contrib/turbChannel/a && make)
 
@@ -26,4 +26,4 @@ daint
     $ module swap PrgEnv-cray PrgEnv-gnu
     $ make -j 12 install CXX=CC
     $ (cd contrib/lib/f77 && make install CXX=CC)
-    $ (cd contrib/cart_pole_f77 && make CXX=CC FC=ftn LINK=CC MPI_EXTRA_LIB=)
+    $ (cd contrib/example/f77 && make CXX=CC FC=ftn LINK=CC MPI_EXTRA_LIB=)
