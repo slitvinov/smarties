@@ -1,4 +1,4 @@
-      function app_main(comm, mpicomm)
+      function app_main(comm, mpicomm, first)
       implicit none
       integer AGENT_ID
       integer NUM_ACTIONS
@@ -17,8 +17,7 @@
       integer*8 comm
       integer app_main
       integer   mpicomm
-      integer numProcs
-      integer rank
+      integer first
       logical advance
       logical b_observable(STATE_SIZE)
       logical bounded
@@ -29,39 +28,41 @@
       data upper_state / 1,  1,  1,  1,  1,  1/
       data lower_state /-1, -1, -1, -1, -1, -1/
 
-      write(6,*) 'Fortran side begins'
-      call smarties_setStateActiondims(comm, STATE_SIZE, NUM_ACTIONS,
-     +     AGENT_ID)
-      bounded = .true.
-      call smarties_setActionScales(comm,
-     +     upper_action, lower_action,
-     +     bounded, NUM_ACTIONS, AGENT_ID)
-      call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
-     +     AGENT_ID)
-      call smarties_setStateScales(comm, upper_state, lower_state,
-     +     STATE_SIZE, AGENT_ID)
-      do while (.true.)
+      write(6,*) 'main.f: first: ', first
+      if (first .eq. 1) then
+         call smarties_setStateActiondims(comm, STATE_SIZE, NUM_ACTIONS,
+     +        AGENT_ID)
+         bounded = .true.
+         call smarties_setActionScales(comm,
+     +        upper_action, lower_action,
+     +        bounded, NUM_ACTIONS, AGENT_ID)
+         call smarties_setStateObservable(comm, b_observable,
+     +        STATE_SIZE, AGENT_ID)
+         call smarties_setStateScales(comm, upper_state, lower_state,
+     +        STATE_SIZE, AGENT_ID)
          call reset()
          call getState(state)
          call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
-         do while (.true.)
-            call smarties_recvAction(comm, action, NUM_ACTIONS,
-     +           AGENT_ID)
-            terminated = advance(action)
-            call getState(state)
-            reward = getReward()
-            if (terminated) then
-               call smarties_sendTermState(comm, state, STATE_SIZE,
-     +              reward, AGENT_ID)
-               exit
-            else
-               call smarties_sendState(comm, state, STATE_SIZE,
-     +              reward, AGENT_ID)
-            end if
-         end do
+      end if
+      call reset()
+      call getState(state)
+      do while (.true.)
+         call counter
+         call smarties_recvAction(comm, action, NUM_ACTIONS,
+     +        AGENT_ID)
+         terminated = advance(action)
+         call getState(state)
+         reward = getReward()
+         if (terminated) then
+            call smarties_sendTermState(comm, state, STATE_SIZE,
+     +           reward, AGENT_ID)
+            exit
+         else
+            call smarties_sendState(comm, state, STATE_SIZE,
+     +           reward, AGENT_ID)
+         end if
       end do
       app_main = 0
-      write(6,*) 'Fortran side ends'
       end
 
       subroutine reset()
@@ -207,7 +208,7 @@
       double precision F
       double precision t
       common /global/ u, step, F, t
-      
+
       getReward = 0
       if (abs(u(3))<=pi/15 .and. abs(u(1))<=2.4) getReward = 1
       end
@@ -241,4 +242,13 @@
          end if
       end do
       advance = .false.
+      end
+
+      subroutine counter
+      implicit none
+      integer cnt
+      save cnt
+      data cnt /0/
+      cnt = cnt + 1
+      write(6, *) 'main.f: cnt', cnt
       end

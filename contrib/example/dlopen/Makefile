@@ -3,26 +3,20 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-CCFLAGS = -Ofast -g
-FCFLAGS = -Ofast -g
-FC = gfortran
+CFLAGS = -Ofast -g
 CC = mpicc
-LINK = mpicxx
-
-M_CCFLAGS = -I$(PREFIX)/include
-MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
+LINK = mpicc
+M_LDFLAGS = -Wl,-R"`pwd`"/lib -Llib -ldl -lmain
+M_CFLAGS= -I$(PREFIX)/include
 
 O = \
-app_main.o\
 main.o\
 
 M = \
-app_main\
+main \
 
 all: $M
 $M: $O
-.c.o:; $(CC) -c $(CCFLAGS) $(M_CCFLAGS) $<
-.f.o:; $(FC) -c $(FCFLAGS) $<
+.c.o:; $(CC) -c $(CFLAGS) $(M_CFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
 clean:; rm -f -- $M $O

@@ -7,7 +7,7 @@ FCFLAGS = -Ofast -g
 FC = mpicxx
 LINK = $(FC)
 
-M_FCFLAGS = -I$(PREFIX)/include -fPIC
+M_FCFLAGS = -I$(PREFIX)/include -fPIC -Wno-align-commons
 MPI_EXTRA_LIB = -lgfortran
 M_LDFLAGS = -fopenmp -shared -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
 
