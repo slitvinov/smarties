@@ -18,7 +18,7 @@ main0(uintptr_t *smarties, void *mpi0, void *p)
   mpi = (MPI_Comm *)mpi0;
   f_mpicomm = MPI_Comm_c2f(*mpi);
   for (first = 1;; first = 0) {
-    if ((lib = dlopen("libmain.so", RTLD_LAZY | RTLD_LOCAL | RTLD_DEEPBIND)) == NULL) {
+    if ((lib = dlopen("libmain.so", RTLD_LAZY | RTLD_LOCAL)) == NULL) {
       fprintf(stderr, "%s:%d: dlopen failed: %s\n", __FILE__, __LINE__,
               dlerror());
       return 1;
