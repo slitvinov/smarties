@@ -7,7 +7,7 @@ CXXFLAGS = -Ofast -g
 CXX = mpicxx
 LINK = $(CXX)
 
-M_CXXFLAGS = -fPIC -I$(PREFIX)/include
+M_CXXFLAGS = -I$(PREFIX)/include
 
 O = \
 main.o\

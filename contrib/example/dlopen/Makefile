@@ -5,8 +5,8 @@
 PREFIX = $(HOME)/.local
 CFLAGS = -Ofast -g
 CC = mpicc
-LINK = mpicc
-M_LDFLAGS = -Wl,-R"`pwd`"/lib -Llib -ldl -lmain
+LINK = mpicxx
+M_LDFLAGS = -fopenmp -Wl,-R"`pwd`"/lib -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -ldl
 M_CFLAGS= -I$(PREFIX)/include
 
 O = \
