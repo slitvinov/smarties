@@ -1,10 +1,9 @@
 #!/bin/sh
 
-FCFLAGS='-Ofast -g'
-CFLAGS='-Ofast -g -fPIC'
-CXXFLAGS='-Ofast -g -fno-gnu-unique -fPIC'
+FCFLAGS='-O0 -g'
+CFLAGS='-O0 -g -fPIC'
+CXXFLAGS='-O0 -g -fno-gnu-unique -fPIC'
 MAKEFLAGS=-e
-
 export FCFLAGS CFLAGS CXXFLAGS MAKEFLAGS
 make install &&
 (cd contrib/lib/f77 && make install) &&

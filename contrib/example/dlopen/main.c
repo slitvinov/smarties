@@ -41,6 +41,5 @@ main0(uintptr_t *smarties, void *mpi0, void *p)
 int
 main(int argc, char **argv)
 {
-  int i;
-  return smarties_main_(argc, argv, main0, &i);
+  return smarties_main_(argc, argv, main0, NULL);
 }
