@@ -105,13 +105,13 @@ static int main0(smarties::Communicator *const smarties_comm,
 }
 
 int smarties_main_(int argc, char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
-  enum {M_STR = 99, M_ARGC};
+  enum {M_STR = 999, M_ARGC = 999};
   struct Data d;
   char string[M_STR];
-  const char *argv[999];
+  const char *argv[M_ARGC];
   int i;
 
-  if (argc > M_ARGC - 1) {
+  if (argc > M_ARGC - 2) {
     fprintf(stderr, "%s:%d: argc=%d is two big\n", __FILE__, __LINE__, argc);
     return 1;    
   }
