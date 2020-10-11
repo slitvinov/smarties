@@ -1,6 +1,5 @@
 .POSIX:
 .SUFFIXES: .o .f
-.PHONY: clean all
 
 PREFIX = $(HOME)/.local
 CFLAGS = -Ofast -g
@@ -19,4 +18,4 @@ all: $M
 $M: $O
 .c.o:; $(CC) -c $(CFLAGS) $(M_CFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
-clean:; rm -f -- $M $O
+binclean: clean; -rm -f $M
