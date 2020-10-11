@@ -9,12 +9,12 @@ LINK = $(FC)
 
 M_FCFLAGS = -I$(PREFIX)/include -fPIC -Wno-align-commons
 MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -fopenmp -shared -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
 
 O = \
 main.o\
 
 L = libmain.so
-$L: $O; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
+$L: $O; $(LINK) $O $(LDFLAGS) -shared $(M_LDFLAGS) -o $@
 .f.o:; $(FC) -c $(FCFLAGS) $(M_FCFLAGS) $<
 clean:; rm -f -- $L $O

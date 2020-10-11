@@ -1,4 +1,4 @@
-      function app_main(comm, mpicomm)
+      function app_main(comm, mpicomm, first)
       include 'mpif.h'
       include 'SMARTIES'
       include 'SIZE'
@@ -7,6 +7,7 @@
       integer app_main
 
       integer*8 comm
+      integer first
       integer mpicomm
       integer mpiIerr
       integer numProcs
@@ -18,16 +19,19 @@
       smarties_comm = comm
 
       write(6,*) 'Fortran side begins'
-      call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
-     + AGENT_ID)
-      bounded = .true.
-      call smarties_setactionscales(comm,
-     +      upper_action, lower_action,
-     +      bounded, NUM_ACTIONS, AGENT_ID)
-      call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
-     +                                 AGENT_ID)
-      call smarties_setStateScales(comm, upper_state, lower_state,
-     +                             STATE_SIZE, AGENT_ID)
+      write(6,*) 'first: ', first
+      if (first .eq. 1) then
+         call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
+     +        AGENT_ID)
+         bounded = .true.
+         call smarties_setactionscales(comm,
+     +        upper_action, lower_action,
+     +        bounded, NUM_ACTIONS, AGENT_ID)
+         call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
+     +        AGENT_ID)
+         call smarties_setStateScales(comm, upper_state, lower_state,
+     +        STATE_SIZE, AGENT_ID)
+      end if
 
       ! copies necessary file to working directory
       open(unit=1,file='SESSION.NAME')
