@@ -31,8 +31,8 @@ daint
 contrib/turbChannel/dlopen
 
     $ cd
-    $ git clone --depth 1 --recursive https://github.com/Nek5000/Nek5000.git
-    $ git clone --depth 1 -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
+    $ git clone --depth 1 --recursive git@github.com:Nek5000/Nek5000.git
+    $ git clone --depth 1 -b f77 git@github.com:slitvinov/smarties
     $ cd smarties
     $ MAKEFLAGS=-j12 ./contrib/install.sh
     $ cd contrib/turbChannel/dlopen

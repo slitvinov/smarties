@@ -18,6 +18,7 @@ m () {
 }
 
 m install &&
-(cd contrib/lib/f77 && m install) &&
-(cd contrib/example/dlopen/lib && m) &&
-(cd contrib/example/dlopen && m)
+    (cd contrib/lib/f77 && m install) &&
+    (cd contrib/lib/dummy && m install) &&
+    (cd contrib/example/dlopen/lib && m) &&
+    (cd contrib/example/dlopen && m)
