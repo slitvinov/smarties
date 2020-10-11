@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 FCFLAGS = -Ofast -g
-FC = mpicxx
+FC = gfortran
 LINK = $(FC)
 
 M_FCFLAGS = -I$(PREFIX)/include -fPIC -Wno-align-commons
