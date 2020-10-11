@@ -118,7 +118,16 @@ int smarties_main0_(int argc, char **argv0, int nwpe, int (*function)(uintptr_t*
   d.function = function;
   d.data = data;
   d.magic = MAGIC;
-  for (i = 0; i < argc; i++)
+
+  argv[0] = argv0[0];
+  for (i = 1; i < argc; i++) {
+    if (argv0[i][0] == '-' && argv0[i][1] == '-' && argv0[i][2] == '\0') {
+      argv0 += i;
+      argc -= i;
+      break;
+    }
+  }
+  for (i = 1; i < argc; i++)
     argv[i] = argv0[i];
   if (snprintf(string, M_STR, "%p", &d) < 0) {
     fprintf(stderr, "%s:%d: snprintf failed\n", __FILE__, __LINE__);
