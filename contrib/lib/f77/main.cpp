@@ -104,7 +104,7 @@ static int main0(smarties::Communicator *const smarties_comm,
   return 0;
 }
 
-int smarties_main_(int argc, char **argv0, int (*function)(uintptr_t*, void*, void*), void *data) {
+int smarties_main0_(int argc, char **argv0, int nwpe, int (*function)(uintptr_t*, void*, void*), void *data) {
   enum {M_STR = 999, M_ARGC = 999};
   struct Data d;
   char string[M_STR];
@@ -129,9 +129,17 @@ int smarties_main_(int argc, char **argv0, int (*function)(uintptr_t*, void*, vo
   smarties::Engine e(argc + 1, (char**)argv);
   if (e.parse())
     return 1;
-  else
+  else {
+    e.setNworkersPerEnvironment(nwpe);
     e.run(main0);
+  }
   return 0;
+}
+
+int smarties_main_(int argc, char **argv, int (*function)(uintptr_t*, void*, void*), void *data) {
+  int nwpe;
+  nwpe = 1;
+  return smarties_main0_(argc, argv, nwpe, function, data);
 }
 
 }
