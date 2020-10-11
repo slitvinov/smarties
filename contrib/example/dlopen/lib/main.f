@@ -16,7 +16,8 @@
       double precision upper_state(STATE_SIZE)
       integer*8 comm
       integer app_main
-      integer   mpicomm
+      integer counter
+      integer mpicomm
       integer first
       logical advance
       logical b_observable(STATE_SIZE)
@@ -29,6 +30,12 @@
       data lower_state /-1, -1, -1, -1, -1, -1/
 
       write(6,*) 'main.f: first: ', first
+      if (counter() .ne. 42 + 1) then
+         write(6, *) 'main.f: app_main was not reset'
+         app_main = 1
+         return
+      end if
+
       if (first .eq. 1) then
          call smarties_setStateActiondims(comm, STATE_SIZE, NUM_ACTIONS,
      +        AGENT_ID)
@@ -47,7 +54,6 @@
       call reset()
       call getState(state)
       do while (.true.)
-         call counter
          call smarties_recvAction(comm, action, NUM_ACTIONS,
      +        AGENT_ID)
          terminated = advance(action)
@@ -244,11 +250,12 @@
       advance = .false.
       end
 
-      subroutine counter
+      function counter()
       implicit none
       integer cnt
+      integer counter
       save cnt
-      data cnt /0/
+      data cnt /42/
       cnt = cnt + 1
-      write(6, *) 'main.f: cnt', cnt
+      counter = cnt
       end

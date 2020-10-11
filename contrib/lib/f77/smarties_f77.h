@@ -14,8 +14,7 @@ void smarties_setstatescales_(uintptr_t *, double *hi, double *lo, int *dim,
 			      int *);
 void smarties_setstateactiondims_(uintptr_t *, int *sdim, int *adim, int *);
 int smarties_main_(int argc, char **, int (*f)(uintptr_t*, void *mpi, void*), void *);
-int smarties_dlopen_(int argc, char **argv, const char *filename,
-		     int (*f)(uintptr_t*, void *mpi, int first, void*), void *);
+int smarties_dlopen_(int argc, char **argv, const char *filename, void *data);
 
 #ifdef __cplusplus
 }
