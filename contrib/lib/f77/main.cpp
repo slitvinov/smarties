@@ -93,7 +93,7 @@ static int main0(smarties::Communicator *const smarties_comm,
     return 1;
   }
   if (d->magic != MAGIC) {
-    fprintf(stderr, "%s:%d: fail to a pointer to client data\n", __FILE__, __LINE__);
+    fprintf(stderr, "%s:%d: wrong pointer to client's data\n", __FILE__, __LINE__);
     return 1;
   }
   rc = d->function(&i, &mpi, d->data);
