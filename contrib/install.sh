@@ -12,9 +12,9 @@ esac
 
 m () {
     make \
-	'FCFLAGS = -O0 -g'\
-	'CFLAGS = -O0 -g -fPIC'\
-	'CXXFLAGS = -O0 -g -fno-gnu-unique -fPIC' "$@"
+	'FCFLAGS = -O2 -g'\
+	'CFLAGS = -O2 -g -fPIC'\
+	'CXXFLAGS = -O2 -g -fno-gnu-unique -fPIC' "$@"
 }
 
 m install &&
