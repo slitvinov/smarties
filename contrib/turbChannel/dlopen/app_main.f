@@ -7,73 +7,67 @@
       integer app_main
 
       integer*8 comm
+      integer counter
       integer first
       integer mpicomm
       integer mpiIerr
       integer numProcs
       integer rank
       logical bounded
-      
+
       character*128 cwd
 
       smarties_comm = comm
 
-      write(6,*) 'Fortran side begins'
-      write(6,*) 'first: ', first
+      write(6,*) 'app_main.f: Fortran side begins'
+      write(6,*) 'app_main.f: first: ', first
+      if (counter() .ne. 42 + 1) then
+         write(6, *) 'app_main.f: app_main was not reset'
+         app_main = 1
+         return
+      end if
       if (first .eq. 1) then
-         call smarties_setstateactiondims(comm, STATE_SIZE, NUM_ACTIONS,
-     +        AGENT_ID)
+         call smarties_setstateactiondims(comm,
+     +        STATE_SIZE, NUM_ACTIONS, AGENT_ID)
          bounded = .true.
          call smarties_setactionscales(comm,
      +        upper_action, lower_action,
      +        bounded, NUM_ACTIONS, AGENT_ID)
-         call smarties_setStateObservable(comm, b_observable, STATE_SIZE,
-     +        AGENT_ID)
+         call smarties_setStateObservable(comm,
+     +        b_observable, STATE_SIZE, AGENT_ID)
          call smarties_setStateScales(comm, upper_state, lower_state,
      +        STATE_SIZE, AGENT_ID)
       end if
-
       ! copies necessary file to working directory
       open(unit=1,file='SESSION.NAME')
       call getcwd(cwd)
-      write(1,'(A)') 'turbChannel' 
-      write(1,'(A)') trim(cwd)//trim('/') 
+      write(1,'(A)') 'turbChannel'
+      write(1,'(A)') trim(cwd)//trim('/')
       close(1)
       call system('cp ../turbChannel.re2 .')
       call system('cp ../turbChannel.ma2 .')
       call system('cp ../turbChannel.par .')
-      ! training loop
-      smarties_step = 0
+      call init_common()
+      call nek_init(mpicomm)
+      call nek_solve()
+      call smarties_sendTermState(comm, state, STATE_SIZE,
+     +     reward, AGENT_ID)
+      !call nek_end()
 
-      do while (.true.)
-         ! initialize
-         smarties_step = smarties_step + 1
-         call init_common()
-         call nek_init(mpicomm)
-         ! solve loop (see turbChannel.usr for details)
-         call nek_solve()
-         ! send final state after finishing
-         call smarties_sendTermState(comm, state, STATE_SIZE,
-     +                                 reward, AGENT_ID)
-      end do
-      ! finalize only after full loop
-      call nek_end()
-
+      write(6,*) 'app_main.f: Fortran side ends'
       app_main = 0
-      write(6,*) 'Fortran side ends'
       end
-
 
       subroutine init_common()
       include 'SIZE'
       include 'TOTAL'
-C SOLN 
+C SOLN
       bq=0
-      vxlag=0 
-      vylag=0 
-      vzlag=0 
-      tlag=0 
-      pr=0 
+      vxlag=0
+      vylag=0
+      vzlag=0
+      tlag=0
+      pr=0
       prlag=0
       dp0thdt=0
       gamma0=0
@@ -90,9 +84,9 @@ C SOLN
       b2mask=0
       b3mask=0
       bpmask=0
-      vxp=0 
-      vyp=0 
-      vzp=0 
+      vxp=0
+      vyp=0
+      vzp=0
       prp=0
       tp=0
       bqp=0
@@ -145,8 +139,18 @@ C TSTEP
       tolht=0
       tolhe=0
       iesolv=0
-      ifalgn=0 
+      ifalgn=0
       ifrsxy=0
-      volel=0    
+      volel=0
       return
+      end
+      
+      function counter()
+      implicit none
+      integer cnt
+      integer counter
+      save cnt
+      data cnt /42/
+      cnt = cnt + 1
+      counter = cnt
       end
