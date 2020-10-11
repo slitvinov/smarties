@@ -27,3 +27,17 @@ daint
     $ make -j 12 install CXX=CC
     $ (cd contrib/lib/f77 && make install CXX=CC)
     $ (cd contrib/example/f77 && make CXX=CC FC=ftn LINK=CC MPI_EXTRA_LIB=)
+
+contrib/turbChannel/dlopen
+
+    $ cd
+    $ git clone --depth 1 --recursive https://github.com/Nek5000/Nek5000.git
+    $ git clone --depth 1 -b f77 git@gitlab.ethz.ch:mavt-cse/smarties.git
+    $ cd smarties
+    $ MAKEFLAGS=-j12 ./contrib/install.sh
+    $ cd contrib/turbChannel/dlopen
+    $ MPI=0 FFLAGS='-Ofast -g -fPIC' CFLAGS='-Ofast -g -fPIC' ~/Nek5000/bin/nekconfig  -build-dep
+    $ MPI=0 ~/Nek5000/bin/nekconfig
+    $ make -f make/lib.mk
+    $ make -f make/bin.mk
+    $ ./main
