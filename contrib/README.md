@@ -28,7 +28,7 @@ daint
     $ (cd contrib/lib/f77 && make install CXX=CC)
     $ (cd contrib/example/f77 && make CXX=CC FC=ftn LINK=CC MPI_EXTRA_LIB=)
 
-contrib/turbChannel/dlopen
+# contrib/turbChannel/dlopen
 
     $ cd
     $ git clone --depth 1 --recursive git@github.com:Nek5000/Nek5000.git
