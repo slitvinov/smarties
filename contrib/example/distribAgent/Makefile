@@ -8,7 +8,7 @@ CXX = mpicxx
 LINK = $(CXX)
 
 M_CXXFLAGS = -I$(PREFIX)/include
-M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties
 
 O = \
 main.o\

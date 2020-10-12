@@ -1,5 +1,6 @@
 #include <math.h>
 #include <smarties.h>
+#include <smarties_f77.h>
 
 enum { NCARTS = 2 };
 const double mp = 0.1;
@@ -11,6 +12,22 @@ const int nsteps = 50;
 int step = 0;
 double F = 0, t = 0;
 static double u[4];
+int action_dim = 2;
+int agent = 0;
+
+uintptr_t smarties_i;
+
+static double
+rnd0(void)
+{
+  return (double) rand() / (RAND_MAX+1.0);
+}
+
+static double
+rnd(void)
+{
+  return 2 * rnd0() - 1;
+}
 
 void Diff(double *_u, double *res) {
   const double cosy = cos(_u[2]), siny = sin(_u[2]);
@@ -52,11 +69,10 @@ void rk46_nl(double t0, double dt, double *u0) {
     u0[d] = u[d];
 }
 
-void reset(std::mt19937 &gen) {
+void reset() {
   int d;
-  std::uniform_real_distribution<double> dist(-0.05, 0.05);
   for (d = 0; d < 4; d++)
-    u[d] = dist(gen);
+    u[d] = 0.05*rnd();
   step = 0;
   F = 0;
   t = 0;
@@ -67,8 +83,8 @@ bool is_over() {
   return step >= 500 || fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15;
 }
 
-int advance(std::vector<double> action) {
-  F = action[0];
+int advance(double action) {
+  F = action;
   step++;
   for (int i = 0; i < nsteps; i++) {
     rk46_nl(t, dt, u);
@@ -79,24 +95,19 @@ int advance(std::vector<double> action) {
   return 0;
 }
 
-std::vector<double> getState(const int size = 6) {
+void getState(double *state) {
   int d;
-  assert(size == 4 || size == 6);
-  std::vector<double> state(size);
   for (d = 0; d < 4; d++)
     state[d] = u[d];
-  if (size == 6) {
-    state[4] = cos(u[2]);
-    state[5] = sin(u[2]);
-  }
-  return state;
 }
 
 double getReward() { return 1 - (fabs(u[2]) > M_PI / 15 || fabs(u[0]) > 2.4); }
 
 static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
                     char **) {
+  double myState[4];
   int myRank, simSize;
+  smarties_i = (uintptr_t)(comm);
   MPI_Comm_rank(mpicom, &myRank);
   MPI_Comm_size(mpicom, &simSize);
   assert(simSize == NCARTS && myRank < NCARTS);
@@ -109,20 +120,20 @@ static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
   comm->setStateActionDims(4 * NCARTS, 1 * NCARTS);
 
   // OPTIONAL: action bounds
-  const bool bounded = true;
-  const std::vector<double> upper_action_bound(NCARTS, 10);
-  const std::vector<double> lower_action_bound(NCARTS, -10);
-  comm->setActionScales(upper_action_bound, lower_action_bound, bounded);
+  int bounded = 1;
+  double upper_action_bound[NCARTS] = {10, 10};
+  double lower_action_bound[NCARTS] = {-10, -10};
+  smarties_setactionscales_(&smarties_i, upper_action_bound, lower_action_bound, &bounded, &action_dim, &agent);
   MPI_Barrier(mpicom);
   while (true) // train loop
   {
     {
       // reset environment:
-      reset(comm->getPRNG());
-      const std::vector<double> myState = getState(4);
+      reset();
+      getState(myState);
       std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
 
-      MPI_Allgather(myState.data(), 4, MPI_DOUBLE, combinedState.data(), 4,
+      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState.data(), 4,
                     MPI_DOUBLE, mpicom);
       // Actually, only rank 0 will send the state to smarties.
       // We might as well have used MPI_Gather with root 0.
@@ -134,10 +145,10 @@ static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
       // Each rank will get the same vector here:
       const std::vector<double> combinedAction = comm->recvAction();
       assert(combinedAction.size() == NCARTS);
-      const std::vector<double> myAction = {combinedAction[myRank]};
+      double myAction = combinedAction[myRank];
 
       const int myTerminated = advance(myAction);
-      const std::vector<double> myState = getState(4);
+      getState(myState);
       const double myReward = getReward();
 
       std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
@@ -146,7 +157,7 @@ static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
 
       MPI_Allreduce(&myTerminated, &nTerminated, 1, MPI_INT, MPI_SUM, mpicom);
       MPI_Allreduce(&myReward, &sumReward, 1, MPI_DOUBLE, MPI_SUM, mpicom);
-      MPI_Allgather(myState.data(), 4, MPI_DOUBLE, combinedState.data(), 4,
+      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState.data(), 4,
                     MPI_DOUBLE, mpicom);
       if (nTerminated > 0) {
         comm->sendTermState(combinedState, sumReward);
