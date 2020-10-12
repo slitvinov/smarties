@@ -1,7 +1,8 @@
 #include <math.h>
-#include <mpi.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <mpi.h>
 #include <smarties_f77.h>
 
 enum { NCARTS = 2 };
@@ -80,8 +81,8 @@ void reset() {
   t = 0;
 }
 
-bool is_failed() { return fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15; }
-bool is_over() {
+int is_failed() { return fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15; }
+int is_over() {
   return step >= 500 || fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15;
 }
 
@@ -133,7 +134,7 @@ main0(uintptr_t *smarties0, void *mpi0, void *p)
   double lower_action_bound[NCARTS] = {-10, -10};
   smarties_setactionscales_(&smarties, upper_action_bound, lower_action_bound, &bounded, &action_dim, &agent);
   MPI_Barrier(mpicom);
-  while (true) // train loop
+  while (1) // train loop
   {
     {
       // reset environment:
@@ -149,7 +150,7 @@ main0(uintptr_t *smarties0, void *mpi0, void *p)
       smarties_sendinitstate_(&smarties, combinedState, &state_dim, &agent);
     }
 
-    while (true) // simulation loop
+    while (1) // simulation loop
     {
       // Each rank will get the same vector here:
       double combinedAction[action_dim];

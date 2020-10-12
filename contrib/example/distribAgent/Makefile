@@ -1,13 +1,13 @@
 .POSIX:
-.SUFFIXES: .o .cpp
+.SUFFIXES: .o .c
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
-CXX = mpicxx
-LINK = $(CXX)
+CFLAGS = -Ofast -g
+CC = mpicc
+LINK = mpicxx
 
-M_CXXFLAGS = -I$(PREFIX)/include
+M_CFLAGS = -I$(PREFIX)/include
 M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties
 
 O = \
@@ -18,6 +18,6 @@ main\
 
 all: $M
 $M: $O
-.cpp.o:; $(CXX) -c $(CXXFLAGS) $(M_CXXFLAGS) $<
+.c.o:; $(CC) -c $(CFLAGS) $(M_CFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
 clean:; rm -f -- $M $O
