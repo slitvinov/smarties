@@ -1,8 +1,8 @@
 #include <math.h>
-#include <vector>
 #include <smarties.h>
+#include <vector>
 
-enum {NCARTS = 2};
+enum { NCARTS = 2 };
 const double mp = 0.1;
 const double mc = 1;
 const double l = 0.5;
@@ -31,7 +31,7 @@ Vec4 u;
 
 static Vec4 Diff(Vec4 _u, double) {
   Vec4 res;
-  
+
   const double cosy = cos(_u.y3), siny = sin(_u.y3);
   const double w = _u.y4;
   const double totMass = mp + mc;
@@ -44,20 +44,16 @@ static Vec4 Diff(Vec4 _u, double) {
   return res;
 }
 
-template <typename Vec>
-Vec rk46_nl(double t0, double dt, Vec u0) {
-  static double a[] = {0.000000000000,  -0.737101392796,
-                                 -1.634740794341, -0.744739003780,
-                                 -1.469897351522, -2.813971388035};
-  static double b[] = {0.032918605146, 0.823256998200,
-                                 0.381530948900, 0.200092213184,
-                                 1.718581042715, 0.270000000000};
-  static double c[] = {0.000000000000, 0.032918605146,
-                       0.249351723343, 0.466911705055,
-                       0.582030414044, 0.847252983783};
+Vec4 rk46_nl(double t0, double dt, Vec4 u0) {
+  static double a[] = {0.000000000000,  -0.737101392796, -1.634740794341,
+                       -0.744739003780, -1.469897351522, -2.813971388035};
+  static double b[] = {0.032918605146, 0.823256998200, 0.381530948900,
+                       0.200092213184, 1.718581042715, 0.270000000000};
+  static double c[] = {0.000000000000, 0.032918605146, 0.249351723343,
+                       0.466911705055, 0.582030414044, 0.847252983783};
   int s = 6;
-  Vec w;
-  Vec u(u0);
+  Vec4 w;
+  Vec4 u(u0);
   double t;
   for (int i = 0; i < s; ++i) {
     t = t0 + dt * c[i];
@@ -67,59 +63,49 @@ Vec rk46_nl(double t0, double dt, Vec u0) {
   return u;
 }
 
-struct CartPole {
-  void reset(std::mt19937 &gen) {
-    std::uniform_real_distribution<double> dist(-0.05, 0.05);
-    u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
-    step = 0;
-    F = 0;
-    t = 0;
-  }
+void reset(std::mt19937 &gen) {
+  std::uniform_real_distribution<double> dist(-0.05, 0.05);
+  u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
+  step = 0;
+  F = 0;
+  t = 0;
+}
 
-  bool is_failed() {
-    return fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
-  }
-  bool is_over() {
-    return step >= 500 || fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
-  }
+bool is_failed() { return fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15; }
+bool is_over() {
+  return step >= 500 || fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
+}
 
-  int advance(std::vector<double> action) {
-    F = action[0];
-    step++;
-    for (int i = 0; i < nsteps; i++) {
-      u = rk46_nl(t, dt, u);
-      t += dt;
-      if (is_over())
-        return 1;
-    }
-    return 0;
+int advance(std::vector<double> action) {
+  F = action[0];
+  step++;
+  for (int i = 0; i < nsteps; i++) {
+    u = rk46_nl(t, dt, u);
+    t += dt;
+    if (is_over())
+      return 1;
   }
+  return 0;
+}
 
-  std::vector<double> getState(const int size = 6) {
-    assert(size == 4 || size == 6);
-    std::vector<double> state(size);
-    state[0] = u.y1;
-    state[1] = u.y2;
-    state[2] = u.y4;
-    state[3] = u.y3;
-    if (size == 6) {
-      state[4] = cos(u.y3);
-      state[5] = sin(u.y3);
-    }
-    return state;
+std::vector<double> getState(const int size = 6) {
+  assert(size == 4 || size == 6);
+  std::vector<double> state(size);
+  state[0] = u.y1;
+  state[1] = u.y2;
+  state[2] = u.y4;
+  state[3] = u.y3;
+  if (size == 6) {
+    state[4] = cos(u.y3);
+    state[5] = sin(u.y3);
   }
+  return state;
+}
 
-  double getReward() {
-    return 1 - (fabs(u.y3) > M_PI / 15 || fabs(u.y1) > 2.4);
-  }
-};
+double getReward() { return 1 - (fabs(u.y3) > M_PI / 15 || fabs(u.y1) > 2.4); }
 
-static int
-app_main(smarties::Communicator *const comm,
-         MPI_Comm mpicom,
-         int,
-         char **
-) {
+static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
+                    char **) {
   int myRank, simSize;
   MPI_Comm_rank(mpicom, &myRank);
   MPI_Comm_size(mpicom, &simSize);
@@ -137,16 +123,13 @@ app_main(smarties::Communicator *const comm,
   const std::vector<double> upper_action_bound(NCARTS, 10);
   const std::vector<double> lower_action_bound(NCARTS, -10);
   comm->setActionScales(upper_action_bound, lower_action_bound, bounded);
-
-  CartPole env;
-
   MPI_Barrier(mpicom);
   while (true) // train loop
   {
     {
       // reset environment:
-      env.reset(comm->getPRNG());
-      const std::vector<double> myState = env.getState(4);
+      reset(comm->getPRNG());
+      const std::vector<double> myState = getState(4);
       std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
 
       MPI_Allgather(myState.data(), 4, MPI_DOUBLE, combinedState.data(), 4,
@@ -163,9 +146,9 @@ app_main(smarties::Communicator *const comm,
       assert(combinedAction.size() == NCARTS);
       const std::vector<double> myAction = {combinedAction[myRank]};
 
-      const int myTerminated = env.advance(myAction);
-      const std::vector<double> myState = env.getState(4);
-      const double myReward = env.getReward();
+      const int myTerminated = advance(myAction);
+      const std::vector<double> myState = getState(4);
+      const double myReward = getReward();
 
       std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
       double sumReward = 0;
