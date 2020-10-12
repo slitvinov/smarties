@@ -33,7 +33,8 @@ rnd(void)
   return 2 * rnd0() - 1;
 }
 
-void Diff(double *_u, double *res) {
+static void
+Diff(double *_u, double *res) {
   double cosy;
   double siny;
   double w;
@@ -52,7 +53,8 @@ void Diff(double *_u, double *res) {
   res[2] = _u[3];
 }
 
-void rk46_nl(double t0, double dt, double *u0) {
+static void
+rk46_nl(double t0, double dt, double *u0) {
   const double a[] = {0.000000000000,  -0.737101392796, -1.634740794341,
                        -0.744739003780, -1.469897351522, -2.813971388035};
   const double b[] = {0.032918605146, 0.823256998200, 0.381530948900,
