@@ -15,7 +15,7 @@ const int nsteps = 50;
 int step = 0;
 double F = 0;
 double t = 0;
-static double u[4];
+double u[4];
 int action_dim = NCARTS;
 int state_dim = 4 * NCARTS;
 int agent = 0;
