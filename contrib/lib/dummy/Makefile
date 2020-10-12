@@ -3,7 +3,7 @@
 .PHONY: clean all install
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
+CFLAGS = -Ofast -g
 CC = mpicc
 LINK = $(CC)
 
@@ -11,6 +11,7 @@ M_CFLAGS = -I$(PREFIX)/include
 
 O = \
 main.o\
+dlopen.o\
 
 L = libsmarties_dummy.a
 $L: $O; ar rv $@ $O && ranlib $@
