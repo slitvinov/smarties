@@ -6,10 +6,6 @@
 #include <smarties_f77.h>
 
 enum { NCARTS = 2 };
-const double mp = 0.1;
-const double mc = 1;
-const double l = 0.5;
-const double g = 9.81;
 const double dt = 4e-4;
 const int nsteps = 50;
 int step = 0;
@@ -35,6 +31,10 @@ rnd(void)
 
 static void
 Diff(double *_u, double *res) {
+  const double mp = 0.1;
+  const double mc = 1;
+  const double l = 0.5;
+  const double g = 9.81;
   double cosy;
   double siny;
   double w;
@@ -158,8 +158,6 @@ main0(uintptr_t *smarties0, void *mpi0, void *p)
   // agent is NCARTS cart-poles with joint controls. 4 state and 1 control
   // variables per process, distributed over NCARTS processes.
   smarties_setstateactiondims_(&smarties, &state_dim, &action_dim, &agent);
-  //  comm->setStateActionDims(4 * NCARTS, 1 * NCARTS);
-
   // OPTIONAL: action bounds
   bounded = 1;
   smarties_setactionscales_(&smarties, upper_action_bound, lower_action_bound, &bounded, &action_dim, &agent);
@@ -183,10 +181,8 @@ main0(uintptr_t *smarties0, void *mpi0, void *p)
       myTerminated = advance(myAction);
       getState(myState);
       myReward = getReward();
-
       sumReward = 0;
       nTerminated = 0;
-
       MPI_Allreduce(&myTerminated, &nTerminated, 1, MPI_INT, MPI_SUM, mpicom);
       MPI_Allreduce(&myReward, &sumReward, 1, MPI_DOUBLE, MPI_SUM, mpicom);
       MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState, 4,
