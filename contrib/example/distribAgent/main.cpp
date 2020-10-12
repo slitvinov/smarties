@@ -1,5 +1,7 @@
 #include <math.h>
-#include <smarties.h>
+#include <mpi.h>
+#include <stdint.h>
+#include <assert.h>
 #include <smarties_f77.h>
 
 enum { NCARTS = 2 };
@@ -12,10 +14,10 @@ const int nsteps = 50;
 int step = 0;
 double F = 0, t = 0;
 static double u[4];
-int action_dim = 2;
+int action_dim = NCARTS;
+int state_dim = 4 * NCARTS;
 int agent = 0;
-
-uintptr_t smarties_i;
+uintptr_t smarties;
 
 static double
 rnd0(void)
@@ -103,27 +105,33 @@ void getState(double *state) {
 
 double getReward() { return 1 - (fabs(u[2]) > M_PI / 15 || fabs(u[0]) > 2.4); }
 
-static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
-                    char **) {
+static int
+main0(uintptr_t *smarties0, void *mpi0, void *p)
+{
+  int d;
   double myState[4];
   int myRank, simSize;
-  smarties_i = (uintptr_t)(comm);
+  MPI_Comm mpicom;
+
+  mpicom = *(MPI_Comm*)mpi0;
+  smarties = *smarties0;
   MPI_Comm_rank(mpicom, &myRank);
   MPI_Comm_size(mpicom, &simSize);
   assert(simSize == NCARTS && myRank < NCARTS);
   // This options says that the agent themselves are distributed.
   // I.e. the same agent runs on multiple ranks:
-  comm->envHasDistributedAgents();
+  //comm->envHasDistributedAgents();
   // Because we are holding on to using cart-poles... let's just say that our
   // agent is NCARTS cart-poles with joint controls. 4 state and 1 control
   // variables per process, distributed over NCARTS processes.
-  comm->setStateActionDims(4 * NCARTS, 1 * NCARTS);
+  smarties_setstateactiondims_(&smarties, &state_dim, &action_dim, &agent);
+  //  comm->setStateActionDims(4 * NCARTS, 1 * NCARTS);
 
   // OPTIONAL: action bounds
   int bounded = 1;
   double upper_action_bound[NCARTS] = {10, 10};
   double lower_action_bound[NCARTS] = {-10, -10};
-  smarties_setactionscales_(&smarties_i, upper_action_bound, lower_action_bound, &bounded, &action_dim, &agent);
+  smarties_setactionscales_(&smarties, upper_action_bound, lower_action_bound, &bounded, &action_dim, &agent);
   MPI_Barrier(mpicom);
   while (true) // train loop
   {
@@ -131,48 +139,46 @@ static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
       // reset environment:
       reset();
       getState(myState);
-      std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
-
-      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState.data(), 4,
+      double combinedState[4 * NCARTS];
+      for (d = 0; d < 4 * NCARTS; d++)
+	combinedState[d] = 0;
+      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState, 4,
                     MPI_DOUBLE, mpicom);
       // Actually, only rank 0 will send the state to smarties.
       // We might as well have used MPI_Gather with root 0.
-      comm->sendInitState(combinedState);
+      smarties_sendinitstate_(&smarties, combinedState, &state_dim, &agent);
     }
 
     while (true) // simulation loop
     {
       // Each rank will get the same vector here:
-      const std::vector<double> combinedAction = comm->recvAction();
-      assert(combinedAction.size() == NCARTS);
+      double combinedAction[action_dim];
+      smarties_recvaction_(&smarties, combinedAction, &action_dim, &agent);
       double myAction = combinedAction[myRank];
-
       const int myTerminated = advance(myAction);
       getState(myState);
       const double myReward = getReward();
 
-      std::vector<double> combinedState = std::vector<double>(4 * NCARTS);
+      double combinedState[4 * NCARTS];
       double sumReward = 0;
       int nTerminated = 0;
 
       MPI_Allreduce(&myTerminated, &nTerminated, 1, MPI_INT, MPI_SUM, mpicom);
       MPI_Allreduce(&myReward, &sumReward, 1, MPI_DOUBLE, MPI_SUM, mpicom);
-      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState.data(), 4,
+      MPI_Allgather(myState, 4, MPI_DOUBLE, combinedState, 4,
                     MPI_DOUBLE, mpicom);
       if (nTerminated > 0) {
-        comm->sendTermState(combinedState, sumReward);
+	smarties_sendtermstate_(&smarties, combinedState, &state_dim,
+				&sumReward, &agent);
         break;
       } else
-        comm->sendState(combinedState, sumReward);
+        smarties_sendstate_(&smarties, combinedState, &state_dim, &sumReward, &agent);
     }
   }
 }
 
-int main(int argc, char **argv) {
-  smarties::Engine e(argc, argv);
-  if (e.parse())
-    return 1;
-  e.setNworkersPerEnvironment(NCARTS);
-  e.run(app_main);
-  return 0;
+int
+main(int argc, char **argv)
+{
+  return smarties_main_(argc, argv, main0, NULL);
 }
