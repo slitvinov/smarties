@@ -16,7 +16,6 @@ dlopen0(uintptr_t *smarties, void *mpi0, void *p)
   MPI_Fint f_mpicomm;
   MPI_Comm *mpi;
   int first;
-  FILE *file;
   Function function;
   void *lib;
   struct Data *d;

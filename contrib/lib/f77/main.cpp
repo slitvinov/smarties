@@ -88,7 +88,7 @@ static int main0(smarties::Communicator *const smarties_comm,
   uintptr_t i;
 
   i = (uintptr_t)(smarties_comm);
-  if (sscanf(argv[argc - 1], "%p", &d) != 1) {
+  if (sscanf(argv[argc - 1], "%p", (void**)&d) != 1) {
     fprintf(stderr, "%s:%d: sscanf cannot get a point\n", __FILE__, __LINE__);
     return 1;
   }
@@ -129,7 +129,7 @@ int smarties_main0_(int argc, char **argv0, int nwpe, int (*function)(uintptr_t*
   }
   for (i = 1; i < argc; i++)
     argv[i] = argv0[i];
-  if (snprintf(string, M_STR, "%p", &d) < 0) {
+  if (snprintf(string, M_STR, "%p", (void*)&d) < 0) {
     fprintf(stderr, "%s:%d: snprintf failed\n", __FILE__, __LINE__);
     return 1;
   }
