@@ -138,10 +138,9 @@ int smarties_main0_(int argc, char **argv0, int nwpe, int (*function)(uintptr_t*
   smarties::Engine e(argc + 1, (char**)argv);
   if (e.parse())
     return 1;
-  else {
+  if (nwpe != 1)
     e.setNworkersPerEnvironment(nwpe);
-    e.run(main0);
-  }
+  e.run(main0);
   return 0;
 }
 
