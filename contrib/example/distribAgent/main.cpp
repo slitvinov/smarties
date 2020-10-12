@@ -1,6 +1,5 @@
 #include <math.h>
 #include <smarties.h>
-#include <vector>
 
 enum { NCARTS = 2 };
 const double mp = 0.1;
@@ -11,40 +10,21 @@ const double dt = 4e-4;
 const int nsteps = 50;
 int step = 0;
 double F = 0, t = 0;
+static double u[4];
 
-struct Vec4 {
-  double y1, y2, y3, y4;
-
-  Vec4(double _y1 = 0, double _y2 = 0, double _y3 = 0, double _y4 = 0)
-      : y1(_y1), y2(_y2), y3(_y3), y4(_y4){};
-
-  Vec4 operator*(double v) const {
-    return Vec4(y1 * v, y2 * v, y3 * v, y4 * v);
-  }
-
-  Vec4 operator+(const Vec4 &v) const {
-    return Vec4(y1 + v.y1, y2 + v.y2, y3 + v.y3, y4 + v.y4);
-  }
-};
-
-Vec4 u;
-
-static Vec4 Diff(Vec4 _u, double) {
-  Vec4 res;
-
-  const double cosy = cos(_u.y3), siny = sin(_u.y3);
-  const double w = _u.y4;
+void Diff(double *_u, double *res) {
+  const double cosy = cos(_u[2]), siny = sin(_u[2]);
+  const double w = _u[3];
   const double totMass = mp + mc;
   const double fac2 = l * (4.0 / 3 - (mp * cosy * cosy) / totMass);
   const double F1 = F + mp * l * w * w * siny;
-  res.y4 = (g * siny - F1 * cosy / totMass) / fac2;
-  res.y2 = (F1 - mp * l * res.y4 * cosy) / totMass;
-  res.y1 = _u.y2;
-  res.y3 = _u.y4;
-  return res;
+  res[3] = (g * siny - F1 * cosy / totMass) / fac2;
+  res[1] = (F1 - mp * l * res[3] * cosy) / totMass;
+  res[0] = _u[1];
+  res[2] = _u[3];
 }
 
-Vec4 rk46_nl(double t0, double dt, Vec4 u0) {
+void rk46_nl(double t0, double dt, double *u0) {
   static double a[] = {0.000000000000,  -0.737101392796, -1.634740794341,
                        -0.744739003780, -1.469897351522, -2.813971388035};
   static double b[] = {0.032918605146, 0.823256998200, 0.381530948900,
@@ -52,35 +32,46 @@ Vec4 rk46_nl(double t0, double dt, Vec4 u0) {
   static double c[] = {0.000000000000, 0.032918605146, 0.249351723343,
                        0.466911705055, 0.582030414044, 0.847252983783};
   int s = 6;
-  Vec4 w;
-  Vec4 u(u0);
-  double t;
-  for (int i = 0; i < s; ++i) {
+  double w[4];
+  double res[4];
+  double u[4];
+  int i;
+  int d;
+
+  for (d = 0; d < 4; d++)
+    u[d] = u0[d];
+  for (i = 0; i < s; ++i) {
     t = t0 + dt * c[i];
-    w = w * a[i] + Diff(u, t) * dt;
-    u = u + w * b[i];
+    Diff(u, res);
+    for (d = 0; d < 4; d++) {
+      w[d] = w[d] * a[i] +  res[d] * dt;
+      u[d] = u[d] + w[d] * b[i];
+    }
   }
-  return u;
+  for (d = 0; d < 4; d++)
+    u0[d] = u[d];
 }
 
 void reset(std::mt19937 &gen) {
+  int d;
   std::uniform_real_distribution<double> dist(-0.05, 0.05);
-  u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
+  for (d = 0; d < 4; d++)
+    u[d] = dist(gen);
   step = 0;
   F = 0;
   t = 0;
 }
 
-bool is_failed() { return fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15; }
+bool is_failed() { return fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15; }
 bool is_over() {
-  return step >= 500 || fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
+  return step >= 500 || fabs(u[0]) > 2.4 || fabs(u[2]) > M_PI / 15;
 }
 
 int advance(std::vector<double> action) {
   F = action[0];
   step++;
   for (int i = 0; i < nsteps; i++) {
-    u = rk46_nl(t, dt, u);
+    rk46_nl(t, dt, u);
     t += dt;
     if (is_over())
       return 1;
@@ -89,20 +80,19 @@ int advance(std::vector<double> action) {
 }
 
 std::vector<double> getState(const int size = 6) {
+  int d;
   assert(size == 4 || size == 6);
   std::vector<double> state(size);
-  state[0] = u.y1;
-  state[1] = u.y2;
-  state[2] = u.y4;
-  state[3] = u.y3;
+  for (d = 0; d < 4; d++)
+    state[d] = u[d];
   if (size == 6) {
-    state[4] = cos(u.y3);
-    state[5] = sin(u.y3);
+    state[4] = cos(u[2]);
+    state[5] = sin(u[2]);
   }
   return state;
 }
 
-double getReward() { return 1 - (fabs(u.y3) > M_PI / 15 || fabs(u.y1) > 2.4); }
+double getReward() { return 1 - (fabs(u[2]) > M_PI / 15 || fabs(u[0]) > 2.4); }
 
 static int app_main(smarties::Communicator *const comm, MPI_Comm mpicom, int,
                     char **) {
