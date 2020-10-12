@@ -4,10 +4,8 @@
 
 PREFIX = $(HOME)/.local
 CXXFLAGS = -Ofast -g
-FCFLAGS = -Ofast -g
-FC = gfortran
 CXX = mpicxx
-LINK = mpicxx
+LINK = $(CXX)
 
 M_CXXFLAGS = -I$(PREFIX)/include
 M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties

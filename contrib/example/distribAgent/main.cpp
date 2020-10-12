@@ -1,35 +1,16 @@
-#include <cmath>
-#include <cstdio>
-#include <functional>
-#include <iostream>
-#include <random>
+#include <math.h>
 #include <vector>
 #include <smarties.h>
 
 enum {NCARTS = 2};
-template <typename Func, typename Vec>
-Vec rk46_nl(double t0, double dt, Vec u0, Func &&Diff) {
-  static double a[] = {0.000000000000,  -0.737101392796,
-                                 -1.634740794341, -0.744739003780,
-                                 -1.469897351522, -2.813971388035};
-  static double b[] = {0.032918605146, 0.823256998200,
-                                 0.381530948900, 0.200092213184,
-                                 1.718581042715, 0.270000000000};
-  static double c[] = {0.000000000000, 0.032918605146,
-                       0.249351723343, 0.466911705055,
-                       0.582030414044, 0.847252983783};
-  static constexpr int s = 6;
-  Vec w;
-  Vec u(u0);
-  double t;
-
-  for (int i = 0; i < s; ++i) {
-    t = t0 + dt * c[i];
-    w = w * a[i] + Diff(u, t) * dt;
-    u = u + w * b[i];
-  }
-  return u;
-}
+const double mp = 0.1;
+const double mc = 1;
+const double l = 0.5;
+const double g = 9.81;
+const double dt = 4e-4;
+const int nsteps = 50;
+int step = 0;
+double F = 0, t = 0;
 
 struct Vec4 {
   double y1, y2, y3, y4;
@@ -46,17 +27,47 @@ struct Vec4 {
   }
 };
 
-struct CartPole {
-  const double mp = 0.1;
-  const double mc = 1;
-  const double l = 0.5;
-  const double g = 9.81;
-  const double dt = 4e-4;
-  const int nsteps = 50;
-  int step = 0;
-  Vec4 u;
-  double F = 0, t = 0;
+Vec4 u;
 
+static Vec4 Diff(Vec4 _u, double) {
+  Vec4 res;
+  
+  const double cosy = cos(_u.y3), siny = sin(_u.y3);
+  const double w = _u.y4;
+  const double totMass = mp + mc;
+  const double fac2 = l * (4.0 / 3 - (mp * cosy * cosy) / totMass);
+  const double F1 = F + mp * l * w * w * siny;
+  res.y4 = (g * siny - F1 * cosy / totMass) / fac2;
+  res.y2 = (F1 - mp * l * res.y4 * cosy) / totMass;
+  res.y1 = _u.y2;
+  res.y3 = _u.y4;
+  return res;
+}
+
+template <typename Vec>
+Vec rk46_nl(double t0, double dt, Vec u0) {
+  static double a[] = {0.000000000000,  -0.737101392796,
+                                 -1.634740794341, -0.744739003780,
+                                 -1.469897351522, -2.813971388035};
+  static double b[] = {0.032918605146, 0.823256998200,
+                                 0.381530948900, 0.200092213184,
+                                 1.718581042715, 0.270000000000};
+  static double c[] = {0.000000000000, 0.032918605146,
+                       0.249351723343, 0.466911705055,
+                       0.582030414044, 0.847252983783};
+  int s = 6;
+  Vec w;
+  Vec u(u0);
+  double t;
+  for (int i = 0; i < s; ++i) {
+    t = t0 + dt * c[i];
+    w = w * a[i] + Diff(u, t) * dt;
+    u = u + w * b[i];
+  }
+  return u;
+}
+
+struct CartPole {
   void reset(std::mt19937 &gen) {
     std::uniform_real_distribution<double> dist(-0.05, 0.05);
     u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
@@ -66,19 +77,17 @@ struct CartPole {
   }
 
   bool is_failed() {
-    return std::fabs(u.y1) > 2.4 || std::fabs(u.y3) > M_PI / 15;
+    return fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
   }
   bool is_over() {
-    return step >= 500 || std::fabs(u.y1) > 2.4 || std::fabs(u.y3) > M_PI / 15;
+    return step >= 500 || fabs(u.y1) > 2.4 || fabs(u.y3) > M_PI / 15;
   }
 
   int advance(std::vector<double> action) {
     F = action[0];
     step++;
     for (int i = 0; i < nsteps; i++) {
-      u = rk46_nl(t, dt, u,
-                  std::bind(&CartPole::Diff, this, std::placeholders::_1,
-                            std::placeholders::_2));
+      u = rk46_nl(t, dt, u);
       t += dt;
       if (is_over())
         return 1;
@@ -94,29 +103,14 @@ struct CartPole {
     state[2] = u.y4;
     state[3] = u.y3;
     if (size == 6) {
-      state[4] = std::cos(u.y3);
-      state[5] = std::sin(u.y3);
+      state[4] = cos(u.y3);
+      state[5] = sin(u.y3);
     }
     return state;
   }
 
   double getReward() {
-    return 1 - (std::fabs(u.y3) > M_PI / 15 || std::fabs(u.y1) > 2.4);
-  }
-
-  Vec4 Diff(Vec4 _u, double) {
-    Vec4 res;
-
-    const double cosy = std::cos(_u.y3), siny = std::sin(_u.y3);
-    const double w = _u.y4;
-    const double totMass = mp + mc;
-    const double fac2 = l * (4.0 / 3 - (mp * cosy * cosy) / totMass);
-    const double F1 = F + mp * l * w * w * siny;
-    res.y4 = (g * siny - F1 * cosy / totMass) / fac2;
-    res.y2 = (F1 - mp * l * res.y4 * cosy) / totMass;
-    res.y1 = _u.y2;
-    res.y3 = _u.y4;
-    return res;
+    return 1 - (fabs(u.y3) > M_PI / 15 || fabs(u.y1) > 2.4);
   }
 };
 
@@ -181,10 +175,6 @@ app_main(smarties::Communicator *const comm,
       MPI_Allreduce(&myReward, &sumReward, 1, MPI_DOUBLE, MPI_SUM, mpicom);
       MPI_Allgather(myState.data(), 4, MPI_DOUBLE, combinedState.data(), 4,
                     MPI_DOUBLE, mpicom);
-
-      // Environment simulation is distributed across two processes.
-      // Still, if one processes says the simulation has terminated
-      // it should terminate in all processes! (and then can start anew)
       if (nTerminated > 0) {
         comm->sendTermState(combinedState, sumReward);
         break;
@@ -198,7 +188,6 @@ int main(int argc, char **argv) {
   smarties::Engine e(argc, argv);
   if (e.parse())
     return 1;
-  // this app is designed to require NCARTS processes per each env simulation:
   e.setNworkersPerEnvironment(NCARTS);
   e.run(app_main);
   return 0;
