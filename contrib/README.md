@@ -39,7 +39,7 @@ daint
     $ cd contrib/turbChannel/dlopen
     $ MAKEFLAGS=-j12 MPI=0 FFLAGS='-Ofast -g -fPIC' CFLAGS='-Ofast -g -fPIC' ~/Nek5000/bin/nekconfig  -build-dep
     $ MPI=0 ~/Nek5000/bin/nekconfig
-    $ make -f make/lib.mk -j12
+    $ make -f make/lib.mk usrfile libnek5000.so -j12
     $ make -f make/bin.mk
 
     On login node
