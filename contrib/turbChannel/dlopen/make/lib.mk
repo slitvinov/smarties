@@ -12,6 +12,7 @@ O = $(NOBJS) $(CASENAME).o app_main.o
 $C: objdir; touch $@
 $O: $C
 $(CASENAME).o: usrfile
+$(CASENAME).o: $(CASENAME).f; $(FC) -c $(FL2) $< -o $@
 libnek5000.so: $O
 	$(LINK) -shared $O $(LDFLAGS) $(M_LDFLAGS) $(USR_LFLAGS) -o $@
 app_main.o: app_main.f
