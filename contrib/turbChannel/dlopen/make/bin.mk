@@ -18,4 +18,4 @@ all: $M
 $M: $O
 .c.o:; $(CC) -c $(CFLAGS) $(M_CFLAGS) $<
 .o:; $(LINK) $O $(LDFLAGS) $(M_LDFLAGS) -o $@
-binclean: clean; -rm -f $M
+clean:; -rm -f $M $O
