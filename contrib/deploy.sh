@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-
 cd
 git clone --depth 1 --recursive git@github.com:Nek5000/Nek5000.git
 git clone --depth 1 -b f77 git@github.com:slitvinov/smarties
