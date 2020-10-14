@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -e
 
 cd
 git clone --depth 1 --recursive git@github.com:Nek5000/Nek5000.git
