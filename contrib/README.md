@@ -25,7 +25,7 @@ daint
     $ module load daint-gpu
     $ module swap PrgEnv-cray PrgEnv-gnu
     $ make -j 12 install CXX=CC
-    $ (cd contrib/lib/f77 && make install CXX=CC)
+    $ (cd contrib/lib/f77 && make install CXX=CC CC=cc)
     $ (cd contrib/example/f77 && make CXX=CC FC=ftn LINK=CC MPI_EXTRA_LIB=)
 
 # contrib/turbChannel/dlopen
