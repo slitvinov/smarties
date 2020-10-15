@@ -30,20 +30,16 @@ daint
 
 # contrib/turbChannel/dlopen
 
+    To deploy use contrib/deploy.sh. It can be fetch directly
     $ cd
-    $ git clone --depth 1 --recursive git@github.com:Nek5000/Nek5000.git
-    $ git clone --depth 1 -b f77 git@github.com:slitvinov/smarties
-    $ cd smarties
-    $ . contrib/smarties.env
-    $ MAKEFLAGS=-j12 ./contrib/install.sh
-    $ cd contrib/turbChannel/dlopen
-    $ MAKEFLAGS=-j12 MPI=0 FFLAGS='-Ofast -g -fPIC' CFLAGS='-Ofast -g -fPIC' ~/Nek5000/bin/nekconfig  -build-dep
-    $ MPI=0 ~/Nek5000/bin/nekconfig
+    $ wget https://raw.githubusercontent.com/slitvinov/smarties/f77/contrib/deploy.sh
+    $ rm -rf Nek5000 smarties .local
+    $ MAKEFLAGS=-j bash deploy.sh
+
+    To compile:
+    $ . ~/.local/bin/smarties.env
     $ make -f make/lib.mk -j
     $ make -f make/bin.mk
-
-    On login node
-    $ ./main
 
     To submit
     $ bsub -n 8 -W 00:02 bash -c '. ~/.local/bin/smarties.env && mpirun ./main'
