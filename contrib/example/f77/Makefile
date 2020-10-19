@@ -7,11 +7,11 @@ CCFLAGS = -Ofast -g
 FCFLAGS = -Ofast -g
 FC = gfortran
 CC = mpicc
-LINK = $(CC)
+LINK = mpicxx
 
 M_CCFLAGS = -I$(PREFIX)/include
 MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lmpi_cxx -lstdc++ -lm $(MPI_EXTRA_LIB)
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lm $(MPI_EXTRA_LIB)
 
 O = \
 app_main.o\
