@@ -1,7 +1,7 @@
-#include <mpi.h>
-#include <smarties_f77.h>
 #include <stdint.h>
+#include <smarties_f77.h>
 #include <stdio.h>
+#include <mpi.h>
 
 extern int app_main_(uintptr_t *, int *);
 static int main0(uintptr_t *smarties, void *mpi0, void *p) {
