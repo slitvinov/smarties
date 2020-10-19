@@ -4,7 +4,7 @@
 
 extern "C" {
 void smarties_sendinitstate_(uintptr_t *i, double *S, int *state_dim,
-                             int *agent) {
+			     int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> svec(S, S + *state_dim);
@@ -12,7 +12,7 @@ void smarties_sendinitstate_(uintptr_t *i, double *S, int *state_dim,
 }
 
 void smarties_sendtermstate_(uintptr_t *i, double *S, int *state_dim, double *R,
-                             int *agent) {
+			     int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> svec(S, S + *state_dim);
@@ -20,7 +20,7 @@ void smarties_sendtermstate_(uintptr_t *i, double *S, int *state_dim, double *R,
 }
 
 void smarties_sendstate_(uintptr_t *i, double *S, int *state_dim, double *R,
-                         int *agent) {
+			 int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> svec(S, S + *state_dim);
@@ -28,7 +28,7 @@ void smarties_sendstate_(uintptr_t *i, double *S, int *state_dim, double *R,
 }
 
 void smarties_recvaction_(uintptr_t *i, double *A, int *action_dim,
-                          int *agent) {
+			  int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> avec =
@@ -38,8 +38,8 @@ void smarties_recvaction_(uintptr_t *i, double *A, int *action_dim,
 }
 
 void smarties_setactionscales_(uintptr_t *i, double *upper_scale,
-                               double *lower_scale, int *are_bounds,
-                               int *action_dim, int *agent) {
+			       double *lower_scale, int *are_bounds,
+			       int *action_dim, int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> upper(upper_scale, upper_scale + *action_dim);
@@ -49,30 +49,36 @@ void smarties_setactionscales_(uintptr_t *i, double *upper_scale,
 }
 
 void smarties_setstateobservable_(uintptr_t *i, int *bobservable,
-                                  int *state_dim, int *agent) {
+				  int *state_dim, int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<bool> optionsvec(bobservable, bobservable + *state_dim);
   static_cast<smarties::Communicator *>(p)->setStateObservable(optionsvec,
-                                                               *agent);
+							       *agent);
 }
 
 void smarties_setstatescales_(uintptr_t *i, double *upper_scale,
-                              double *lower_scale, int *state_dim, int *agent) {
+			      double *lower_scale, int *state_dim, int *agent) {
   void *p;
   p = (void *)(*i);
   std::vector<double> upper(upper_scale, upper_scale + *state_dim);
   std::vector<double> lower(lower_scale, lower_scale + *state_dim);
   static_cast<smarties::Communicator *>(p)->setStateScales(upper, lower,
-                                                           *agent);
+							   *agent);
 }
 
 void smarties_setstateactiondims_(uintptr_t *i, int *state_dim, int *action_dim,
-                                  int *agent) {
+				  int *agent) {
   void *p;
   p = (void *)(*i);
   static_cast<smarties::Communicator *>(p)->setStateActionDims(
       *state_dim, *action_dim, *agent);
+}
+
+int smarties_terminatetraining_(uintptr_t *i) {
+  void *p;
+  p = (void *)(*i);
+  return static_cast<smarties::Communicator *>(p)->terminateTraining();
 }
 
 enum {MAGIC = 12345};
@@ -82,7 +88,7 @@ struct Data {
   int magic;
 };
 static int main0(smarties::Communicator *const smarties_comm,
-                 MPI_Comm mpi, int argc, char **argv) {
+		 MPI_Comm mpi, int argc, char **argv) {
   int rc;
   struct Data *d;
   uintptr_t i;
@@ -113,7 +119,7 @@ int smarties_main0_(int argc, char **argv0, int nwpe, int (*function)(uintptr_t*
 
   if (argc > M_ARGC - 2) {
     fprintf(stderr, "%s:%d: argc=%d is two big\n", __FILE__, __LINE__, argc);
-    return 1;    
+    return 1;
   }
   d.function = function;
   d.data = data;

@@ -14,6 +14,7 @@
       double precision state(STATE_SIZE)
       double precision upper_action(NUM_ACTIONS)
       double precision upper_state(STATE_SIZE)
+      integer smarties_terminatetraining
       integer*8 comm
       integer app_main
       integer   mpicomm
@@ -45,6 +46,10 @@
          call getState(state)
          call smarties_sendInitState(comm, state, STATE_SIZE, AGENT_ID)
          do while (.true.)
+            if (smarties_terminateTraining(comm) .eq. 1) then
+               app_main = 0
+               return
+            end if
             call smarties_recvAction(comm, action, NUM_ACTIONS,
      +           AGENT_ID)
             terminated = advance(action)
