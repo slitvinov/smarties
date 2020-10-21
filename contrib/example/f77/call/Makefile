@@ -3,7 +3,7 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-FCFLAGS = -Ofast -g
+FCFLAGS = -O2 -g
 FC = mpif90
 M_LDFLAGS = -Wl,-R$(PREFIX)/lib -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -lgfortran -lmpi++ -lstdc++
 

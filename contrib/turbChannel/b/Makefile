@@ -4,8 +4,8 @@
 
 PREFIX = $(HOME)/.local
 BLAS_LIBS = -lblas -llapack
-FCFLAGS = -Ofast -g
-CXXFLAGS = -Ofast -g
+FCFLAGS = -O2 -g
+CXXFLAGS = -O2 -g
 CXX = mpicxx
 FC = gfortran
 LINK = $(CXX)

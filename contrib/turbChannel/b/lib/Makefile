@@ -6,8 +6,8 @@ PREFIX = $(HOME)/.local
 FC = gfortran
 CC = gcc
 
-FCFLAGS = -w -Ofast -g
-CFLAGS = -w -Ofast -g
+FCFLAGS = -w -O2 -g
+CFLAGS = -w -O2 -g
 M_CFLAGS  = -DUNDERSCORE -DTIMER -Icore -Icore/3rd_party -Icore/experimental -I$(PREFIX)/include
 M_FCFLAGS = -cpp -fdefault-real-8 -fdefault-double-8 -std=legacy -DNOMPIIO -DTIMER -I. -Icore -I$(PREFIX)/include
 

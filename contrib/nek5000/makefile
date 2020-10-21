@@ -33,8 +33,8 @@ PARRSB_IFLAGS=
 
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
-FCFLAGS = -Ofast -g
+CXXFLAGS = -O2 -g
+FCFLAGS = -O2 -g
 CXX = mpicxx
 LINK = $(FC)
 

@@ -3,7 +3,7 @@
 .PHONY: clean all install
 
 PREFIX = $(HOME)/.local
-FCFLAGS = -Ofast -g
+FCFLAGS = -O2 -g
 FC = gfortran
 LINK = $(FC)
 

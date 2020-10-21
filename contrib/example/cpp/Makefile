@@ -3,7 +3,7 @@
 .PHONY: clean all
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
+CXXFLAGS = -O2 -g
 CXX = mpicxx
 LINK = $(CXX)
 

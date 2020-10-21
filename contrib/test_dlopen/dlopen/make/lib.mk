@@ -4,7 +4,7 @@ include makefile
 
 PREFIX = $(HOME)/.local
 LINK = gfortran
-FCFLAG = -Ofast -g
+FCFLAG = -O2 -g
 FFLAGS += -fPIC $(FCFLAG)
 CFLAGS += -fPIC
 MPI_EXTRA_LIB = -lgfortran

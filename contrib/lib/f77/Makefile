@@ -3,8 +3,8 @@
 .PHONY: clean all install
 
 PREFIX = $(HOME)/.local
-CXXFLAGS = -Ofast -g
-CCFLAGS = -Ofast -g
+CXXFLAGS = -O2 -g
+CCFLAGS = -O2 -g
 CXX = mpicxx
 CC = mpicc
 LINK = $(CXX)

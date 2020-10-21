@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 CXX = mpicxx
-CXXFLAGS = -Ofast -g
+CXXFLAGS = -O2 -g
 M_CXXFLAGS = -DNDEBUG -pthread -fopenmp
 
 include obj.mk
