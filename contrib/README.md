@@ -38,6 +38,7 @@ daint
 
     To compile:
     $ . ~/.local/bin/smarties.env
+    $ MPI=0 ~/Nek5000/bin/nekconfig
     $ make -f make/lib.mk -j
     $ make -f make/bin.mk
 
