@@ -8,8 +8,8 @@ FC = gfortran
 LINK = $(FC)
 
 M_FCFLAGS = -I$(PREFIX)/include -fPIC -Wno-align-commons
-MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
+SMARTIES_F77 = -lsmarties_f77
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib $(SMARTIES_F77) -lsmarties
 
 O = \
 main.o\
