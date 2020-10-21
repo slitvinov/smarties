@@ -1,5 +1,9 @@
       function app_main(comm, mpicomm, first)
       implicit none
+      intrinsic backtrace
+      intrinsic abort
+      intrinsic flush
+      logical good
       integer AGENT_ID
       integer NUM_ACTIONS
       integer STATE_SIZE
@@ -16,7 +20,6 @@
       double precision upper_state(STATE_SIZE)
       integer*8 comm
       integer app_main
-      integer counter
       integer mpicomm
       integer first
       logical advance
@@ -30,11 +33,13 @@
       data lower_state /-1, -1, -1, -1, -1, -1/
 
       write(6,*) 'main.f: first: ', first
-      if (counter() .ne. 42 + 1) then
-         write(6, *) 'main.f: app_main was not reset'
-         app_main = 1
-         return
+      if (.not. good()) then
+         write(6,*) 'app_main.f: failed configuration test'
+         call flush(6)
+         call backtrace()
+         call abort()
       end if
+      write(6,*) 'app_main.f: passed configuration test'
 
       if (first .eq. 1) then
          call smarties_setStateActiondims(comm, STATE_SIZE, NUM_ACTIONS,
@@ -258,4 +263,24 @@
       data cnt /42/
       cnt = cnt + 1
       counter = cnt
+      end
+
+      function good()
+      implicit none
+      intrinsic isnan
+      integer counter
+      logical good
+      real x
+
+      good = .true.
+      if (counter() .ne. 42 + 1) then
+         write(6, *) 'app_main.f: app_main was not reset'
+         good = .false.
+      end if
+      x = -1.0
+      if (.not. isnan(sqrt(x))) then
+         write(6, *) 'app_main.f: isnan is wrong', sqrt(x)
+         good = .false.
+      end if
+      return
       end
