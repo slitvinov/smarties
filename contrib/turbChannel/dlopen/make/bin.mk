@@ -2,10 +2,11 @@
 .SUFFIXES: .o .f
 
 PREFIX = $(HOME)/.local
-CFLAGS = -Ofast -g
+CFLAGS = -O2 -g
 CC = mpicc
 LINK = mpicxx
-M_LDFLAGS = -fopenmp -Wl,-R"`pwd`" -L$(PREFIX)/lib -lsmarties_f77 -lsmarties -ldl
+SMARTIES_F77 = -lsmarties_f77
+M_LDFLAGS = -fopenmp -Wl,-R"`pwd`" -L$(PREFIX)/lib $(SMARTIES_F77) -lsmarties -ldl
 M_CFLAGS= -I$(PREFIX)/include
 
 O = \

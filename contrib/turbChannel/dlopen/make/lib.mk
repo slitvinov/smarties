@@ -4,11 +4,11 @@ include makefile
 
 PREFIX = $(HOME)/.local
 LINK = gfortran
-FCFLAG = -Ofast -g
+FCFLAG = -O2 -g
 FFLAGS += -fPIC $(FCFLAG)
 CFLAGS += -fPIC
-MPI_EXTRA_LIB = -lgfortran
-M_LDFLAGS = -fopenmp -L$(PREFIX)/lib -lsmarties_f77 -lsmarties $(MPI_EXTRA_LIB)
+SMARTIES_F77 = -lsmarties_f77
+M_LDFLAGS = -fopenmp -L$(PREFIX)/lib $(SMARTIES_F77) -lsmarties
 O = $(NOBJS) $(CASENAME).o app_main.o
 ${CASENAME}.f: usrfile
 .f.o:; $(FC) $(FL2) -I$S -c $<
