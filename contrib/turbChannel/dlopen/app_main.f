@@ -32,6 +32,7 @@
          call backtrace()
          call abort()
       end if
+      write(6,*) 'app_main.f: passes configuration test'
       if (first .eq. 1) then
          call smarties_setstateactiondims(comm,
      +        STATE_SIZE, NUM_ACTIONS, AGENT_ID)
@@ -160,6 +161,7 @@ C TSTEP
       cnt = cnt + 1
       counter = cnt
       end
+
       function good()
       implicit none
       intrinsic isnan

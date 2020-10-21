@@ -55,6 +55,8 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       include 'SMARTIES'
 
+      if (any(isnan(vx))) lastep = 1 ! kills Nek if NaN
+
 
       return
       end
