@@ -37,7 +37,7 @@ int smarties_main0_(int argc, char **argv, int nwpe,
   char string[MPI_MAX_ERROR_STRING];
   uintptr_t smarties;
   int resultlen;
-  int rank;
+  int size;
   MPI_Comm mpi;
 
   mpi = MPI_COMM_WORLD;
@@ -47,13 +47,13 @@ int smarties_main0_(int argc, char **argv, int nwpe,
     fprintf(stderr, "%s:%d: mpi failed: %s\n", __FILE__, __LINE__, string);
     return 1;
   }
-  if ((rc = MPI_Comm_rank(mpi, &rank)) != MPI_SUCCESS) {
+  if ((rc = MPI_Comm_size(mpi, &size)) != MPI_SUCCESS) {
     MPI_Error_string(rc, string, &resultlen);
     fprintf(stderr, "%s:%d: mpi failed: %s\n", __FILE__, __LINE__, string);
     return 1;
   }
-  if (rank != nwpe) {
-    fprintf(stderr, "%s:%d: rank=%d != nwpe=%d\n", __FILE__, __LINE__, rank, nwpe);
+  if (size != nwpe) {
+    fprintf(stderr, "%s:%d: size=%d != nwpe=%d\n", __FILE__, __LINE__, size, nwpe);
     return 1;
   }
   if (function(&smarties, &mpi, data) != 0) {
