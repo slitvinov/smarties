@@ -1,0 +1,7 @@
+set -e
+gfortran -shared -O2 lib.f
+gfortran -Ofast main.f a.out -o a
+gcc -Ofast main.c -ldl -o b
+LD_LIBRARY_PATH=. ./a
+./b
+
