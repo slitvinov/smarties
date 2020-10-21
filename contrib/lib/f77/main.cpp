@@ -96,16 +96,16 @@ static int main0(smarties::Communicator *const smarties_comm,
   i = (uintptr_t)(smarties_comm);
   if (sscanf(argv[argc - 1], "%p", (void**)&d) != 1) {
     fprintf(stderr, "%s:%d: sscanf cannot get a point\n", __FILE__, __LINE__);
-    return 1;
+    abort();
   }
   if (d->magic != MAGIC) {
     fprintf(stderr, "%s:%d: wrong pointer to client's data\n", __FILE__, __LINE__);
-    return 1;
+    abort();
   }
   rc = d->function(&i, &mpi, d->data);
   if (rc != 0) {
     fprintf(stderr, "%s:%d: client failed\n", __FILE__, __LINE__);
-    return 1;
+    abort();
   }
   return 0;
 }

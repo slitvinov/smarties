@@ -45,25 +45,25 @@ int smarties_main0_(int argc, char **argv, int nwpe,
 			    &prov)) != MPI_SUCCESS) {
     MPI_Error_string(rc, string, &resultlen);
     fprintf(stderr, "%s:%d: mpi failed: %s\n", __FILE__, __LINE__, string);
-    return 1;
+    abort();
   }
   if ((rc = MPI_Comm_size(mpi, &size)) != MPI_SUCCESS) {
     MPI_Error_string(rc, string, &resultlen);
     fprintf(stderr, "%s:%d: mpi failed: %s\n", __FILE__, __LINE__, string);
-    return 1;
+    abort();
   }
   if (size != nwpe) {
     fprintf(stderr, "%s:%d: size=%d != nwpe=%d\n", __FILE__, __LINE__, size, nwpe);
-    return 1;
+    abort();
   }
   if (function(&smarties, &mpi, data) != 0) {
     fprintf(stderr, "%s:%d: (function) failed\n", __FILE__, __LINE__);
-    return 1;
+    abort();
   }
   if (MPI_Finalize() != MPI_SUCCESS) {
     MPI_Error_string(rc, string, &resultlen);
     fprintf(stderr, "%s:%d: mpi failed: %s\n", __FILE__, __LINE__, string);
-    return 1;
+    abort();
   }
   return 0;
 }
