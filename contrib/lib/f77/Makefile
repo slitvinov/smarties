@@ -4,7 +4,7 @@
 
 PREFIX = $(HOME)/.local
 CXXFLAGS = -O2 -g
-CCFLAGS = -O2 -g
+CFLAGS = -O2 -g
 CXX = mpicxx
 CC = mpicc
 LINK = $(CXX)
