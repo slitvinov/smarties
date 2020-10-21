@@ -1,0 +1,36 @@
+Using seed 86736866
+Master processes to communicate via sockets.server: new connection on socket 6
+ Fortran side begins
+as 6 components, 5 of which are observed. Action vector has 1 continuous-valued components.
+Action vector components : [ 0 : bound to (-10.0:10.0) ]
+Creating learning algorithm #00
+==========================================================================
+              Continuous-action V-RACER with Gaussian policy              
+==========================================================================
+Experience Replay storage: First In First Out.
+Experience Replay sampling algorithm: uniform probability.
+Returns estimation method: retrace.
+Using ReF-ER with clipping parameter C=0.707107, tolerance D=0.100000 and annealing E=0.000000
+    Single net with outputs: [0] : V(s),
+                             [1 2] : policy mean and stdev,
+    Size per entry = [1 1 1].
+Initializing net approximator.
+Layers composition:
+(0) Input Layer of size:5
+(1) SoftSign InnerProduct Layer of size:128 linked to Layer:0 of size:5
+(2) SoftSign InnerProduct Layer of size:128 linked to Layer:1 of size:128
+(3) Parametric Residual Connection of size:128
+(4) Linear output InnerProduct Layer of size:2 linked to Layer:3 of size:128
+(5) Parameter Layer of size:1. Initialized: -2.064742
+Optimizer: Parameter updates using Adam SGD algorithm.
+Restarting from saved policy...
+Parameters restart file ./agent_00_net_weights.raw not found.
+Parameters restart file ./agent_00_net_tgt_weights.raw not found.
+Parameters restart file ./agent_00_net_1stMom.raw not found.
+Parameters restart file ./agent_00_net_2ndMom.raw not found.
+Restarting from saved policy...
+Parameters restart file ./agent_00_scaling.raw not found.
+Collected 0% of data required to begin training. Collected 10% of data required to begin training. Collected 21% of data required to begin training. Collected 37% of data required to begin training. Collected 48% of data required to begin training. Collected 67% of data required to begin training. Collected 74% of data required to begin training. Collected 91% of data required to begin training. Collected all data required to begin training.     
+SETUP: State vector has 6 components, 5 of which are observed. Action vector has 1 continuous-valued components.
+Action vector components : [ 0 : bound to (-10.0:10.0) ]
+App recvd end-of-training signal.
