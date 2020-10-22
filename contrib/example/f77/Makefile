@@ -1,7 +1,5 @@
 .POSIX:
-.SUFFIXES: .o .f
-.PHONY: clean all
-
+.SUFFIXES: .o .f .c
 PREFIX = $(HOME)/.local
 CFLAGS = -O2 -g
 FCFLAGS = -O2 -g
