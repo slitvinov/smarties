@@ -26,7 +26,7 @@ END {
                 for (k = 1; (c, k) in adj && !((nxt = adj[c, k]) in seen); k++) {
 		    q[++j] = nxt
 		    if (!(nxt in ban))
-			print cpp2obj(s) " : " nxt | "sort"
+			print cpp2obj(s) " : " nxt | "sort | uniq"
                 }
             }
         }
