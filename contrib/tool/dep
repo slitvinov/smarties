@@ -33,7 +33,7 @@ END {
 }
 
 function cpp2obj(s) {
-    sub(/.cpp$/, ".o", s)
+    sub(/\.cpp$/, ".o", s)
     return s
 }
 '
