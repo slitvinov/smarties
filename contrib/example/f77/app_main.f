@@ -71,16 +71,18 @@
 
       subroutine reset()
       implicit none
+      double precision rnd
       double precision F
       double precision t
       double precision u(4)
       integer step
       integer i
       common /global/ u, step, F, t
+      intrinsic rand
 
-      call random_number(u)
       do i = 1, 4
-         u(i) = (u(i)-0.5)*2.*0.05
+         rnd = rand()
+         u(i) = (rnd-0.5)*2.*0.05
       end do
       F = 0
       t = 0

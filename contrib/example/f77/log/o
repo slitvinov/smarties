@@ -1,4 +1,4 @@
-Using seed 86736866
+Using seed 540877671
 Master processes to communicate via sockets.server: new connection on socket 6
  Fortran side begins
 as 6 components, 5 of which are observed. Action vector has 1 continuous-valued components.
@@ -30,7 +30,7 @@ Parameters restart file ./agent_00_net_1stMom.raw not found.
 Parameters restart file ./agent_00_net_2ndMom.raw not found.
 Restarting from saved policy...
 Parameters restart file ./agent_00_scaling.raw not found.
-Collected 0% of data required to begin training. Collected 10% of data required to begin training. Collected 21% of data required to begin training. Collected 37% of data required to begin training. Collected 48% of data required to begin training. Collected 67% of data required to begin training. Collected 74% of data required to begin training. Collected 91% of data required to begin training. Collected all data required to begin training.     
+Collected 0% of data required to begin training. Collected 12% of data required to begin training. Collected 20% of data required to begin training. Collected 33% of data required to begin training. Collected 40% of data required to begin training. Collected 52% of data required to begin training. Collected 66% of data required to begin training. Collected 80% of data required to begin training. Collected all data required to begin training.     
 SETUP: State vector has 6 components, 5 of which are observed. Action vector has 1 continuous-valued components.
 Action vector components : [ 0 : bound to (-10.0:10.0) ]
 App recvd end-of-training signal.
