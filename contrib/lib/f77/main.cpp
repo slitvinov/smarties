@@ -1,4 +1,3 @@
-#include <../source/smarties/Communicator.h>
 #include <smarties.h>
 #include "smarties_f77.h"
 
