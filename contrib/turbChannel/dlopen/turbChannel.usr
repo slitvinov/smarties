@@ -57,17 +57,20 @@ c-----------------------------------------------------------------------
 
       if (any(isnan(vx))) lastep = 1 ! kills Nek if NaN
 
+      AGENT_ID = 0 ! need to change if using multiple agents
+
       if (istep.eq.0) then
          call getStateReward()
          call smarties_sendInitState(smarties_comm, state, 
      &                               STATE_SIZE, AGENT_ID)
+         return
       end if 
 
+      call getStateReward()
       call smarties_recvAction(smarties_comm, action, 
      &                         NUM_ACTIONS, AGENT_ID)
-      call getStateReward()
       call smarties_sendState(smarties_comm, state, STATE_SIZE,
-     &       reward, AGENT_ID)
+     &                        reward, AGENT_ID)
 
       return
       end
