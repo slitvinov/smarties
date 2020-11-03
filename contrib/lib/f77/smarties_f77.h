@@ -13,6 +13,7 @@ void smarties_setstateobservable_(uintptr_t *, int *bobs, int *dim, int *);
 void smarties_setstatescales_(uintptr_t *, double *hi, double *lo, int *dim,
                               int *);
 void smarties_setstateactiondims_(uintptr_t *, int *sdim, int *adim, int *);
+void smarties_setnumagents_(uintptr_t *, int *);
 int smarties_terminatetraining_(uintptr_t *);
 
 int smarties_main0_(int argc, char **, int nwpe, int (*f)(uintptr_t*, void *mpi, void*), void *);
