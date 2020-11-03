@@ -74,6 +74,12 @@ void smarties_setstateactiondims_(uintptr_t *i, int *state_dim, int *action_dim,
       *state_dim, *action_dim, *agent);
 }
 
+void smarties_setnumagents_(uintptr_t *i, int *nagent) {
+  void *p;
+  p = (void *)(*i);
+  static_cast<smarties::Communicator *>(p)->setNumAgents(*nagent);
+}
+
 int smarties_terminatetraining_(uintptr_t *i) {
   void *p;
   p = (void *)(*i);
