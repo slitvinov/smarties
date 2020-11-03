@@ -20,6 +20,14 @@
       integer rank
       logical bounded
 
+      integer NUM_RE
+      integer NUM_GRID
+      parameter (NUM_RE=3)
+      parameter (NUM_GRID=2)
+      integer Re, Grid, time_seed
+      real*4  r1, r2
+      character*128 case_name
+
       character*128 cwd
 
       smarties_comm = comm
@@ -48,16 +56,46 @@
      +           STATE_SIZE, AGENT_ID)
          end do 
 
-         ! copies necessary file to working directory
-         open(unit=1,file='SESSION.NAME')
-         call getcwd(cwd)
-         write(1,'(A)') 'turbChannel'
-         write(1,'(A)') trim(cwd)//trim('/')
-         close(1)
-         call system('cp ../turbChannel.re2 .')
-         call system('cp ../turbChannel.ma2 .')
-         call system('cp ../turbChannel.par .')
       end if
+
+      time_seed = MPI_Wtime()
+      call srand(time_seed)
+      r1    = RAND()
+      r1    = RAND()
+      Re   = FLOOR(NUM_RE*r1)
+      r2    = RAND()
+      Grid = FLOOR(NUM_GRID*r2)
+      Grid = 1
+
+      case_name = 'turbChannel'
+
+      if (Re.eq.0) then
+         case_name = trim(case_name)//trim('_Re2000')
+      elseif (Re.eq.1) then
+         case_name = trim(case_name)//trim('_Re4200')
+      else
+         case_name = trim(case_name)//trim('_Re8000')
+      end if
+
+      if (Grid.eq.0) then
+         case_name = trim(case_name)//trim('_G0')
+      else
+         case_name = trim(case_name)//trim('_G1')
+      end if
+
+      open(unit=1,file='SESSION.NAME')
+      call getcwd(cwd)
+      write(1,'(A)') 'turbChannel'
+      write(1,'(A)') trim(cwd)//trim('/')
+      close(1)
+      call system(trim('cp ../case_folder/')//trim(case_name)//
+     &trim('.re2 ./turbChannel.re2'))
+      call system(trim('cp ../case_folder/')//trim(case_name)//
+     &trim('.ma2 ./turbChannel.ma2'))
+      call system(trim('cp ../case_folder/')//trim(case_name)//
+     &trim('.par ./turbChannel.par'))
+      call system(trim('cp ../case_folder/')//trim(case_name)//
+     &trim('.init ./turbChannel.init'))
 
       call nek_init(mpicomm)
       call nek_solve()
