@@ -29,6 +29,10 @@ void smarties_setstatescales_(uintptr_t *i, double *upper_scale,
 
 void smarties_setstateactiondims_(uintptr_t *i, int *state_dim, int *action_dim,
 				  int *agent) {}
+
+void smarties_setnumagents_(uintptr_t *i, int *nagent) {
+}
+
 int smarties_terminatetraining_(uintptr_t *i) { return 0; }
 
 int smarties_main0_(int argc, char **argv, int nwpe,
