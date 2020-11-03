@@ -34,31 +34,33 @@
       write(6,*) 'app_main.f: passes configuration test'
       if (first .eq. 1) then
          call smarties_setnumagents(comm,NUM_AGENTS)
-         call smarties_setstateactiondims(comm,
-     +        STATE_SIZE, NUM_ACTIONS, AGENT_ID)
-         bounded = .true.
-         call smarties_setactionscales(comm,
-     +        upper_action, lower_action,
-     +        bounded, NUM_ACTIONS, AGENT_ID)
-         call smarties_setStateObservable(comm,
-     +        b_observable, STATE_SIZE, AGENT_ID)
-         call smarties_setStateScales(comm, upper_state, lower_state,
-     +        STATE_SIZE, AGENT_ID)
+         ! initialize all agents
+         do AGENT_ID = 0,NUM_AGENTS-1
+            call smarties_setstateactiondims(comm,
+     +           STATE_SIZE, NUM_ACTIONS, AGENT_ID)
+            bounded = .true.
+            call smarties_setactionscales(comm,
+     +           upper_action, lower_action,
+     +           bounded, NUM_ACTIONS, AGENT_ID)
+            call smarties_setStateObservable(comm,
+     +           b_observable, STATE_SIZE, AGENT_ID)
+            call smarties_setStateScales(comm, upper_state, lower_state,
+     +           STATE_SIZE, AGENT_ID)
+         end do 
+
+         ! copies necessary file to working directory
+         open(unit=1,file='SESSION.NAME')
+         call getcwd(cwd)
+         write(1,'(A)') 'turbChannel'
+         write(1,'(A)') trim(cwd)//trim('/')
+         close(1)
+         call system('cp ../turbChannel.re2 .')
+         call system('cp ../turbChannel.ma2 .')
+         call system('cp ../turbChannel.par .')
       end if
-      ! copies necessary file to working directory
-      open(unit=1,file='SESSION.NAME')
-      call getcwd(cwd)
-      write(1,'(A)') 'turbChannel'
-      write(1,'(A)') trim(cwd)//trim('/')
-      close(1)
-      call system('cp ../turbChannel.re2 .')
-      call system('cp ../turbChannel.ma2 .')
-      call system('cp ../turbChannel.par .')
+
       call nek_init(mpicomm)
       call nek_solve()
-      call smarties_sendTermState(comm, state, STATE_SIZE,
-     +     reward, AGENT_ID)
-      !call nek_end()
 
       write(6,*) 'app_main.f: Fortran side ends'
       app_main = 0
