@@ -1,7 +1,9 @@
       integer AGENT_ID
       integer NUM_ACTIONS
       integer STATE_SIZE
+      integer NUM_AGENTS
       parameter (AGENT_ID=0)
+      parameter (NUM_AGENTS=1)
       parameter (NUM_ACTIONS=1)
       parameter (STATE_SIZE=6)
       integer smarties_step
