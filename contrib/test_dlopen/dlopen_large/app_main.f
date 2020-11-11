@@ -1,7 +1,5 @@
       function app_main(comm, mpicomm, first)
       implicit none
-      intrinsic backtrace
-      intrinsic abort
       intrinsic flush
       logical good
 
@@ -36,33 +34,36 @@
       write(6,*) 'app_main.f: Fortran side begins'
       if (.not. good()) then
          write(6,*) 'app_main.f: failed configuration test'
-         call flush(6)
-         call backtrace()
-         call abort()
+         call fail()
       end if
       write(6,*) 'app_main.f: passes configuration test'
       call mpi_comm_rank(mpicomm, rank, mpiIerr)
+      if (mpiIerr .ne. mpi_success) then
+         write(6, *) 'app_main.f: mpi_comm_rank failed'
+         call fail()
+      endif
       call mpi_comm_size(mpicomm, numProcs, mpiIerr)
+      if (mpiIerr .ne. mpi_success) then
+         write(6, *) 'app_main.f: mpi_comm_size failed'
+         call fail()
+      endif
       write(*,*) 'rank #',rank,' of ',numProcs,' is alive in Fortran'
       if (first .eq. 1) then
-         call smarties_setnumagents(comm,NUM_AGENTS)
+         call smarties_setNumAgents(comm,NUM_AGENTS)
          ! initialize all agents
          do AGENT_ID = 0,NUM_AGENTS-1
-            call smarties_setstateactiondims(comm,
+            call smarties_setStateActionDims(comm,
      +           STATE_SIZE, NUM_ACTIONS, AGENT_ID)
             bounded = .true.
-            call smarties_setactionscales(comm,
+            call smarties_setActionScales(comm,
      +           upper_action, lower_action,
      +           bounded, NUM_ACTIONS, AGENT_ID)
             call smarties_setStateObservable(comm,
      +           b_observable, STATE_SIZE, AGENT_ID)
             call smarties_setStateScales(comm, upper_state, lower_state,
      +           STATE_SIZE, AGENT_ID)
-         end do 
-
+         end do
       end if
-
-
       if (rank.eq.0) then
          case_name = 'turbChannel'
 
@@ -80,10 +81,15 @@
          call system(trim('cp ../')//trim(case_name)//
      &   trim('.init ./turbChannel.init'))
       end if
-
       call nek_init(mpicomm)
+      call mpi_barrier(mpicomm, mpiIerr)
+      if (mpiIerr .ne. mpi_success) then
+         write(6, *) 'app_main.f: mpi_barrier failed'
+         call fail()
+      endif
+      write(6, *), 'app_main.f: passes mpi_barrier'
+      call flush(6)
       call nek_solve()
-
       write(6,*) 'app_main.f: Fortran side ends'
       app_main = 0
       end
@@ -116,4 +122,15 @@
          good = .false.
       end if
       return
+      end
+
+      subroutine fail()
+      implicit none
+      intrinsic abort
+      intrinsic backtrace
+      intrinsic flush
+
+      call flush(6)
+      call backtrace()
+      call abort()
       end
