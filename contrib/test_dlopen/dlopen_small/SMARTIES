@@ -1,0 +1,31 @@
+      integer AGENT_ID
+      integer NUM_AGENTS
+      integer NUM_ACTIONS
+      integer STATE_SIZE
+      parameter (NUM_AGENTS=1)
+      parameter (NUM_ACTIONS=1)
+      parameter (STATE_SIZE=6)
+      integer smarties_step
+
+      double precision reward
+      double precision lower_action(NUM_ACTIONS)
+      double precision lower_state(STATE_SIZE)
+      double precision state(STATE_SIZE)
+      double precision action(NUM_ACTIONS)
+      double precision upper_action(NUM_ACTIONS)
+      double precision upper_state(STATE_SIZE)
+      logical b_observable(STATE_SIZE)
+
+      data upper_action /0.01/
+      data lower_action /0/
+      data b_observable /.true.,.true.,.true.,.true.,.true.,.true./
+      data upper_state / 1,  1,  1,  1,  1,  1/
+      data lower_state /-1, -1, -1, -1, -1, -1/
+
+      integer*8 smarties_comm
+
+
+      common /smarties/ lower_action, upper_action, action,
+     &                  lower_state, upper_state, state,
+     &                  reward, b_observable, smarties_comm,
+     &                  smarties_step
