@@ -1,5 +1,6 @@
 #include "smarties.h"
 #include "glider.h"
+#define USE_SMARTIES
 
 inline void app_main(smarties::Communicator*const comm)
 {
