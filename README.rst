@@ -45,7 +45,7 @@ C++
 -----
 The basic structure of a C++ based application for smarties is structured as:
 
-.. code:: shell
+.. code:: c++
 
     #include "smarties.h"
 
@@ -91,7 +91,7 @@ Python
 -----
 smarties uses pybind11 for seamless compatibility with python. The structure of the environment application is almost the same as the C++ version:
 
-.. code:: shell
+.. code:: python
 
     import smarties as rl
 
