@@ -28,12 +28,14 @@ Install
 =======
 
 .. code:: shell
-	  make install
+
+    make install
 
 or
 
 .. code:: shell
-	  make install 'MPICXX = mpicxx.openmpi'
+
+    make install 'MPICXX = mpicxx.openmpi'
 
 
 Environment code samples
