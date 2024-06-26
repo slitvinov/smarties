@@ -1,11 +1,3 @@
-//
-//  main.cpp
-//  cart-pole
-//
-//  Created by Dmitry Alexeev on 04/06/15.
-//  Copyright (c) 2015 Dmitry Alexeev. All rights reserved.
-//
-
 #include <cmath>
 #include <random>
 #include <cstdio>
@@ -36,7 +28,7 @@ inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
   const double A = 1;
   const double B = 100;
   const auto F = [](const double x, const double y,
-                    const double a, const double b) {
+		    const double a, const double b) {
      return std::pow(x-a, 2) + b * std::pow(y - x*x, 2);
   };
 
@@ -66,3 +58,5 @@ int main(int argc, char**argv)
   return 0;
 }
 
+//  Created by Dmitry Alexeev on 04/06/15.
+//  Copyright (c) 2015 Dmitry Alexeev. All rights reserved.
