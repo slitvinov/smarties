@@ -43,48 +43,17 @@ Environment code samples
 
 C++
 -----
-The basic structure of a C++ based application for smarties is structured as:
+An example of C++ client
 
-.. code:: c++
+.. literalinclude :: apps/main.cpp
+   :language: c++
 
-    #include "smarties.h"
 
-    inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
-    {
-      comm->setStateActionDims(state_dimensionality, action_dimensionality);
-      Environment env;
-
-      while(true) { //train loop
-        env.reset(comm->getPRNG()); // prng with different seed on each process
-        comm->sendInitState(env.getState()); //send initial state
-
-        while (true) { //simulation loop
-          std::vector<double> action = comm->recvAction();
-          bool isTerminal = env.advance(action); //advance the simulation:
-
-          if(isTerminal) { //tell smarties that this is a terminal state
-            comm->sendTermState(env.getState(), env.getReward());
-            break;
-          } else  # normal state
-            comm->sendState(env.getState(), env.getReward());
-        }
-      }
-    }
-
-    int main(int argc, char**argv)
-    {
-      smarties::Engine e(argc, argv);
-      if( e.parse() ) return 1;
-      e.run( app_main );
-      return 0;
-    }
-
-For compilation, the following flags should be set in order for the compiler to find smarties:
+to compile
 
 .. code:: shell
 
-    LDFLAGS="-L${SMARTIES_ROOT}/lib -lsmarties"
-    CPPFLAGS="-I${SMARTIES_ROOT}/include"
+    mpicxx main.cpp -I$HOME/.local/include/ -L$HOME/.local/lib -lsmarties -fopenmp
 
 
 Python
