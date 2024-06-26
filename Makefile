@@ -5,7 +5,7 @@
 PREFIX = $(HOME)/.local
 CXX = mpicxx
 CXXFLAGS = -O2 -g
-M_CXXFLAGS = -DNDEBUG -pthread -fopenmp
+M_CXXFLAGS = -DNDEBUG -fopenmp
 
 include obj.mk
 include hdr.mk
