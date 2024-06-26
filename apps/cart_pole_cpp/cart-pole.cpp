@@ -98,14 +98,7 @@ struct CartPole {
   }
 
   double getReward() {
-#if SWINGUP
-    double angle = std::fmod(u.y3, 2 * M_PI);
-    angle = angle < 0 ? angle + 2 * M_PI : angle;
-    return std::fabs(angle - M_PI) < M_PI / 6 ? 1 : 0;
-#else
-    // return -1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
     return 1 - (std::fabs(u.y3) > M_PI / 15 || std::fabs(u.y1) > 2.4);
-#endif
   }
 
   Vec4 Diff(Vec4 _u, double _t) {
@@ -151,9 +144,10 @@ inline void app_main(smarties::Communicator *const comm, int argc,
     env.reset(comm->getPRNG());
     comm->sendInitState(env.getState());
     while (true) {
-      std::vector<double> action = comm->recvAction();
-      if (comm->terminateTraining())
+      if (comm->terminateTraining()) {
         return;
+      }
+      std::vector<double> action = comm->recvAction();
       bool poleFallen = env.advance(action);
       std::vector<double> state = env.getState();
       double reward = env.getReward();
