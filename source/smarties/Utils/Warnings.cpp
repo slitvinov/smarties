@@ -17,7 +17,6 @@
 #define BACKWARD_HAS_UNWIND 0
 #define BACKWARD_HAS_BACKTRACE 0
 #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
-#include "../../extern/backward.hpp"
 #endif
 
 #include <mutex>
