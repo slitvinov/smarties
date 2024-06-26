@@ -142,6 +142,9 @@ inline void app_main(smarties::Communicator *const comm, int argc,
   CartPole env;
   while (true) {
     env.reset(comm->getPRNG());
+    if (comm->terminateTraining()) {
+      return;
+    }
     comm->sendInitState(env.getState());
     while (true) {
       if (comm->terminateTraining()) {
@@ -151,6 +154,9 @@ inline void app_main(smarties::Communicator *const comm, int argc,
       bool poleFallen = env.advance(action);
       std::vector<double> state = env.getState();
       double reward = env.getReward();
+      if (comm->terminateTraining()) {
+        return;
+      }
       if (poleFallen) {
         comm->sendTermState(state, reward);
         break;
