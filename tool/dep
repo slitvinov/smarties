@@ -1,0 +1,39 @@
+#!/bin/sh
+
+awk '
+sub(/^[ \t]*#[ \t]*include[ \t]*"/, "") && sub(/".*/, "") {
+    d = FILENAME
+    sub(/[^\/]*$/, "", d)
+    sub(/\/$/, "", d)
+    printf "\"%s\" \"%s\"\n", FILENAME, d  "/" $0
+}
+' `find source/smarties -name '*.cpp' -or -name '*.h'` |
+  xargs realpath --relative-base=. | xargs -n2 |
+awk '
+{
+    adj[$1, ++n[$1]] = $2
+}
+END {
+    ban["source/smarties/Network/Layers/cblas.h"]
+    ban["source/smarties/Network/Layers/mkl_cblas.h"]
+    for (s in n)
+	if (s ~ /.cpp$/) {
+	    split("", seen)
+	    i = j = 0
+	    q[++j] = s
+	    while (++i in q) {
+		seen[c = q[i]]
+		for (k = 1; (c, k) in adj && !((nxt = adj[c, k]) in seen); k++) {
+		    q[++j] = nxt
+		    if (!(nxt in ban))
+			print cpp2obj(s) " : " nxt | "sort | uniq"
+		}
+	    }
+	}
+}
+
+function cpp2obj(s) {
+    sub(/\.cpp$/, ".o", s)
+    return s
+}
+'
