@@ -55,7 +55,6 @@ inline void app_main(smarties::Communicator*const comm, int argc, char**argv)
       }
     }
   }
-  return 0;
 }
 
 int main(int argc, char**argv)
