@@ -17,10 +17,10 @@ objectives**
 To cite this repository, reference the paper::
 
     @inproceedings{novati2019a,
-        title={Remember and Forget for Experience Replay},
-        author={Novati, Guido and Koumoutsakos, Petros},
-        booktitle={Proceedings of the 36\textsuperscript{th} International Conference on Machine Learning},
-        year={2019}
+	title={Remember and Forget for Experience Replay},
+	author={Novati, Guido and Koumoutsakos, Petros},
+	booktitle={Proceedings of the 36\textsuperscript{th} International Conference on Machine Learning},
+	year={2019}
     }
 
 
@@ -45,8 +45,43 @@ C++
 -----
 An example of C++ client
 
-.. literalinclude :: apps/main.cpp
-   :language: c++
+.. code:: c++
+
+    #include "smarties.h"
+    struct Environment {
+      void reset(std::mt19937 &){};
+      int advance(std::vector<double> action) { return 0; }
+      std::vector<double> getState() { return std::vector<double>(); }
+      double getReward(void) { return 0.0; };
+    };
+
+    inline void app_main(smarties::Communicator *const comm, int argc,
+			 char **argv) {
+      int state_dimensionality = 3, action_dimensionality = 2;
+      comm->setStateActionDims(state_dimensionality, action_dimensionality);
+      Environment env;
+      while (true) {
+	env.reset(comm->getPRNG());
+	comm->sendInitState(env.getState());
+	while (true) {
+	  std::vector<double> action = comm->recvAction();
+	  bool isTerminal = env.advance(action);
+	  if (isTerminal) {
+	    comm->sendTermState(env.getState(), env.getReward());
+	    break;
+	  } else
+	    comm->sendState(env.getState(), env.getReward());
+	}
+      }
+    }
+
+    int main(int argc, char **argv) {
+      smarties::Engine e(argc, argv);
+      if (e.parse())
+	return 1;
+      e.run(app_main);
+      return 0;
+    }
 
 
 to compile
@@ -62,25 +97,25 @@ smarties uses pybind11 for seamless compatibility with python. The structure of 
 
 .. code:: python
 
-    import smarties as rl
+import smarties as rl
 
     def app_main(comm):
       comm.setStateActionDims(state_dimensionality, action_dimensionality)
       env = Environment()
 
       while 1: #train loop
-        env.reset() # (slightly) random initial conditions are best
-        comm.sendInitState(env.getState())
+	env.reset() # (slightly) random initial conditions are best
+	comm.sendInitState(env.getState())
 
-        while 1: #simulation loop
-          action = comm.recvAction()
-          isTerminal = env.advance(action)
+	while 1: #simulation loop
+	  action = comm.recvAction()
+	  isTerminal = env.advance(action)
 
-          if terminated:  # tell smarties that this is a terminal state
-            comm.sendTermState(env.getState(), env.getReward())
-            break
-          else: # normal state
-            comm.sendState(env.getState(), env.getReward())
+	  if terminated:  # tell smarties that this is a terminal state
+	    comm.sendTermState(env.getState(), env.getReward())
+	    break
+	  else: # normal state
+	    comm.sendState(env.getState(), env.getReward())
 
     if __name__ == '__main__':
       e = rl.Engine(sys.argv)
@@ -182,7 +217,7 @@ The applications that are already included are:
 
 - ``apps/CUP2D_2fish``: and similarly named applications require `CubismUP 2D <https://github.com/novatig/CubismUP_2D>`_.
 
-- ``apps/CUP3D_LES_HIT``: requires `CubismUP 3D <https://github.com/cselab/CubismUP_3D>`_. Refer to the README file therein for more information and to access pre-trained models.  
+- ``apps/CUP3D_LES_HIT``: requires `CubismUP 3D <https://github.com/cselab/CubismUP_3D>`_. Refer to the README file therein for more information and to access pre-trained models.
 
 Examples of solved problems
 ---------------------------
@@ -221,69 +256,69 @@ The second argument when launching ``smarties`` is the settings file describing 
 |
 
 - "learner": Chosen learning algorithm. One of: 'VRACER', 'RACER', 'PPO', 'DPG', 'ACER', 'NAF', 'DQN', 'CMA', 'PYTORCH'. Default is VRACER.
-    
+
 - "returnsEstimator": Algorithm used to compute return estimates. Accepts: 'retrace', 'retraceExplore' (which adds (1-gamma)*|qRet - qNet| to rewards), 'GAE', 'default' (which is default and yields retrace for (V)RACER and GAE for PPO), 'none'. Only NAF and DPG are compatible with all options. PPO and (V)RACER are incompatible with 'none'. ACER and DQN are not affected.
 
 - "ERoldSeqFilter": Filter algorithm to remove old episodes from memory buffer. Accepts: 'oldest', 'farpolfrac', 'maxkldiv'. Oldest is default and corresponds to first-in-first-out.
-    
+
 - "dataSamplingAlgo": Algorithm for sampling the Replay Buffer. Accepts 'uniform', 'PERrank', 'PERerr' (prioritized experience replay), and other experimental implementations of uniform sampling. Uniform is default (and best).
-    
+
 |
 
 - "gamma": Discount factor. Defaults to 0.995.
-    
+
 - "lambda": Lambda for off-policy return-based estimators (used in retrace and GAE). Defaults to 1.
-    
+
 |
 
 - "clipImpWeight": Clipping range for off-policy importance weights. Triggers usage of ReF-ER when selected with (V)RACER, DDPG, NAF, DQN. Corresponds to: C in ReF-ER's Rule 1, epsilon in PPO's surrogate policy objective, c in ACER's truncation and bias correction. Defaults to sqrt(dim(action) / 2.0).
-    
+
 - "klDivConstraint": Constraint on max KL div. USed by PPO and ACER. Corresponds to: d_targ in PPO's penalization, delta in ACER's truncation and bias correction. Defaults to 0.01.
-    
+
 - "explNoise": Noise added to policy. For discrete policies it may be the probability of picking a random action (detail depend on learning algo), for continuous policies it is the (initial) standard deviation. Defaults to sqrt(0.2).
-    
+
 - "penalTol": Tolerance used for adaptive off-policy penalization methods. Currently corresponds only to D in ReF-ER's Rule 2. Defaults to 0.1.
-    
+
 |
 
 - "maxTotObsNum": Max number of transitions in training buffer. Defaults to 2^14 * sqrt(dim(action) + dim(state)).
-    
+
 - "minTotObsNum": Min number of transitions in training buffer before training starts. If minTotObsNum=0, is set equal to maxTotObsNum i.e. fill RM before training starts. Defaults to 0.
-    
+
 - "obsPerStep": Ratio of observed *transitions* to gradient steps. E.g. 0.1 means that for every observation learner does 10 gradient steps. Defaults to 1.
-    
+
 |
 
 - "learnrate": Learning rate. Defaults to 1e-4.
-    
+
 - "ESpopSize": Population size for CMA-ES algorithm. Only compatible with (V)RACER. If unset, or set to <2, we use Adam to optimize network parameters. Defaults to 1.
-    
+
 - "batchSize": Network training batch size. Defaults to 256.
-    
+
 - "epsAnneal": Annealing rate for network learning rate and ReF-ER clipping parameters (if enabled). Defaults to 5e-7, which halves the learn rate in 2e6 grad steps.
-    
-- "nnLambda": Penalization factor for network weights. It will be multiplied by learn rate: w -= eta * nnLambda * w. 
-    
+
+- "nnLambda": Penalization factor for network weights. It will be multiplied by learn rate: w -= eta * nnLambda * w.
+
 - "targetDelay": Copy delay for Target Nets (TNs). If 0, TNs are disabled. If 'val'>1: every 'val' grad steps network's W copied onto TN (like DQN). If 'val'<1: every grad step TN updated by exp. averaging with rate 'val' (like DPG). Only compatible with ACER, DQN, DDPG, and NAF.
-  
+
 |
 
 - "nnType": Type of non-output layers read from settings. Accepts 'RNN', 'GRU', 'LSTM', everything else maps to feed-forward NN. Conv2D layers need to be built in environment directly with the API described below. Defaults to 'FFNN'.
-    
-- "nnLayerSizes": Sizes of non-convolutional layers (LSTM/RNN/FFNN). Defaults to [128, 128]. 
-    
+
+- "nnLayerSizes": Sizes of non-convolutional layers (LSTM/RNN/FFNN). Defaults to [128, 128].
+
 - "encoderLayerSizes": Sizes of non-convolutional encoder layers (LSTM/RNN/FFNN). E.g. '64 64'. This only applies to networks which have multiple networks (e.g. policy and value). The encoder layers (and any Conv2D layers) are shared by all networks. For example, when using PPO, setting "encoderLayerSizes" to 64 and "nnLayerSizes" to 64 means that an encoder layer of size 64 will be created. The policy and value network will have one layer of size 64 and take as input the output of the encoder. Defaults to [0].
-  
+
 |
 
 - "nnBPTTseq": Number of previous steps considered by RNN's back-propagation through time window. No effect if using FFNN. Defaults to 16.
-    
+
 - "nnFunc": Activation function for non-output layers (which is almost always linear) which are built from settings. ('Relu', 'Tanh', 'Sigm', 'PRelu', 'softSign', 'softPlus', ...). Defaults to 'SoftSign'.
-    
+
 - "nnOutputFunc": Activation function for output layers. Defaults to 'Linear'.
-    
+
 - "outWeightsPrefac": Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal Xavier initialization. Defaults to 0.1.
-  
+
 |
 
 - "saveFreq": Number of gradient steps between writing of checkpoint file of learner's state. Defaults to 200000.
