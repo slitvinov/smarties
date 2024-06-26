@@ -1,7 +1,6 @@
 .POSIX:
 .SUFFIXES:
 CXX = mpicxx
-FCFLAGS = -O2 -g
 PREFIX = $(HOME)/.local
 FLAGS_SMARTIES = -I'$(PREFIX)'/include -L'$(PREFIX)'/lib -lsmarties -fopenmp \
 	-lmpi_mpifh -lgfortran

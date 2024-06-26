@@ -8,7 +8,7 @@
 #define __RANDACT 0
 #define __NGENSKIP 1
 #include "cmaes_interface.h"
-#include "Communicator.h"
+#include "smarties.h"
 #include <random>
 #include <chrono>
 #include <algorithm>
@@ -49,7 +49,7 @@ int main(int argn, char **args)
 
   #if __RLON
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
-    Communicator comm(sock, stateDim, actinDim);
+    smarties::Communicator comm(sock, stateDim, actinDim);
   #endif
 
   const int thrid = 0; //omp_get_thread_num();

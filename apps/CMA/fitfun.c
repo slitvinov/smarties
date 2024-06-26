@@ -1,7 +1,5 @@
 #include <math.h>
-#include <cmath>
-
-#include "gsl_headers.h"
+#include <stdio.h>
 #include "fitfun.h"
 
 
