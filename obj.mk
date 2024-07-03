@@ -12,7 +12,6 @@ source/smarties/Learners/DPG.o\
 source/smarties/Learners/DQN.o\
 source/smarties/Learners/Learner_approximator.o\
 source/smarties/Learners/Learner.o\
-source/smarties/Learners/Learner_pytorch.o\
 source/smarties/Learners/MixedPG.o\
 source/smarties/Learners/NAF.o\
 source/smarties/Learners/PPO.o\
