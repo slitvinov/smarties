@@ -7,7 +7,7 @@
 //
 
 #include "smarties.h"
-#include "../cart_pole_cpp/cart-pole.h"
+#include "../cart_pole_distribAgent/cart-pole.h"
 
 #include <cstdio>
 #define DIFFERENT_MDPS
