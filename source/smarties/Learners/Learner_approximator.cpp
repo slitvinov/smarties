@@ -50,7 +50,7 @@ void Learner_approximator::spawnTrainTasks()
   debugL("Compute the gradients");
   if(settings.bSampleEpisodes)
   {
-    #pragma omp parallel for collapse(2) schedule(dynamic,1) num_threads(nThr)
+    #pragma omp parallel for schedule(dynamic,1) num_threads(nThr)
     for (Uint wID=0; wID<ESpopSize; ++wID)
     for (Uint bID=0; bID<batchSize; ++bID) {
       const Uint thrID = omp_get_thread_num();
@@ -64,7 +64,7 @@ void Learner_approximator::spawnTrainTasks()
   }
   else
   {
-    #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThr)
+    #pragma omp parallel for schedule(static,CS) num_threads(nThr)
     for (Uint wID=0; wID<ESpopSize; ++wID)
     for (Uint bID=0; bID<batchSize; ++bID) {
       const Uint thrID = omp_get_thread_num();
