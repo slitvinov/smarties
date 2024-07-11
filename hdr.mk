@@ -17,7 +17,6 @@ source/smarties/Learners/DPG.h\
 source/smarties/Learners/DQN.h\
 source/smarties/Learners/Learner_approximator.h\
 source/smarties/Learners/Learner.h\
-source/smarties/Learners/Learner_pytorch.h\
 source/smarties/Learners/MixedPG.h\
 source/smarties/Learners/NAF.h\
 source/smarties/Learners/PPO.h\

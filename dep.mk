@@ -177,7 +177,6 @@ source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/DPG.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/DQN.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/Learner_approximator.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/Learner.h
-source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/Learner_pytorch.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/MixedPG.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/NAF.h
 source/smarties/Learners/AlgoFactory.o : source/smarties/Learners/PPO.h
